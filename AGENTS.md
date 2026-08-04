@@ -43,6 +43,42 @@ If the question is "can Specnaut run without the user having an AI harness?" →
 writes files that Claude Code (or Cursor, etc.) reads to operate. The binary's language is an
 installation/distribution concern, not a runtime one.
 
+## Project agnosticism — non-negotiable
+
+**This repository is public OSS. Nothing from any other project may appear in it.** Specnaut is a
+tool that other projects consume; it must never carry traces of the projects it was built from,
+tested against, or inspired by.
+
+Concretely, the following must NEVER be committed here — not in code, docs, specs, commit messages,
+agent/skill definitions, test fixtures, or an `examples/` folder:
+
+- **Names or identifiers of any external project**, product, client, employer, or private repo.
+- **Third-party vendors a project integrates with** — payment processors, feature-flag services,
+  auth providers, analytics, hosting accounts. Naming the vendor reveals the business.
+- **Infrastructure detail from another project** — resource names, hostnames, domains, bucket or
+  database names, cloud project IDs, bastion/VPC/network topology. This is reconnaissance material.
+- **Business material from another project** — backlogs, roadmaps, incident write-ups, agent
+  memories, architecture decisions, pricing, internal issue numbers.
+- **Real config copied from a working setup** — `.claude/` directories, `settings*.json`,
+  environment files. Even without secrets, they expose how a private project is architected.
+
+Rules that follow from this:
+
+- **Never vendor a real project's configuration as reference material.** If a mechanism is worth
+  documenting, describe the _mechanism_ in prose and write a synthetic, obviously-fictional example.
+  Copying a real tree in "temporarily, to extract the pattern" is how leaks happen — the copy
+  outlives the extraction.
+- **Examples and fixtures must be invented.** Use neutral placeholders (`acme`, `example.com`,
+  `my-app`). If an example names a real vendor, that vendor must be one Specnaut itself integrates
+  with, not one a user's project integrates with.
+- **Prior art is described, never named**, unless it is public and its mention is the point (e.g.
+  upstream Spec Kit, Claude Code). "The setup Specnaut was distilled from" is the correct phrasing.
+- **Applies retroactively.** Removing a leak at HEAD is not enough — git history, tags, and PR refs
+  keep it reachable. Treat any such commit as an incident requiring history rewrite, not a revert.
+
+Before committing, a quick self-check: _would this line tell a stranger what an unrelated private
+project is called, who it pays, or how it is built?_ If yes, it does not belong here.
+
 ## Frustrations with upstream Spec Kit
 
 - Manual steps at every transition (no auto-chain)
@@ -65,10 +101,11 @@ installation/distribution concern, not a runtime one.
   GitHub Issues/Project V2 via `gh`. GitLab/Bitbucket in v2+.
 - **Additional harnesses** (Codex, Copilot, Windsurf, OpenCode, Antigravity, …): v0.3+.
 
-## Methodology observed in `examples/` (reference, not to copy verbatim)
+## Methodology Specnaut implements
 
-The `examples/` folder contains a real project where Kevin wired Spec Kit + agents + backlog by hand
-on top of Claude Code. The **agnostic** elements worth keeping:
+Specnaut's design was distilled from a hand-wired Spec Kit + agents + backlog setup that predated
+the tool. Only the **agnostic** mechanisms were kept; everything tied to that setup's stack,
+vendors, or domain was deliberately left out. The mechanisms:
 
 ### 1. Auto-chained Spec Kit pipeline
 
@@ -144,8 +181,8 @@ the artefacts. The agent-file template is repopulated on every feature to give c
 ### 6. What is **project-specific** (to extract and make configurable)
 
 - Tech stack hardcoded in `developer` / `implementer` agents.
-- Domain skills (`adonisjs-v7`, `react`, `tailwind-v4-expert`, `a feature-flag vendor`, `a payment processor`, `a payment processor`,
-  etc.).
+- Domain skills bound to one project's framework, vendors, or business domain — these are exactly
+  what must NOT ship here (see "Project agnosticism" below).
 - Shell hooks (`protect-files.sh`, `auto-format.sh`…).
 - Python/Bash scripts for GitHub sync.
 - The single integration target (Claude Code `.claude/`).
