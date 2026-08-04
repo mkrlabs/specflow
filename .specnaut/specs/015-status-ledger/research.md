@@ -38,10 +38,10 @@ dependency the scaffolded project may not have. The data determinism lives in th
 (unit-tested); the report is a reasoning task well-suited to the lead. Matches the AC's "skill that
 reads and reports".
 
-**Alternatives considered**: ship an `audit_workflow.mjs`-style parser (as the reference project did) — rejected
-for the CLI: runtime-dependency + cross-project portability cost outweighs determinism for a
-read-only human-facing report. (Mechanism-A's hook captures the structured data; the report needn't
-be a program.)
+**Alternatives considered**: ship an `audit_workflow.mjs`-style parser (as the reference project
+did) — rejected for the CLI: runtime-dependency + cross-project portability cost outweighs
+determinism for a read-only human-facing report. (Mechanism-A's hook captures the structured data;
+the report needn't be a program.)
 
 ## Decision 3 — Schema doc + distribution
 

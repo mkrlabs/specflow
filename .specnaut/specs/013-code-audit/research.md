@@ -36,9 +36,9 @@ has no docs-only carve-out). Accessibility deploys iff `FRONTEND_COUNT > 0`. Dep
 `DEP_COUNT > 0`. Every skip is recorded in the report with its reason. Mapping table is
 authoritative in data-model.md.
 
-**Rationale**: Matches the issue's "skip a seat when its category signal is zero" and the the reference project
-default-team behaviour (architecture mandatory; a11y/dep gated on signals). Keeps the audit
-proportional.
+**Rationale**: Matches the issue's "skip a seat when its category signal is zero" and the the
+reference project default-team behaviour (architecture mandatory; a11y/dep gated on signals). Keeps
+the audit proportional.
 
 **Alternatives considered**: deploy all five always — rejected: wastes an accessibility pass on a
 pure-backend scope and dilutes the report (the issue explicitly wants signal-gated seats).
@@ -53,9 +53,9 @@ framing (judge the shape of merged work, not per-line PR review) — the same au
 report + the aggregated `REVIEW SUMMARY`. The parallel-in-one-message rule is stated explicitly (it
 is the SC-003 contract).
 
-**Rationale**: Directly ports the the reference project `/code-audit` orchestration. Reuses the existing auditor
-agents (now emitting the canonical REVIEW SUMMARY from #378), so synthesis parses verdicts/counts
-mechanically rather than from prose.
+**Rationale**: Directly ports the the reference project `/code-audit` orchestration. Reuses the
+existing auditor agents (now emitting the canonical REVIEW SUMMARY from #378), so synthesis parses
+verdicts/counts mechanically rather than from prose.
 
 ## Decision 4 — Bundle inclusion (confirmed manifest-driven from #378)
 
