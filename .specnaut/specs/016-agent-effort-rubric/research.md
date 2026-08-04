@@ -13,10 +13,11 @@ contracts/effort-map.md):
 - **high** (design / higher-order reasoning): ui-ux-designer.
 - **xhigh** (coding / agentic / operates infra): developer, qa-tester, devops-sre.
 
-**Rationale**: Mirrors the reference project's rubric. Orchestrators are fire-and-forget → cheapest; auditors/
-reviewers produce bounded structured findings → medium; design needs more reasoning → high; agents
-that write code across many files / run suites / operate infra → xhigh. The rubric's `architect` and
-`product-manager` entries don't apply — those are monorepo-root agents, not in the CLI bundle.
+**Rationale**: Mirrors the reference project's rubric. Orchestrators are fire-and-forget → cheapest;
+auditors/ reviewers produce bounded structured findings → medium; design needs more reasoning →
+high; agents that write code across many files / run suites / operate infra → xhigh. The rubric's
+`architect` and `product-manager` entries don't apply — those are monorepo-root agents, not in the
+CLI bundle.
 
 **Alternatives considered**: low for the per-axis-scoped auditors — but a bundled auditor agent is a
 single entity serving both the report flow and scoped dispatch; medium is the right single value for

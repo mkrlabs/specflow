@@ -10,9 +10,9 @@ message; (2) resolve the file/commit list for that scope (`--path` = subtree via
 dispatch the ONE matching auditor agent with the scope + an audit framing; (4) return the agent's
 findings inline (it emits REVIEW SUMMARY). No file written.
 
-**Rationale**: Mirrors the reference project's thin `/perf-audit` shape. A single-axis dispatch needs only the
-scope's file/commit list, not the category signals — so no shell script is required and there is
-nothing to unit-test at the bash level. Keeps the five skills genuinely thin.
+**Rationale**: Mirrors the reference project's thin `/perf-audit` shape. A single-axis dispatch
+needs only the scope's file/commit list, not the category signals — so no shell script is required
+and there is nothing to unit-test at the bash level. Keeps the five skills genuinely thin.
 
 **Alternatives considered**: reuse `collect-audit-scope.sh` (#379) for scope resolution — viable for
 `--path`/`--range`/whole, but it emits category signals these skills don't use and lacks `--diff`;

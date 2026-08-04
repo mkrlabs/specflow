@@ -2,11 +2,11 @@
 
 **Feature Branch**: `014-per-axis-audit-skills` **Created**: 2026-06-13 **Status**: Draft **Input**:
 User description: "Per-axis scope-targeted audit-dispatch skills (mechanism B, second shape, of the
-the reference project audit-team port, epic mkrlabs/specflow-monorepo#12). Five thin skills — /arch-audit,
-/sec-audit, /perf-audit, /dep-audit, /a11y-audit — each resolves an optional scope (--path / --range
-/ --diff / whole repo) and dispatches the matching auditor agent, which emits a REVIEW SUMMARY. No
-dated report file (that stays /specflow audit <axis>'s job). Complementary fast, targeted entry
-point."
+the reference project audit-team port, epic mkrlabs/specflow-monorepo#12). Five thin skills —
+/arch-audit, /sec-audit, /perf-audit, /dep-audit, /a11y-audit — each resolves an optional scope
+(--path / --range / --diff / whole repo) and dispatches the matching auditor agent, which emits a
+REVIEW SUMMARY. No dated report file (that stays /specflow audit <axis>'s job). Complementary fast,
+targeted entry point."
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -176,8 +176,8 @@ output.
 - The five auditor agents exist and emit the canonical `REVIEW SUMMARY` (mechanism A / #378,
   merged).
 - These are Claude-Code orchestrator skills: scope resolution + single-agent dispatch are
-  instructions to the lead, mirroring the the reference project `/perf-audit` shape; no shell script is required
-  (scope is resolved with simple git commands described in the skill, or — for
+  instructions to the lead, mirroring the the reference project `/perf-audit` shape; no shell script
+  is required (scope is resolved with simple git commands described in the skill, or — for
   `--path`/`--range`/whole — may reuse the `collect-audit-scope.sh` from #379 if convenient, but the
   file/commit list is all that is needed, not the category signals).
 - Distribution reuses the bundle/manifest path; these are markdown-only skills (no `scripts/`), so

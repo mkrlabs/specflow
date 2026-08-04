@@ -1,12 +1,12 @@
 # Feature Specification: Structured status ledger + `/status-audit` + `/loop` supervision
 
 **Feature Branch**: `015-status-ledger` **Created**: 2026-06-13 **Status**: Draft **Input**: User
-description: "Mechanism C of the the reference project audit-team port (epic mkrlabs/specflow-monorepo#12).
-Enrich the log-subagent hook to capture the machine-readable contract-block fields (from #378) into
-.specnaut/logs/agents.jsonl, add a /status-audit skill that reads the ledger and reports session
-health (blocked / stale / done-but-criteria-unmet / missing-handoffs / verdict summary), document
-the ledger schema, and document the /loop 5m /status-audit supervision pattern for long-running
-headless work."
+description: "Mechanism C of the the reference project audit-team port (epic
+mkrlabs/specflow-monorepo#12). Enrich the log-subagent hook to capture the machine-readable
+contract-block fields (from #378) into .specnaut/logs/agents.jsonl, add a /status-audit skill that
+reads the ledger and reports session health (blocked / stale / done-but-criteria-unmet /
+missing-handoffs / verdict summary), document the ledger schema, and document the /loop 5m
+/status-audit supervision pattern for long-running headless work."
 
 ## User Scenarios & Testing _(mandatory)_
 

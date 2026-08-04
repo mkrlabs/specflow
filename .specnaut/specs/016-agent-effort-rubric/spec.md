@@ -1,11 +1,12 @@
 # Feature Specification: Per-agent `effort` tuning rubric
 
 **Feature Branch**: `016-agent-effort-rubric` **Created**: 2026-06-13 **Status**: Draft **Input**:
-User description: "Mechanism D of the the reference project audit-team port (epic mkrlabs/specflow-monorepo#12).
-Give every bundled agent an explicit `effort:` frontmatter field (low|medium|high|xhigh) per a
-documented rubric — low for pure orchestrators, medium for report-generating auditors/reviewers +
-product-owner, high for design/architecture, xhigh for coding/agentic agents — and add an agents
-README explaining the compound cost/quality rationale. No agent left without `effort:`."
+User description: "Mechanism D of the the reference project audit-team port (epic
+mkrlabs/specflow-monorepo#12). Give every bundled agent an explicit `effort:` frontmatter field
+(low|medium|high|xhigh) per a documented rubric — low for pure orchestrators, medium for
+report-generating auditors/reviewers + product-owner, high for design/architecture, xhigh for
+coding/agentic agents — and add an agents README explaining the compound cost/quality rationale. No
+agent left without `effort:`."
 
 ## User Scenarios & Testing _(mandatory)_
 

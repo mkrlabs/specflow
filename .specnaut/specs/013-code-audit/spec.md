@@ -1,11 +1,11 @@
 # Feature Specification: High-altitude multi-seat parallel audit (`/code-audit`)
 
 **Feature Branch**: `013-code-audit` **Created**: 2026-06-13 **Status**: Draft **Input**: User
-description: "Headline multi-seat parallel audit skill `/code-audit` (mechanism B of the the reference project
-audit-team port, epic mkrlabs/specflow-monorepo#12). A scope-collection script resolves an audit
-scope on `main` and emits category signals; the skill dispatches the relevant auditor agents IN
-PARALLEL, then synthesizes one deduplicated, priority-ranked report with an aggregated REVIEW
-SUMMARY. Read-only; complements /specflow audit <axis>."
+description: "Headline multi-seat parallel audit skill `/code-audit` (mechanism B of the the
+reference project audit-team port, epic mkrlabs/specflow-monorepo#12). A scope-collection script
+resolves an audit scope on `main` and emits category signals; the skill dispatches the relevant
+auditor agents IN PARALLEL, then synthesizes one deduplicated, priority-ranked report with an
+aggregated REVIEW SUMMARY. Read-only; complements /specflow audit <axis>."
 
 ## User Scenarios & Testing _(mandatory)_
 

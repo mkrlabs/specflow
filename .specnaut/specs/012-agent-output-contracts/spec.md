@@ -2,10 +2,10 @@
 
 **Feature Branch**: `012-agent-output-contracts` **Created**: 2026-06-12 **Status**: Draft
 **Input**: User description: "Machine-readable agent output contracts for the Specflow CLI bundled
-fleet (mechanism A from the the reference project audit-team port, epic mkrlabs/specflow-monorepo#12). Add four
-user-invocable:false contract skills to the bundled template set and wire the existing
-auditor/review/qa/developer agents to preload them, so their output carries normalized fenced blocks
-parsable by downstream tooling."
+fleet (mechanism A from the the reference project audit-team port, epic
+mkrlabs/specflow-monorepo#12). Add four user-invocable:false contract skills to the bundled template
+set and wire the existing auditor/review/qa/developer agents to preload them, so their output
+carries normalized fenced blocks parsable by downstream tooling."
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -255,14 +255,14 @@ it.
 
 ## Assumptions
 
-- The contract format is ported faithfully from the proven `the reference project` system; field names and
-  allowed values follow that source unless a Specflow-specific role name differs (e.g. handoff
-  targets are Specflow's agent names).
+- The contract format is ported faithfully from the proven `the reference project` system; field
+  names and allowed values follow that source unless a Specflow-specific role name differs (e.g.
+  handoff targets are Specflow's agent names).
 - Contracts are scoped to the named agent roles, not applied globally — agents outside the wired set
   intentionally produce no blocks.
 - "Preload" is expressed through the existing bundled-agent definition mechanism (a frontmatter
-  declaration on the agent), consistent with how the reference project wires it; the exact field is an
-  implementation detail for the plan.
+  declaration on the agent), consistent with how the reference project wires it; the exact field is
+  an implementation detail for the plan.
 - Distribution reuses Specflow's existing `init` / `upgrade` bundling and the established
   customisation-preservation behaviour (spec 011); this feature adds files to the bundle and does
   not change the upgrade machinery.

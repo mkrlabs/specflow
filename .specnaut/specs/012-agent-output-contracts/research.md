@@ -22,8 +22,8 @@ out of the user-facing skill list while still loadable by agents and discoverabl
 - _Inline the contract text into each agent body_ — rejected: 8 copies of each block schema drift
   apart the first time one is edited; defeats the "single schema both sides agree on" goal (FR-002).
 - _A new bespoke frontmatter field (e.g. `contracts:`)_ — rejected: `skills:` is the established
-  Claude Code preload field and what the reference project uses; inventing a parallel field adds surface for no
-  gain.
+  Claude Code preload field and what the reference project uses; inventing a parallel field adds
+  surface for no gain.
 
 ## Decision 2 — Bundle inclusion and test strategy
 
