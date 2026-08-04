@@ -43,41 +43,39 @@ If the question is "can Specnaut run without the user having an AI harness?" →
 writes files that Claude Code (or Cursor, etc.) reads to operate. The binary's language is an
 installation/distribution concern, not a runtime one.
 
-## Project agnosticism — non-negotiable
+## Consumer agnosticism — non-negotiable
 
-**This repository is public OSS. Nothing from any other project may appear in it.** Specnaut is a
-tool that other projects consume; it must never carry traces of the projects it was built from,
-tested against, or inspired by.
+> **Specnaut is a tool other projects consume. Those projects are none of Specnaut's business.**
 
-Concretely, the following must NEVER be committed here — not in code, docs, specs, commit messages,
-agent/skill definitions, test fixtures, or an `examples/` folder:
+The CLI scaffolds files that a user's harness reads. It never learns what the user builds, who they
+bill, or how they host it — and it never talks to an LLM, so it never sees their code. That
+ignorance is a **property of the product**. This repository has to embody it.
 
-- **Names or identifiers of any external project**, product, client, employer, or private repo.
-- **Third-party vendors a project integrates with** — payment processors, feature-flag services,
-  auth providers, analytics, hosting accounts. Naming the vendor reveals the business.
-- **Infrastructure detail from another project** — resource names, hostnames, domains, bucket or
-  database names, cloud project IDs, bastion/VPC/network topology. This is reconnaissance material.
-- **Business material from another project** — backlogs, roadmaps, incident write-ups, agent
-  memories, architecture decisions, pricing, internal issue numbers.
-- **Real config copied from a working setup** — `.claude/` directories, `settings*.json`,
-  environment files. Even without secrets, they expose how a private project is architected.
+So: **no project that uses Specnaut, was used to design Specnaut, or belongs to whoever is writing
+the commit may leave a trace here.** Not its name. Not the vendors it integrates with — payment
+processors, feature-flag services, auth providers. Not its infrastructure — hostnames, stack names,
+cloud resource identifiers. Not its business material — backlogs, roadmaps, incidents. In code,
+tests, fixtures, docs, specs, commit messages, agent or skill definitions, or an `examples/` folder.
 
-Rules that follow from this:
+Three rules follow:
 
-- **Never vendor a real project's configuration as reference material.** If a mechanism is worth
-  documenting, describe the _mechanism_ in prose and write a synthetic, obviously-fictional example.
-  Copying a real tree in "temporarily, to extract the pattern" is how leaks happen — the copy
-  outlives the extraction.
-- **Examples and fixtures must be invented.** Use neutral placeholders (`acme`, `example.com`,
-  `my-app`). If an example names a real vendor, that vendor must be one Specnaut itself integrates
-  with, not one a user's project integrates with.
-- **Prior art is described, never named**, unless it is public and its mention is the point (e.g.
-  upstream Spec Kit, Claude Code). "The setup Specnaut was distilled from" is the correct phrasing.
-- **Applies retroactively.** Removing a leak at HEAD is not enough — git history, tags, and PR refs
-  keep it reachable. Treat any such commit as an incident requiring history rewrite, not a revert.
+1. **Never vendor a real project's configuration as reference material.** If a mechanism is worth
+   documenting, describe the _mechanism_ and write a synthetic, obviously-fictional example. A copy
+   taken "temporarily, to extract the pattern" outlives the extraction.
+2. **Attribute to nothing.** Write "modeled on a reference setup", never "modeled on `<project>`".
+   The attribution carries no engineering value and names something that does not belong here.
+   Public prior art whose mention is the point — upstream Spec Kit, Claude Code — is the exception.
+3. **Invent your examples.** Neutral placeholders only (`acme`, `example.com`, `my-app`). A real
+   vendor may appear only if Specnaut itself integrates with it — never because a user's project
+   does.
 
-Before committing, a quick self-check: _would this line tell a stranger what an unrelated private
-project is called, who it pays, or how it is built?_ If yes, it does not belong here.
+**The test, before any commit:** _would this line tell a stranger what an unrelated project is
+called, who it pays, or how it is built?_ If yes, it does not belong here.
+
+**A violation is an incident, not a typo.** Removing it at `HEAD` leaves it live in git history,
+tags, and PR refs. It requires a history rewrite — and where releases are immutable, every affected
+version number is burned permanently. This is not hypothetical: it is what happened here, and what
+it cost.
 
 ## Frustrations with upstream Spec Kit
 
