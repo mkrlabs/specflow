@@ -3075,6 +3075,15 @@ severity threshold):
 \`\`\`
 You are running in **audit mode** — full-codebase sweep, not per-PR review.
 
+Before judging any code, load the project's security knowledge base at
+\`.specnaut/memory/security/\`: read \`00-triage.md\` (reachability gate,
+severity rubric, finding format), then \`README.md\`, then every domain file
+its routing table selects for the axes below. On a full sweep that is most
+of them — read them as you reach each axis rather than all at once. Also
+read \`10-language-footguns.md\` once the stack is known. This base is the
+authoritative reference; do not review from memory and do not fetch
+external documentation.
+
 Read-only contract: you MUST NOT call Edit, Write, NotebookEdit, or any tool
 that mutates files. Bash is permitted only for \`git ls-files\`, \`git log\`,
 \`git show\`, \`grep\`, \`rg\`, and dependency-listing commands (\`npm ls\`, \`pip list\`,
@@ -7158,6 +7167,41 @@ color: red
 You are a **security auditor**. You operate in one of two modes depending
 on the dispatch shape.
 
+## Step 0 — load the knowledge base (mandatory, both modes)
+
+This project carries a complete, offline security knowledge base at
+\`.specnaut/memory/security/\`. **You have no reason to review from memory
+and no reason to fetch anything from the network.**
+
+Before writing a single finding:
+
+1. **Read \`.specnaut/memory/security/00-triage.md\`.** It defines the
+   reachability gate, the severity rubric, and the finding format. Skipping
+   it is how a report fills up with unreachable pattern matches.
+2. **Read \`README.md\` in that directory** and use its routing table to pick
+   the domain files that match the scope you were given.
+3. **Read those domain files** before judging code in their area. Each one
+   lists the failure modes, how to *confirm* each is real, the default
+   severity, and the secure pattern to cite in the remediation.
+4. If the stack is known, also read \`10-language-footguns.md\`.
+
+Do not read all of them by reflex — the routing table exists so you load
+two or three, not twelve. But never skip step 1.
+
+**If \`.specnaut/memory/security/\` does not exist** — you were installed as a
+standalone plugin rather than scaffolded into a Specnaut project — fall back
+to the always-check rules below, and say so in one line at the top of your
+report so the reader knows the review ran without the full catalogue.
+
+Cite the file you relied on in the finding's \`Standard\` field alongside the
+OWASP or ASVS reference. If a domain file contradicts anything below, the
+domain file wins: it is the maintained source and this agent definition is
+a summary.
+
+**Absolute rule — never emit a secret value.** When you find a credential,
+report its location and kind only. Never the value, not truncated, not
+partially masked. Recommend rotation at the issuer, not just deletion.
+
 ## Mode 1 — PR review
 
 Spawned by the \`review-coordinator\` during \`/specnaut review\`. Review
@@ -7166,6 +7210,10 @@ used by code-reviewer, followed by the canonical \`REVIEW SUMMARY\` block
 (see "Output format (Mode 1)" below).
 
 ### Always-check rules
+
+The fast pass — run these on every diff regardless of what the routing
+table sent you to. They are the summary; \`.specnaut/memory/security/\`
+carries the confirmation steps and the remediations.
 
 1. **Secrets in source**: any credential, API key, token, or private key
    in the diff is CRITICAL. \`.env\` or \`*.key\` files committed are
@@ -7185,6 +7233,10 @@ used by code-reviewer, followed by the canonical \`REVIEW SUMMARY\` block
 8. **Internal ID exposure**: routes or API responses exposing integer
    primary keys when a UUID/public-ID equivalent exists in the same
    entity are MEDIUM.
+
+Severity above is the **default**, before adjustment. Exposure raises it
+(unauthenticated beats admin-only); a compensating control lowers it. Rank
+by what the attacker actually achieves, per \`00-triage.md\`.
 
 ## Mode 2 — Alert triage
 
@@ -12193,6 +12245,21 @@ the security shape of the scoped code (input validation, authz, secrets,
 injection, SSRF, path traversal, silent error swallowing) — not a per-line
 review.
 
+**Name the knowledge base in the dispatch prompt.** The agent is required
+to read \`.specnaut/memory/security/00-triage.md\` plus the domain files its
+routing table selects, before reporting anything. Say so explicitly rather
+than assuming — an agent that skips the triage gate produces a report full
+of unreachable pattern matches. If the scope is obviously one-sided (a
+migration, an auth module, a CI workflow), name the domain file yourself so
+the agent does not have to guess:
+
+\`\`\`text
+Before judging anything, read .specnaut/memory/security/00-triage.md, then
+README.md, then the domain files its routing table selects for this scope
+(here: 03-injection-and-input.md and 07-data-protection.md). Report using
+the finding format defined in 00-triage.md.
+\`\`\`
+
 ## Step 4 — Return findings inline
 
 Return the agent's findings inline. The \`security-auditor\` ends with the
@@ -12687,6 +12754,2752 @@ continuous supervision of long headless work, use \`/loop 5m /status-audit\`.
     executable: false,
     backend: null,
     skipIfExists: true,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/README.md",
+    content: `# Security knowledge base
+
+Durable, offline security reference for this project. Every file here is
+local — an agent reviewing code never needs network access, and never has an
+excuse to skip the research step.
+
+**Read \`00-triage.md\` first, always.** It is the gate that separates a real
+finding from a pattern match. Then load only the domain file that matches
+what you are looking at.
+
+## Routing table — symptom to file
+
+| What you are looking at | Load |
+|---|---|
+| A route, handler, or query that returns someone's data | \`01-access-control.md\` |
+| Login, signup, password reset, session, token, SSO | \`02-authentication-and-sessions.md\` |
+| Any place user input reaches an interpreter, parser, or the DOM | \`03-injection-and-input.md\` |
+| Hashing, encryption, TLS, keys, tokens, anything named \`*_SECRET\` | \`04-cryptography-and-secrets.md\` |
+| Framework config, env files, headers, cloud permissions, defaults | \`05-configuration-and-hardening.md\` |
+| Manifests, lockfiles, CI workflows, install scripts, CDN tags | \`06-supply-chain-and-integrity.md\` |
+| PII, exports, backups, caches, client-side storage | \`07-data-protection.md\` |
+| Log statements, \`catch\` blocks, error responses, alerting | \`08-logging-and-error-handling.md\` |
+| A feature with no obvious bug that still feels abusable | \`09-design-and-business-logic.md\` |
+| Language-specific footguns once you know the stack | \`10-language-footguns.md\` |
+
+A single finding often spans two files. An unauthenticated endpoint that
+concatenates SQL is both \`01\` and \`03\` — read both and report the more
+severe.
+
+## How the domain files are shaped
+
+Every domain file uses the same five sections, so you can jump straight to
+the one you need:
+
+- **Attack surface** — what an attacker targets here, in one paragraph.
+- **Where to look** — concrete search signatures. Start here; it turns a
+  vague audit into a file list.
+- **Failure modes** — the catalogue. Each entry gives the defect, how it is
+  exploited, **how to confirm it is real**, and a default severity.
+- **Secure patterns** — unsafe/safe pairs to cite in a remediation.
+- **Review checklist** — the pass/fail list to run before signing off.
+
+## Standards this base tracks
+
+- **OWASP Top 10:2025** — the ten categories, mapped onto the domain files
+  above. Three categories were renamed in 2025 and two are new; the old
+  names are a reliable tell that a reference is stale.
+- **OWASP ASVS 5.0** (May 2025) — verification requirements, cited as
+  \`V<chapter>.<section>.<req> [level]\`. **ASVS 5.0 renumbered everything —
+  4.0 IDs do not map onto it.** \`V2.1.1\` meant "password length" in 4.0 and
+  means something else now. Cite 5.0 IDs only.
+
+### OWASP Top 10:2025 to domain file
+
+| # | Category | Domain file |
+|---|---|---|
+| A01 | Broken Access Control | \`01-access-control.md\` |
+| A02 | Security Misconfiguration | \`05-configuration-and-hardening.md\` |
+| A03 | Software Supply Chain Failures *(new)* | \`06-supply-chain-and-integrity.md\` |
+| A04 | Cryptographic Failures | \`04-cryptography-and-secrets.md\` |
+| A05 | Injection | \`03-injection-and-input.md\` |
+| A06 | Insecure Design | \`09-design-and-business-logic.md\` |
+| A07 | Authentication Failures *(renamed)* | \`02-authentication-and-sessions.md\` |
+| A08 | Software or Data Integrity Failures *(renamed)* | \`06-supply-chain-and-integrity.md\` |
+| A09 | Security Logging and Alerting Failures *(renamed)* | \`08-logging-and-error-handling.md\` |
+| A10 | Mishandling of Exceptional Conditions *(new)* | \`08-logging-and-error-handling.md\` |
+
+### ASVS 5.0 chapters
+
+| # | Chapter | # | Chapter |
+|---|---|---|---|
+| V1 | Encoding and Sanitization | V10 | OAuth and OIDC |
+| V2 | Validation and Business Logic | V11 | Cryptography |
+| V3 | Web Frontend Security | V12 | Secure Communication |
+| V4 | API and Web Service | V13 | Configuration |
+| V5 | File Handling | V14 | Data Protection |
+| V6 | Authentication | V15 | Secure Coding and Architecture |
+| V7 | Session Management | V16 | Security Logging and Error Handling |
+| V8 | Authorization | V17 | WebRTC |
+| V9 | Self-contained Tokens | | |
+
+ASVS levels are defined by share of requirements, not by application
+category: **L1** ≈ 20% (minimum bar), **L2** ≈ 50% more (~70% cumulative —
+what most applications should target), **L3** the remaining ~30% (highest
+assurance). Tailor a profile: drop chapters you do not use, start at L1,
+advance on risk.
+
+## Deliberate gaps
+
+- **Dependency CVE triage** is only sketched in \`06\`. The dedicated
+  \`dependency-auditor\` agent owns manifests, advisories, and licences —
+  hand off rather than duplicating its work.
+- **The AI/agentic attack surface** (OWASP LLM Top 10, Agentic Top 10:
+  prompt injection, tool misuse, memory poisoning, excessive agency) is
+  **not covered here**. Add it if this project builds or embeds LLM
+  features.
+- **Runtime and infrastructure security** (container escape, network
+  segmentation, host hardening) is out of scope: this base is for
+  reviewing *source code*.
+
+## Keeping it honest
+
+These files describe mechanisms, never a specific deployment. Do not add
+this project's hostnames, account identifiers, vendor names, or real
+credentials to any file here — a knowledge base is exactly the kind of
+document that gets copied into a public repository. Placeholders only:
+\`example.com\`, \`acme\`, \`my-app\`.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/00-triage.md",
+    content: `# Triage — before you report anything
+
+Read this before every security review. It is short on purpose.
+
+## A pattern match is not a vulnerability
+
+The most common failure mode in automated security review is reporting
+unreachable or already-mitigated code. It is worse than reporting nothing:
+it buries the one real finding under nine false ones, and it trains the
+reader to skim the report.
+
+**Confirm all three before you write a finding.**
+
+### 1. Is the input actually attacker-controlled?
+
+Trace it back to a real entry point — a request parameter, header, cookie,
+uploaded file, webhook body, queue message, or third-party API response.
+
+A value that only ever comes from a constant, an enum, a database column
+the user cannot write, or trusted internal config is **not** an injection
+source. Say so and move on.
+
+### 2. Is the sink reachable with that input?
+
+Look for what already sits between them: validation, an allowlist, an ORM,
+a framework-level control, output encoding by default.
+
+Before flagging a route as missing authorization, look for **centralized
+enforcement** — middleware, a proxy layer, a base controller, route
+decorators, a policy object. Enforcement is far more often centralized than
+per-route, and a per-route grep will report every route in the codebase.
+
+### 3. What is the blast radius?
+
+Who can trigger it, what do they get, and does it cross a trust boundary?
+An SSRF that reaches a cloud metadata endpoint is not the same finding as
+one that can only reach \`localhost\`. An IDOR over public profile data is
+not the same as one over invoices.
+
+## Severity by exploitability, not by pattern
+
+Rank by what an attacker actually achieves, not by how alarming the
+function name looks.
+
+| Severity | Meaning |
+|---|---|
+| **CRITICAL** | Unauthenticated remote attacker gains code execution, admin access, or bulk access to sensitive data. Also: a live credential committed to the repository. |
+| **HIGH** | Authenticated attacker escalates privilege, reaches another tenant's or user's data, or a single-user compromise is straightforward. |
+| **MEDIUM** | Requires unusual conditions, yields limited data, or is a meaningful weakening of defence in depth. |
+| **LOW** | Hardening gap with no demonstrable path to impact today. |
+| **INFO** | Observation worth recording; no action required. |
+
+Two adjustments that matter more than the table:
+
+- **Exposure raises severity.** The same defect is more severe on an
+  unauthenticated public endpoint than behind an admin login.
+- **Compensating controls lower it.** A rate limit, a WAF rule, or a
+  network boundary in front of the defect is part of the assessment — note
+  it explicitly rather than silently ignoring it.
+
+## Say which kind of finding it is
+
+Label every finding as one of:
+
+- **Exploitable** — you can state the concrete path: *this input reaches
+  this sink, and here is what the attacker gets.*
+- **Defence in depth** — no current path to impact, but the control is
+  missing and a future change would expose it.
+- **Undetermined** — reachability cannot be settled from the code
+  available. Say that plainly. Do not assert either way, and do not inflate
+  it to look thorough.
+
+An honest *undetermined* is worth more than a confident guess.
+
+## Finding format
+
+\`\`\`
+FINDING <n> — <one-line title>
+  Severity  : CRITICAL | HIGH | MEDIUM | LOW | INFO
+  Kind      : exploitable | defence-in-depth | undetermined
+  Location  : <path>:<line>
+  Standard  : <OWASP A0X:2025 / ASVS V<n>.<n>.<n> / CWE-nnn>
+  Path      : <entry point> -> <intermediate> -> <sink>
+  Impact    : <what the attacker gets, concretely>
+  Fix       : <the change to make, specific to this code>
+\`\`\`
+
+\`Path\` is the field that makes a finding credible. If you cannot fill it
+in, the finding is \`undetermined\` — mark it as such.
+
+## Rules for the report
+
+1. **Order by severity, not by file order.** The reader stops early.
+2. **One finding per defect**, not one per occurrence. Ten call sites of
+   the same unsafe helper is one finding listing ten locations.
+3. **Every finding gets a fix.** A finding without a remediation is a
+   complaint. Cite the secure pattern from the relevant domain file.
+4. **Never include a real secret value in the report.** Report the
+   location, the kind of credential, and that it must be rotated —
+   never the value itself, not even truncated.
+5. **Report the absence of findings plainly.** "No findings in scope" is a
+   valid, useful result. Do not manufacture LOW findings to look thorough.
+6. **Do not report style, formatting, or non-security refactors.** Other
+   reviewers own those axes.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/01-access-control.md",
+    content: `# Access control
+
+> **Attack surface** — every route, handler, resolver, job, and query that
+> returns or mutates data belonging to someone. The attacker is usually
+> authenticated and legitimate; they simply ask for a resource that is not
+> theirs, or for an operation above their role. Broken access control has
+> been the OWASP #1 category since 2021 and stayed there in 2025, because
+> it is the one class no framework fixes for you.
+>
+> **OWASP** A01:2025 Broken Access Control · **ASVS** V8 (Authorization)
+
+## Where to look
+
+- Route definitions and their decorators/middleware — build the full list
+  first, then diff it against the list that carries an authorization check.
+- Handlers taking an identifier from the request: \`/:id\`, \`?user_id=\`,
+  \`{orgId}\`, a filename, a document key.
+- Every write path: \`POST\`, \`PUT\`, \`PATCH\`, \`DELETE\`, GraphQL mutations,
+  RPC methods, background jobs triggered by user action.
+- Query builders that accept a filter object straight from the request.
+- Admin surfaces: anything named \`admin\`, \`internal\`, \`debug\`, \`ops\`,
+  \`impersonate\`, \`sudo\`, \`su\`.
+- Client-side gating: a hidden button, a disabled field, a role check in
+  the frontend router. Client-side checks are usability, never security.
+- CORS configuration and any response header set to \`*\`.
+
+**Search signatures.** Route tables and their guards; \`req.params\`,
+\`request.args\`, \`params[:id]\` flowing directly into a lookup; \`findById\`,
+\`get_object_or_404\`, \`.get(id)\` without an ownership predicate;
+\`is_admin\`, \`role ==\`, \`hasRole\` compared in the frontend;
+\`Access-Control-Allow-Origin\`.
+
+## Failure modes
+
+### Insecure direct object reference (IDOR / BOLA)
+
+The handler authenticates the caller but then loads the record by the
+identifier the caller supplied, without checking that the record belongs to
+them. Incrementing the ID walks the whole table.
+
+*Exploit* — log in as any user, change \`1042\` to \`1041\`, read the response.
+
+*Confirm* — find the ownership predicate. It must be in the query
+(\`WHERE id = ? AND owner_id = ?\`) or in an explicit check after the load.
+A route that loads first and checks nothing is confirmed. If enforcement is
+in a policy layer or a scoped repository, it is not a finding — verify the
+scoping applies to *this* query.
+
+*Severity* — HIGH; CRITICAL if the data is financial, medical, credential,
+or bulk-enumerable.
+
+### Missing function-level authorization
+
+The route is authenticated but not authorized: any logged-in user can call
+an operation intended for a specific role. Frequently the read path is
+guarded and the corresponding write path is not.
+
+*Confirm* — pair every read route with its write counterpart and compare
+their guards. Asymmetry is the tell.
+
+*Severity* — HIGH; CRITICAL when the operation is administrative.
+
+### Privilege escalation through mass assignment
+
+The handler binds a request body straight onto a model, and the body
+carries a field the user should not control — \`role\`, \`is_admin\`,
+\`org_id\`, \`verified\`, \`balance\`, \`plan\`.
+
+*Confirm* — look for an allowlist of writable fields. Its absence on a
+model that has any privilege-bearing column is confirmed.
+
+*Severity* — CRITICAL when a role or tenancy field is bindable.
+
+### Missing tenant isolation
+
+Multi-tenant data is separated by a filter the application adds, and one
+query path forgets it — a report, an export, an admin tool, a cache key, a
+search index, a webhook replay.
+
+*Confirm* — the tenant predicate must be enforced somewhere structural: a
+scoped connection, a row-level policy, a repository that cannot be bypassed.
+"Every developer remembers to add \`WHERE tenant_id = ?\`" is not isolation.
+
+*Severity* — CRITICAL. Cross-tenant leakage is the worst outcome a
+multi-tenant system has.
+
+### Authorization decided on client-supplied claims
+
+The server trusts a role, tenant, or permission that arrived in the request
+— a header, a body field, a cookie, or an unverified token claim.
+
+*Confirm* — trace the claim to its source. It must come from a server-side
+session lookup or a signature-verified token. See
+\`02-authentication-and-sessions.md\` for token verification.
+
+*Severity* — CRITICAL.
+
+### Path and route bypass
+
+Access control keyed on a string that has more than one spelling:
+case differences, trailing slashes, URL encoding, path traversal segments,
+or an HTTP method the guard did not enumerate (\`HEAD\`, \`OPTIONS\`).
+
+*Confirm* — check whether the guard matches on a normalized path and on all
+methods, or on a raw string.
+
+*Severity* — HIGH.
+
+### CORS misconfiguration
+
+\`Access-Control-Allow-Origin\` reflects the request \`Origin\`, or is \`*\`
+together with \`Access-Control-Allow-Credentials: true\`. Any site the victim
+visits can then read authenticated responses.
+
+*Confirm* — an origin allowlist is required. Reflection plus credentials is
+confirmed; \`*\` without credentials is usually MEDIUM.
+
+*Severity* — HIGH with credentials, MEDIUM without.
+
+### Directory listing and exposed artefacts
+
+Web root serves \`.git/\`, \`.env\`, \`*.bak\`, source maps, or an index listing.
+
+*Severity* — CRITICAL if it exposes source or credentials, MEDIUM otherwise.
+
+## Secure patterns
+
+**Enforce ownership in the query, not after it.**
+
+\`\`\`python
+# UNSAFE — authenticated, but not authorized
+@app.route('/api/user/<user_id>')
+def get_user(user_id):
+    return db.get_user(user_id)
+
+# SAFE — identity from the session, ownership enforced explicitly
+@app.route('/api/user/<user_id>')
+@login_required
+def get_user(user_id):
+    if current_user.id != user_id and not current_user.is_admin:
+        abort(403)
+    return db.get_user(user_id)
+\`\`\`
+
+**Better: make the unsafe query unwriteable.** Scope at the repository or
+connection level so a forgotten predicate is impossible rather than merely
+discouraged.
+
+\`\`\`python
+# The caller cannot express a cross-tenant query
+repo = InvoiceRepository(tenant=current_user.tenant_id)
+invoice = repo.get(invoice_id)   # WHERE id = ? AND tenant_id = ?
+\`\`\`
+
+**Allowlist writable fields.**
+
+\`\`\`ruby
+# UNSAFE — role is bindable
+User.new(params[:user])
+
+# SAFE — explicit allowlist
+User.new(params.require(:user).permit(:name, :email))
+\`\`\`
+
+**Deny by default.** The default for a new route must be "no access", so
+that forgetting a guard fails closed. A framework where an unannotated
+route is public is a design problem worth its own finding.
+
+## Review checklist
+
+- [ ] Authorization is enforced server-side, at a layer the client cannot
+      influence (ASVS 8.3.1)
+- [ ] Function-level access restricted to consumers with explicit
+      permissions (8.2.1)
+- [ ] Data-level access restricted per record — ownership or tenancy
+      checked on every read *and* write (8.2.2)
+- [ ] Deny by default: a route with no explicit rule is inaccessible
+- [ ] Access control implemented once and reused, not re-derived per route
+- [ ] Records fetched by ownership predicate, not by user-supplied ID alone
+- [ ] Writable fields allowlisted; no privilege field is bindable
+- [ ] Tenant isolation is structural, not a convention
+- [ ] CORS uses an origin allowlist; no reflection, no \`*\` with credentials
+- [ ] Directory listing disabled; no source, backups, or dotfiles in the
+      web root
+- [ ] Access-control failures are logged and alert on repetition
+      (see \`08-logging-and-error-handling.md\`)
+- [ ] Sensitive endpoints are rate limited
+      (see \`09-design-and-business-logic.md\`)
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/02-authentication-and-sessions.md",
+    content: `# Authentication and sessions
+
+> **Attack surface** — everything between "an anonymous request arrives" and
+> "the server believes it knows who is calling": login, signup, password
+> reset, MFA, session tokens, self-contained tokens, SSO. The attacker's
+> goal is to become someone else, or to stay them after they should have
+> been logged out.
+>
+> **OWASP** A07:2025 Authentication Failures · **ASVS** V6 (Authentication),
+> V7 (Session Management), V9 (Self-contained Tokens), V10 (OAuth and OIDC)
+
+## Where to look
+
+- The login, logout, signup, password-reset, and email-verification
+  handlers, and anything named \`verify\`, \`confirm\`, \`otp\`, \`magic\`,
+  \`refresh\`, \`impersonate\`.
+- Password hashing: where the stored value is produced and where it is
+  compared.
+- Session creation and destruction; cookie flags; token TTLs.
+- Token verification: signature check, algorithm pinning, expiry,
+  audience, issuer.
+- Any comparison of a secret with \`==\`.
+
+**Search signatures.** \`md5\`, \`sha1\`, \`sha256(password\`, \`hashlib\`,
+\`bcrypt\`, \`argon2\`, \`scrypt\`, \`pbkdf2\`; \`session[\`, \`req.session\`,
+\`set_cookie\`, \`httpOnly\`, \`sameSite\`, \`secure:\`; \`jwt.decode\`,
+\`verify(\`, \`algorithms=\`, \`alg\`, \`none\`; \`Math.random\`, \`rand()\`,
+\`uuid4\` used as a security token; \`password ==\`, \`token ===\`.
+
+## Failure modes
+
+### Weak or reversible password storage
+
+Passwords stored plaintext, encrypted (reversible), or hashed with a fast
+digest — MD5, SHA-1, SHA-256, or any unsalted hash. Fast digests are
+designed for speed, which is exactly what an offline cracker wants.
+
+*Confirm* — the storage function must be a memory-hard or deliberately slow
+KDF: Argon2id, scrypt, bcrypt, or PBKDF2 with a high iteration count. A
+\`sha256(password + salt)\` is still confirmed.
+
+*Severity* — CRITICAL. A database leak becomes a credential leak.
+
+### Timing-unsafe secret comparison
+
+A token, HMAC, or reset code compared with \`==\` / \`===\`. The comparison
+short-circuits on the first differing byte and leaks the correct prefix.
+
+*Confirm* — must use a constant-time comparison
+(\`crypto.timingSafeEqual\`, \`hmac.compare_digest\`, \`hash_equals\`).
+
+*Severity* — MEDIUM in most settings, HIGH when the compared value is a
+long-lived credential and the endpoint is unthrottled.
+
+### Predictable tokens
+
+Session IDs, reset tokens, API keys, or invite codes generated from a
+non-cryptographic source: \`Math.random()\`, \`rand()\`, a timestamp, a
+sequential counter, or a hash of user data.
+
+*Confirm* — must come from a CSPRNG with at least 128 bits of entropy
+(ASVS 7.2.3). A v4 UUID from a CSPRNG-backed implementation qualifies; one
+from a seeded PRNG does not.
+
+*Severity* — CRITICAL for session tokens, HIGH for reset tokens.
+
+### Session not invalidated
+
+Logout clears the client cookie but leaves the server session valid; or the
+session token is not rotated on privilege change; or disabling an account
+leaves its active sessions running.
+
+*Confirm* — logout must destroy server-side state (7.4.1); authentication
+and re-authentication must issue a **new** token (7.2.4); account
+disable/delete must terminate all active sessions (7.4.2).
+
+*Severity* — HIGH. Not rotating on login is session fixation.
+
+### Missing or bypassable MFA
+
+MFA offered but not enforced on the paths that matter, or the second factor
+can be skipped by calling a step directly, or "remember this device" never
+expires.
+
+*Confirm* — the server must reject a request that reaches the post-MFA
+state without having completed the factor. A flow that trusts a client-sent
+\`mfa_completed\` flag is confirmed.
+
+*Severity* — HIGH.
+
+### Account enumeration
+
+The application reveals whether an account exists — different message,
+different status code, or a measurably different response time on login,
+signup, or password reset.
+
+*Confirm* — responses must be identical in body, status, and (to a
+reasonable degree) timing. Sending the reset mail asynchronously is the
+usual fix for the timing half.
+
+*Severity* — MEDIUM alone; it upgrades every credential-stuffing attack.
+
+### No anti-automation on credentials
+
+No rate limit, lockout, or backoff on login, MFA, reset, or token exchange.
+
+*Confirm* — ASVS 6.3.1 requires controls against credential stuffing and
+brute force. Per-account *and* per-IP limits; prefer exponential backoff
+over hard lockout, which is a denial-of-service lever.
+
+*Severity* — HIGH.
+
+### Weak credential recovery
+
+Reset via knowledge-based questions, a short numeric code with no attempt
+limit, a token that does not expire, a token reusable after use, or a reset
+link leaked through the \`Referer\` header.
+
+*Confirm* — single-use, short-TTL, CSPRNG token; invalidate on use and on
+password change; never place it in a URL that a third-party page can read.
+
+*Severity* — CRITICAL — password reset is a full account-takeover path.
+
+### Self-contained token verification flaws
+
+A signed token (JWT or similar) accepted without full verification:
+
+- algorithm taken from the token header, allowing \`none\` or an
+  HMAC/RSA confusion attack — **pin the algorithm server-side**;
+- signature verified but \`exp\`, \`nbf\`, \`aud\`, or \`iss\` not checked;
+- token decoded (\`decode\`) rather than verified (\`verify\`);
+- revocation impossible because the token is long-lived and stateless.
+
+*Confirm* — read the verification call and its options. \`jwt.decode(...)\`
+without a key is confirmed and CRITICAL.
+
+*Severity* — CRITICAL for signature/algorithm flaws, HIGH for missing
+claim checks.
+
+### Insecure cookie flags
+
+Session cookie missing \`HttpOnly\` (readable by injected script),
+\`Secure\` (sent over plaintext), or \`SameSite\` (CSRF exposure).
+
+*Severity* — MEDIUM to HIGH depending on what else is present.
+
+### Default and shipped credentials
+
+A \`root\`, \`admin\`, or \`sa\` account, a seeded password, or a development
+bypass (\`if env != 'production': login_as_admin()\`) reachable in a deployed
+build.
+
+*Severity* — CRITICAL.
+
+## Secure patterns
+
+**Password storage.**
+
+\`\`\`python
+# UNSAFE — fast digest, crackable offline
+hashlib.md5(password.encode()).hexdigest()
+
+# SAFE — memory-hard KDF, salt and parameters embedded in the output
+from argon2 import PasswordHasher
+PasswordHasher().hash(password)
+\`\`\`
+
+**Logout destroys server state.**
+
+\`\`\`python
+@app.route('/logout')
+@login_required
+def logout():
+    session.clear()                       # server-side session gone
+    response = redirect('/')
+    response.delete_cookie('session')     # client copy gone
+    return response
+\`\`\`
+
+**Password policy that matches current guidance** — length over
+composition. Minimum 8 characters, 15+ recommended; no character-class
+rules; allow paste and password managers; verify exactly as received
+without truncation or case folding; block known-breached and top-common
+passwords; **no forced periodic rotation** — rotate on compromise only.
+
+\`\`\`python
+def validate_password(password: str) -> bool:
+    if len(password) < 12:
+        return False
+    if is_breached(password) or password in TOP_COMMON:
+        return False
+    return True
+\`\`\`
+
+**Constant-time comparison.**
+
+\`\`\`php
+// UNSAFE — type juggling and early exit
+if (\$password == \$stored_hash) { ... }
+
+// SAFE — constant time, no coercion
+if (hash_equals(\$stored_hash, \$candidate)) { ... }
+\`\`\`
+
+## Review checklist
+
+- [ ] Passwords hashed with Argon2id / scrypt / bcrypt — never a fast digest
+- [ ] Password minimum 8 characters, 15+ recommended (ASVS 6.2.1); no
+      composition rules (6.2.5); paste and managers permitted (6.2.7)
+- [ ] Verified exactly as received — no truncation, no case change (6.2.8)
+- [ ] Checked against top-3000 common (6.2.4) and a breached set (6.2.12)
+- [ ] No forced periodic rotation (6.2.10)
+- [ ] Anti-automation against stuffing and brute force (6.3.1)
+- [ ] No default \`root\` / \`admin\` / \`sa\` accounts (6.3.2)
+- [ ] MFA available and enforced server-side on sensitive operations (6.3.3)
+- [ ] Session tokens CSPRNG-generated, 128+ bits entropy (7.2.3)
+- [ ] New token issued on authentication and re-authentication (7.2.4)
+- [ ] Session unusable after logout or expiry (7.4.1); all sessions
+      terminated when an account is disabled (7.4.2)
+- [ ] Token verification pins the algorithm and checks \`exp\`/\`aud\`/\`iss\`
+- [ ] Cookies carry \`HttpOnly\`, \`Secure\`, \`SameSite\`
+- [ ] Reset tokens single-use, short-TTL, invalidated on use
+- [ ] Enumeration-resistant responses on login, signup, and reset
+- [ ] Secrets compared in constant time
+- [ ] Authentication events logged, success and failure (ASVS 16.3.1)
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/03-injection-and-input.md",
+    content: `# Injection and input handling
+
+> **Attack surface** — every point where data crosses from the outside world
+> into an interpreter: a database, a shell, a parser, a template engine, a
+> browser DOM, an HTTP client, the filesystem. The defect is always the
+> same shape: **data and instructions share one channel**, so an attacker
+> who controls the data controls the instruction.
+>
+> **OWASP** A05:2025 Injection · **ASVS** V1 (Encoding and Sanitization),
+> V2 (Validation and Business Logic), V5 (File Handling)
+
+## The two principles
+
+1. **Separate the channel.** Parameterized queries, argument arrays instead
+   of shell strings, structured APIs instead of string building. This is the
+   only real fix; escaping is the fallback for when it is impossible.
+2. **Validate positively, server-side.** Allowlist what is acceptable rather
+   than denylisting what is not — a denylist is a bet that you thought of
+   every encoding, and you did not. Client-side validation is usability, not
+   security (ASVS 2.2.2).
+
+## Where to look
+
+- Any string built with concatenation, interpolation, or \`+\` that ends up in
+  \`execute\`, \`query\`, \`raw\`, \`exec\`, \`system\`, \`render\`, \`eval\`.
+- ORM escape hatches: \`raw\`, \`literal\`, \`unsafe\`, \`expr\`, \`whereRaw\`.
+- Template rendering that marks content as trusted HTML.
+- DOM sinks in frontend code.
+- Filesystem calls whose path is built from a request value.
+- HTTP clients whose URL is built from a request value.
+- Deserialization of anything that did not come from your own trusted store.
+- File upload handlers.
+
+**Search signatures.** \`execute(f"\`, \`query("... " +\`, \`\${\` inside SQL;
+\`shell=True\`, \`os.system\`, \`exec(\`, \`eval(\`, \`new Function\`, \`Runtime.exec\`,
+\`child_process.exec\`; \`innerHTML\`, \`outerHTML\`, \`document.write\`,
+\`dangerouslySetInnerHTML\`, \`v-html\`, \`bypassSecurityTrust\`; \`pickle\`,
+\`Marshal.load\`, \`YAML.load\`, \`ObjectInputStream\`, \`BinaryFormatter\`,
+\`unserialize\`; \`path.join(\` with request data, \`../\`; \`requests.get(url\`,
+\`fetch(url\` where \`url\` is user-supplied.
+
+## Failure modes
+
+### SQL injection
+
+User input concatenated into a query. Still the archetype, still present,
+usually in the one query someone wrote by hand because the ORM was awkward.
+
+*Confirm* — the value must reach the driver as a **bound parameter**, not as
+query text. String-building plus manual escaping is confirmed: escaping is
+dialect-specific and gets it wrong on encoding, comments, and numeric
+contexts.
+
+*Severity* — CRITICAL.
+
+### NoSQL / query-object injection
+
+The request body is passed straight into a query document. A JSON body can
+smuggle an operator object where the code expected a string —
+\`{"username": {"\$ne": null}}\` matches every user.
+
+*Confirm* — the type must be validated before use. A route that trusts the
+parsed body's shape is confirmed.
+
+*Severity* — HIGH to CRITICAL depending on whether it bypasses auth.
+
+### OS command injection
+
+User input interpolated into a shell string, or passed to an API that spawns
+a shell.
+
+*Confirm* — the call must pass an **argument array** with the shell
+disabled. \`shell=True\` with any interpolated value is confirmed. Note that
+even an argument array is unsafe if the *program* name is user-controlled.
+
+*Severity* — CRITICAL.
+
+### Dynamic code execution
+
+\`eval\`, \`exec\`, \`new Function\`, \`loadstring\`, \`Code.eval_string\`,
+\`Invoke-Expression\`, or a template engine compiling user input. ASVS 1.3.2
+[L1] says simply: avoid it.
+
+*Severity* — CRITICAL when reachable with user input.
+
+### Server-side template injection
+
+User input rendered *as a template* rather than *into* one. Most engines
+expose object traversal, which turns into code execution.
+
+*Confirm* — the template must be a constant; user data must be a context
+variable. A template string built with interpolation is confirmed.
+
+*Severity* — CRITICAL.
+
+### Cross-site scripting
+
+Untrusted data reaching the browser as markup or script.
+
+- **Stored** — persisted and served to other users. Worst impact.
+- **Reflected** — echoed from the request.
+- **DOM-based** — never touches the server; a client-side sink does it.
+
+*Confirm* — modern frameworks escape by default, so the finding is almost
+always an explicit opt-out: \`dangerouslySetInnerHTML\`, \`v-html\`,
+\`innerHTML\`, \`template.HTML()\`, \`bypassSecurityTrust*\`, \`|safe\`,
+\`raw\`. Check whether the value is sanitized with a real HTML sanitizer
+first. Encoding must match the context — HTML body, attribute, URL, and
+JavaScript contexts each need different encoding (ASVS 1.2.1–1.2.3).
+
+*Severity* — HIGH; CRITICAL if stored and reaching authenticated sessions.
+
+### XML external entity (XXE)
+
+An XML parser left in its default configuration resolves external entities,
+giving file read and often SSRF.
+
+*Confirm* — external entity resolution and DTD processing must be disabled
+(ASVS 1.5.1). Also applies to formats that are XML underneath: SVG uploads,
+office documents, SOAP, some config loaders.
+
+*Severity* — HIGH to CRITICAL.
+
+### Path traversal
+
+A filesystem path built from user input. \`../\` sequences, absolute paths,
+symlinks, or encoded variants escape the intended directory.
+
+*Confirm* — the fix is **normalize, then verify the resolved path is inside
+the allowed root** — not "strip \`../\`", which loses to encoding and to
+\`....//\`. Best is not to accept a path at all: accept an opaque identifier
+and map it server-side.
+
+*Severity* — HIGH; CRITICAL if it reaches a write or a config file.
+
+### Unrestricted file upload
+
+Type trusted from the client, filename used on disk, files stored inside
+the web root, no size limit.
+
+*Confirm* — validate content by inspection rather than by extension or
+\`Content-Type\`; generate the stored name server-side; store outside the web
+root or on a host that cannot execute; cap size and count.
+
+*Severity* — CRITICAL if an uploaded file can be executed or served as
+active content.
+
+### Unsafe deserialization
+
+Deserializing attacker-controlled bytes into objects. Most languages have a
+format that runs code on load — \`pickle\`, \`Marshal\`, \`YAML.load\`,
+\`ObjectInputStream\`, \`BinaryFormatter\`, \`unserialize\`.
+
+*Confirm* — must be a data-only format (JSON) plus schema validation, or a
+type allowlist. Deserializing a signed blob you produced yourself is
+acceptable **only** if the signature is verified before deserialization.
+
+*Severity* — CRITICAL.
+
+### Server-side request forgery (SSRF)
+
+A URL built from user input is fetched by the server, which sits inside the
+network perimeter. Reaches internal services and cloud metadata endpoints.
+
+*Confirm* — an allowlist of hosts or a dedicated egress proxy. Blocklists of
+private ranges lose to DNS rebinding, redirects, and alternate IP encodings,
+so also: resolve first and validate the resolved address, and do not follow
+redirects blindly. **Severity depends on what is reachable** — a metadata
+endpoint that hands out credentials is a different finding from
+\`localhost\`-only.
+
+*Severity* — HIGH to CRITICAL.
+
+### Open redirect
+
+A redirect target taken from the request. Low impact alone; a strong
+phishing primitive, and it chains with OAuth flows.
+
+*Severity* — LOW to MEDIUM alone, HIGH inside an authentication flow.
+
+### Regular-expression denial of service (ReDoS)
+
+A pattern with catastrophic backtracking applied to user input, or a pattern
+built *from* user input.
+
+*Confirm* — nested quantifiers over overlapping character classes. Cap input
+length, use a linear-time engine, or escape user-supplied patterns.
+
+*Severity* — MEDIUM.
+
+### Missing input constraints
+
+No length cap, no range check, no type check. Enables ReDoS, memory
+exhaustion, integer overflow, and downstream truncation bugs.
+
+*Severity* — LOW to MEDIUM alone; often the enabler for something worse.
+
+## Secure patterns
+
+**SQL — parameterize.**
+
+\`\`\`python
+# UNSAFE
+cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+
+# SAFE
+cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+\`\`\`
+
+**Shell — argument array, no shell.**
+
+\`\`\`python
+# UNSAFE
+os.system(f"convert {filename} output.png")
+
+# SAFE
+subprocess.run(["convert", filename, "output.png"], shell=False)
+\`\`\`
+
+**NoSQL — validate the type before it becomes a query.**
+
+\`\`\`javascript
+// UNSAFE — an object body becomes an operator
+db.users.find({ username: req.body.username })
+
+// SAFE — pin the type first
+if (typeof req.body.username !== 'string') throw new Error('bad input');
+db.users.find({ username: req.body.username })
+\`\`\`
+
+**Filesystem — resolve, then verify containment.**
+
+\`\`\`python
+# UNSAFE
+open(os.path.join(UPLOAD_DIR, request.args["name"]))
+
+# SAFE
+target = (UPLOAD_DIR / request.args["name"]).resolve()
+if not target.is_relative_to(UPLOAD_DIR.resolve()):
+    abort(400)
+open(target)
+\`\`\`
+
+**Deserialization — data-only format plus schema.**
+
+\`\`\`python
+# UNSAFE — executes on load
+data = pickle.loads(user_input)
+
+# SAFE
+data = json.loads(user_input)
+validate_schema(data)
+\`\`\`
+
+**Validate positively.**
+
+\`\`\`python
+# UNSAFE — denylist; loses to the encoding you did not think of
+if "<script" in value:
+    abort(400)
+
+# SAFE — allowlist; anything unexpected is rejected by construction
+if not re.fullmatch(r"[a-z0-9_-]{1,32}", value):
+    abort(400)
+\`\`\`
+
+## Review checklist
+
+- [ ] All data access uses parameterized queries, an ORM, or an entity
+      framework (ASVS 1.2.4)
+- [ ] OS calls use parameterized invocation, never a built shell string
+      (1.2.5)
+- [ ] No \`eval()\` or dynamic code execution reachable with user input
+      (1.3.2)
+- [ ] Output encoding matches the context — HTML, attribute, URL,
+      JavaScript/JSON (1.2.1–1.2.3)
+- [ ] XML parsers restrictively configured; external entities disabled
+      (1.5.1)
+- [ ] Input validated against business expectations, allowlist preferred
+      (2.2.1)
+- [ ] Validation enforced at a trusted server-side layer (2.2.2)
+- [ ] Length, type, and range limits enforced on every accepted field
+- [ ] Filesystem paths resolved and verified inside an allowed root
+- [ ] Uploads: content-inspected, server-generated names, stored
+      non-executable, size-capped
+- [ ] No deserialization of untrusted input in a code-executing format
+- [ ] Outbound URLs allowlisted; redirects not followed blindly
+- [ ] Redirect targets validated against an allowlist
+- [ ] Queries that can return many rows are paginated and capped
+- [ ] Language-specific sinks reviewed — see \`10-language-footguns.md\`
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/04-cryptography-and-secrets.md",
+    content: `# Cryptography and secrets
+
+> **Attack surface** — the algorithms protecting data, the keys those
+> algorithms depend on, and the credentials that reach the codebase. Two
+> distinct failure families share this file because they share a root cause:
+> a secret ends up somewhere it can be read, or a construction ends up
+> weaker than it appears.
+>
+> **OWASP** A04:2025 Cryptographic Failures · **ASVS** V11 (Cryptography),
+> V12 (Secure Communication)
+
+## Where to look
+
+- Every call into a crypto library: cipher construction, mode selection,
+  hashing, signing, key derivation, random number generation.
+- TLS configuration: versions, cipher suites, certificate validation,
+  anything that disables verification.
+- Environment files, CI configuration, container manifests, IaC, test
+  fixtures, seed data, committed archives.
+- Git history — a rotated secret removed at \`HEAD\` is still in the history.
+
+**Search signatures.** \`MD5\`, \`SHA1\`, \`DES\`, \`RC4\`, \`ECB\`, \`PKCS1v15\`,
+\`NULL\` cipher; \`Math.random\`, \`rand()\`, \`mt_rand\`, \`Random()\` used for a
+secret; \`verify=False\`, \`rejectUnauthorized: false\`, \`InsecureSkipVerify\`,
+\`ALLOW_ALL_HOSTNAME_VERIFIER\`, \`NODE_TLS_REJECT_UNAUTHORIZED=0\`;
+\`-----BEGIN\`, \`api_key\`, \`apikey\`, \`secret\`, \`token\`, \`passwd\`,
+\`AKIA\`, \`sk_live\`, \`ghp_\`, \`xoxb-\`; \`http://\` on anything that carries data.
+
+## Handling rule — never print a secret
+
+When a credential is found, report **its location and kind only**. Never
+echo the value, not truncated, not partially masked, not "for
+confirmation" — a security report is copied, pasted, and pasted again.
+
+Never run a command whose output dumps a secret store wholesale. Prefer
+existence and length checks:
+
+\`\`\`bash
+# Confirms presence without revealing the value
+test -n "\${MY_TOKEN:-}" && echo "MY_TOKEN: set (\${#MY_TOKEN} chars)"
+\`\`\`
+
+## Failure modes
+
+### Secret committed to the repository
+
+A key, token, password, connection string, or private key in tracked
+source, a \`.env\`, a fixture, a notebook, a lockfile, or the git history.
+
+*Confirm* — decide whether it is **live**. A live production credential is
+CRITICAL and needs rotation, not deletion; a random test fixture is INFO.
+Read the surrounding context, not just the pattern.
+
+*Remediation, in order* — (1) rotate the credential at its issuer, (2)
+remove it from history, (3) move it to a secret manager, (4) add a
+pre-commit scan. Removing at \`HEAD\` alone fixes nothing.
+
+*Severity* — CRITICAL if live, INFO if demonstrably a placeholder.
+
+### Weak or obsolete algorithms
+
+MD5 or SHA-1 for signatures or integrity; DES, 3DES, RC4; RSA keys below
+2048 bits; ECB mode; PKCS#1 v1.5 padding. ASVS 11.3.1 [L1] names ECB and
+PKCS#1 v1.5 explicitly; 11.3.2 [L1] requires approved ciphers and modes
+such as AES-GCM; 11.4.1 [L1] requires approved hash functions for
+signatures, HMAC, KDFs, and random-bit generation.
+
+*Note* — MD5/SHA-1 for a non-security purpose (a cache key, a shard
+selector) is not a finding. Check what the digest is *for*.
+
+*Severity* — HIGH when protecting anything; see
+\`02-authentication-and-sessions.md\` for password hashing specifically.
+
+### Unauthenticated encryption
+
+Encryption without integrity — CBC or CTR with no MAC. The ciphertext can
+be modified undetectably, which enables padding-oracle and bit-flipping
+attacks.
+
+*Confirm* — must be an AEAD mode (GCM, CCM, ChaCha20-Poly1305) or
+encrypt-then-MAC done correctly.
+
+*Severity* — HIGH.
+
+### Insufficient entropy
+
+Keys, IVs, nonces, salts, or tokens from a non-cryptographic RNG; a reused
+nonce with GCM (catastrophic — it breaks confidentiality *and* authenticity
+for that key); a hardcoded IV or salt.
+
+*Confirm* — must be a CSPRNG. Nonces must be unique per key.
+
+*Severity* — CRITICAL for key material and GCM nonce reuse.
+
+### Poor key management
+
+Keys hardcoded, derived from a low-entropy passphrase, checked into
+configuration, shared across environments, never rotated, or with no
+mechanism to rotate them.
+
+*Confirm* — keys should come from a managed secret store or KMS, be
+distinct per environment, and be rotatable without a code change. "We could
+rotate it but every service would break" is a finding.
+
+*Severity* — HIGH.
+
+### Cleartext transmission
+
+Data over HTTP, plain SMTP, FTP, or an unencrypted internal hop. "It is on
+the private network" is not a control.
+
+*Confirm* — TLS 1.2 or 1.3 only (ASVS 12.1.1); TLS on all client-to-service
+connectivity with no insecure fallback (12.2.1); publicly trusted
+certificates on external-facing services (12.2.2).
+
+*Severity* — HIGH; CRITICAL if credentials or personal data are in flight.
+
+### Certificate validation disabled
+
+\`verify=False\`, \`rejectUnauthorized: false\`, \`InsecureSkipVerify\`, a
+trust-all hostname verifier, or a custom trust manager that accepts
+everything. Almost always added to unblock a local environment and then
+shipped.
+
+*Confirm* — check whether it is behind an environment guard, and whether
+that guard can be true in a deployed build.
+
+*Severity* — HIGH; the TLS connection is decorative without it.
+
+### Home-grown cryptography
+
+A custom cipher, a custom token format, XOR "encryption", or encoding
+mistaken for encryption (Base64 is not encryption; nor is ROT13, nor a
+reversible obfuscation).
+
+*Severity* — HIGH.
+
+### Secrets in the wrong places
+
+A credential in a URL or query string (ASVS 14.2.1 forbids sensitive data
+in URLs — they land in logs, proxies, browser history, and \`Referer\`
+headers), in a log line, in an error message, in a client-side bundle, in a
+build argument that persists in an image layer, or in a system prompt.
+
+*Severity* — HIGH.
+
+### Sensitive responses cached
+
+Responses containing personal or authenticated data served without
+\`Cache-Control: no-store\`, so they persist in shared caches and on disk.
+
+*Severity* — MEDIUM.
+
+## Secure patterns
+
+**Authenticated encryption, not raw block modes.**
+
+\`\`\`python
+# UNSAFE — ECB leaks structure and provides no integrity
+cipher = AES.new(key, AES.MODE_ECB)
+
+# SAFE — AEAD: confidentiality and integrity together
+from cryptography.fernet import Fernet
+cipher = Fernet(key)
+\`\`\`
+
+**Config: no secrets, no debug, in the deployed build.**
+
+\`\`\`yaml
+# UNSAFE
+DEBUG=True
+SECRET_KEY="development-key"
+
+# SAFE
+DEBUG=False
+SECRET_KEY="\${SECRET_FROM_MANAGER}"
+ALLOWED_HOSTS=["app.example.com"]
+SECURE_SSL_REDIRECT=True
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+\`\`\`
+
+**Classify before you encrypt.** Decide what is sensitive, then apply
+controls. The cheapest control is not storing it: data you never collected
+cannot leak.
+
+## Review checklist
+
+- [ ] No credential in tracked source, fixtures, CI config, or git history
+- [ ] Secrets loaded from environment or a managed secret store, never
+      literal
+- [ ] Any found live credential is **rotated**, not just deleted
+- [ ] No ECB mode, no PKCS#1 v1.5 padding (ASVS 11.3.1)
+- [ ] Approved ciphers and modes only, e.g. AES-GCM (11.3.2)
+- [ ] Approved hash functions for signatures, HMAC, KDF, RBG (11.4.1)
+- [ ] Encryption is authenticated (AEAD or encrypt-then-MAC)
+- [ ] Keys, IVs, nonces, salts from a CSPRNG; GCM nonces never reused
+- [ ] Keys distinct per environment and rotatable without a code change
+- [ ] TLS 1.2+ only, no insecure fallback (12.1.1, 12.2.1)
+- [ ] Publicly trusted certificates on external services (12.2.2)
+- [ ] Certificate validation enabled everywhere in deployed builds
+- [ ] No sensitive data in URLs or query strings (14.2.1)
+- [ ] No secrets in logs, error messages, client bundles, or image layers
+- [ ] No custom cryptographic constructions
+- [ ] Sensitive responses marked \`no-store\`
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/05-configuration-and-hardening.md",
+    content: `# Configuration and hardening
+
+> **Attack surface** — everything the application is *set to do* rather than
+> coded to do: framework settings, environment flags, response headers,
+> cookie attributes, cloud permissions, exposed surface. Misconfiguration
+> rose to #2 in the 2025 Top 10 because it scales — one wrong default is
+> deployed to every environment at once, and nothing in the code review
+> shows it.
+>
+> **OWASP** A02:2025 Security Misconfiguration · **ASVS** V13
+> (Configuration), V3 (Web Frontend Security), V4 (API and Web Service)
+
+## Where to look
+
+- Framework settings modules and every environment overlay.
+- \`.env\` files and their committed examples — the example is often the
+  production shape with one value changed.
+- Container images, orchestration manifests, and infrastructure-as-code.
+- Web-server and reverse-proxy configuration.
+- Response headers, on a real response rather than in the code that
+  intends to set them.
+- Anything conditional on an environment name.
+
+**Search signatures.** \`DEBUG\`, \`development\`, \`TRACE\`, \`verbose\`,
+\`stacktrace\`; \`Content-Security-Policy\`, \`Strict-Transport-Security\`,
+\`X-Frame-Options\`, \`X-Content-Type-Options\`, \`Referrer-Policy\`;
+\`sameSite\`, \`httpOnly\`, \`secure\`; \`0.0.0.0\`, \`allow_all\`, \`public-read\`,
+\`"*"\` in a policy document; \`if env == 'production'\` and its negations;
+default ports and default admin paths.
+
+## Failure modes
+
+### Debug mode or verbose errors in a deployed build
+
+Debug enabled, an interactive traceback page, a profiler endpoint, or
+stack traces returned to the client. Reveals paths, versions, framework
+internals, sometimes environment variables — and some debug consoles
+execute code.
+
+*Confirm* — check the deployed configuration, not the default in the source.
+
+*Severity* — HIGH; CRITICAL if the debug surface can evaluate code.
+
+### Default credentials and default surface
+
+Shipped accounts, sample applications, admin consoles on a default path,
+management ports bound to all interfaces, unused services enabled.
+
+*Confirm* — ASVS 6.3.2 [L1] requires default accounts to be absent or
+disabled. Minimize the platform: remove features and frameworks you do not
+use (A02 mitigation 2).
+
+*Severity* — CRITICAL for reachable default credentials.
+
+### Missing security headers
+
+- **\`Content-Security-Policy\`** — the meaningful defence-in-depth layer
+  against XSS. Watch for a policy so permissive it does nothing:
+  \`unsafe-inline\`, \`unsafe-eval\`, or a wildcard \`script-src\`.
+- **\`Strict-Transport-Security\`** — without it the first request can be
+  downgraded.
+- **\`X-Content-Type-Options: nosniff\`** — stops MIME sniffing turning an
+  upload into script.
+- **\`X-Frame-Options\`** / \`frame-ancestors\` — clickjacking.
+- **\`Referrer-Policy\`** — stops URLs (and anything in them) leaking to
+  third parties.
+
+*Severity* — MEDIUM individually; HIGH when the application also has an
+injection sink.
+
+### Cross-site request forgery
+
+A state-changing endpoint that authenticates purely from an ambient
+credential — a cookie — with nothing binding the request to the
+application's own origin.
+
+*Confirm* — one of: an anti-CSRF token validated server-side, \`SameSite\`
+cookies (\`Lax\` at minimum, \`Strict\` for sensitive flows), or a scheme where
+the credential is not ambient (an \`Authorization\` header). Also check that
+the endpoint rejects unexpected content types — a form-encoded POST is
+cross-origin-sendable in ways a JSON one is not.
+
+*Severity* — HIGH for account-affecting operations.
+
+### Overly permissive cloud and storage permissions
+
+Object storage readable or writable by anyone, an IAM role with wildcard
+actions or resources, a database reachable from the public internet, a
+security group open to \`0.0.0.0/0\` on an administrative port.
+
+*Confirm* — least privilege: enumerate what the principal actually needs.
+Wildcards in a policy are worth flagging even when the blast radius is
+currently small.
+
+*Severity* — CRITICAL for public write or a wildcard admin role.
+
+### Environment drift
+
+Staging and production diverge, so hardening verified in one is absent in
+the other; or a control is applied by a manual step no one repeats.
+
+*Confirm* — A02 mitigation 1 asks for an automated, repeatable hardening
+process across environments, and mitigation 6 for automated verification.
+Configuration that exists only as an operator's habit is a finding.
+
+*Severity* — MEDIUM to HIGH.
+
+### Unnecessary exposure
+
+Source maps in production, \`.git/\` served, an OpenAPI document exposing
+internal routes, a health endpoint returning versions and dependency
+state, verbose \`Server\` and \`X-Powered-By\` headers, directory listing.
+
+*Severity* — LOW to HIGH depending on what is revealed.
+
+### Dangerous environment guards
+
+Security controls disabled by a condition that can be true where it should
+not be — \`if not PRODUCTION: skip_auth()\`, a bypass keyed on a header, a
+feature flag defaulting to open, a test hook left routable.
+
+*Confirm* — trace how the condition is evaluated in a deployed build. A
+control that depends on an environment variable being set correctly fails
+open when it is unset.
+
+*Severity* — CRITICAL when it disables authentication or authorization.
+
+### Client-side storage of sensitive data
+
+Tokens or personal data in \`localStorage\`, \`sessionStorage\`, or a
+non-\`HttpOnly\` cookie — readable by any injected script — and not cleared
+on logout (ASVS 14.3.1 requires clearing authenticated data from client
+storage on session termination).
+
+*Severity* — MEDIUM to HIGH.
+
+### Missing resource and request limits
+
+No body-size cap, no timeout, no connection limit, no pagination ceiling.
+Cheap denial of service, and often the enabler for a memory-exhaustion bug.
+
+*Severity* — MEDIUM.
+
+## Secure patterns
+
+**Deployed configuration is hardened by default.**
+
+\`\`\`yaml
+# UNSAFE
+DEBUG=True
+SECRET_KEY="development-key"
+
+# SAFE
+DEBUG=False
+SECRET_KEY="\${SECRET_FROM_MANAGER}"
+ALLOWED_HOSTS=["app.example.com"]
+SECURE_SSL_REDIRECT=True
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+\`\`\`
+
+**Fail closed on a missing setting.**
+
+\`\`\`python
+# UNSAFE — an unset variable silently disables the control
+ENFORCE_MFA = os.getenv("ENFORCE_MFA") == "true"
+
+# SAFE — unset means the strict value; misconfiguration is loud
+ENFORCE_MFA = os.getenv("ENFORCE_MFA", "true") != "false"
+\`\`\`
+
+**Verify headers on a response, not in the code.** A header set by
+middleware that never runs on the error path is not set.
+
+## Review checklist
+
+- [ ] Debug, tracebacks, profilers, and debug consoles off in deployed
+      builds
+- [ ] No default accounts or shipped credentials (ASVS 6.3.2)
+- [ ] Unused features, services, ports, and sample apps removed
+- [ ] \`Content-Security-Policy\` present and not neutered by \`unsafe-inline\`
+      or a wildcard \`script-src\`
+- [ ] \`Strict-Transport-Security\`, \`X-Content-Type-Options\`,
+      \`X-Frame-Options\`/\`frame-ancestors\`, \`Referrer-Policy\` set
+- [ ] State-changing endpoints protected against CSRF (token or \`SameSite\`)
+- [ ] Cookies: \`HttpOnly\`, \`Secure\`, \`SameSite\`
+- [ ] Cloud permissions least-privilege; no wildcard actions or resources;
+      no public-write storage
+- [ ] Hardening is automated and identical across environments, and
+      verified automatically
+- [ ] No source maps, \`.git/\`, directory listing, or version-disclosing
+      headers exposed
+- [ ] No environment-conditional bypass of an authentication or
+      authorization control
+- [ ] Security-relevant settings fail closed when unset
+- [ ] Authenticated data cleared from client storage on logout (14.3.1)
+- [ ] Body size, timeout, connection, and pagination limits enforced
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/06-supply-chain-and-integrity.md",
+    content: `# Supply chain and integrity
+
+> **Attack surface** — everything that enters the build without being
+> written by the team: dependencies, base images, actions and plugins,
+> CDN-served assets, downloaded installers, auto-updates. Plus the pipeline
+> that assembles them, which usually holds the most powerful credentials in
+> the organisation. Supply chain became its own Top 10 category in 2025;
+> integrity failures are its sibling.
+>
+> **OWASP** A03:2025 Software Supply Chain Failures ·
+> A08:2025 Software or Data Integrity Failures ·
+> **ASVS** V15 (Secure Coding and Architecture)
+
+> **Hand-off** — per-dependency CVE triage, licence policy, and version
+> currency belong to the \`dependency-auditor\`. This file covers the
+> *shape* of the supply chain: pinning, provenance, pipeline trust, and
+> integrity verification.
+
+## Where to look
+
+- Manifests and lockfiles — and whether the lockfile is committed at all.
+- CI/CD workflow definitions: triggers, permissions, secret exposure,
+  third-party actions and their pinning.
+- Container base images and their tags.
+- Install and bootstrap scripts, especially anything piping a download
+  into a shell.
+- \`<script>\` and \`<link>\` tags pointing at a third-party origin.
+- Post-install and build hooks in package manifests.
+- Auto-update and plugin-loading code paths.
+
+**Search signatures.** \`^\`, \`~\`, \`*\`, \`latest\` in a manifest; a missing
+lockfile; \`curl ... | sh\`, \`wget ... | bash\`; \`uses:\` without a pinned
+commit SHA; \`FROM image:latest\`; \`postinstall\`, \`prepare\`, \`preinstall\`;
+\`<script src="https://\` without \`integrity=\`;
+\`pull_request_target\`, \`permissions:\` blocks, \`secrets.\` in a workflow.
+
+## Failure modes
+
+### Unpinned or floating versions
+
+Ranges (\`^\`, \`~\`, \`*\`, \`latest\`) mean the artefact built today differs from
+the one built tomorrow. A compromised release lands automatically, and the
+build is not reproducible.
+
+*Confirm* — a committed lockfile with integrity hashes largely answers this
+for application code. A library legitimately declares ranges; check what
+kind of project it is before flagging.
+
+*Severity* — MEDIUM; HIGH when there is no lockfile at all.
+
+### Missing integrity verification
+
+Downloaded artefacts used without a checksum or signature check: an
+installer, a binary release, a base image by mutable tag, a third-party
+script tag without Subresource Integrity.
+
+*Confirm* — pin by digest, verify a checksum, or verify a signature. Trust
+on first use, repeated on every build, is not verification.
+
+*Severity* — HIGH.
+
+### Install scripts piped straight into a shell
+
+\`curl … | sh\` in a Dockerfile, CI step, or setup guide. The remote content
+is executed unverified, with whatever privileges the step holds.
+
+*Confirm* — download, verify a pinned checksum, then execute.
+
+*Severity* — HIGH; CRITICAL in a step that holds credentials.
+
+### Dependency confusion and typosquatting
+
+A private package name resolvable from a public registry, so the public one
+wins; or a name one character from a popular package; or a hallucinated
+package name adopted from generated code (an attacker registers invented
+names and waits — **slopsquatting**).
+
+*Confirm* — scoped or namespaced private packages, a registry configuration
+that does not fall back to public for internal scopes, and verification
+that any newly added dependency exists under the intended publisher.
+
+*Severity* — CRITICAL for a resolvable confusion path.
+
+### Over-privileged or injectable pipeline
+
+The pipeline is the highest-value target: it holds signing keys, registry
+credentials, and deploy access.
+
+- Workflows triggered by untrusted contributions that also expose secrets.
+- Untrusted input interpolated into a shell step — a branch name, a PR
+  title, an issue body — which is command injection with the pipeline's
+  privileges.
+- Third-party actions or plugins referenced by mutable tag rather than
+  commit digest.
+- Blanket write permissions where read would do.
+
+*Confirm* — least-privilege permissions, pinning by digest, untrusted input
+passed through the environment rather than interpolated into a command,
+and secrets scoped to the jobs that need them.
+
+*Severity* — CRITICAL.
+
+### Unverified auto-update or plugin loading
+
+The application fetches and executes code at runtime — an update, a plugin,
+a remote configuration that drives behaviour — without verifying a
+signature.
+
+*Confirm* — signature verification against a pinned public key before
+loading, plus an allowlist of sources.
+
+*Severity* — CRITICAL.
+
+### Deserialization of unsigned data across a trust boundary
+
+Serialized state handed to a client and accepted back, or a signed blob
+deserialized *before* the signature is verified. Order matters: verify,
+then deserialize. See \`03-injection-and-input.md\`.
+
+*Severity* — CRITICAL.
+
+### No component inventory
+
+No SBOM and no reliable list of what ships. When an advisory lands, nobody
+can answer "are we affected?" quickly, which is the whole point.
+
+*Severity* — MEDIUM.
+
+### Unused and unmaintained dependencies
+
+Packages declared but unused, or unmaintained for years, or pulling
+transitive trees far larger than the value they provide. Each is attack
+surface with no owner.
+
+*Severity* — LOW to MEDIUM.
+
+## Secure patterns
+
+**Pin exactly, verify integrity, audit.**
+
+\`\`\`bash
+# UNSAFE — resolves to whatever is newest at build time
+npm install some-package
+
+# SAFE — exact version, then verify and audit
+npm install some-package@1.2.3 --save-exact
+npm audit
+npm audit signatures
+\`\`\`
+
+**Commit the lockfile with integrity hashes.**
+
+\`\`\`json
+{
+  "dependencies": {
+    "example-lib": {
+      "version": "4.17.21",
+      "integrity": "sha512-<hash>"
+    }
+  }
+}
+\`\`\`
+
+**Subresource Integrity on third-party assets.**
+
+\`\`\`html
+<!-- UNSAFE — the CDN can change the file under you -->
+<script src="https://cdn.example.com/lib.js"></script>
+
+<!-- SAFE -->
+<script src="https://cdn.example.com/lib.js"
+        integrity="sha384-<hash>"
+        crossorigin="anonymous"></script>
+\`\`\`
+
+**Never interpolate untrusted text into a pipeline shell step.**
+
+\`\`\`yaml
+# UNSAFE — a crafted title executes in the runner
+- run: echo "Building \${{ github.event.pull_request.title }}"
+
+# SAFE — passed as data through the environment
+- run: echo "Building \$TITLE"
+  env:
+    TITLE: \${{ github.event.pull_request.title }}
+\`\`\`
+
+## Review checklist
+
+- [ ] Lockfile committed and used in CI (\`ci\` / \`--frozen-lockfile\`, not a
+      resolving install)
+- [ ] Direct dependencies pinned; integrity hashes present
+- [ ] Base images and third-party actions pinned by digest, not by tag
+- [ ] Downloaded artefacts checksum- or signature-verified before use
+- [ ] No \`curl | sh\` in build, CI, or container steps
+- [ ] Private package names cannot be resolved from a public registry
+- [ ] Newly added dependencies verified to exist under the intended
+      publisher
+- [ ] Third-party script and style tags carry Subresource Integrity
+- [ ] Pipeline permissions least-privilege; secrets scoped per job
+- [ ] No untrusted input interpolated into a pipeline shell command
+- [ ] Auto-update and plugin loading verify a signature before executing
+- [ ] Serialized data crossing a trust boundary is signed, and verified
+      before deserialization
+- [ ] A component inventory (SBOM) is produced and retained
+- [ ] Unused dependencies removed
+- [ ] Advisories monitored continuously — hand CVE triage to the
+      \`dependency-auditor\`
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/07-data-protection.md",
+    content: `# Data protection
+
+> **Attack surface** — the data itself, wherever it comes to rest: the
+> database, backups, exports, caches, search indexes, analytics pipelines,
+> log stores, client storage, and third-party processors. Most of this file
+> is about *copies* — the primary store is usually the best-protected place
+> the data ever sits, and the leak happens somewhere downstream that nobody
+> classified.
+>
+> **ASVS** V14 (Data Protection) · related: A02:2025, A04:2025
+
+## Where to look
+
+- The schema: which columns hold personal, financial, health, or
+  credential data. Build that list before anything else — you cannot
+  protect what you have not classified.
+- Every path that copies data out: export endpoints, report generators,
+  admin tooling, support views, webhooks, ETL jobs, backups, fixtures
+  seeded from real data.
+- Serializers and API response shapes — over-fetching that returns the
+  whole record when the screen needs three fields.
+- Log statements and analytics events near those columns.
+- Caches and search indexes: they rarely inherit the source's access
+  control.
+- Client-side storage and anything sent to a third-party script.
+- Retention and deletion: what happens when a user asks to be erased.
+
+**Search signatures.** Column and field names — \`email\`, \`phone\`, \`dob\`,
+\`ssn\`, \`national_id\`, \`iban\`, \`card\`, \`passport\`, \`address\`, \`salary\`,
+\`diagnosis\`; \`SELECT *\`, \`.toJSON()\`, \`serialize\`, \`dump\`, \`export\`,
+\`download\`, \`report\`; \`localStorage\`, \`sessionStorage\`, \`IndexedDB\`;
+\`Cache-Control\`, \`no-store\`; \`?token=\`, \`?key=\`, \`?email=\` in a URL.
+
+## Failure modes
+
+### Unclassified data
+
+No inventory of what is sensitive, so controls are applied by intuition and
+the newest table gets none.
+
+*Confirm* — A04 mitigation 1 is "classify data by sensitivity, apply
+controls accordingly". Absence of any classification is itself the finding,
+and it is the one that keeps producing others.
+
+*Severity* — MEDIUM as a process finding; it is the root of several HIGHs.
+
+### Collecting or retaining more than needed
+
+Fields captured because they were easy, kept forever because nobody set a
+policy. Data you never collected cannot leak; data you deleted on schedule
+cannot leak later.
+
+*Confirm* — is there a retention period, and is it enforced by something
+that runs? A documented policy with no job behind it is not enforcement.
+
+*Severity* — MEDIUM.
+
+### Over-fetching in API responses
+
+The endpoint returns the full record — internal flags, other users'
+identifiers, password hashes, soft-deleted rows — and the client renders a
+subset. The data is in the response regardless of what the UI shows.
+
+*Confirm* — read the serializer, not the screen. An explicit field
+allowlist per response is the control.
+
+*Severity* — MEDIUM to HIGH depending on the fields.
+
+### Sensitive data in URLs
+
+Identifiers, tokens, or personal data in a path or query string. ASVS
+14.2.1 [L1] requires sensitive data to travel in the body or headers.
+URLs land in access logs, proxy logs, browser history, bookmarks, and the
+\`Referer\` header sent to third parties.
+
+*Severity* — HIGH for credentials, MEDIUM for identifiers.
+
+### Sensitive data in logs
+
+Request bodies, headers, tokens, or personal fields written to logs — often
+by a generic "log the whole request" helper, or by an exception handler
+dumping context. Log stores usually have broader access than the database.
+
+*Confirm* — redaction must happen at the logging layer, so it cannot be
+forgotten at a call site. See \`08-logging-and-error-handling.md\`.
+
+*Severity* — HIGH.
+
+### Downstream copies without the source's controls
+
+A cache, search index, vector store, analytics warehouse, or read replica
+holding sensitive data with weaker access control than the primary — the
+classic confused deputy. Search indexes are the frequent offender because
+they are built to be queried broadly.
+
+*Confirm* — a derived store must carry the same classification and the same
+access control as its source, enforced **at query time**.
+
+*Severity* — HIGH; CRITICAL if it crosses tenants.
+
+### Non-production environments holding real data
+
+Staging, development, or test databases seeded from a production dump.
+Same data, a fraction of the controls, far broader access.
+
+*Confirm* — anonymised or synthetic data. A "scrubbed" copy that keeps
+emails or identifiers intact is not anonymised.
+
+*Severity* — HIGH.
+
+### Missing encryption at rest
+
+Backups, exports, object storage, and disk volumes unencrypted — or
+encrypted with a key stored beside the data.
+
+*Severity* — MEDIUM to HIGH; a key next to the ciphertext is HIGH.
+
+### Data sent to third parties
+
+Analytics, error reporting, session replay, and support widgets receiving
+more than they need. Session replay in particular captures form fields
+unless explicitly masked.
+
+*Confirm* — check what is masked and what the vendor's default is; defaults
+tend to capture everything.
+
+*Severity* — HIGH for personal data leaving without a control.
+
+### Deletion that does not delete
+
+An erasure request clears the primary row but leaves the data in backups,
+logs, caches, indexes, exports, and third-party processors — with no
+process to reach them.
+
+*Confirm* — a documented, executable path for every copy identified above.
+
+*Severity* — MEDIUM to HIGH.
+
+### Sensitive data cached client-side
+
+Authenticated responses without \`Cache-Control: no-store\`, or personal data
+in \`localStorage\` that survives logout. ASVS 14.3.1 [L1] requires
+authenticated data to be cleared from client storage on session
+termination.
+
+*Severity* — MEDIUM.
+
+## Secure patterns
+
+**Allowlist response fields.**
+
+\`\`\`python
+# UNSAFE — the whole record ships, UI hides some of it
+return jsonify(user.to_dict())
+
+# SAFE — explicit projection
+return jsonify({"id": user.public_id, "name": user.name})
+\`\`\`
+
+**Redact centrally, not per call site.**
+
+\`\`\`python
+REDACT = {"password", "token", "authorization", "card", "ssn"}
+
+def safe(payload: dict) -> dict:
+    return {k: ("[REDACTED]" if k.lower() in REDACT else v)
+            for k, v in payload.items()}
+
+logger.info("request", extra=safe(request_body))
+\`\`\`
+
+**Do not put identifiers in the URL.**
+
+\`\`\`
+# UNSAFE — lands in logs, history, Referer
+GET /reset?token=<secret>&email=user@example.com
+
+# SAFE
+POST /reset      {"token": "<secret>"}
+\`\`\`
+
+**Expose opaque identifiers.** Sequential primary keys leak volume and
+enable enumeration; a public UUID or slug for external references costs
+little. Where an entity already has a public identifier, returning the
+integer key instead is a finding.
+
+## Review checklist
+
+- [ ] Sensitive fields inventoried and classified
+- [ ] Collection minimised; retention defined **and enforced by a job**
+- [ ] API responses project an explicit field allowlist
+- [ ] No sensitive data in URLs or query strings (ASVS 14.2.1)
+- [ ] Logs redact credentials and personal data at the logging layer
+- [ ] Caches, indexes, replicas, and warehouses carry the source's
+      classification and enforce access control at query time
+- [ ] Non-production environments use anonymised or synthetic data
+- [ ] Backups, exports, and object storage encrypted; keys held separately
+- [ ] Third-party scripts and processors receive only what they need;
+      session replay masks input fields
+- [ ] Erasure reaches every copy — backups, logs, caches, indexes,
+      processors
+- [ ] Authenticated responses \`no-store\`; client storage cleared on logout
+      (14.3.1)
+- [ ] External references use opaque identifiers, not sequential keys
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/08-logging-and-error-handling.md",
+    content: `# Logging and error handling
+
+> **Attack surface** — two failures that share a file because they share a
+> moment: what the system does when something goes wrong. Bad error
+> handling *creates* the vulnerability — a check that fails open, a
+> traceback handed to the attacker. Bad logging *hides* it — the intrusion
+> happens and nobody ever knows. 2025 added "Mishandling of Exceptional
+> Conditions" as its own category and renamed the logging category to
+> include **alerting**, because logs nobody reads are not a control.
+>
+> **OWASP** A09:2025 Security Logging and Alerting Failures ·
+> A10:2025 Mishandling of Exceptional Conditions ·
+> **ASVS** V16 (Security Logging and Error Handling)
+
+> **ASVS note** — V16 has **no Level 1 requirements**. The entire chapter
+> starts at L2, so an L1-only application is not required to log security
+> events at all. Do not cite a V16 requirement as an L1 failure.
+
+## Where to look
+
+- Every \`catch\` / \`except\` / \`rescue\` block, and what it does on the
+  failure path.
+- Global error handlers and what they return to the client.
+- Authorization and authentication helpers — specifically their behaviour
+  when the check itself throws.
+- Log statements near credentials, request bodies, and personal data.
+- Whether logs leave the machine, and whether anything alerts on them.
+
+**Search signatures.** \`except: pass\`, \`catch {}\`, \`catch (e) {}\`,
+\`rescue nil\`, \`.catch(() => {})\`, \`on error resume next\`;
+\`return True\` / \`return true\` inside an exception handler;
+\`str(e)\`, \`e.message\`, \`printStackTrace\`, \`traceback\` in a response;
+\`console.log(req\`, \`logger.info(payload\`, \`log(JSON.stringify(\`.
+
+## Failure modes
+
+### Fail-open on a security check
+
+An exception in an authorization, authentication, signature, or rate-limit
+check is caught and treated as success. The single most dangerous pattern
+in this file: an attacker who can make the check *fail* gets access, and
+making a remote dependency fail is often easy.
+
+*Confirm* — read every exception path in a security decision. It must
+deny. A \`try\` that returns a permissive default is confirmed regardless of
+how unlikely the exception looks.
+
+*Severity* — CRITICAL.
+
+### Silent exception swallowing
+
+A \`catch\` that neither logs nor re-throws. Errors vanish, including the
+ones that are an attack in progress, and the code continues on state it
+believes is valid.
+
+*Confirm* — a genuinely expected condition handled deliberately (a cache
+miss, an optional parse) with a comment saying so is fine. An empty handler
+around an operation whose failure matters is confirmed.
+
+*Severity* — MEDIUM to HIGH depending on what the swallowed failure guards.
+
+### Internal detail returned to the client
+
+Stack traces, SQL fragments, file paths, framework versions, internal
+hostnames, or raw exception messages in an HTTP response. Free
+reconnaissance, and occasionally the whole exploit.
+
+*Confirm* — ASVS 16.5.1 [L2] requires a generic message to the consumer;
+detail stays in the log. The pairing that works is a generic message plus a
+correlation identifier the user can quote.
+
+*Severity* — MEDIUM; HIGH when it reveals credentials or query structure.
+
+### Inconsistent error responses enabling enumeration
+
+Different messages, status codes, or response times for "not found" versus
+"not permitted" versus "wrong password". The difference is the oracle.
+
+*Severity* — MEDIUM; see also \`02-authentication-and-sessions.md\`.
+
+### Security events not logged
+
+No record of authentication attempts, authorization failures, privilege
+changes, password or MFA changes, administrative actions, or high-value
+transactions. Detection and forensics are both impossible.
+
+*Confirm* — ASVS 16.3.1 [L2] all authentication operations, success and
+failure; 16.3.2 [L2] failed authorization (**at L3, all authorization
+decisions**); 16.3.4 [L2] unexpected errors and security control failures.
+
+*Severity* — MEDIUM to HIGH.
+
+### Logs without usable metadata
+
+Entries missing when, where, who, and what — no timestamp on a synchronised
+clock, no request or trace identifier, no actor. Unjoinable, so unusable
+during an incident.
+
+*Confirm* — ASVS 16.2.1 [L2] and 16.2.2 [L2].
+
+*Severity* — MEDIUM.
+
+### Sensitive data written to logs
+
+Passwords, tokens, session identifiers, card or personal data in log lines
+— usually from a blanket request logger or an exception handler dumping
+context. Log stores routinely have broader access than the database, so
+this widens exposure rather than merely duplicating it.
+
+*Confirm* — ASVS 16.2.5 [L2]. Redaction must be at the logging layer.
+
+*Severity* — HIGH.
+
+### Log injection
+
+Unencoded user input written into a log. Newlines forge entries; control
+characters and terminal escapes corrupt viewers; structured-log fields can
+be spoofed by injecting the delimiter.
+
+*Confirm* — ASVS 16.4.1 [L2] requires encoding to prevent log injection.
+Structured logging with real field encoding is the durable fix.
+
+*Severity* — MEDIUM.
+
+### Logs local, unprotected, or unmonitored
+
+Logs only on the box that produced them, writable by the application that
+writes them, with no alerting. An attacker with a foothold edits them; and
+nothing fires in the meantime.
+
+*Confirm* — ASVS 16.4.2 [L2] protected from unauthorized access and
+modification; 16.4.3 [L2] shipped to a logically separate system for
+analysis and alerting. A09's own test is blunt: **does a penetration test
+trigger an alert?** If not, the alerting is not real.
+
+*Severity* — MEDIUM to HIGH.
+
+### Resource exhaustion and cascading failure
+
+No timeout, no retry budget, no circuit breaker on an external dependency.
+One slow dependency exhausts the pool; retry storms amplify an outage into
+an availability incident an attacker can trigger deliberately.
+
+*Confirm* — timeouts everywhere, bounded retries with backoff and jitter,
+a circuit breaker on remote calls, graceful degradation.
+
+*Severity* — MEDIUM.
+
+### Incomplete rollback and error-path races
+
+A failure midway through a multi-step operation leaves partial state — a
+charge without an order, a granted permission without an audit row. Error
+paths also get the least concurrency testing, so TOCTOU bugs concentrate
+there.
+
+*Confirm* — transactional boundaries, or idempotent compensation. A05/A10
+guidance is explicit: test error paths as thoroughly as the happy path.
+
+*Severity* — MEDIUM to HIGH.
+
+## Secure patterns
+
+**Fail closed.**
+
+\`\`\`python
+# UNSAFE — an exception grants access
+def check_permission(user, resource):
+    try:
+        return auth_service.check(user, resource)
+    except Exception:
+        return True
+
+# SAFE — deny, and record why
+def check_permission(user, resource):
+    try:
+        return auth_service.check(user, resource)
+    except Exception as e:
+        logger.error(f"Auth check failed: {e}")
+        return False
+\`\`\`
+
+**Generic message out, detail in the log, correlation identifier both
+ways.**
+
+\`\`\`python
+# UNSAFE — internals to the client
+@app.errorhandler(Exception)
+def handle_error(e):
+    return str(e), 500
+
+# SAFE
+@app.errorhandler(Exception)
+def handle_error(e):
+    error_id = uuid.uuid4()
+    logger.exception(f"Error {error_id}: {e}")
+    return {"error": "An error occurred", "id": str(error_id)}, 500
+\`\`\`
+
+**Log security events with structure and actor.**
+
+\`\`\`python
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s %(name)s %(message)s',
+    level=logging.INFO,
+)
+logger = logging.getLogger('security')
+
+@app.route('/login', methods=['POST'])
+def login():
+    user = authenticate(request.form['username'], request.form['password'])
+    if user:
+        logger.info("LOGIN_SUCCESS user=%s ip=%s", user.id, request.remote_addr)
+        return redirect('/dashboard')
+    logger.warning("LOGIN_FAILURE user=%s ip=%s",
+                   request.form['username'], request.remote_addr)
+    return "Invalid credentials", 401
+\`\`\`
+
+Note the parameterised form rather than an f-string: the logging layer
+encodes the values, which is also what prevents log injection.
+
+## Review checklist
+
+- [ ] Every security decision fails **closed** on exception
+- [ ] No empty \`catch\` around an operation whose failure matters
+- [ ] Generic error message to the consumer; detail stays in the log
+      (ASVS 16.5.1)
+- [ ] Correlation identifier links the user-facing error to the log entry
+- [ ] Error responses consistent enough not to be an enumeration oracle
+- [ ] Authentication operations logged, success and failure (16.3.1)
+- [ ] Failed authorization logged (16.3.2)
+- [ ] Unexpected errors and security control failures logged (16.3.4)
+- [ ] Entries carry when/where/who/what on a synchronised clock
+      (16.2.1, 16.2.2)
+- [ ] Sensitive data handled per its protection level in logs (16.2.5)
+- [ ] Log data encoded against injection (16.4.1)
+- [ ] Logs protected from modification (16.4.2) and shipped off-box
+      (16.4.3)
+- [ ] Alerting exists and actually fires — a penetration test should
+      trigger it
+- [ ] Timeouts, bounded retries with backoff, and circuit breakers on
+      external calls
+- [ ] Multi-step operations roll back or compensate completely
+- [ ] Error paths covered by tests, not just the happy path
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/09-design-and-business-logic.md",
+    content: `# Design and business logic
+
+> **Attack surface** — the features themselves. Every defect in this file is
+> reachable by making perfectly well-formed requests in an order or at a
+> rate nobody planned for. No payload, no malformed input, nothing a
+> scanner detects. **Insecure design cannot be fixed by a perfect
+> implementation** — the control was never specified, so there is nothing to
+> implement correctly.
+>
+> **OWASP** A06:2025 Insecure Design · **ASVS** V2.3 (Business Logic)
+
+## Why this is the hardest file to use
+
+The other files give you signatures to grep. This one does not, because
+the defect is the *absence* of something. The only method that works is to
+read a feature and ask what an attacker would do with it if they were
+patient, automated, and had a thousand accounts.
+
+Four questions per feature:
+
+1. **What if this runs a million times?** Rate, cost, volume.
+2. **What if the steps happen out of order, or one is skipped?**
+3. **What if two of these run at exactly the same moment?**
+4. **Who pays when it goes wrong, and can the attacker make that happen?**
+
+## Where to look
+
+- Multi-step flows: checkout, onboarding, verification, approval,
+  refund, cancellation, transfer.
+- Anything that costs money, sends a message, or consumes a quota on each
+  invocation.
+- Anything with a numeric quantity, price, discount, balance, or credit.
+- Anything with a state machine, explicit or implied by boolean columns.
+- Invitations, referrals, trials, coupons, free tiers.
+- Operations that touch a shared counter or balance.
+
+## Failure modes
+
+### No rate limiting on an expensive or sensitive operation
+
+Login, password reset, verification-code entry, search, export, report
+generation, file conversion, outbound email or SMS, any paid third-party
+call. Unlimited attempts break authentication controls; unlimited cost
+becomes denial of wallet.
+
+*Confirm* — limits must be **server-side and per-identity** — per account,
+per IP, and per API key as appropriate. A client-side debounce is not a
+limit. Check the reset path specifically: it is the most commonly forgotten.
+
+*Severity* — HIGH on authentication paths, MEDIUM to HIGH elsewhere
+depending on cost.
+
+### Business-flow steps skippable or reorderable
+
+A flow assumed to run in order — cart, then payment, then fulfilment;
+upload, then scan, then publish — where a later step can be called
+directly. The skipped step is usually the one that validates or charges.
+
+*Confirm* — ASVS 2.3.1 [L1] requires business logic flows to execute in the
+expected sequential order without skipped steps. Server-side state must
+enforce the sequence; a hidden form field, a wizard step number, or a
+client-held flag does not.
+
+*Severity* — HIGH to CRITICAL when the skipped step is payment,
+verification, or approval.
+
+### Client-supplied values that should be server-derived
+
+Price, quantity, discount, currency, tax, tier, expiry, or role arriving in
+the request and used as-is. The classic is a negative quantity turning a
+purchase into a credit.
+
+*Confirm* — the server must look up authoritative values and validate
+ranges. Also check the boundaries: zero, negative, very large, and
+non-integer where an integer is assumed.
+
+*Severity* — CRITICAL for anything financial.
+
+### Race conditions on shared state
+
+Two concurrent requests both pass a check before either commits: a coupon
+redeemed twice, a balance withdrawn twice, a one-per-account limit
+exceeded, a seat double-booked. Any read-then-write without atomicity.
+
+*Confirm* — an atomic conditional update, a transaction at the right
+isolation level, a lock, or a database constraint. A uniqueness constraint
+is the most durable answer because it cannot be forgotten at a call site.
+
+*Severity* — HIGH; CRITICAL where money or entitlements are involved.
+
+### Missing idempotency
+
+A retry, double-click, or webhook redelivery repeats the effect: a second
+charge, a duplicate order, a repeated payout. Networks retry by design, so
+this fires without an attacker.
+
+*Confirm* — an idempotency key, or a natural uniqueness constraint on the
+operation.
+
+*Severity* — MEDIUM to HIGH.
+
+### Trusting an unverified callback
+
+A webhook or redirect from a payment, identity, or messaging provider
+accepted without verifying its signature, or a client-side success redirect
+treated as proof the operation succeeded.
+
+*Confirm* — verify the provider's signature server-side, and confirm the
+outcome by querying the provider rather than trusting the callback body.
+
+*Severity* — CRITICAL for payment and identity callbacks.
+
+### Unbounded resource consumption
+
+No pagination ceiling, no export row cap, no upload size limit, no
+recursion depth limit, no query timeout. One request consumes what the
+system needed for everyone.
+
+*Confirm* — A06 mitigation 6: limit resource consumption per user and per
+service.
+
+*Severity* — MEDIUM.
+
+### Missing tenant or resource isolation in the design
+
+Quotas, connection pools, worker queues, or caches shared such that one
+tenant's load or one tenant's data affects another. Distinct from the
+access-control failure in \`01\`: here the isolation was never designed, so
+there is no check to have forgotten.
+
+*Severity* — HIGH.
+
+### Abusable incentives
+
+Referral bonuses, trials, free credits, or promotions with no
+self-referral check, no per-person limit, no identity verification, and no
+review of aggregate behaviour. Not a memory-safety bug; still a direct
+financial loss.
+
+*Confirm* — A06 mitigation 4 asks for fraud controls designed in. Absence
+of any anti-abuse control on a feature that grants value is the finding.
+
+*Severity* — MEDIUM to HIGH.
+
+### No threat model
+
+No record of what this system is protecting, from whom, and which controls
+answer which threat. Every finding above becomes ad hoc, and coverage is
+whatever the last reviewer happened to think of.
+
+*Confirm* — A06 mitigations 1–4: a secure development lifecycle, a library
+of secure design patterns, threat modelling for authentication, access
+control, and critical business flows, and security requirements written
+into user stories.
+
+*Severity* — MEDIUM as a process finding.
+
+## Secure patterns
+
+**Rate limit, validate, and answer uniformly.**
+
+\`\`\`python
+# UNSAFE — unlimited, and it confirms which accounts exist
+@app.route('/password-reset', methods=['POST'])
+def password_reset():
+    send_reset_email(request.form['email'])
+    return "Email sent"
+
+# SAFE — limited, validated, enumeration-resistant, constant-ish timing
+@app.route('/password-reset', methods=['POST'])
+@limiter.limit("3 per hour")
+def password_reset():
+    email = request.form['email']
+    if not is_valid_email_format(email):
+        abort(400)
+    send_reset_email_async(email)          # same timing either way
+    return "If account exists, email was sent"
+\`\`\`
+
+**Derive value server-side.**
+
+\`\`\`python
+# UNSAFE — the client sets the price
+total = request.json["price"] * request.json["quantity"]
+
+# SAFE — authoritative lookup, validated range
+product = catalog.get(request.json["product_id"])
+qty = request.json["quantity"]
+if not isinstance(qty, int) or not 1 <= qty <= product.max_per_order:
+    abort(400)
+total = product.price_cents * qty
+\`\`\`
+
+**Make the race impossible rather than unlikely.**
+
+\`\`\`sql
+-- UNSAFE — check then write; two requests both pass the check
+SELECT remaining FROM coupons WHERE code = \$1;    -- app compares > 0
+UPDATE coupons SET remaining = remaining - 1 WHERE code = \$1;
+
+-- SAFE — atomic conditional update; the second request affects 0 rows
+UPDATE coupons SET remaining = remaining - 1
+WHERE code = \$1 AND remaining > 0
+RETURNING remaining;
+\`\`\`
+
+## Review checklist
+
+- [ ] Rate limits on authentication, reset, verification, search, export,
+      and every paid outbound call — server-side, per identity
+- [ ] Multi-step flows enforce order and completeness server-side
+      (ASVS 2.3.1)
+- [ ] Prices, quantities, tiers, and roles derived server-side, never
+      trusted from the request
+- [ ] Numeric inputs range-checked, including zero, negative, and overflow
+- [ ] Read-then-write on shared state made atomic, or backed by a
+      constraint
+- [ ] Repeatable operations are idempotent
+- [ ] Provider callbacks signature-verified; outcomes confirmed
+      server-to-server
+- [ ] Pagination, export, upload, recursion, and query limits capped
+- [ ] Tenant isolation designed into quotas, pools, queues, and caches
+- [ ] Value-granting features carry anti-abuse controls
+- [ ] Critical flows have a threat model, and its controls are traceable to
+      requirements
+- [ ] Abuse cases are tested, not just the happy path
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/security/10-language-footguns.md",
+    content: `# Language footguns
+
+> **Attack surface** — the constructs a given language makes easy that are
+> unsafe by default. Load this **after** you know the stack, to turn a
+> generic review into a targeted one. These are starting points, not
+> coverage: every language has deeper quirks than one section can hold.
+
+## How to use this file
+
+Read the section for the stack, grep the **watch for** list, then check
+each hit against \`00-triage.md\` before writing anything down. A hit is a
+place to look, not a finding.
+
+## The mindset for a language not listed here
+
+When you meet an unfamiliar stack, work down these ten questions — they
+generate the watch-list you do not have:
+
+1. **Memory model** — managed or manual? Where can lifetime go wrong?
+2. **Type system** — weak typing invites type-confusion and coercion bugs.
+3. **Serialization** — every language has a \`pickle\` equivalent. All are
+   dangerous on untrusted input.
+4. **Concurrency** — which races, TOCTOU, and atomicity failures does this
+   threading model make easy?
+5. **FFI boundaries** — native interop is where type safety stops.
+6. **Standard library** — historic CVEs cluster in URL, XML, and crypto
+   helpers.
+7. **Package ecosystem** — typosquatting, dependency confusion, install
+   hooks.
+8. **Build system** — build scripts execute; they are an injection target.
+9. **Runtime differences** — debug versus release behaviour (overflow
+   checks, assertions, error verbosity).
+10. **Error handling** — how does it fail? Silently? With a stack trace?
+    Open or closed?
+
+---
+
+## JavaScript / TypeScript
+
+**Main risks** — prototype pollution, XSS, \`eval\` injection.
+
+\`\`\`javascript
+// UNSAFE: prototype pollution
+Object.assign(target, userInput)
+// SAFE: null-prototype target, or validate keys
+Object.assign(Object.create(null), validated)
+
+// UNSAFE
+eval(userCode)
+// SAFE: never eval user input
+\`\`\`
+
+**Watch for** — \`eval()\`, \`new Function\`, \`innerHTML\`, \`outerHTML\`,
+\`document.write()\`, \`dangerouslySetInnerHTML\`, \`__proto__\`,
+\`constructor.prototype\`, \`child_process.exec\`, \`vm\` module,
+\`JSON.parse\` on untrusted input feeding a merge.
+
+TypeScript types are erased at runtime: a value typed \`string\` can be an
+object at the boundary. Validate at the edge.
+
+---
+
+## Python
+
+**Main risks** — pickle deserialization, format-string injection, shell
+injection.
+
+\`\`\`python
+# UNSAFE: pickle is RCE on untrusted input
+pickle.loads(user_data)
+# SAFE
+json.loads(user_data)
+
+# UNSAFE
+query = "SELECT * FROM users WHERE name = '%s'" % user_input
+# SAFE
+cursor.execute("SELECT * FROM users WHERE name = %s", (user_input,))
+\`\`\`
+
+**Watch for** — \`pickle\`, \`marshal\`, \`shelve\`, \`yaml.load\` (use
+\`safe_load\`), \`eval()\`, \`exec()\`, \`os.system()\`, \`subprocess(..., shell=True)\`,
+\`.format()\` on a user-controlled format string, \`tarfile.extractall\`
+(path traversal), \`assert\` used as a security check (stripped under \`-O\`).
+
+---
+
+## Java
+
+**Main risks** — deserialization RCE, XXE, JNDI injection.
+
+\`\`\`java
+// UNSAFE: arbitrary deserialization
+ObjectInputStream ois = new ObjectInputStream(userStream);
+Object obj = ois.readObject();
+
+// SAFE: typed JSON binding
+ObjectMapper mapper = new ObjectMapper();
+mapper.readValue(json, SafeClass.class);
+\`\`\`
+
+**Watch for** — \`ObjectInputStream\`, \`Runtime.exec()\`,
+\`ProcessBuilder\` with a built string, XML parsers without XXE hardening,
+JNDI lookups on user input, expression-language evaluation, reflection
+driven by user input.
+
+---
+
+## C#
+
+**Main risks** — deserialization, SQL injection, path traversal.
+
+\`\`\`csharp
+// UNSAFE: BinaryFormatter is RCE
+BinaryFormatter bf = new BinaryFormatter();
+object obj = bf.Deserialize(stream);
+
+// SAFE
+var obj = JsonSerializer.Deserialize<SafeType>(json);
+\`\`\`
+
+**Watch for** — \`BinaryFormatter\`, \`JavaScriptSerializer\`, \`LosFormatter\`,
+\`TypeNameHandling.All\`, raw SQL strings, \`Path.Combine\` with user input
+(an absolute second argument discards the first), XML resolvers.
+
+---
+
+## PHP
+
+**Main risks** — type juggling, file inclusion, object injection.
+
+\`\`\`php
+// UNSAFE: loose comparison in an auth path
+if (\$password == \$stored_hash) { ... }
+// SAFE
+if (hash_equals(\$stored_hash, \$candidate)) { ... }
+
+// UNSAFE: file inclusion
+include(\$_GET['page'] . '.php');
+// SAFE: allowlist
+\$allowed = ['home', 'about'];
+include(in_array(\$page, \$allowed, true) ? "\$page.php" : 'home.php');
+\`\`\`
+
+**Watch for** — \`==\` where \`===\` is meant, \`include\`/\`require\` with user
+input, \`unserialize()\`, \`extract()\`, \`preg_replace\` with the \`/e\`
+modifier, \`\$\$variable\`, superglobals used unfiltered.
+
+---
+
+## Go
+
+**Main risks** — data races, template injection, unchecked bounds.
+
+\`\`\`go
+// UNSAFE: data race
+go func() { counter++ }()
+// SAFE
+atomic.AddInt64(&counter, 1)
+
+// UNSAFE: bypasses contextual escaping
+template.HTML(userInput)
+// SAFE: let html/template escape it
+{{.UserInput}}
+\`\`\`
+
+**Watch for** — goroutine data races (run the race detector),
+\`template.HTML\` / \`template.JS\` / \`template.URL\` conversions,
+\`text/template\` used for HTML output, the \`unsafe\` package, ignored
+\`error\` returns, unchecked slice indexing.
+
+---
+
+## Ruby
+
+**Main risks** — mass assignment, YAML deserialization, regex DoS.
+
+\`\`\`ruby
+# UNSAFE: mass assignment
+User.new(params[:user])
+# SAFE: strong parameters
+User.new(params.require(:user).permit(:name, :email))
+
+# UNSAFE: YAML can instantiate objects
+YAML.load(user_input)
+# SAFE
+YAML.safe_load(user_input)
+\`\`\`
+
+**Watch for** — \`YAML.load\`, \`Marshal.load\`, \`eval\`, \`send\`/\`public_send\`
+with user input, \`.permit!\`, \`constantize\` on user input, \`%r\` patterns
+built from user input, \`^\`/\`\$\` anchors where \`\\A\`/\`\\z\` were meant.
+
+---
+
+## Rust
+
+**Main risks** — \`unsafe\` blocks, FFI boundaries, release-mode integer
+overflow.
+
+\`\`\`rust
+// CAUTION: unsafe opts out of the guarantees
+unsafe { ptr::read(user_ptr) }
+
+// CAUTION: overflow panics in debug, wraps in release
+let x: u8 = 255;
+let y = x + 1;                       // 0 in release
+// SAFE
+let y = x.checked_add(1).unwrap_or(255);
+\`\`\`
+
+**Watch for** — \`unsafe\` blocks, FFI declarations, \`.unwrap()\` /
+\`.expect()\` on untrusted input (denial of service via panic), integer
+overflow in release builds, \`mem::transmute\`.
+
+---
+
+## Swift
+
+**Main risks** — force unwrapping, Objective-C interop.
+
+\`\`\`swift
+// UNSAFE: crashes on untrusted data
+let value = jsonDict["key"]!
+// SAFE
+guard let value = jsonDict["key"] else { return }
+
+// UNSAFE: user input as a format string
+String(format: userInput, args)
+\`\`\`
+
+**Watch for** — force unwrap \`!\`, \`try!\`, Objective-C bridging,
+\`NSSecureCoding\` misuse, keychain accessibility set too permissively.
+
+---
+
+## Kotlin
+
+**Main risks** — null-safety bypass via Java interop, serialization.
+
+\`\`\`kotlin
+// UNSAFE: platform type from Java can be null
+val len = javaString.length
+// SAFE
+val len = javaString?.length ?: 0
+\`\`\`
+
+**Watch for** — platform types from Java interop, the \`!!\` operator,
+reflection driven by user input, Java serialization inherited through
+interop.
+
+---
+
+## C / C++
+
+**Main risks** — buffer overflow, use-after-free, format string.
+
+\`\`\`c
+// UNSAFE
+char buf[10]; strcpy(buf, userInput);
+// SAFE (still check truncation)
+strncpy(buf, userInput, sizeof(buf) - 1);
+
+// UNSAFE
+printf(userInput);
+// SAFE
+printf("%s", userInput);
+\`\`\`
+
+**Watch for** — \`strcpy\`, \`strcat\`, \`sprintf\`, \`gets\`, \`alloca\`,
+pointer arithmetic on attacker-influenced offsets, manual \`free\` paths,
+signed/unsigned confusion, integer overflow before an allocation.
+
+---
+
+## Scala
+
+**Main risks** — XXE, Java-inherited serialization, non-exhaustive
+matching.
+
+\`\`\`scala
+// UNSAFE: XXE
+val xml = XML.loadString(userInput)
+// SAFE: disable external entities
+val factory = SAXParserFactory.newInstance()
+factory.setFeature(
+  "http://xml.org/sax/features/external-general-entities", false)
+\`\`\`
+
+**Watch for** — XML parsing, \`Serializable\` via Java interop,
+non-exhaustive pattern matches on untrusted input.
+
+---
+
+## R
+
+**Main risks** — code injection, path manipulation.
+
+\`\`\`r
+# UNSAFE
+eval(parse(text = user_input))
+# SAFE: never parse user input as code
+
+# UNSAFE
+read.csv(paste0("data/", user_file))
+# SAFE
+if (grepl("^[a-zA-Z0-9]+\\\\.csv\$", user_file)) read.csv(...)
+\`\`\`
+
+**Watch for** — \`eval()\`, \`parse()\`, \`source()\`, \`system()\`,
+\`file.path\` built from user input.
+
+---
+
+## Perl
+
+**Main risks** — regex injection, two-argument \`open\`, taint bypass.
+
+\`\`\`perl
+# UNSAFE: user-supplied pattern
+\$input =~ /\$user_pattern/;
+# SAFE
+\$input =~ /\\Q\$user_pattern\\E/;
+
+# UNSAFE: two-arg open interprets mode characters
+open(FILE, \$user_file);
+# SAFE
+open(my \$fh, '<', \$user_file);
+\`\`\`
+
+**Watch for** — two-arg \`open()\`, patterns from user input, backticks,
+\`eval\`, taint mode disabled.
+
+---
+
+## Shell (Bash)
+
+**Main risks** — command injection, word splitting, globbing.
+
+\`\`\`bash
+# UNSAFE: word splitting and globbing
+rm \$user_file
+# SAFE
+rm -- "\$user_file"
+
+# UNSAFE
+eval "\$user_command"
+\`\`\`
+
+**Watch for** — unquoted variable expansions, \`eval\`, backticks and
+\`\$( )\` containing user input, missing \`set -euo pipefail\`, \`IFS\` left at
+its default while parsing untrusted text, a variable used as a command
+name, missing \`--\` before user-controlled arguments.
+
+---
+
+## Lua
+
+**Main risks** — sandbox escape, \`loadstring\` injection.
+
+\`\`\`lua
+-- UNSAFE
+loadstring(user_code)()
+-- SAFE: restricted environment, no io/os/debug
+\`\`\`
+
+**Watch for** — \`loadstring\`, \`load\`, \`loadfile\`, \`dofile\`,
+\`os.execute\`, the \`io\` and \`debug\` libraries reachable from a sandbox.
+
+---
+
+## Elixir
+
+**Main risks** — atom exhaustion, code injection.
+
+\`\`\`elixir
+# UNSAFE: atoms are never garbage collected
+String.to_atom(user_input)
+# SAFE
+String.to_existing_atom(user_input)
+
+# UNSAFE
+Code.eval_string(user_input)
+\`\`\`
+
+**Watch for** — \`String.to_atom\`, \`Code.eval_string\`,
+\`:erlang.binary_to_term\` without \`[:safe]\`, public ETS tables.
+
+---
+
+## Dart / Flutter
+
+**Main risks** — insecure local storage, platform-channel data.
+
+\`\`\`dart
+// UNSAFE: plaintext on device
+prefs.setString('auth_token', token);
+// SAFE
+secureStorage.write(key: 'auth_token', value: token);
+\`\`\`
+
+**Watch for** — secrets in shared preferences, unvalidated platform
+channel payloads, \`Function.apply\`, secrets compiled into the bundle
+(a shipped app is readable).
+
+---
+
+## PowerShell
+
+**Main risks** — command injection, execution-policy bypass.
+
+\`\`\`powershell
+# UNSAFE
+Invoke-Expression \$userInput
+
+# UNSAFE
+Get-Content \$userPath
+# SAFE: validate the resolved path is inside an allowed root
+\`\`\`
+
+**Watch for** — \`Invoke-Expression\`, \`& \$userVar\`, \`Start-Process\` with
+user-built arguments, \`-ExecutionPolicy Bypass\`, \`ConvertTo-SecureString\`
+with a plaintext key.
+
+---
+
+## SQL (all dialects)
+
+**Main risks** — injection, privilege escalation, bulk exfiltration.
+
+\`\`\`sql
+-- UNSAFE: concatenation
+"SELECT * FROM users WHERE id = " + userId
+
+-- SAFE: prepared statement, always
+\`\`\`
+
+**Watch for** — dynamic SQL inside stored procedures,
+\`EXECUTE IMMEDIATE\`, \`sp_executesql\` with a built string, broad \`GRANT\`s,
+application accounts holding DDL rights, missing row limits on queries
+that can return the whole table.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
   },
   {
     category: "spec-root",
@@ -16503,6 +19316,274 @@ prompt above. Examples:
 
 Each loop iteration runs the entire prompt, so keep it focused — long
 prompts cost more tokens and drift out of relevance.
+`,
+      executable: false,
+    },
+    ".claude/claude-security-guidance.md": {
+      content: `# Security guidance for this repository
+
+Loaded automatically by the \`security-guidance\` plugin as extra context for
+its model-backed reviews (end-of-turn diff review and commit review). It is
+additive: it sharpens the built-in checklist, it cannot switch parts of it
+off.
+
+> **Not installed?** \`/plugin install security-guidance@claude-plugins-official\`,
+> then \`/reload-plugins\`. To turn it on for everyone who clones this repo,
+> add \`"enabledPlugins": {"security-guidance@claude-plugins-official": true}\`
+> to \`.claude/settings.json\`. Without the plugin this file is inert — the
+> \`security-auditor\` agent and \`/sec-audit\` still work, and read the same
+> knowledge base.
+
+## The full knowledge base lives in the repo
+
+Do not review from memory when you can read the source of truth.
+\`.specnaut/memory/security/\` holds the complete catalogue — failure modes,
+confirmation steps, severities, and secure patterns, organised by attack
+surface:
+
+| Looking at | Read |
+|---|---|
+| routes, ownership, tenancy, roles | \`01-access-control.md\` |
+| login, sessions, tokens, reset | \`02-authentication-and-sessions.md\` |
+| user input reaching an interpreter or the DOM | \`03-injection-and-input.md\` |
+| hashing, TLS, keys, credentials | \`04-cryptography-and-secrets.md\` |
+| framework config, headers, cloud permissions | \`05-configuration-and-hardening.md\` |
+| manifests, lockfiles, CI, CDN tags | \`06-supply-chain-and-integrity.md\` |
+| PII, exports, caches, retention | \`07-data-protection.md\` |
+| \`catch\` blocks, error responses, logging | \`08-logging-and-error-handling.md\` |
+| rate limits, flows, races, pricing | \`09-design-and-business-logic.md\` |
+| language-specific sinks | \`10-language-footguns.md\` |
+
+\`.specnaut/memory/security/00-triage.md\` defines the severity rubric and
+the finding format. Use them rather than inventing your own.
+
+## Before reporting: confirm reachability
+
+A pattern match is not a vulnerability. Reporting unreachable code buries
+the real findings. Confirm all three:
+
+1. **Is the input attacker-controlled?** Trace it to a real entry point — a
+   parameter, header, cookie, upload, webhook, or third-party response. A
+   constant, an enum, or trusted config is not an injection source.
+2. **Is the sink reachable?** Look for validation, an allowlist, an ORM, or
+   framework-level encoding already in the path. Before flagging a route as
+   unauthorized, check for **centralized** enforcement — middleware, a base
+   controller, decorators, a policy layer.
+3. **What is the blast radius?** Who triggers it, what do they get, does it
+   cross a trust boundary?
+
+State the concrete path — *this input reaches this sink*. Say explicitly
+when a finding is defence-in-depth rather than exploitable, and say
+"undetermined" when reachability cannot be settled from the code available.
+An honest undetermined beats a confident guess.
+
+## Non-negotiable rules for this repository
+
+These are the ones worth re-prompting over. Everything else, use judgement.
+
+1. **Never report a secret's value.** If a credential is found, report its
+   location and kind only — never the value, not truncated, not masked.
+   Recommend rotation at the issuer, not just deletion: removing it at
+   \`HEAD\` leaves it in history.
+2. **Security decisions fail closed.** Any \`catch\` around an authorization,
+   authentication, signature, or rate-limit check must deny. A permissive
+   default in an exception handler is CRITICAL regardless of how unlikely
+   the exception looks.
+3. **Never trust identity or authorization from the request.** Roles,
+   tenant identifiers, permissions, and prices come from server-side state,
+   never from a header, body field, or unverified token claim.
+4. **Ownership is enforced in the query.** A record fetched by a
+   user-supplied identifier needs an ownership or tenancy predicate in the
+   query itself, not a check the next developer may forget.
+5. **Data reaches interpreters as parameters, never as text.** Parameterized
+   queries, argument arrays with the shell disabled, constant templates.
+   Manual escaping is a finding, not a fix.
+6. **No dynamic code execution on user input.** \`eval\`, \`new Function\`,
+   \`exec\`, template compilation of user data.
+7. **No deserialization of untrusted input in a code-executing format.**
+   Verify a signature *before* deserializing, never after.
+8. **Generic errors out, detail in the log.** No stack traces, SQL
+   fragments, internal paths, or raw exception messages in a response.
+9. **Redact at the logging layer.** Credentials, tokens, and personal data
+   must not reach logs — enforced centrally, not per call site.
+10. **New third-party code is pinned and verified.** Exact versions, a
+    committed lockfile, digests for images and CI actions, Subresource
+    Integrity for CDN assets. Never \`curl … | sh\`.
+
+## Applies to generated and edited files alike
+
+Scaffolded templates, fixtures, examples, and documentation snippets are
+reviewed on the same terms. A vulnerable example is copied into production
+by someone eventually, and an example is exactly what gets copied.
+
+## Keep this file free of specifics
+
+Do not add real hostnames, account identifiers, vendor names, or
+credentials here. Describe the mechanism and use placeholders —
+\`example.com\`, \`acme\`, \`my-app\`. This file is checked in, and a security
+guidance document is precisely the kind of file that gets shared.
+
+## Adding to this file
+
+Project-specific rules belong here in plain language — the reviewer reads
+them as additional context. Keep the combined guidance under 8 KB, which is
+the plugin's cap across all scopes. Deterministic string and regex rules
+belong in \`.claude/security-patterns.yaml\` instead. Personal overrides that
+should not be committed go in
+\`.claude/claude-security-guidance.local.md\` (add it to \`.gitignore\`).
+`,
+      executable: false,
+    },
+    ".claude/security-patterns.yaml": {
+      content: `# Deterministic per-edit security patterns.
+#
+# Read by the \`security-guidance\` plugin after every Edit/Write. Pure string
+# and regex matching — no model call, no token cost. Each rule fires once per
+# file per session, and the \`reminder\` is appended to Claude's context.
+#
+# These are ADDITIVE to the plugin's built-in patterns (which already cover
+# eval / new Function / os.system / child_process.exec, pickle,
+# dangerouslySetInnerHTML / .innerHTML / document.write, and edits under
+# .github/workflows/). Built-ins cannot be removed from here.
+#
+# IMPORTANT — the YAML form requires PyYAML to be importable by the Python the
+# plugin uses. The plugin does NOT install it, and silently ignores this file
+# when the import fails. If your rules never fire, either install PyYAML or
+# rename this file to \`security-patterns.json\` with the same schema, which
+# works on any Python install.
+#
+# Schema: rule_name, reminder (<=1KB), regex OR substrings, optional paths /
+# exclude_paths globs (prefix project-relative globs with \`**/\`). Max 50 rules.
+# Deep guidance lives in \`.specnaut/memory/security/\`; keep reminders to one
+# actionable sentence and point at the file that explains the rest.
+
+patterns:
+  - rule_name: tls_verification_disabled
+    substrings:
+      - "verify=False"
+      - "rejectUnauthorized: false"
+      - "rejectUnauthorized:false"
+      - "InsecureSkipVerify"
+      - "NODE_TLS_REJECT_UNAUTHORIZED"
+    reminder: >-
+      Certificate validation is being disabled — the TLS connection becomes
+      decorative and is trivially machine-in-the-middled. If this is only for
+      local development, confirm it cannot be true in a deployed build. See
+      .specnaut/memory/security/04-cryptography-and-secrets.md
+
+  - rule_name: credential_literal_prefix
+    substrings:
+      - "sk_live_"
+      - "AKIA"
+      - "ghp_"
+      - "xoxb-"
+      - "-----BEGIN RSA PRIVATE KEY"
+      - "-----BEGIN OPENSSH PRIVATE KEY"
+      - "-----BEGIN PRIVATE KEY"
+    reminder: >-
+      This looks like a real credential written into source. Load it from the
+      environment or a secret manager instead. If it was ever committed, it
+      must be ROTATED at the issuer — deleting it at HEAD leaves it in git
+      history. Never echo the value back, not even truncated. See
+      .specnaut/memory/security/04-cryptography-and-secrets.md
+
+  - rule_name: weak_hash_for_secret
+    regex: "(?i)(md5|sha1)\\\\s*\\\\([^)]*(pass|pwd|secret|token|key|credential)"
+    reminder: >-
+      A fast digest is being applied to a secret. Passwords need a memory-hard
+      KDF (Argon2id, scrypt, bcrypt); integrity needs SHA-256 or better.
+      MD5/SHA-1 for a non-security purpose such as a cache key is fine. See
+      .specnaut/memory/security/02-authentication-and-sessions.md
+
+  - rule_name: shell_true
+    substrings:
+      - "shell=True"
+      - "shell: true"
+    reminder: >-
+      Spawning through a shell turns any interpolated value into command
+      injection. Pass an argument array with the shell disabled. See
+      .specnaut/memory/security/03-injection-and-input.md
+
+  - rule_name: unsafe_deserialization
+    substrings:
+      - "yaml.load("
+      - "YAML.load("
+      - "Marshal.load"
+      - "ObjectInputStream"
+      - "BinaryFormatter"
+      - "unserialize("
+      - "binary_to_term"
+    reminder: >-
+      This deserializer can instantiate arbitrary objects and is remote code
+      execution on untrusted input. Use a data-only format plus schema
+      validation (yaml.safe_load, JSON), or verify a signature BEFORE
+      deserializing. See .specnaut/memory/security/03-injection-and-input.md
+
+  - rule_name: weak_cipher_mode
+    substrings:
+      - "MODE_ECB"
+      - "AES/ECB"
+      - "PKCS1v15"
+      - "DES.new"
+      - "RC4"
+    reminder: >-
+      Weak cipher mode or padding. ECB leaks plaintext structure and provides
+      no integrity; PKCS#1 v1.5 is padding-oracle prone. Use an AEAD mode such
+      as AES-GCM (ASVS 11.3.1, 11.3.2). See
+      .specnaut/memory/security/04-cryptography-and-secrets.md
+
+  - rule_name: non_crypto_random_for_token
+    regex: "(?i)(token|secret|nonce|salt|otp|session[_-]?id|api[_-]?key)\\\\s*[=:].{0,40}(Math\\\\.random|mt_rand|[^a-z_]rand\\\\(\\\\))"
+    reminder: >-
+      Security value generated from a non-cryptographic RNG. Use a CSPRNG with
+      at least 128 bits of entropy (ASVS 7.2.3). See
+      .specnaut/memory/security/02-authentication-and-sessions.md
+
+  - rule_name: fail_open_on_exception
+    regex: "(?s)except[^\\\\n]*:\\\\s*\\\\n\\\\s*return\\\\s+True|catch\\\\s*\\\\([^)]*\\\\)\\\\s*\\\\{\\\\s*return\\\\s+true"
+    reminder: >-
+      An exception handler returns a permissive value. If this guards an
+      authorization, authentication, signature, or rate-limit decision it is a
+      CRITICAL fail-open — an attacker who can make the check throw gets
+      access. Security decisions must deny on error. See
+      .specnaut/memory/security/08-logging-and-error-handling.md
+
+  - rule_name: empty_catch_block
+    regex: "except[^\\\\n]*:\\\\s*\\\\n\\\\s*pass|catch\\\\s*\\\\([^)]*\\\\)\\\\s*\\\\{\\\\s*\\\\}|rescue\\\\s+nil"
+    reminder: >-
+      Exception swallowed without logging or re-throwing. If this failure ever
+      matters, the code continues on state it believes is valid and an attack
+      in progress leaves no trace. Log it or let it propagate. See
+      .specnaut/memory/security/08-logging-and-error-handling.md
+
+  - rule_name: install_script_piped_to_shell
+    regex: "(curl|wget)[^\\\\n|]*\\\\|\\\\s*(sudo\\\\s+)?(ba)?sh"
+    reminder: >-
+      Remote content is being executed unverified with this step's privileges.
+      Download, verify a pinned checksum or signature, then execute. See
+      .specnaut/memory/security/06-supply-chain-and-integrity.md
+
+  - rule_name: cors_wildcard
+    regex: "Access-Control-Allow-Origin[\\"'\\\\s:=]+\\\\*"
+    reminder: >-
+      Wildcard CORS origin. Combined with Access-Control-Allow-Credentials
+      this lets any site read authenticated responses — use an origin
+      allowlist, and never reflect the request Origin. See
+      .specnaut/memory/security/05-configuration-and-hardening.md
+
+  - rule_name: debug_enabled
+    regex: "(?i)^\\\\s*(DEBUG|FLASK_DEBUG|APP_DEBUG)\\\\s*[=:]\\\\s*(true|1|on)\\\\b"
+    paths:
+      - "**/*.env*"
+      - "**/settings*.py"
+      - "**/config/**"
+      - "**/*.yaml"
+      - "**/*.yml"
+    reminder: >-
+      Debug mode enabled in configuration. In a deployed build this exposes
+      tracebacks, paths, and framework internals — and some debug consoles
+      execute code. Confirm this file cannot reach production. See
+      .specnaut/memory/security/05-configuration-and-hardening.md
 `,
       executable: false,
     },

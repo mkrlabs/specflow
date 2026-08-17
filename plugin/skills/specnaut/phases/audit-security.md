@@ -64,6 +64,15 @@ severity threshold):
 ```
 You are running in **audit mode** — full-codebase sweep, not per-PR review.
 
+Before judging any code, load the project's security knowledge base at
+`.specnaut/memory/security/`: read `00-triage.md` (reachability gate,
+severity rubric, finding format), then `README.md`, then every domain file
+its routing table selects for the axes below. On a full sweep that is most
+of them — read them as you reach each axis rather than all at once. Also
+read `10-language-footguns.md` once the stack is known. This base is the
+authoritative reference; do not review from memory and do not fetch
+external documentation.
+
 Read-only contract: you MUST NOT call Edit, Write, NotebookEdit, or any tool
 that mutates files. Bash is permitted only for `git ls-files`, `git log`,
 `git show`, `grep`, `rg`, and dependency-listing commands (`npm ls`, `pip list`,
