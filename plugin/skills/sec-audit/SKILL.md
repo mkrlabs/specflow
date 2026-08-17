@@ -55,6 +55,21 @@ the security shape of the scoped code (input validation, authz, secrets,
 injection, SSRF, path traversal, silent error swallowing) — not a per-line
 review.
 
+**Name the knowledge base in the dispatch prompt.** The agent is required
+to read `.specnaut/memory/security/00-triage.md` plus the domain files its
+routing table selects, before reporting anything. Say so explicitly rather
+than assuming — an agent that skips the triage gate produces a report full
+of unreachable pattern matches. If the scope is obviously one-sided (a
+migration, an auth module, a CI workflow), name the domain file yourself so
+the agent does not have to guess:
+
+```text
+Before judging anything, read .specnaut/memory/security/00-triage.md, then
+README.md, then the domain files its routing table selects for this scope
+(here: 03-injection-and-input.md and 07-data-protection.md). Report using
+the finding format defined in 00-triage.md.
+```
+
 ## Step 4 — Return findings inline
 
 Return the agent's findings inline. The `security-auditor` ends with the
