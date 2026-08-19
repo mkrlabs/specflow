@@ -4,6 +4,7 @@ description: Product Owner and business guardian. Owns the product backlog, all 
 model: opus
 effort: medium
 tools: Read, Write, Edit, Grep, Glob, Bash
+skills: backlog-reference-contract
 maxTurns: 30
 color: cyan
 ---

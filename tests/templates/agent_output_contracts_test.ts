@@ -4,7 +4,7 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
 
 /**
  * Locks the two halves of feature 012 (machine-readable agent output contracts)
- * together: the four contract skills must ship in the bundle as
+ * together: the contract skills must ship in the bundle as
  * `user-invocable: false`, AND every wired agent's bundled content must carry
  * the exact `skills:` preload entries from the research.md mapping table. If a
  * contract drops out of the bundle, or an agent loses its preload line, one of
@@ -12,12 +12,13 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
  * silently (FR-002, SC-001, SC-004).
  */
 
-/** The four contract skills, by bundled `name`. Identity = name (data-model.md). */
+/** The contract skills, by bundled `name`. Identity = name (data-model.md). */
 const CONTRACT_SKILLS = [
   "workflow-contract",
   "handoff-protocol",
   "review-findings-contract",
   "qa-report-contract",
+  "backlog-reference-contract",
 ] as const;
 
 /** Authoritative wired-agent → contracts mapping (research.md). */
@@ -30,9 +31,12 @@ const AGENT_WIRING: Record<string, readonly string[]> = {
   "code-reviewer": ["review-findings-contract", "workflow-contract"],
   "test-reviewer": ["review-findings-contract", "workflow-contract"],
   "review-coordinator": ["workflow-contract", "handoff-protocol", "review-findings-contract"],
-  "developer": ["workflow-contract", "handoff-protocol"],
-  "workflow-manager": ["workflow-contract", "handoff-protocol"],
+  "developer": ["workflow-contract", "handoff-protocol", "backlog-reference-contract"],
+  "workflow-manager": ["workflow-contract", "handoff-protocol", "backlog-reference-contract"],
   "qa-tester": ["qa-report-contract", "workflow-contract"],
+  // The single biggest emitter of backlog references — and, until now, the
+  // only wired agent with no `skills:` line at all.
+  "product-owner": ["backlog-reference-contract"],
 };
 
 function skillEntry(name: string): CoreEntry | undefined {
@@ -63,7 +67,7 @@ function skillsField(frontmatterBody: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-// (a) The four contracts are in CORE_BUNDLE and each is user-invocable: false.
+// (a) The contracts are in CORE_BUNDLE and each is user-invocable: false.
 for (const name of CONTRACT_SKILLS) {
   Deno.test(`contract skill "${name}" is bundled as a skill`, () => {
     const entry = skillEntry(name);

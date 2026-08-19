@@ -1754,7 +1754,9 @@ If Overall = PASS, surface the STOP #2 summary block defined in
    3. **github + gitlab only** — run \`bash .specnaut/scripts/backlog/cascade-check.sh <linked_issue>\`.
       Exit 11 means the parent has open sub-issues; do NOT close. Report the open children to the
       user and stop (the issue stays in \`In progress\` / \`Ready\` until the children are closed).
-   4. Ask the user: "Close issue #<linked_issue> on the board now? (yes/no)". On \`no\`, skip the
+   4. Ask the user to confirm, naming the item per the \`backlog-reference-contract\`
+      skill — number, title, and a resolved link, never a bare number. The user is being
+      asked to authorise an action on an item they must be able to identify. On \`no\`, skip the
       rest of step 8 — leave the column flip to a future run or to a manual \`move.sh\`.
    5. On \`yes\`, run \`bash .specnaut/scripts/backlog/move.sh <linked_issue> Done\`. This is the
       mechanical column flip — \`move.sh\` is idempotent and the working contract permits the merge
@@ -2295,6 +2297,11 @@ that is missing the next expected artefact:
 
 This is also read-only; never delete or modify spec files.
 
+**\`<backlog-reference>\`** below means a reference built per the
+\`backlog-reference-contract\` skill: the number **and** the title, wrapped in a
+backend-resolved link — never a bare \`#<num>\`. Read that contract for the format
+and the degradation ladder; do not restate it here.
+
 ## Output format
 
 End with a single summary block. **The per-ticket lines and the
@@ -2318,20 +2325,20 @@ Backlog:    <N> items reviewed, <P> promoted to Ready, <C> awaiting clarificatio
             <R> body rewrites, <S> sized, <Z> prioritised
 
 Per-ticket:
-  ↳ #<num> "<short title>" → promoted/comment/closure-recommended
+  ↳ <backlog-reference> → promoted/comment/closure-recommended
        size=<X> + priority=<P> (field)
-  ↳ #<num> "<short title>" → comment
+  ↳ <backlog-reference> → comment
        size=<X> (field) + priority=P3 (label fallback — no native option)
   ↳ ...
 
 ⚠ size / priority missing:
-  ↳ #<num> "<short title>" — <reason: e.g. gh label create failed (rate-limited)>
+  ↳ <backlog-reference> — <reason: e.g. gh label create failed (rate-limited)>
   ↳ ...
   (omit this whole section when K == 0)
 
 ⚠ Roadmap dates missing (GitHub backend, soft):
-  ↳ #<num> "<short title>" — Ready since <date>, no target date set
-  ↳ #<num> "<short title>" — In progress, no start date set
+  ↳ <backlog-reference> — Ready since <date>, no target date set
+  ↳ <backlog-reference> — In progress, no start date set
   ↳ ...
   (omit this whole section when no dates are missing)
 
@@ -6357,6 +6364,106 @@ HANDOFF_TARGET: developer | review-coordinator | qa-tester | product-owner | wor
   },
   {
     category: "skill",
+    name: "backlog-reference-contract",
+    suffix: null,
+    content: `---
+name: backlog-reference-contract
+description: Defines how a backlog item is named when shown to the user — number, title, and a backend-resolved link. Preloaded, not user-invocable.
+user-invocable: false
+---
+
+# backlog-reference-contract
+
+This skill defines the **backlog reference** — the way a task, user story, or
+epic is written whenever it is shown to the user. It exists so the rule is
+stated **once**. Every agent, skill, phase, command, and project document that
+mentions an item points here; none of them restates it.
+
+A bare \`#42\` is opaque. The reader has to leave the conversation and look the
+item up in the tracker just to know what the sentence is about — and worse, to
+decide whether to approve an action taken on it. The number identifies the item
+to the tracker; the title identifies it to the human.
+
+## Format
+
+\`\`\`text
+[#<number> — <title>](<url>)      link resolves
+#<number> — <title>               no url resolvable
+#<number>                         title unavailable — last resort only
+\`\`\`
+
+Examples:
+
+\`\`\`text
+[#42 — Add pagination to the export endpoint](https://github.com/acme/my-app/issues/42)
+#42 — Add pagination to the export endpoint
+\`\`\`
+
+## Rules
+
+- **Never a number alone** when the title is available. The pair is the unit.
+- **Title verbatim.** Do not paraphrase, re-case, or summarise it. Truncate only
+  past 80 characters, with a trailing \`…\`.
+- **Link the whole pair**, not just the number — the title is the click target a
+  reader actually aims at.
+- **Applies to every rendering**: prose, tables, lists, status blocks, commit
+  bodies, and prompts that ask the user to approve something. A confirmation
+  prompt naming a bare number is the worst case, because the user is being asked
+  to authorise an action on an item they cannot identify.
+- **One reference per mention is enough.** In a table, the reference belongs in
+  one column; do not repeat the number in a neighbouring one.
+- **Never fabricate a URL.** If it cannot be resolved from configuration, fall
+  back — see below. A wrong link is worse than no link.
+
+## Resolving the URL
+
+The backlog backend is whatever the project configured. Each backend's
+\`skills/backlog/scripts/<backend>/_config.sh\` exports the coordinates and a
+\`item_url <number>\` helper — **use that helper**; do not assemble URLs by hand
+and do not re-derive them per surface.
+
+| Backend | Resolves to | From |
+|---|---|---|
+| \`github\` | \`https://github.com/<repo>/issues/<n>\` | \`repo\` |
+| \`gitlab\` | \`<host>/<path>/-/issues/<n>\` | \`host\` + \`project_id\` |
+| \`local\` | relative path \`.specnaut/backlog/<n>-<slug>.md\` | the task file on disk |
+| \`cloud\` | *no link* — see below | — |
+
+**GitLab \`project_id\` is dual-form.** It is either a numeric id or a
+\`group/project\` path. The path form links directly. The numeric form is resolved
+to a path once via \`glab api projects/<id>\` → \`path_with_namespace\`; if that
+call fails, degrade rather than guess.
+
+**Cloud has no browser URL today** and is deliberately deferred. Its config
+carries an API base and a project key, and the task payloads expose no web
+address. So cloud takes the no-link fallback: number and title, no link. This is
+defined behaviour, not an unimplemented branch.
+
+> **Never construct a browser URL from the API host.** An API base is not a web
+> origin; the guess is wrong more often than right, and a wrong link sends the
+> user somewhere that does not exist. When the Cloud side ships a web address as
+> a field on the task payload, this branch renders it — no change to the shape
+> above.
+
+## Degradation
+
+Resolution is best-effort and must never block. Walk down until something works:
+
+1. \`[#<n> — <title>](<url>)\` — full reference.
+2. \`#<n> — <title>\` — URL unresolvable: unknown backend, missing or half-filled
+   config, a backend with no web address, or a failed lookup.
+3. \`#<n>\` — the title itself is unavailable. Last resort.
+
+Never raise an error, never stall a workflow, and never omit the reference
+entirely because it could not be made perfect. A degraded reference is still
+more useful than none.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "skill",
     name: "handoff-protocol",
     suffix: null,
     content: `---
@@ -6525,6 +6632,8 @@ argument-hint: [list|next|add|update|estimate|status|groom|brief] [args]
 | \`brief <id>\`        | Generate PO business brief                  |
 | \`<number>\`          | Show details for task NNN                   |
 
+**Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
+
 ## Rules
 
 1. **Every invocation MUST go through the \`product-owner\` agent** — even
@@ -6582,6 +6691,7 @@ description: Product Owner and business guardian. Owns the product backlog, all 
 model: opus
 effort: medium
 tools: Read, Write, Edit, Grep, Glob, Bash
+skills: backlog-reference-contract
 maxTurns: 30
 color: cyan
 ---
@@ -6864,7 +6974,7 @@ description: Senior developer that implements tasks from tasks.md, fixes review 
 model: opus
 effort: xhigh
 tools: Read, Write, Edit, Grep, Glob, Bash
-skills: workflow-contract, handoff-protocol
+skills: workflow-contract, handoff-protocol, backlog-reference-contract
 permissionMode: acceptEdits
 maxTurns: 80
 disable-model-invocation: true
@@ -7439,7 +7549,7 @@ description: Orchestrates multi-phase feature delivery across specialist agents.
 model: sonnet
 effort: low
 tools: Read, Grep, Glob, Bash, Agent(product-owner, developer, review-coordinator, qa-tester)
-skills: workflow-contract, handoff-protocol
+skills: workflow-contract, handoff-protocol, backlog-reference-contract
 maxTurns: 60
 color: purple
 ---
@@ -9184,6 +9294,8 @@ next?", "move task X to in-progress", or any backlog mutation. The exact
 flow depends on the backend chosen at \`specnaut init\` (or the most recent
 \`specnaut upgrade --backlog <name>\`).
 
+**Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
+
 ## All mutations go through the Product Owner agent
 
 The main session does **not** run the scripts directly. Dispatch the
@@ -10206,6 +10318,15 @@ REPO_OWNER="\${REPO%%/*}"
 REPO_NAME="\${REPO##*/}"
 
 export REPO REPO_OWNER REPO_NAME PROJECT_NUMBER
+
+# Browser URL for one item, per \`backlog-reference-contract\`. Prints nothing
+# when it cannot be resolved — callers degrade to "#<n> — <title>" rather than
+# guessing. Never fails: a reference must never block a workflow.
+item_url() {
+  [ -n "\${1:-}" ] || return 0
+  [ -n "\$REPO" ] || return 0
+  echo "https://github.com/\$REPO/issues/\$1"
+}
 `,
     executable: true,
     backend: "github",
@@ -11193,6 +11314,34 @@ fi
 # accepts either a numeric id or a "group/project" path.
 export GITLAB_HOST="\$HOST"
 export PROJECT_ID
+
+# Browser URL for one item, per \`backlog-reference-contract\`. Prints nothing
+# when it cannot be resolved — callers degrade rather than guessing. Never
+# fails: a reference must never block a workflow.
+#
+# \`project_id\` is dual-form. A "group/project" path links directly; a numeric id
+# has no browser path, so it is resolved once through the API. If that lookup
+# fails there is no honest URL to emit, so emit none.
+_GITLAB_PATH_CACHE=""
+item_url() {
+  [ -n "\${1:-}" ] || return 0
+  local path="\$PROJECT_ID"
+  case "\$PROJECT_ID" in
+    *[!0-9]*) ;;                       # already a path — use as-is
+    *)
+      if [ -n "\$_GITLAB_PATH_CACHE" ]; then
+        path="\$_GITLAB_PATH_CACHE"
+      else
+        path=\$(glab api "projects/\$PROJECT_ID" 2>/dev/null \\
+          | sed -n 's/.*"path_with_namespace"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' \\
+          | head -1) || path=""
+        [ -n "\$path" ] || return 0
+        _GITLAB_PATH_CACHE="\$path"
+      fi
+      ;;
+  esac
+  echo "\${HOST%/}/\$path/-/issues/\$1"
+}
 `,
     executable: true,
     backend: "gitlab",
@@ -11576,6 +11725,18 @@ fi
 API_BASE="\${API_URL%/}/api/v1"
 
 export API_URL API_TOKEN PROJECT_KEY API_BASE
+
+# Cloud has no browser URL yet: the config carries an API base, and the task
+# payloads expose no web address. Per \`backlog-reference-contract\` this is the
+# documented no-link fallback, not an oversight — callers render
+# "#<n> — <title>" with no link.
+#
+# NEVER derive a browser URL from \$API_URL. An API base is not a web origin, and
+# a wrong link sends the user somewhere that does not exist. When the payload
+# gains a web-address field, read it here.
+item_url() {
+  return 0
+}
 `,
     executable: true,
     backend: "cloud",
@@ -19104,6 +19265,8 @@ _(List your non-negotiable rules — layering, DI, error handling, security.)_
 
 _(Naming, testing, commits, branches.)_
 
+**Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
+
 ## Project-specific gotchas
 
 _(Sharp edges new contributors must know.)_
@@ -19144,6 +19307,8 @@ export const HARNESS_STATIC: Record<string, Record<string, TemplateFile>> = {
 - **Agents**: specialized agents live in \`.claude/agents/\`.
 - **Backlog**: managed via \`/backlog\` — when the project uses the local
   Markdown backend, see \`.specnaut/backlog.md\`.
+
+**Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
 
 ## Optional integrations
 
@@ -19974,6 +20139,8 @@ exit 0
 - **Backlog**: managed via the \`/specnaut groom\` workflow — when the
   project uses the local Markdown backend, see \`.specnaut/backlog.md\`.
 
+**Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
+
 ## Optional integrations
 
 These are Codex CLI features Specnaut does NOT configure by default, but
@@ -20081,6 +20248,8 @@ clarifications needed) STOP #2 (pre-merge validation)
 - \`/specnaut-agent-qa-tester\` — QA + test writing
 - \`/specnaut-agent-workflow-manager\` — long-running orchestration
 - \`/specnaut-agent-devops-sre\` — cloud infrastructure, CI/CD, observability
+
+**Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
 
 ## Project context
 

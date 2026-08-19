@@ -48,3 +48,15 @@ fi
 API_BASE="${API_URL%/}/api/v1"
 
 export API_URL API_TOKEN PROJECT_KEY API_BASE
+
+# Cloud has no browser URL yet: the config carries an API base, and the task
+# payloads expose no web address. Per `backlog-reference-contract` this is the
+# documented no-link fallback, not an oversight — callers render
+# "#<n> — <title>" with no link.
+#
+# NEVER derive a browser URL from $API_URL. An API base is not a web origin, and
+# a wrong link sends the user somewhere that does not exist. When the payload
+# gains a web-address field, read it here.
+item_url() {
+  return 0
+}

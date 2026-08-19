@@ -8,6 +8,8 @@
 - **Backlog**: managed via `/backlog` — when the project uses the local
   Markdown backend, see `.specnaut/backlog.md`.
 
+**Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
+
 ## Optional integrations
 
 These are Claude Code features Specnaut does NOT configure by default, but
