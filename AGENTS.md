@@ -28,8 +28,8 @@ generated files.**
 
 3. **`backlog` command + Product Owner agent** — a task backlog system (index `tasks/backlog.md` +
    `tasks/backlog/NNN-slug.md` files with typed frontmatter) managed by a PO agent shipped in the
-   templates, with a sync script to a remote backend (GitHub Issues + Project V2 in v1; GitLab /
-   Bitbucket planned). Upstream has no notion of a product backlog.
+   templates, with sync to a remote backend selected per project (see **Locked decisions** below for
+   the authoritative source). Upstream has no notion of a product backlog.
 
 ## What Specnaut is not
 
@@ -88,16 +88,19 @@ it cost.
 
 - **Language**: **Deno** (TypeScript, native compile via `deno compile`, zero-deps standard library,
   official `denoland/skills` for dev velocity).
-- **v0.2 scope — multi-harness ready**:
-  - Two target harnesses: **Claude Code** (default, `.claude/` + `.specnaut/`) and **Cursor**
-    (`.cursor/skills/` + `.cursor/rules/` + `.specnaut/`) — single harness per invocation, selected
-    via `--ai claude|cursor`
+- **Multi-harness by design**:
+  - **Claude Code** is the default target (`.claude/` + `.specnaut/`); one harness per invocation,
+    selected via `--ai`. The registered set is authoritative in `src/cli/harnesses.ts` — read it
+    there rather than trusting a list in prose. `specnaut init --help` prints the current values.
   - CLI surface and behaviour equivalent to upstream `specify init`
   - The **3 differentiating features embedded by default**: auto-chain, `review` phase, backlog +
     Product Owner agent
-- **Backlog storage**: local Markdown files (index + one file per task) + one-way sync script to
-  GitHub Issues/Project V2 via `gh`. GitLab/Bitbucket in v2+.
-- **Additional harnesses** (Codex, Copilot, Windsurf, OpenCode, Antigravity, …): v0.3+.
+- **Backlog storage**: selectable per project via `--backlog`, defaulting to local Markdown files
+  (index + one file per task). Registered backends live in `src/domain/backlog_strategies/`;
+  `specnaut init --help` prints the current values. Bitbucket is not implemented.
+- **Adding a harness is additive**: a new adapter under `src/infrastructure/harness/`, registered in
+  `src/cli/harnesses.ts`. Nothing in the CLI surface or the template bundle is harness-specific by
+  default — divergence is opt-in, per adapter.
 
 ## Methodology Specnaut implements
 
