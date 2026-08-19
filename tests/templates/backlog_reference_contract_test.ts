@@ -195,6 +195,64 @@ Deno.test("cloud item_url emits nothing — the documented no-link fallback", as
   );
 });
 
+/**
+ * GitLab is the only backend whose helper does real work: `project_id` is
+ * dual-form, and the numeric form has no browser path, so it must be resolved
+ * through the API. These stub `glab` to exercise all three paths offline.
+ */
+async function gitlabHarness(projectId: string, glabBody: string): Promise<string> {
+  const tmp = await backendHarness(
+    "gitlab",
+    `host: "https://gitlab.example.com"\nproject_id: "${projectId}"\n`,
+  );
+  await Deno.mkdir(`${tmp}/bin`, { recursive: true });
+  await Deno.writeTextFile(`${tmp}/bin/glab`, `#!/usr/bin/env bash\n${glabBody}\n`);
+  await Deno.chmod(`${tmp}/bin/glab`, 0o755);
+  return tmp;
+}
+
+async function gitlabItemUrl(tmp: string, num: string): Promise<{ code: number; out: string }> {
+  const dir = `${tmp}/backlog/scripts/gitlab`;
+  await Deno.writeTextFile(
+    `${dir}/probe.sh`,
+    `#!/usr/bin/env bash\nset -euo pipefail\nexport PATH="${tmp}/bin:$PATH"\n` +
+      `. "$(dirname "$0")/_config.sh"\nitem_url ${num}\n`,
+  );
+  const { code, stdout } = await new Deno.Command("bash", {
+    args: [`${dir}/probe.sh`],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  return { code, out: new TextDecoder().decode(stdout).trim() };
+}
+
+Deno.test("gitlab item_url links directly when project_id is a path", async () => {
+  // The path form needs no lookup, so the stub refuses to be called at all.
+  const tmp = await gitlabHarness("acme/my-app", 'echo "glab must not be called" >&2; exit 1');
+  const { code, out } = await gitlabItemUrl(tmp, "42");
+  assertEquals(code, 0);
+  assertEquals(out, "https://gitlab.example.com/acme/my-app/-/issues/42");
+});
+
+Deno.test("gitlab item_url resolves a numeric project_id through the API", async () => {
+  const tmp = await gitlabHarness(
+    "1234",
+    `echo '{"id":1234,"path_with_namespace":"acme/my-app"}'`,
+  );
+  const { code, out } = await gitlabItemUrl(tmp, "42");
+  assertEquals(code, 0);
+  assertEquals(out, "https://gitlab.example.com/acme/my-app/-/issues/42");
+});
+
+Deno.test("gitlab item_url degrades when the numeric lookup fails", async () => {
+  // No honest URL exists here, so the contract says emit none — and, above all,
+  // do not guess a path from the id.
+  const tmp = await gitlabHarness("1234", 'echo "401 unauthorized" >&2; exit 1');
+  const { code, out } = await gitlabItemUrl(tmp, "42");
+  assertEquals(out, "", "a failed lookup must yield no link, not a guessed one");
+  assertEquals(code, 0, "degradation must never fail the caller");
+});
+
 Deno.test("local item_url resolves the task file, and stays quiet when absent", async () => {
   const tmp = await backendHarness("local", null);
   await Deno.mkdir(`${tmp}/.specnaut/backlog`, { recursive: true });
