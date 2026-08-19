@@ -10340,9 +10340,62 @@ if [ -n "\$LABELS" ]; then CREATE_ARGS+=("--label" "\$LABELS"); fi
 URL=\$(gh issue create "\${CREATE_ARGS[@]}")
 echo "✓ created: \$URL"
 
-# Attach to the project
-gh project item-add "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" --url "\$URL" >/dev/null
+# Attach to the project. \`item-add\` leaves Status *null* — it does not fall
+# back to the first column — so the item is invisible to every column-filtered
+# board view AND to any grooming sweep that enumerates the columns, because it
+# matches none of them. Place it explicitly, below.
+ITEM_ID=\$(gh project item-add "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" \\
+  --url "\$URL" --format json --jq '.id')
 echo "✓ attached to Project #\$PROJECT_NUMBER"
+
+# Placing the item is best-effort and MUST NOT fail this script: the issue
+# already exists by now, so a non-zero exit would leave the caller unsure
+# whether anything was created, and a re-run would duplicate it. Every failure
+# path below warns and returns 0.
+place_in_backlog() {
+  local fields
+  if ! fields=\$("\$(dirname "\$0")/detect-fields.sh" 2>/dev/null); then
+    echo "⚠ could not read the project's fields — item attached but not placed" >&2
+    return 0
+  fi
+  # detect-fields.sh emits assignments only, and is the single source of the
+  # Status lookup — no third copy of the field/option resolution.
+  eval "\$fields"
+
+  if [ -z "\${STATUS_FIELD_ID:-}" ]; then
+    echo "⚠ project has no Status field — item attached but not placed" >&2
+    return 0
+  fi
+
+  local option_id="\${STATUS_OPT_BACKLOG:-}" placed="Backlog"
+  if [ -z "\$option_id" ]; then
+    # The board belongs to the user and need not have a "Backlog" column.
+    # Fall back to whatever its first column is rather than refusing.
+    option_id="\${STATUS_FIRST_OPT_ID:-}"
+    placed="\${STATUS_OPT_NAMES%%,*}"
+    if [ -n "\$option_id" ]; then
+      echo "⚠ no 'Backlog' column on this board (found: \${STATUS_OPT_NAMES:-none})" >&2
+    fi
+  fi
+
+  if [ -z "\$option_id" ]; then
+    echo "⚠ Status field has no options — item attached but not placed" >&2
+    return 0
+  fi
+
+  if gh project item-edit \\
+    --id "\$ITEM_ID" \\
+    --project-id "\$PROJECT_NODE_ID" \\
+    --field-id "\$STATUS_FIELD_ID" \\
+    --single-select-option-id "\$option_id" >/dev/null 2>&1; then
+    echo "✓ placed in \$placed"
+  else
+    echo "⚠ could not set Status — item attached but not placed" >&2
+  fi
+  return 0
+}
+
+place_in_backlog || true
 
 # Link as a sub-issue if --parent was given. Two-step: extract the new
 # issue's REST id (NOT its number — sub_issues is keyed by id), then POST
@@ -10461,10 +10514,18 @@ gh issue comment "\$1" --repo "\$REPO" --body "\$2"
     name: "detect-fields",
     suffix: "detect-fields.sh",
     content: `#!/usr/bin/env bash
-# Detect native Project V2 single-select fields for Priority and Size.
+# Detect native Project V2 single-select fields for Status, Priority and Size.
 # Outputs eval-friendly env lines on stdout. Empty *_FIELD_ID means the field
 # does not exist on the project — caller should fall back to labels.
 # Usage: eval "\$(detect-fields.sh)"
+#
+# For each single-select field <P> this emits:
+#   <P>_FIELD_ID       the field's node id
+#   <P>_OPT_<NAME>     one per option, name upper-cased and non-alphanumerics
+#                      folded to \`_\` (so "In progress" -> STATUS_OPT_IN_PROGRESS)
+#   <P>_OPT_NAMES      the option names in board order, comma-separated
+#   <P>_FIRST_OPT_ID   the first option's id — the safe default for a caller
+#                      that must place an item on a board it did not create
 set -euo pipefail
 
 # shellcheck source=./_config.sh
@@ -10485,11 +10546,22 @@ emit() {
     return
   fi
   echo "\${prefix}_FIELD_ID=\$(echo "\$field_block" | jq -r '.id')"
+  # Option names are not identifiers: "In progress" would emit
+  # \`STATUS_OPT_IN PROGRESS=…\`, which breaks the caller's \`eval\`. Fold every
+  # non-alphanumeric character to \`_\` so the name is always assignable.
   echo "\$field_block" | jq -r --arg p "\$prefix" '
-    .options[] | "\\(\$p)_OPT_\\(.name | ascii_upcase)=\\(.id)"
+    .options[]
+    | "\\(\$p)_OPT_\\(.name | ascii_upcase | gsub("[^A-Z0-9]"; "_"))=\\(.id)"
+  '
+  echo "\$field_block" | jq -r --arg p "\$prefix" '
+    "\\(\$p)_OPT_NAMES=\\"\\([.options[].name] | join(", "))\\""
+  '
+  echo "\$field_block" | jq -r --arg p "\$prefix" '
+    "\\(\$p)_FIRST_OPT_ID=\\(.options[0].id // "")"
   '
 }
 
+emit Status STATUS
 emit Priority PRIORITY
 emit Size SIZE
 
