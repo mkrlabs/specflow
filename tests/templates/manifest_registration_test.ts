@@ -52,7 +52,10 @@ const NOT_SHIPPED: ReadonlyArray<{ path: string; why: string }> = [
 async function authoredFiles(): Promise<string[]> {
   const out: string[] = [];
   for await (const entry of walk(TEMPLATES, { includeDirs: false })) {
-    const rel = entry.path.slice(TEMPLATES.length);
+    // `walk` yields native separators; the manifest's `source` values are
+    // always POSIX. Without this the comparison never matches on Windows and
+    // every file reads as unregistered.
+    const rel = entry.path.slice(TEMPLATES.length).replaceAll("\\", "/");
     if (rel === "manifest.json") continue;
     out.push(rel);
   }
