@@ -215,11 +215,16 @@ async function gitlabItemUrl(tmp: string, num: string): Promise<{ code: number; 
   const dir = `${tmp}/backlog/scripts/gitlab`;
   await Deno.writeTextFile(
     `${dir}/probe.sh`,
-    `#!/usr/bin/env bash\nset -euo pipefail\nexport PATH="${tmp}/bin:$PATH"\n` +
-      `. "$(dirname "$0")/_config.sh"\nitem_url ${num}\n`,
+    `#!/usr/bin/env bash\nset -euo pipefail\n. "$(dirname "$0")/_config.sh"\nitem_url ${num}\n`,
   );
+  // PATH goes through the process environment, not an `export` inside the
+  // script: on Windows, bash converts an inherited PATH to POSIX form at
+  // startup, but a native path assigned inside the script is left as-is and the
+  // stub becomes unfindable. That failure is silent here — the helper degrades
+  // to no output — so the degradation case would pass for the wrong reason.
   const { code, stdout } = await new Deno.Command("bash", {
     args: [`${dir}/probe.sh`],
+    env: { PATH: `${tmp}/bin:${Deno.env.get("PATH")}` },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -247,10 +252,15 @@ Deno.test("gitlab item_url resolves a numeric project_id through the API", async
 Deno.test("gitlab item_url degrades when the numeric lookup fails", async () => {
   // No honest URL exists here, so the contract says emit none — and, above all,
   // do not guess a path from the id.
-  const tmp = await gitlabHarness("1234", 'echo "401 unauthorized" >&2; exit 1');
+  const tmp = await gitlabHarness(
+    "1234",
+    'echo "ran" > "$(dirname "$0")/../called"; echo "401 unauthorized" >&2; exit 1',
+  );
   const { code, out } = await gitlabItemUrl(tmp, "42");
   assertEquals(out, "", "a failed lookup must yield no link, not a guessed one");
   assertEquals(code, 0, "degradation must never fail the caller");
+  // Guard against a false pass: an unfindable stub also yields empty output.
+  await Deno.stat(`${tmp}/called`);
 });
 
 Deno.test("local item_url resolves the task file, and stays quiet when absent", async () => {
