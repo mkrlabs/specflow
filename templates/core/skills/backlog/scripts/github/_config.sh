@@ -36,3 +36,12 @@ REPO_OWNER="${REPO%%/*}"
 REPO_NAME="${REPO##*/}"
 
 export REPO REPO_OWNER REPO_NAME PROJECT_NUMBER
+
+# Browser URL for one item, per `backlog-reference-contract`. Prints nothing
+# when it cannot be resolved — callers degrade to "#<n> — <title>" rather than
+# guessing. Never fails: a reference must never block a workflow.
+item_url() {
+  [ -n "${1:-}" ] || return 0
+  [ -n "$REPO" ] || return 0
+  echo "https://github.com/$REPO/issues/$1"
+}

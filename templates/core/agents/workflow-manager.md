@@ -4,7 +4,7 @@ description: Orchestrates multi-phase feature delivery across specialist agents.
 model: sonnet
 effort: low
 tools: Read, Grep, Glob, Bash, Agent(product-owner, developer, review-coordinator, qa-tester)
-skills: workflow-contract, handoff-protocol
+skills: workflow-contract, handoff-protocol, backlog-reference-contract
 maxTurns: 60
 color: purple
 ---

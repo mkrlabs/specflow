@@ -42,6 +42,8 @@ clarifications needed) STOP #2 (pre-merge validation)
 - `/specnaut-agent-workflow-manager` — long-running orchestration
 - `/specnaut-agent-devops-sre` — cloud infrastructure, CI/CD, observability
 
+**Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
+
 ## Project context
 
 - Constitution lives at `.specnaut/memory/constitution.md` — treat as non-negotiable rules.

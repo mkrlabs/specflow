@@ -16,6 +16,8 @@ _(List your non-negotiable rules — layering, DI, error handling, security.)_
 
 _(Naming, testing, commits, branches.)_
 
+**Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
+
 ## Project-specific gotchas
 
 _(Sharp edges new contributors must know.)_

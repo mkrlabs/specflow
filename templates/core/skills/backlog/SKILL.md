@@ -11,6 +11,8 @@ next?", "move task X to in-progress", or any backlog mutation. The exact
 flow depends on the backend chosen at `specnaut init` (or the most recent
 `specnaut upgrade --backlog <name>`).
 
+**Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
+
 ## All mutations go through the Product Owner agent
 
 The main session does **not** run the scripts directly. Dispatch the

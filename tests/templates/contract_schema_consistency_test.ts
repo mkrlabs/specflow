@@ -26,6 +26,12 @@ function skillContent(name: string): string {
  * invariants. Substrings are matched verbatim against the canonical contract.
  */
 const SCHEMA_MARKERS: Record<string, string[]> = {
+  "backlog-reference-contract": [
+    "[#<number> — <title>](<url>)",
+    "**Never a number alone** when the title is available.",
+    "**Never fabricate a URL.**",
+    "Never construct a browser URL from the API host.",
+  ],
   "workflow-contract": [
     "WORKFLOW STATUS",
     "STATE: in_progress | blocked | awaiting_review | awaiting_qa | awaiting_user | done | failed",

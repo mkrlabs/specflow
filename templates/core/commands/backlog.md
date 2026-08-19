@@ -23,6 +23,8 @@ $ARGUMENTS
 | `brief <id>`        | Generate PO business brief                  |
 | `<number>`          | Show details for task NNN                   |
 
+**Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
+
 ## Rules
 
 1. **Every invocation MUST go through the `product-owner` agent** — even

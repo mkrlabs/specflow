@@ -34,7 +34,9 @@ $ARGUMENTS
    3. **github + gitlab only** — run `bash .specnaut/scripts/backlog/cascade-check.sh <linked_issue>`.
       Exit 11 means the parent has open sub-issues; do NOT close. Report the open children to the
       user and stop (the issue stays in `In progress` / `Ready` until the children are closed).
-   4. Ask the user: "Close issue #<linked_issue> on the board now? (yes/no)". On `no`, skip the
+   4. Ask the user to confirm, naming the item per the `backlog-reference-contract`
+      skill — number, title, and a resolved link, never a bare number. The user is being
+      asked to authorise an action on an item they must be able to identify. On `no`, skip the
       rest of step 8 — leave the column flip to a future run or to a manual `move.sh`.
    5. On `yes`, run `bash .specnaut/scripts/backlog/move.sh <linked_issue> Done`. This is the
       mechanical column flip — `move.sh` is idempotent and the working contract permits the merge

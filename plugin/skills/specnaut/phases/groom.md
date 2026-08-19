@@ -181,6 +181,11 @@ that is missing the next expected artefact:
 
 This is also read-only; never delete or modify spec files.
 
+**`<backlog-reference>`** below means a reference built per the
+`backlog-reference-contract` skill: the number **and** the title, wrapped in a
+backend-resolved link — never a bare `#<num>`. Read that contract for the format
+and the degradation ladder; do not restate it here.
+
 ## Output format
 
 End with a single summary block. **The per-ticket lines and the
@@ -204,20 +209,20 @@ Backlog:    <N> items reviewed, <P> promoted to Ready, <C> awaiting clarificatio
             <R> body rewrites, <S> sized, <Z> prioritised
 
 Per-ticket:
-  ↳ #<num> "<short title>" → promoted/comment/closure-recommended
+  ↳ <backlog-reference> → promoted/comment/closure-recommended
        size=<X> + priority=<P> (field)
-  ↳ #<num> "<short title>" → comment
+  ↳ <backlog-reference> → comment
        size=<X> (field) + priority=P3 (label fallback — no native option)
   ↳ ...
 
 ⚠ size / priority missing:
-  ↳ #<num> "<short title>" — <reason: e.g. gh label create failed (rate-limited)>
+  ↳ <backlog-reference> — <reason: e.g. gh label create failed (rate-limited)>
   ↳ ...
   (omit this whole section when K == 0)
 
 ⚠ Roadmap dates missing (GitHub backend, soft):
-  ↳ #<num> "<short title>" — Ready since <date>, no target date set
-  ↳ #<num> "<short title>" — In progress, no start date set
+  ↳ <backlog-reference> — Ready since <date>, no target date set
+  ↳ <backlog-reference> — In progress, no start date set
   ↳ ...
   (omit this whole section when no dates are missing)
 

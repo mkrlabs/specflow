@@ -4,7 +4,7 @@ description: Senior developer that implements tasks from tasks.md, fixes review 
 model: opus
 effort: xhigh
 tools: Read, Write, Edit, Grep, Glob, Bash
-skills: workflow-contract, handoff-protocol
+skills: workflow-contract, handoff-protocol, backlog-reference-contract
 permissionMode: acceptEdits
 maxTurns: 80
 disable-model-invocation: true
