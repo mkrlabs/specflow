@@ -177,6 +177,31 @@ async function itemUrl(tmp: string, backend: string, num: string): Promise<strin
   return out;
 }
 
+Deno.test("every authored backend script is registered in the manifest", async () => {
+  // A script can be authored, referenced, and silently absent from every
+  // install: the bundler only emits what the manifest lists. `local/_config.sh`
+  // shipped that way. The tests above read template source directly, so they
+  // cannot catch it — this one reads the manifest.
+  const manifest = JSON.parse(
+    await Deno.readTextFile(fromFileUrl(new URL("../../templates/manifest.json", import.meta.url))),
+  ) as { core: Array<{ source?: string }> };
+  const registered = new Set(manifest.core.map((e) => e.source).filter(Boolean));
+
+  const root = fromFileUrl(new URL(`${SCRIPTS}/`, import.meta.url));
+  for await (const backend of Deno.readDir(root)) {
+    if (!backend.isDirectory) continue;
+    for await (const file of Deno.readDir(`${root}${backend.name}`)) {
+      if (!file.isFile || !file.name.endsWith(".sh")) continue;
+      const source = `core/skills/backlog/scripts/${backend.name}/${file.name}`;
+      assert(
+        registered.has(source),
+        `${source} is authored but not in templates/manifest.json — it will ` +
+          `never be bundled and never scaffolded`,
+      );
+    }
+  }
+});
+
 Deno.test("github item_url builds the issue URL from `repo`", async () => {
   const tmp = await backendHarness("github", 'repo: "acme/my-app"\nproject_number: 7\n');
   assertEquals(await itemUrl(tmp, "github", "42"), "https://github.com/acme/my-app/issues/42");
