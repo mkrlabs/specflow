@@ -5196,8 +5196,8 @@ always take precedence over a skill's defaults. If the user says
 ## How to invoke a Specnaut skill
 
 Use the harness's \`Skill\` tool (Claude Code) or the equivalent
-(\`skill\` on Codex/OpenCode/Copilot — see
-\`references/<harness>-tools.md\` for your harness).
+(\`skill\` on Codex/OpenCode/Copilot — see "Tool-name differences across
+harnesses" below for where your harness's mapping lives).
 
 The skill content is loaded into your context. Follow it directly — do
 not re-read the file with \`Read\`.
@@ -5229,7 +5229,7 @@ below) and never appear as user commands.
 ## Specnaut agent registry
 
 Dispatch these via \`Task({ subagent_type: "<name>", ... })\` (or your
-harness's equivalent — see \`references/<harness>-tools.md\`).
+harness's equivalent — see the tool reference described below).
 
 | Agent | When to dispatch |
 |---|---|
@@ -5280,17 +5280,22 @@ Claude Code, Codex CLI, Codex App, Cursor, OpenCode, GitHub Copilot
 CLI. Each harness uses different tool names — \`Read\` vs \`read_file\`,
 \`Task\` vs \`spawn_agent\`, etc.
 
-Before invoking any tool, consult the right reference:
+Before invoking any tool, consult the right reference. Where it lives
+depends on how this skill reached you:
 
-- Claude Code (baseline) → \`references/claude-tools.md\`
-- Codex → \`references/codex-tools.md\`
-- Cursor → \`references/cursor-tools.md\`
-- OpenCode → \`references/opencode-tools.md\`
-- Copilot CLI → \`references/copilot-tools.md\`
+- **Scaffolded into a project** (\`specnaut init --ai <harness>\`) — the
+  harness was fixed at scaffold time, so exactly one reference ships and
+  it is already yours: read \`.specnaut/harness-tools.md\` and stop.
+- **Loaded from the plugin distribution** — the harness is not known in
+  advance, so every reference ships side by side. Pick yours from
+  \`references/{claude,codex,cursor,opencode,copilot}-tools.md\`, detecting
+  the harness from env hints (\`CLAUDE_PLUGIN_ROOT\`, \`CURSOR_*\`,
+  \`CODEX_*\`, …) or from the tool list in your current context.
 
-Auto-detect the running harness by looking for env hints
-(\`CLAUDE_PLUGIN_ROOT\`, \`CURSOR_*\`, \`CODEX_*\`, etc.) or by inspecting
-the available tool list in your current context.
+If neither path yields a file, no mapping is recorded for your harness:
+fall back to the baseline names above and check them against the tools
+you can actually see. Never guess a tool name that is not in your
+context.
 
 ## Red flags — these thoughts mean "stop and check for a skill"
 
@@ -20273,6 +20278,60 @@ exit 0
 `,
       executable: true,
     },
+    ".specnaut/harness-tools.md": {
+      content: `# Claude Code — baseline tool reference
+
+Specnaut skills are authored using **Claude Code tool names** as the lingua
+franca. This file documents the canonical Claude Code tool set that other
+harness adapters (\`codex-tools.md\`, \`cursor-tools.md\`,
+\`opencode-tools.md\`, \`copilot-tools.md\`) translate.
+
+> Inspired by [obra/superpowers v5.1.0](https://github.com/obra/superpowers)
+> (MIT) — \`skills/using-superpowers/references/\`. Re-implemented for
+> Specnaut's harness coverage.
+
+## Canonical tool set
+
+| Tool | Purpose |
+|---|---|
+| \`Read\` | Read a file from disk; supports image / PDF / notebook formats. |
+| \`Write\` | Write or overwrite a file from scratch. |
+| \`Edit\` | Exact-string replace in a file (must Read first). |
+| \`Bash\` | Run a shell command in the project working directory. |
+| \`Skill\` | Invoke another skill by name (\`Skill({skill: "<name>", args: "…"})\`). |
+| \`Task\` | Dispatch a subagent for a delegated task (\`Task({subagent_type: "general-purpose", description: "…", prompt: "…"})\`). |
+| \`TodoWrite\` | Persist a checklist for multi-step work. |
+| \`WebSearch\` | Search the web for current information. |
+| \`WebFetch\` | Fetch a URL and process it with a prompt. |
+| \`Grep\` / \`Glob\` | Search file contents or file paths. |
+
+## Conventions used by Specnaut skills
+
+- **File paths** are always absolute, except inside markdown documentation
+  where project-relative paths read better.
+- **Subagents** spawned via \`Task\` receive precisely the context they need —
+  never the controller's full history. See the
+  [\`subagent-driven-development\`](../../subagent-driven-development/SKILL.md)
+  skill for the dispatch pattern.
+- **Skills** invoked via \`Skill\` are listed in the harness-provided
+  "available skills" registry; only use names that appear there.
+- **Slash commands** the user types (\`/specnaut plan\`, \`/backlog …\`) are
+  resolved by the harness to a skill invocation — Specnaut itself never
+  registers raw commands outside the skill layer.
+
+## When this file is the wrong reference
+
+You are on Claude Code only. If you are running in:
+- Codex CLI / App → see \`codex-tools.md\`
+- Cursor → see \`cursor-tools.md\`
+- OpenCode → see \`opencode-tools.md\`
+- GitHub Copilot CLI → see \`copilot-tools.md\`
+
+The \`using-specnaut\` bootstrap skill auto-detects the running harness and
+loads the right reference at session start.
+`,
+      executable: false,
+    },
   },
   "codex": {
     ".codex/AGENTS.md": {
@@ -20349,6 +20408,156 @@ Each \`/goal\` run loads the full prompt, so keep it focused.
 `,
       executable: false,
     },
+    ".specnaut/harness-tools.md": {
+      content: `# Codex CLI / Codex App — tool reference
+
+Specnaut skills are authored using **Claude Code tool names**. This file
+maps every Claude Code tool to its Codex equivalent so a skill that says
+\`Use Task to dispatch a subagent\` reads correctly when Specnaut runs
+inside Codex.
+
+> Inspired by [obra/superpowers v5.1.0](https://github.com/obra/superpowers)
+> (MIT) — \`skills/using-superpowers/references/codex-tools.md\`.
+> Re-implemented for Specnaut.
+
+## Tool mapping
+
+| Claude Code | Codex | Notes |
+|---|---|---|
+| \`Read\` | \`read_file\` | Same argument shape (\`path\`). |
+| \`Write\` | \`write_file\` | Same shape; pass \`content\`. |
+| \`Edit\` | \`apply_patch\` | Codex uses a unified-diff style patch tool; the Edit semantic (old_string → new_string) maps to a one-hunk patch. |
+| \`Bash\` | \`shell\` | Same shape; Codex's \`shell\` runs in the workspace cwd. |
+| \`Skill\` | \`skill\` | Codex exposes a native \`skill\` tool — pass the skill name and args. |
+| \`Task\` | \`spawn_agent\` / \`wait_agent\` / \`close_agent\` | Three-step protocol: spawn, wait for completion, close. Wrap in a helper if you dispatch frequently. |
+| \`TodoWrite\` | \`update_plan\` | Codex's planner exposes a structured update API; pass the full updated plan, not deltas. |
+| \`WebSearch\` | \`web.search\` | Available only if the user has enabled web tools. |
+| \`WebFetch\` | \`web.fetch\` | Same. |
+| \`Grep\` | \`shell\` invoking \`grep\` / \`rg\` | No native grep tool — shell out. |
+| \`Glob\` | \`shell\` invoking \`find\` / \`fd\` | No native glob tool — shell out. |
+
+## Subagent dispatch — concrete pattern
+
+A skill that reads \`Use Task to dispatch a code reviewer subagent\` should,
+on Codex, expand to:
+
+\`\`\`
+id = spawn_agent(agent_type="code-reviewer", prompt="<full prompt>")
+result = wait_agent(id, timeout=900)
+close_agent(id)
+\`\`\`
+
+If the wait times out, decide whether to retry or to surface the partial
+result to the user.
+
+## Idiom differences worth noting
+
+- **Plan updates** are heavyweight on Codex — \`update_plan\` rewrites the
+  full plan each call. Don't call it per-step; call it at task boundaries.
+- **\`apply_patch\`** rejects malformed patches more strictly than Claude
+  Code's \`Edit\`. Always confirm a Read of the target file before patching.
+- **Subagent timeout** defaults vary; pass \`timeout=\` explicitly for any
+  dispatch you expect to take > 5 minutes.
+
+## Manifest pointer
+
+For the Codex marketplace adapter (\`.codex-plugin/plugin.json\`), the
+canonical install entry is:
+
+\`\`\`
+/plugins  → search "specnaut" → install
+\`\`\`
+
+(Once Specnaut ships to the Codex marketplace; see issue #277.)
+`,
+      executable: false,
+    },
+  },
+  "copilot": {
+    ".specnaut/harness-tools.md": {
+      content: `# GitHub Copilot CLI — tool reference
+
+Specnaut skills are authored using **Claude Code tool names**. This file
+maps each Claude Code tool to its GitHub Copilot CLI equivalent.
+
+> Inspired by [obra/superpowers v5.1.0](https://github.com/obra/superpowers)
+> (MIT) — \`skills/using-superpowers/references/copilot-tools.md\`.
+> Re-implemented for Specnaut.
+
+## Tool mapping
+
+| Claude Code | Copilot CLI | Notes |
+|---|---|---|
+| \`Read\` | \`read\` | Same shape. |
+| \`Write\` | \`write\` | Same. |
+| \`Edit\` | \`edit\` | Same. |
+| \`Bash\` | \`bash\` | Same. |
+| \`Skill\` | \`skill\` | Native — invokes a registered plugin skill. |
+| \`Task\` | \`task\` with \`agent_type\` parameter | Copilot's task tool takes \`agent_type\` to select a subagent (similar to Claude Code's \`subagent_type\`). |
+| \`TodoWrite\` | \`sql\` with built-in \`todos\` table | Copilot exposes a SQLite-backed durable state via the \`sql\` tool; the \`todos\` table is its checklist primitive. |
+| \`WebSearch\` | \`web_search\` | Same. |
+| \`WebFetch\` | \`web_fetch\` | Same. |
+| \`Grep\` | \`grep\` | Same. |
+| \`Glob\` | \`glob\` | Same. |
+
+## Plugin marketplace
+
+Copilot CLI distributes plugins through a **marketplace repository** — a
+separate GitHub repo registered with \`copilot plugin marketplace add\`.
+The Specnaut marketplace (see issue #281) lives at
+\`specnaut/specnaut-cli-marketplace\` (planned) and registers Specnaut as
+\`specnaut@specnaut-marketplace\`.
+
+Install flow for end users:
+
+\`\`\`bash
+copilot plugin marketplace add specnaut/specnaut-cli-marketplace
+copilot plugin install specnaut@specnaut-marketplace
+\`\`\`
+
+## Subagent dispatch — concrete pattern
+
+A skill that reads \`Use Task to dispatch a code reviewer subagent\` should,
+on Copilot CLI, expand to:
+
+\`\`\`
+task({
+  agent_type: "code-reviewer",
+  description: "Review changes against the plan",
+  prompt: "<full prompt>"
+})
+\`\`\`
+
+The agent runs in an isolated context and returns when complete. The
+calling skill gets the subagent's final report as the tool's return
+value.
+
+## Idiom differences worth noting
+
+- **\`sql\` for state.** Copilot's \`TodoWrite\` equivalent is a structured
+  database insert/update. Skill prose that says "track this in a TODO
+  list" needs the adapter to translate to a \`sql\` insert into the
+  \`todos\` table. The \`using-specnaut\` bootstrap skill explains the
+  schema.
+- **No \`WebFetch\` slug.** Copilot uses \`web_fetch\` (snake_case) where
+  Claude Code uses \`WebFetch\` (PascalCase). The mapping is the only
+  difference — the semantics are identical.
+- **SessionStart hook.** Copilot's hook system uses
+  \`{"additionalContext": "..."}\` as the injection format (SDK standard).
+  The Specnaut Copilot SessionStart hook (see #282) reads the
+  \`using-specnaut\` bootstrap skill and emits this shape at session
+  boot.
+
+## Auto-activation
+
+Copilot honors the same \`description:\` frontmatter contract as Claude
+Code and Cursor — when the user's prompt matches phrases in a skill's
+\`description:\` field, Copilot invokes the skill. The SessionStart hook
+(once #282 lands) ensures \`using-specnaut\` is loaded so the agent knows
+which Specnaut skill to pick for which user phrasing.
+`,
+      executable: false,
+    },
   },
   "cursor": {
     ".cursor/rules/specify-rules.mdc": {
@@ -20406,6 +20615,159 @@ clarifications needed) STOP #2 (pre-merge validation)
 - Project conventions: \`AGENTS.md\` at project root.
 
 Read the constitution and AGENTS.md before starting any significant work.
+`,
+      executable: false,
+    },
+    ".specnaut/harness-tools.md": {
+      content: `# Cursor — tool reference
+
+Specnaut skills are authored using **Claude Code tool names**. This file
+maps each Claude Code tool to its Cursor Agent equivalent.
+
+> Inspired by [obra/superpowers v5.1.0](https://github.com/obra/superpowers)
+> (MIT) — \`skills/using-superpowers/references/\`. Re-implemented for
+> Specnaut.
+
+## Tool mapping
+
+| Claude Code | Cursor Agent | Notes |
+|---|---|---|
+| \`Read\` | \`read_file\` | Cursor's read tool returns the file with line numbers. |
+| \`Write\` | \`edit_file\` (full overwrite) | Cursor uses one \`edit_file\` tool for both create and edit; pass the full new content. |
+| \`Edit\` | \`edit_file\` (partial) | Same tool, pass a precise edit specification. |
+| \`Bash\` | \`run_terminal_cmd\` | Same shape; pass \`command\` + \`is_background\`. |
+| \`Skill\` | \`Skill\` | Cursor's Agent plugin format exposes a native \`Skill\` tool with the same shape as Claude Code. |
+| \`Task\` | \`Task\` via Agent plugin | Cursor supports subagent dispatch when the plugin declares \`agents\` in its manifest. |
+| \`TodoWrite\` | \`todo_write\` | Cursor's todo tool, semantically equivalent. |
+| \`WebSearch\` | \`web_search\` | Same. |
+| \`WebFetch\` | \`web_search\` + manual read | Cursor doesn't expose a separate URL-fetch tool; use \`web_search\` then \`read_file\` on the result if it's local. |
+| \`Grep\` / \`Glob\` | \`grep_search\` / \`file_search\` | Cursor exposes both natively with similar arguments. |
+
+## Idiom differences worth noting
+
+- **\`edit_file\` is unified.** Cursor doesn't distinguish \`Write\` (create
+  new) from \`Edit\` (modify existing); the same tool does both based on
+  whether the path exists. Skill authors should still write "create" or
+  "modify" in prose for clarity to other harnesses.
+- **Hooks live in \`hooks-cursor.json\`**, not \`hooks.json\`. Cursor uses
+  \`snake_case\` field names (\`session_start\`, \`pre_tool_use\`) where
+  Claude Code uses \`camelCase\` (\`SessionStart\`, \`PreToolUse\`). The
+  Specnaut Cursor adapter handles the translation; skill content stays
+  uniform.
+- **Plugin manifest** uses \`.cursor-plugin/plugin.json\` with keys
+  \`{skills, agents, commands, hooks}\` (see issue #278 for the adapter).
+
+## Subagent dispatch — concrete pattern
+
+A skill that reads \`Use Task to dispatch a code reviewer subagent\` works
+on Cursor identically to Claude Code, **provided the plugin's
+\`.cursor-plugin/plugin.json\` declares \`agents: "./agents/"\`**. Without
+that declaration, Cursor's Agent doesn't see the subagent definitions
+and the dispatch falls back to inline execution.
+
+## Auto-activation
+
+Cursor honors the same \`description:\` frontmatter contract as Claude
+Code — when the user's prompt matches phrases in a skill's \`description:\`
+field, Cursor invokes the skill automatically. The \`SessionStart\` hook
+(via \`hooks-cursor.json\`) injects the \`using-specnaut\` bootstrap skill
+to make Specnaut skill-aware on every turn.
+`,
+      executable: false,
+    },
+  },
+  "opencode": {
+    ".specnaut/harness-tools.md": {
+      content: `# OpenCode — tool reference
+
+Specnaut skills are authored using **Claude Code tool names**. This file
+maps each Claude Code tool to its OpenCode equivalent.
+
+> Inspired by [obra/superpowers v5.1.0](https://github.com/obra/superpowers)
+> (MIT) — \`.opencode/plugins/superpowers.js\` adapter and inline tool
+> mappings. Re-implemented for Specnaut.
+
+## Tool mapping
+
+| Claude Code | OpenCode | Notes |
+|---|---|---|
+| \`Read\` | \`read\` | OpenCode's read tool. |
+| \`Write\` | \`write\` | Same. |
+| \`Edit\` | \`edit\` | Same. |
+| \`Bash\` | \`bash\` | Same shape. |
+| \`Skill\` | \`skill\` | OpenCode exposes a native skill-invocation tool, lowercase. |
+| \`Task\` | \`@\`-mention subagent | OpenCode uses \`@<agent-name>\` syntax to dispatch subagents declared by the plugin. |
+| \`TodoWrite\` | \`todowrite\` | Lowercase variant. |
+| \`WebSearch\` | \`websearch\` | Lowercase. |
+| \`WebFetch\` | \`webfetch\` | Lowercase. |
+| \`Grep\` | \`grep\` | Same. |
+| \`Glob\` | \`glob\` | Same. |
+
+## Plugin shape — JavaScript adapter
+
+OpenCode plugins ship as JavaScript files (not JSON manifests). The
+Specnaut adapter (see issue #280) lives at
+\`.opencode/plugins/specnaut.js\` and registers itself via OpenCode's
+plugin loader:
+
+\`\`\`javascript
+// Pseudo-shape based on superpowers' adapter pattern.
+module.exports = function specnaut(config) {
+  const skillsDir = path.join(__dirname, "../../skills");
+  config.skills = config.skills || {};
+  config.skills.paths = config.skills.paths || [];
+  if (!config.skills.paths.includes(skillsDir)) {
+    config.skills.paths.push(skillsDir);
+  }
+  // Hook the SessionStart event to inject the using-specnaut bootstrap.
+  config.experimental = config.experimental || {};
+  config.experimental.chat = config.experimental.chat || {};
+  config.experimental.chat.messages = config.experimental.chat.messages || {};
+  // ...
+};
+\`\`\`
+
+Concrete implementation lands in #280.
+
+## Install instructions
+
+Add to the user's \`opencode.json\`:
+
+\`\`\`json
+{
+  "plugin": [
+    "specnaut@git+https://github.com/specnaut/specnaut-cli.git"
+  ]
+}
+\`\`\`
+
+OpenCode fetches the repo, runs the adapter at session start, and the
+Specnaut skills register themselves.
+
+## Subagent dispatch — concrete pattern
+
+A skill that reads \`Use Task to dispatch a code reviewer subagent\` should,
+on OpenCode, expand to:
+
+\`\`\`
+@code-reviewer Please review the following code change against the plan:
+[paste full prompt content]
+\`\`\`
+
+The \`@\`-mention triggers the subagent declared in the plugin's \`agents/\`
+directory. Wait for the response in the same chat thread.
+
+## Idiom differences worth noting
+
+- **No JSON manifest.** OpenCode's plugin system is code-driven, not
+  declarative. The adapter has to perform skill registration imperatively
+  in its function body.
+- **Skills resolved by path.** OpenCode reads \`config.skills.paths\` and
+  walks each directory for \`SKILL.md\` files. Specnaut's skills live under
+  the plugin repo's \`skills/\` directory and are auto-discovered.
+- **Lowercase tool names** throughout. Skill prose that says "use the
+  Bash tool" still works because OpenCode's LLM understands the mapping,
+  but the actual tool name in JSON tool-use blocks is \`bash\`.
 `,
       executable: false,
     },

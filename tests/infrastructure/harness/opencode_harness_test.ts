@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { OpenCodeHarness } from "../../../src/infrastructure/harness/opencode_harness.ts";
 import type { CoreBundle } from "../../../src/domain/core_bundle.ts";
 
@@ -54,7 +54,9 @@ Deno.test("router skill emits to .opencode/skills/specnaut/SKILL.md", () => {
     specBackend: "local",
   });
   const dest = ".opencode/skills/specnaut/SKILL.md";
-  assertEquals(Object.keys(bundle), [dest]);
+  // Presence, not exclusivity: mapBundle also layers the harness's static
+  // files, so the key set is no longer a single entry.
+  assert(dest in bundle, `expected ${dest} in the bundle`);
   assertStringIncludes(bundle[dest].content, "name: specnaut");
 });
 
@@ -65,7 +67,9 @@ Deno.test("phase emits to .opencode/skills/specnaut/phases/<name>.md", () => {
     specBackend: "local",
   });
   const dest = ".opencode/skills/specnaut/phases/specify.md";
-  assertEquals(Object.keys(bundle), [dest]);
+  // Presence, not exclusivity: mapBundle also layers the harness's static
+  // files, so the key set is no longer a single entry.
+  assert(dest in bundle, `expected ${dest} in the bundle`);
   assertStringIncludes(bundle[dest].content, "Body content");
 });
 
@@ -82,7 +86,7 @@ Deno.test("backlog-cmd emits to .opencode/commands/backlog.md", () => {
     versionScheme: "semver",
     specBackend: "local",
   });
-  assertEquals(Object.keys(bundle), [".opencode/commands/backlog.md"]);
+  assert(".opencode/commands/backlog.md" in bundle);
 });
 
 Deno.test("agent emits to .opencode/agents/specnaut-<name>.md with mode: subagent", () => {
@@ -90,7 +94,9 @@ Deno.test("agent emits to .opencode/agents/specnaut-<name>.md with mode: subagen
     agentEntry("developer", "Read, Write, Edit, Grep, Glob, Bash"),
   ], { backlogBackend: "local", versionScheme: "semver", specBackend: "local" });
   const dest = ".opencode/agents/specnaut-developer.md";
-  assertEquals(Object.keys(bundle), [dest]);
+  // Presence, not exclusivity: mapBundle also layers the harness's static
+  // files, so the key set is no longer a single entry.
+  assert(dest in bundle, `expected ${dest} in the bundle`);
   assertStringIncludes(bundle[dest].content, "description: developer agent");
   assertStringIncludes(bundle[dest].content, "mode: subagent");
   assertStringIncludes(bundle[dest].content, "permission:");
@@ -167,7 +173,9 @@ Deno.test("skill emits to .opencode/skills/specnaut-<name>/SKILL.md with name+de
     specBackend: "local",
   });
   const dest = ".opencode/skills/specnaut-auto/SKILL.md";
-  assertEquals(Object.keys(bundle), [dest]);
+  // Presence, not exclusivity: mapBundle also layers the harness's static
+  // files, so the key set is no longer a single entry.
+  assert(dest in bundle, `expected ${dest} in the bundle`);
   assertStringIncludes(bundle[dest].content, "name: specnaut-auto");
   assertStringIncludes(bundle[dest].content, "description: specnaut-auto skill");
 });
@@ -178,7 +186,7 @@ Deno.test("router skill named 'specnaut' is not double-prefixed", () => {
     versionScheme: "semver",
     specBackend: "local",
   });
-  assertEquals(Object.keys(bundle), [".opencode/skills/specnaut/SKILL.md"]);
+  assert(".opencode/skills/specnaut/SKILL.md" in bundle);
 });
 
 Deno.test("spec-root and project-root pass through unchanged", () => {
