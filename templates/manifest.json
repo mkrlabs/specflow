@@ -167,6 +167,11 @@
     { "harness": "claude", "destination": ".claude/hooks/check-backlog-prereqs.sh", "source": "harness-specific/claude/hooks/check-backlog-prereqs.sh", "executable": true },
     { "harness": "codex", "destination": ".codex/AGENTS.md", "source": "harness-specific/codex/AGENTS.md" },
     { "harness": "codex", "destination": ".codex/goal.md", "source": "harness-specific/codex/goal.md" },
-    { "harness": "cursor", "destination": ".cursor/rules/specify-rules.mdc", "source": "harness-specific/cursor/specify-rules.mdc" }
+    { "harness": "cursor", "destination": ".cursor/rules/specify-rules.mdc", "source": "harness-specific/cursor/specify-rules.mdc" },
+    { "harness": "claude", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/claude-tools.md" },
+    { "harness": "codex", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/codex-tools.md" },
+    { "harness": "copilot", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/copilot-tools.md" },
+    { "harness": "cursor", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/cursor-tools.md" },
+    { "harness": "opencode", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/opencode-tools.md" }
   ]
 }

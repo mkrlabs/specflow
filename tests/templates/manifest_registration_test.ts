@@ -10,9 +10,9 @@ import { walk } from "@std/fs";
  *
  * This is not hypothetical. Four instances shipped that way:
  *
- *   - `using-specnaut/SKILL.md` points at five `references/*-tools.md` files;
- *     none is registered, so the skill instructs users to read files that do
- *     not exist (tracked by #441).
+ *   - `using-specnaut/SKILL.md` pointed at five `references/*-tools.md`
+ *     files that were never registered, so every scaffolded project shipped a
+ *     skill instructing the agent to read files that did not exist (#441).
  *   - `backlog/scripts/local/_config.sh` (#450) — the local backend's
  *     `item_url` helper existed in no project.
  *   - `backlog/scripts/cloud/columns.sh` and `reconcile.sh` (#450) — both
@@ -40,13 +40,6 @@ const NOT_SHIPPED: ReadonlyArray<{ path: string; why: string }> = [
     why: "documentation of the alias_of/overlays convention, for humans reading " +
       "this repo. Its own description says Specnaut never installs it.",
   },
-  // The five below are a real defect, not a design choice — a skill can ship
-  // only its own SKILL.md today, so there is no mechanism to carry them.
-  // Pinned here so the gap stays visible and cannot grow while #441 is open.
-  ...["claude", "codex", "copilot", "cursor", "opencode"].map((h) => ({
-    path: `core/skills/using-specnaut/references/${h}-tools.md`,
-    why: `referenced by using-specnaut/SKILL.md but unshippable until #441 lands`,
-  })),
 ];
 
 async function authoredFiles(): Promise<string[]> {

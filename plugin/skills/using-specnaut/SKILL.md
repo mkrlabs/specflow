@@ -26,8 +26,8 @@ always take precedence over a skill's defaults. If the user says
 ## How to invoke a Specnaut skill
 
 Use the harness's `Skill` tool (Claude Code) or the equivalent
-(`skill` on Codex/OpenCode/Copilot — see
-`references/<harness>-tools.md` for your harness).
+(`skill` on Codex/OpenCode/Copilot — see "Tool-name differences across
+harnesses" below for where your harness's mapping lives).
 
 The skill content is loaded into your context. Follow it directly — do
 not re-read the file with `Read`.
@@ -59,7 +59,7 @@ below) and never appear as user commands.
 ## Specnaut agent registry
 
 Dispatch these via `Task({ subagent_type: "<name>", ... })` (or your
-harness's equivalent — see `references/<harness>-tools.md`).
+harness's equivalent — see the tool reference described below).
 
 | Agent | When to dispatch |
 |---|---|
@@ -110,17 +110,22 @@ Claude Code, Codex CLI, Codex App, Cursor, OpenCode, GitHub Copilot
 CLI. Each harness uses different tool names — `Read` vs `read_file`,
 `Task` vs `spawn_agent`, etc.
 
-Before invoking any tool, consult the right reference:
+Before invoking any tool, consult the right reference. Where it lives
+depends on how this skill reached you:
 
-- Claude Code (baseline) → `references/claude-tools.md`
-- Codex → `references/codex-tools.md`
-- Cursor → `references/cursor-tools.md`
-- OpenCode → `references/opencode-tools.md`
-- Copilot CLI → `references/copilot-tools.md`
+- **Scaffolded into a project** (`specnaut init --ai <harness>`) — the
+  harness was fixed at scaffold time, so exactly one reference ships and
+  it is already yours: read `.specnaut/harness-tools.md` and stop.
+- **Loaded from the plugin distribution** — the harness is not known in
+  advance, so every reference ships side by side. Pick yours from
+  `references/{claude,codex,cursor,opencode,copilot}-tools.md`, detecting
+  the harness from env hints (`CLAUDE_PLUGIN_ROOT`, `CURSOR_*`,
+  `CODEX_*`, …) or from the tool list in your current context.
 
-Auto-detect the running harness by looking for env hints
-(`CLAUDE_PLUGIN_ROOT`, `CURSOR_*`, `CODEX_*`, etc.) or by inspecting
-the available tool list in your current context.
+If neither path yields a file, no mapping is recorded for your harness:
+fall back to the baseline names above and check them against the tools
+you can actually see. Never guess a tool name that is not in your
+context.
 
 ## Red flags — these thoughts mean "stop and check for a skill"
 
