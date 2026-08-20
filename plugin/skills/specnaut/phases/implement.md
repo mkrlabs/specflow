@@ -45,7 +45,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 <!-- BEGIN: spec-backend=cloud -->
 0. **Cloud spec setup** (spec backend = cloud): the spec lives on SpecNaut Cloud
-   and `/specnaut specify` created NO git branch. Before anything else, in this order:
+   and `/specnaut plan` created NO git branch. Before anything else, in this order:
    - **Materialise the spec (pull-on-entry)** — run `specnaut spec pull <task>` ONCE
      now; it writes the spec's tabs to the gitignored `.specnaut/specs/.cache/<task>/`.
      Read the spec, plan, tasks, and the mandatory Domain Model block from that cache
@@ -92,7 +92,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 3. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
-   - **REQUIRED**: Read the `## Domain Model` section in spec.md. If the section is absent, empty, or still contains `[NEEDS CLARIFICATION]` markers / template placeholders → halt and report BLOCKED with reason `awaiting:product-owner-domain-brief`. The developer agent refuses to write code without this brief — its "First action" checklist (step 4) reads the block and returns the same BLOCKED reason. Recommend running `/specnaut clarify` to fill the section before re-attempting `/specnaut implement`.
+   - **REQUIRED**: Read the domain model in the plan's technical-context section. If the section is absent, empty, or still contains `[NEEDS CLARIFICATION]` markers / template placeholders → halt and report BLOCKED with reason `awaiting:product-owner-domain-brief`. The developer agent refuses to write code without this brief — its "First action" checklist (step 4) reads the block and returns the same BLOCKED reason. Recommend re-running `/specnaut plan` to fill it before re-attempting `/specnaut implement`.
    - **IF EXISTS**: Read data-model.md for entities and relationships
    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
    - **IF EXISTS**: Read research.md for technical decisions and constraints

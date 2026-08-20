@@ -14,7 +14,7 @@ approval. Then hand off to `writing-plans`.
 > Inspired by [obra/superpowers v5.1.0](https://github.com/obra/superpowers)
 > (MIT) — `skills/brainstorming/SKILL.md`. Re-implemented for Specnaut
 > with explicit handoff to the bundled `writing-plans` skill and
-> coexistence with the spec-kit `/specnaut specify` flow.
+> coexistence with the spec-kit `/specnaut plan` flow.
 
 ## When to use this skill
 
@@ -34,8 +34,8 @@ Do **not** use when:
   go straight to `writing-plans`
 - The work is a one-line fix — just do it
 - The user explicitly asked for the spec-kit greenfield flow (use
-  `/specnaut specify` instead — that's a heavier ceremony that
-  produces `.specnaut/specs/<feature>/spec.md` for multi-month
+  `/specnaut plan` instead — that's a heavier ceremony that
+  produces `.specnaut/specs/<feature>/plan.md` for multi-month
   features)
 
 ## Announce at start
@@ -152,7 +152,7 @@ Save the validated design (spec) to a location appropriate for the
 project:
 
 - **Greenfield spec-kit features** — `.specnaut/specs/<feature-id>/spec.md`
-  (this is the spec-kit convention; `/specnaut specify` lives in this
+  (this is the spec-kit convention; `/specnaut plan` lives in this
   same space)
 - **Issue-driven brownfield work** — `docs/specnaut/specs/YYYY-MM-DD-<topic>.md`
   (mirror of the `docs/specnaut/plans/` convention used by `writing-plans`)
@@ -210,18 +210,18 @@ implementation code). `writing-plans` is the next step.
 - **Incremental validation** — present, get approval, move on
 - **Be flexible** — go back when something doesn't make sense
 
-## Coexistence with `/specnaut specify`
+## Coexistence with `/specnaut plan`
 
 Specnaut has TWO entry points for design work:
 
 | Entry | Use when |
 |---|---|
 | `brainstorming` skill (this) | Issue is vague, idea is fresh, design needs discovery via clarifying questions. Produces a markdown spec doc and hands off to `writing-plans`. |
-| `/specnaut specify` (spec-kit) | Greenfield multi-week feature with formal contracts. Produces `.specnaut/specs/<feature>/spec.md` + auto-chains to `/specnaut plan` (research, data-model, contracts, quickstart artefacts). |
+| `/specnaut plan` (spec-kit) | Greenfield multi-week feature with formal contracts. Produces one `.specnaut/specs/<feature>/plan.md`, audits it for architecture and security before any code, then auto-chains to `/specnaut tasks`. |
 
 If you're not sure which to use: start with `brainstorming`. If the
 discussion reveals the design needs spec-kit ceremony (formal contracts,
-data model, quickstart), hand off to `/specnaut specify` instead of
+data model, a binding decision table), hand off to `/specnaut plan` instead of
 `writing-plans` at Step 10.
 
 ## Out of scope

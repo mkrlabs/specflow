@@ -8,8 +8,7 @@ $ARGUMENTS
 ## Preconditions
 
 - The feature branch must be checked out.
-- All Specnaut phases must have completed successfully (clarify, plan, tasks, analyze, implement,
-  review).
+- All Specnaut phases must have completed successfully (plan, tasks, implement, review).
 - `$ARGUMENTS` is optional. If empty, the base branch is `main`. Otherwise it is the first token of
   `$ARGUMENTS`.
 

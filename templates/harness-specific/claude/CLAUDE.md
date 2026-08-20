@@ -39,7 +39,7 @@ team's needs.
   picker automatically — start one with the agent name as the first
   word, e.g. `developer fix the lint errors in src/cli/`, `@qa-tester
   run a sandbox smoke pass`, or `@product-owner groom the backlog`.
-  Skills are dispatchable too: `/specnaut specify "<feature>"` launches
+  Skills are dispatchable too: `/specnaut plan "<feature>"` launches
   a session running the full spec-plan-tasks chain. File edits are
   isolated under `.claude/worktrees/` (git worktrees), so several
   Specnaut agents can work in parallel without stepping on each

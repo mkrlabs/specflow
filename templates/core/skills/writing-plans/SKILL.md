@@ -30,7 +30,7 @@ Do **not** use when:
 
 - The change is genuinely trivial (one-line typo, single-config bump) —
   just do it
-- The user explicitly asked for the spec-kit flow (`/specnaut specify` →
+- The user explicitly asked for the spec-kit flow (`/specnaut plan` →
   `/specnaut plan` produces design artefacts: research.md, data-model.md,
   contracts/, quickstart.md — that's a different beast for greenfield
   features with formal specs)
@@ -269,7 +269,7 @@ ad-hoc work where the spec-kit ceremony would be overkill.
 
 A user can use both:
 
-- `/specnaut specify` → `/specnaut plan` for a new multi-month feature
+- `/specnaut plan` → `/specnaut tasks` for a new multi-month feature
   with formal contracts
 - `writing-plans` (auto-invoked) for "plan how to fix this backlog issue"
 

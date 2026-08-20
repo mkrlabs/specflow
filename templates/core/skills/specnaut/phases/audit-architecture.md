@@ -125,7 +125,7 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 ## When NOT to use this phase
 
 - For per-PR review on a feature branch → use `/specnaut review` (gates merge with the architecture-auditor in PR mode, not audit mode).
-- For codebase-wide refactor planning → out of scope; this phase surfaces drift, it doesn't propose the refactor strategy. Pair with `/specnaut specify` to capture the refactor as a spec.
+- For codebase-wide refactor planning → out of scope; this phase surfaces drift, it doesn't propose the refactor strategy. Pair with `/specnaut plan` to capture the refactor as a plan.
 - For a single-file architecture check → invoke `architecture-auditor` directly with the file paths.
 
 ---
