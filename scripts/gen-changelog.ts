@@ -524,6 +524,29 @@ function formatBullet(c: Classified): string {
 const REPO_URL = "https://github.com/specnaut/specnaut-cli";
 const DEFAULT_OUT = "dist/release-notes.md";
 
+/**
+ * Does `ref` resolve in this repository?
+ *
+ * Used to decide the range end. When cutting a new release the target tag does
+ * not exist yet, so the range must run to `HEAD`. When regenerating the notes
+ * for a tag that already shipped, `HEAD` is the wrong end — it sweeps in every
+ * commit merged since. `--to` used to only *label* the output, which meant
+ * `--from v1.21.0 --to v2.0.0` silently produced notes for v2.0.0 containing
+ * work that was not in v2.0.0.
+ */
+async function refExists(ref: string): Promise<boolean> {
+  try {
+    const { success } = await new Deno.Command("git", {
+      args: ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`],
+      stdout: "null",
+      stderr: "null",
+    }).output();
+    return success;
+  } catch {
+    return false;
+  }
+}
+
 async function getCommits(from: string | null, to: string): Promise<Commit[]> {
   const range = from ? `${from}..${to}` : to;
   const cmd = new Deno.Command("git", {
@@ -591,7 +614,10 @@ async function main() {
   const to = toArg ?? (await detectCurrentTag());
   const out = outArg ?? DEFAULT_OUT;
 
-  const commits = await getCommits(from, "HEAD");
+  // Bound the range to the target tag when it already exists (regenerating a
+  // published release); otherwise HEAD (cutting a new one, tag not yet made).
+  const rangeEnd = await refExists(to) ? to : "HEAD";
+  const commits = await getCommits(from, rangeEnd);
   const classified = commits
     .map(classifyCommit)
     .filter((c) => c.category !== "skip");
@@ -633,7 +659,7 @@ async function main() {
   await ensureDir(out);
   await Deno.writeTextFile(out, md);
   console.log(`✓ wrote ${out}`);
-  console.log(`  range: ${from ?? "<root>"}..HEAD (target ${to})`);
+  console.log(`  range: ${from ?? "<root>"}..${rangeEnd} (target ${to})`);
   console.log(
     `  commits: ${classified.length} kept (${commits.length - classified.length} skipped)`,
   );
