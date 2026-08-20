@@ -7526,6 +7526,44 @@ one of them. You are also asked for architectural expertise on a plan,
 before any code exists. Read the mode you are in before you read the
 artifact: the same finding is worth far more in one of them than the other.
 
+## Step 0 — open the catalogue (mandatory, every mode)
+
+This project carries a complete offline architecture catalogue at
+\`.specnaut/memory/architecture/\` — one file per smell, refactoring technique and
+design pattern, plus \`ddd-and-clean-code.md\` for layering and SOLID. **You have
+no reason to judge from memory and none to fetch anything from the network.**
+
+1. **Read \`.specnaut/memory/architecture/README.md\` first.** It holds the index
+   and the procedure a finding is built from. Skipping it is how a report fills
+   with the right technical word attached to the wrong diagnosis.
+2. **Open the leaf for every item you NAME IN THE REPORT** — not for every
+   candidate you considered and dropped. The gate is per *shipped* finding, so
+   its cost scales with what you deliver, and a leaf is about a page.
+
+   | About to… | Open first |
+   | :--- | :--- |
+   | name a smell | \`smells/<smell>.md\` — *How to spot it* **and** *When it is NOT a smell* |
+   | prescribe a technique | \`refactorings/<technique>.md\` — its trigger and its caution |
+   | prescribe a pattern | \`patterns/<pattern>.md\` — specifically *When NOT to reach for it* |
+   | judge layering, a boundary, a dependency direction, or SOLID | \`ddd-and-clean-code.md\` |
+
+3. **Read the negative section looking for the reason you are wrong.** It exists
+   to kill your own finding before a reader has to. One that does not survive it
+   is not a finding.
+4. **Cite the leaf you opened** in each finding. A named smell with no file
+   behind it is an opinion wearing a technical word — **downgrade it yourself**
+   rather than shipping it at full confidence.
+5. **State which leaves you read**, once, at the top of the report. A skipped
+   read is otherwise invisible, and the reader cannot tell a judgement from a
+   guess.
+
+**If \`.specnaut/memory/architecture/\` is absent** — you were installed as a
+standalone plugin rather than scaffolded — fall back to the always-check rules
+below and say so in one line at the top of your report.
+
+If a leaf contradicts this file, **the leaf wins**: it is the maintained source
+and this definition is a summary.
+
 ## Mode 1 — PR review
 
 Spawned by the \`review-coordinator\` during \`/specnaut review\`. Review ONLY
@@ -7571,47 +7609,29 @@ in the report's \`Out of scope\` section and stop.
 
 ### Scope checklist (axes to walk in order)
 
-1. **Hex-layer / module-layer violations** — detect the project's layer
-   convention from directory structure (\`src/domain/\`, \`src/application/\`,
-   \`src/infrastructure/\`, \`src/cli/\`; or DDD-style \`core/\`, \`app/\`,
-   \`adapters/\`). For each layer, grep imports pointing UP the dependency
-   chain. CRITICAL when domain ↦ infrastructure, HIGH when application
-   ↦ infrastructure, MEDIUM when infrastructure ↦ CLI.
-2. **Circular dependencies** — module A imports B which imports A
-   (direct or transitive). Surface the cycle path. Use language tooling
-   when available (\`madge --circular\` for TS/JS, \`pylint --enable=R0401\`
-   for Python); fall back to \`grep\` of import statements.
-3. **God files / god classes** — files exceeding 500 LOC (source) or
-   classes/type blocks exceeding 200 LOC. HIGH for top-5-by-size; LOW
-   for the rest. Report the top 10 in absolute terms even when below
-   the floor, so the reader sees the distribution.
-4. **Bounded-context leaks** — types or identifiers from one bounded
-   context imported directly into another without going through a port
-   or interface. Detect bounded contexts from top-level directory or
-   namespace partitioning; flag cross-context type imports.
-5. **Ports/adapters discipline** — infrastructure files bypassing the
-   port interface and calling domain code directly; use cases importing
-   adapters directly; any direct concrete-class reference where an
-   interface should be injected. HIGH — these corrupt the swap-the-
-   adapter testability guarantee.
-6. **Deep nesting** — function bodies or control-flow blocks nested
-   more than 4 levels. MEDIUM (readability + testability proxy).
-   Use \`awk\` + brace-counting or language-specific complexity tools
-   (\`flake8 --max-complexity\`, \`eslint complexity rule\`).
-7. **Anemic domain model** — domain types that are pure data bags with
-   all logic pushed to application or infrastructure. LOW — signals
-   boundary erosion; flag with a count and a few examples, not every
-   instance.
-8. **Implicit dependencies in domain / use cases** — \`Deno.*\`,
-   \`process.*\`, \`window.*\`, \`globalThis.*\` references in files that
-   should be pure. HIGH for domain, MEDIUM for application.
-9. **Test isolation** — tests importing infrastructure adapters directly
-   instead of using ports/stubs. These are integration tests masquerading
-   as unit tests. MEDIUM — flag with the file count per layer.
-10. **Naming consistency** — module names not matching the layer
-    convention (e.g. an \`infrastructure/\` file named \`*_service.ts\`
-    instead of \`*_adapter.ts\` / \`*_store.ts\`; a \`domain/\` file with
-    \`_handler\` suffix). LOW — pattern hygiene only.
+Each axis names the leaf that defines it. **The leaf is the definition — how to
+spot it, and when it is not a finding.** This table carries only what the
+catalogue cannot: the default severity for an audit of a whole codebase, and
+the order to walk them in.
+
+| # | Axis | Leaf | Default severity |
+| --: | :--- | :--- | :--- |
+| 1 | Layer violations | \`smells/layer-violation.md\` | CRITICAL inward-most breach, HIGH mid-layer, MEDIUM outward |
+| 2 | Circular dependencies | \`smells/circular-dependency.md\` | HIGH — surface the full cycle path |
+| 3 | God files | \`smells/god-file.md\` | HIGH for the top five by size, LOW below |
+| 4 | Bounded-context leaks | \`ddd-and-clean-code.md\` | HIGH |
+| 5 | Ports/adapters discipline | \`ddd-and-clean-code.md\` | HIGH |
+| 6 | Deep nesting | \`smells/deep-nesting.md\` | MEDIUM |
+| 7 | Anemic domain model | \`smells/anemic-domain-model.md\` | LOW — a count and a few examples, not every instance |
+| 8 | Implicit globals in inner layers | \`smells/implicit-global.md\` | HIGH in the innermost layer, MEDIUM one out |
+| 9 | Test isolation | \`smells/layer-violation.md\` | MEDIUM — integration tests posing as unit tests |
+| 10 | Naming consistency | — | LOW, pattern hygiene only |
+
+Use the language's own tooling for axes 2, 3 and 6 where it exists (module-graph
+and complexity tools beat grep); fall back to import and brace analysis.
+
+For axis 3, report the top ten by size in absolute terms even when all are below
+the floor — the reader needs the distribution, not a pass/fail.
 
 ### Output format (Mode 2 — audit report)
 
@@ -14874,6 +14894,4287 @@ with a plaintext key.
 \`EXECUTE IMMEDIATE\`, \`sp_executesql\` with a built string, broad \`GRANT\`s,
 application accounts holding DDL rights, missing row limits on queries
 that can return the whole table.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/README.md",
+    content: `> **Agents depend on this file.** It is the entry point the architect is
+> required to read before naming anything from this catalogue. Moving or
+> renaming it, or any leaf it lists, breaks that link in silence — repoint
+> \`.claude/agents/architect-expert.md\` in the same change.
+
+# The architecture catalogue
+
+Every smell, refactoring technique and design pattern this project judges by,
+**one file each, held locally**. Nothing here needs a network call: the seat
+that needs a definition opens a file instead of deciding whether fetching one
+is worth the trouble.
+
+That is the entire point. An online escape hatch is optional, and **an optional
+lookup does not happen** — so the vocabulary an audit was supposed to apply
+becomes a list of names with nothing behind them, and findings get built from
+the right word attached to the wrong diagnosis.
+
+Each leaf is deliberately small, around a page. Opening one costs little enough
+that opening one per finding you actually report is affordable, which is what
+makes the rule below enforceable rather than aspirational.
+
+## How a finding is built
+
+1. **Name the smell.** Open its file under [\`smells/\`](smells/) and check
+   *How to spot it* against the code. Then read **When it is NOT a smell**,
+   looking for the reason you are wrong. A finding that survives that section
+   is a real one.
+2. **Prescribe the technique.** Open the matching file under
+   [\`refactorings/\`](refactorings/). Most fixes stop here — the smallest
+   refactoring that removes the smell is the right one.
+3. **Reach for a pattern only if a technique will not do.** Open its file under
+   [\`patterns/\`](patterns/) and read **When NOT to reach for it** *before*
+   prescribing. A pattern that removes no present smell is over-engineering,
+   and recommending one is itself a finding against the report.
+4. **Cite the file you opened**, in the finding. A named smell with no leaf
+   behind it is an opinion wearing a technical word — say so and downgrade it
+   yourself rather than shipping it at full confidence.
+5. **Judging a boundary instead of a unit?** Open
+   [\`ddd-and-clean-code.md\`](ddd-and-clean-code.md) — layering, the dependency
+   rule, ports and adapters, and SOLID as questions.
+
+## Contents
+
+| Category | Items | Directory |
+| :--- | ---: | :--- |
+| Code smells | 29 | [\`smells/\`](smells/) |
+| Refactoring techniques | 67 | [\`refactorings/\`](refactorings/) |
+| Design patterns | 23 | [\`patterns/\`](patterns/) |
+| Boundaries, layering, SOLID | 1 | [\`ddd-and-clean-code.md\`](ddd-and-clean-code.md) |
+
+## Code smells
+
+### Object-orientation abusers
+
+- [Alternative Classes with Different Interfaces](smells/alternative-classes.md)
+- [Refused Bequest](smells/refused-bequest.md)
+- [Switch Statements](smells/switch-statements.md)
+- [Temporary Field](smells/temporary-field.md)
+
+### Structural
+
+- [Anemic Domain Model](smells/anemic-domain-model.md)
+- [Circular Dependency](smells/circular-dependency.md)
+- [Deep Nesting](smells/deep-nesting.md)
+- [God File](smells/god-file.md)
+- [Implicit Global](smells/implicit-global.md)
+- [Layer Violation](smells/layer-violation.md)
+- [Silent Catch](smells/silent-catch.md)
+
+### Dispensables
+
+- [Comments](smells/comments.md)
+- [Data Class](smells/data-class.md)
+- [Dead Code](smells/dead-code.md)
+- [Duplicate Code](smells/duplicate-code.md)
+- [Lazy Class](smells/lazy-class.md)
+- [Speculative Generality](smells/speculative-generality.md)
+
+### Bloaters
+
+- [Data Clumps](smells/data-clumps.md)
+- [Large Class](smells/large-class.md)
+- [Long Method](smells/long-method.md)
+- [Long Parameter List](smells/long-parameter-list.md)
+- [Primitive Obsession](smells/primitive-obsession.md)
+
+### Change preventers
+
+- [Divergent Change](smells/divergent-change.md)
+- [Parallel Inheritance Hierarchies](smells/parallel-inheritance-hierarchies.md)
+- [Shotgun Surgery](smells/shotgun-surgery.md)
+
+### Couplers
+
+- [Feature Envy](smells/feature-envy.md)
+- [Inappropriate Intimacy](smells/inappropriate-intimacy.md)
+- [Message Chains](smells/message-chains.md)
+- [Middle Man](smells/middle-man.md)
+
+## Refactoring techniques
+
+### Simplifying method calls
+
+- [Add Parameter](refactorings/add-parameter.md)
+- [Hide Method](refactorings/hide-method.md)
+- [Introduce Null Object](refactorings/introduce-null-object.md)
+- [Introduce Parameter Object](refactorings/introduce-parameter-object.md)
+- [Parameterize Method](refactorings/parameterize-method.md)
+- [Preserve Whole Object](refactorings/preserve-whole-object.md)
+- [Remove Parameter](refactorings/remove-parameter.md)
+- [Remove Setting Method](refactorings/remove-setting-method.md)
+- [Rename Method](refactorings/rename-method.md)
+- [Replace Constructor with Factory Method](refactorings/replace-constructor-with-factory-method.md)
+- [Replace Error Code with Exception](refactorings/replace-error-code-with-exception.md)
+- [Replace Parameter with Explicit Methods](refactorings/replace-parameter-with-explicit-methods.md)
+- [Replace Parameter with Method Call](refactorings/replace-parameter-with-method-call.md)
+- [Separate Query from Modifier](refactorings/separate-query-from-modifier.md)
+
+### Organizing data
+
+- [Change Bidirectional Association to Unidirectional](refactorings/change-association-to-unidirectional.md)
+- [Change Reference to Value](refactorings/change-reference-to-value.md)
+- [Change Unidirectional Association to Bidirectional](refactorings/change-association-to-bidirectional.md)
+- [Change Value to Reference](refactorings/change-value-to-reference.md)
+- [Duplicate Observed Data](refactorings/duplicate-observed-data.md)
+- [Encapsulate Collection](refactorings/encapsulate-collection.md)
+- [Encapsulate Field](refactorings/encapsulate-field.md)
+- [Introduce Special Case](refactorings/introduce-special-case.md)
+- [Replace Array with Object](refactorings/replace-array-with-object.md)
+- [Replace Data Value with Object](refactorings/replace-data-value-with-object.md)
+- [Replace Magic Number with Symbolic Constant](refactorings/replace-magic-number-with-symbolic-constant.md)
+- [Replace Subclass with Fields](refactorings/replace-subclass-with-fields.md)
+- [Replace Type Code with Class](refactorings/replace-type-code-with-class.md)
+- [Replace Type Code with State/Strategy](refactorings/replace-type-code-with-state-strategy.md)
+- [Replace Type Code with Subclasses](refactorings/replace-type-code-with-subclasses.md)
+- [Self-Encapsulate Field](refactorings/self-encapsulate-field.md)
+
+### Dealing with generalization
+
+- [Collapse Hierarchy](refactorings/collapse-hierarchy.md)
+- [Extract Interface](refactorings/extract-interface.md)
+- [Extract Subclass](refactorings/extract-subclass.md)
+- [Extract Superclass](refactorings/extract-superclass.md)
+- [Form Template Method](refactorings/form-template-method.md)
+- [Pull Up Constructor Body](refactorings/pull-up-constructor-body.md)
+- [Pull Up Field](refactorings/pull-up-field.md)
+- [Pull Up Method](refactorings/pull-up-method.md)
+- [Push Down Field](refactorings/push-down-field.md)
+- [Push Down Method](refactorings/push-down-method.md)
+- [Replace Delegation with Inheritance](refactorings/replace-delegation-with-inheritance.md)
+- [Replace Inheritance with Delegation](refactorings/replace-inheritance-with-delegation.md)
+
+### Simplifying conditional expressions
+
+- [Consolidate Conditional Expression](refactorings/consolidate-conditional-expression.md)
+- [Consolidate Duplicate Conditional Fragments](refactorings/consolidate-duplicate-conditional-fragments.md)
+- [Decompose Conditional](refactorings/decompose-conditional.md)
+- [Introduce Assertion](refactorings/introduce-assertion.md)
+- [Remove Control Flag](refactorings/remove-control-flag.md)
+- [Replace Conditional with Polymorphism](refactorings/replace-conditional-with-polymorphism.md)
+- [Replace Exception with Test](refactorings/replace-exception-with-test.md)
+- [Replace Nested Conditional with Guard Clauses](refactorings/replace-nested-conditional-with-guard-clauses.md)
+
+### Moving features between objects
+
+- [Extract Class](refactorings/extract-class.md)
+- [Hide Delegate](refactorings/hide-delegate.md)
+- [Inline Class](refactorings/inline-class.md)
+- [Introduce Foreign Method](refactorings/introduce-foreign-method.md)
+- [Introduce Local Extension](refactorings/introduce-local-extension.md)
+- [Move Field](refactorings/move-field.md)
+- [Move Method](refactorings/move-method.md)
+- [Remove Middle Man](refactorings/remove-middle-man.md)
+
+### Composing methods
+
+- [Extract Method](refactorings/extract-method.md)
+- [Extract Variable](refactorings/extract-variable.md)
+- [Inline Method](refactorings/inline-method.md)
+- [Inline Temp](refactorings/inline-temp.md)
+- [Remove Assignments to Parameters](refactorings/remove-assignments-to-parameters.md)
+- [Replace Method with Method Object](refactorings/replace-method-with-method-object.md)
+- [Replace Temp with Query](refactorings/replace-temp-with-query.md)
+- [Split Temporary Variable](refactorings/split-temporary-variable.md)
+- [Substitute Algorithm](refactorings/substitute-algorithm.md)
+
+## Design patterns
+
+### Creational
+
+- [Abstract Factory](patterns/abstract-factory.md)
+- [Builder](patterns/builder.md)
+- [Factory Method](patterns/factory-method.md)
+- [Prototype](patterns/prototype.md)
+- [Singleton](patterns/singleton.md)
+
+### Structural
+
+- [Adapter](patterns/adapter.md)
+- [Bridge](patterns/bridge.md)
+- [Composite](patterns/composite.md)
+- [Decorator](patterns/decorator.md)
+- [Facade](patterns/facade.md)
+- [Flyweight](patterns/flyweight.md)
+- [Proxy](patterns/proxy.md)
+
+### Behavioral
+
+- [Chain of Responsibility](patterns/chain-of-responsibility.md)
+- [Command](patterns/command.md)
+- [Interpreter](patterns/interpreter.md)
+- [Iterator](patterns/iterator.md)
+- [Mediator](patterns/mediator.md)
+- [Memento](patterns/memento.md)
+- [Observer](patterns/observer.md)
+- [State](patterns/state.md)
+- [Strategy](patterns/strategy.md)
+- [Template Method](patterns/template-method.md)
+- [Visitor](patterns/visitor.md)
+
+## On the sources
+
+The vocabulary is the industry's: the smell and refactoring names come from
+Martin Fowler's *Refactoring*, the pattern names from *Design Patterns* by
+Gamma, Helm, Johnson and Vlissides. Those names are shared professional
+language and are used here as such.
+
+**The prose is original and written for this catalogue.** Nothing here is
+copied from any published description, and each leaf is deliberately written
+for a stack-agnostic reader rather than any one language or framework. For a
+fuller treatment of any entry, <https://refactoring.guru> is an excellent
+reference and most leaves link to the matching page.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/ddd-and-clean-code.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> judging layering, a boundary, a dependency direction, or a SOLID violation.
+> Moving or renaming it breaks that link in silence.
+
+# DDD, SOLID, and layering
+
+The vocabulary for judging *where a thing belongs*, as opposed to what shape it
+has. Open this when the finding is about a boundary; open a
+[smell](smells/) when it is about a unit.
+
+Nothing here assumes a language, a framework, or a directory convention. Detect
+the project's own layering from its structure before applying any of it — a
+codebase that never adopted a convention cannot violate it, and saying so is a
+better finding than importing one.
+
+## Building blocks
+
+**Entity** — identity that persists while its attributes change. Two entities
+with identical fields are still different things. If identity does not matter,
+you want a value object.
+
+**Value object** — defined entirely by its contents, compared by content,
+immutable. This is where a rule about a value gets a home; a value object with
+no invariant is usually just a named primitive, and
+[Replace Data Value with Object](refactorings/replace-data-value-with-object.md)
+should not have been applied.
+
+**Aggregate** — a cluster of objects with one entity as its root, treated as a
+single unit for consistency. Outside code holds the root and nothing else. The
+aggregate boundary is the transaction boundary; if two things must change
+together atomically, they belong in one aggregate, and if they do not, forcing
+them together makes contention where none was needed.
+
+**Repository** — the collection-like interface through which aggregates are
+retrieved and stored. It belongs to the domain as an *interface* and to the
+outside as an *implementation*: that split is what keeps the domain testable.
+
+**Domain service** — behaviour that is genuinely domain logic but belongs to no
+single entity or value object. A real one is rare. A service layer that grows
+whenever a rule changes is [Anemic Domain Model](smells/anemic-domain-model.md),
+not a domain service.
+
+**Domain event** — a record that something meaningful happened, named in the
+past tense. It lets reactions be added without the origin knowing about them —
+see [Observer](patterns/observer.md) for the mechanism and its hazards.
+
+**Bounded context** — the scope within which a term means one thing. The same
+word almost always means different things to different parts of a business, and
+a model that tries to serve every meaning serves none. Types from one context
+should not be imported directly into another; translate at the edge.
+
+## SOLID, as questions rather than slogans
+
+- **Single responsibility** — *what is this unit's one reason to change?* If the
+  answer needs "and", the symptom is
+  [Divergent Change](smells/divergent-change.md).
+- **Open/closed** — *can a new case be added without editing existing code?* If
+  every new case edits the same switch, see
+  [Switch Statements](smells/switch-statements.md).
+- **Liskov substitution** — *can any subtype be used wherever the supertype is
+  declared, without the caller checking?* If not, see
+  [Refused Bequest](smells/refused-bequest.md).
+- **Interface segregation** — *is any client forced to depend on members it does
+  not use?* The cure is [Extract Interface](refactorings/extract-interface.md),
+  declared where it is consumed.
+- **Dependency inversion** — *does the important code depend on the replaceable
+  code, or the other way round?* Inverting this is the whole point of the
+  layering below.
+
+## Layering and the dependency rule
+
+The one rule, in whatever vocabulary a project uses for it:
+
+> **Dependencies point inward. Inner code names nothing outer.**
+
+The names vary — domain/application/infrastructure, core/app/adapters,
+entities/use-cases/interface-adapters — and the rule does not.
+
+- The **innermost** layer holds the model and its rules. It reaches for nothing
+  ambient: no clock, no filesystem, no network, no environment. Where it needs
+  one, it declares an interface and receives an implementation. Breaking this is
+  [Implicit Global](smells/implicit-global.md).
+- The **middle** layer orchestrates use cases. It sequences domain objects and
+  ports; it does not itself decide domain rules, and it does not name concrete
+  adapters.
+- The **outer** layer implements the ports: persistence, transport, vendors, the
+  entry point. It is allowed to know the inner layers; they are not allowed to
+  know it. Violations are
+  [Layer Violation](smells/layer-violation.md).
+
+**Ports and adapters.** A port is an interface owned by the layer that *needs*
+the capability; an adapter is an implementation living outside. Declaring the
+interface beside its implementation is the most common way this is got wrong —
+the file compiles, the diagram looks right, and the dependency still points the
+same direction it always did.
+
+**The composition root** is the single place allowed to know every concrete
+type and wire them together. It sits outside the layers it wires. It is exempt
+from [Divergent Change](smells/divergent-change.md) — churning whenever anything
+it constructs changes is its job.
+
+## What to check before calling a boundary wrong
+
+1. **Detect the convention.** Which layering, if any, does this project actually
+   use? Read its structure; do not assume one.
+2. **Find the direction.** Which way does the import point, and which way should
+   it point under that convention?
+3. **Ask what breaks.** A boundary finding is worth stating only if you can name
+   what it prevents — a test that now needs the network, an implementation that
+   can no longer be swapped, a rule that can be asked two ways and answered
+   differently.
+4. **Count the blast radius.** How many call sites, routes, or modules does the
+   change touch? Counted, not estimated. A rule described in one sentence can
+   change behaviour in two hundred places, and that number is the finding.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/abstract-factory.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Abstract Factory
+
+**Family:** Creational · **Deeper reading:** <https://refactoring.guru/design-patterns/abstract-factory>
+
+## Intent
+
+Create whole families of related objects without naming their concrete types.
+
+## The smell it cures
+
+Call sites that must pick a matching set of implementations and can pick an inconsistent one.
+
+## Shape
+
+One factory interface with a method per member of the family. Each concrete
+factory returns a mutually consistent set. Callers receive the factory and ask
+it for parts.
+
+## Why it earns its keep
+
+Makes an inconsistent combination unrepresentable: you cannot take one member from family A and one from family B, because you only ever hold one factory.
+
+## When NOT to reach for it
+
+There is only one family, or the members are not actually related — then it is [Factory Method](factory-method.md) repeated, with extra ceremony and no invariant.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/adapter.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Adapter
+
+**Family:** Structural · **Deeper reading:** <https://refactoring.guru/design-patterns/adapter>
+
+## Intent
+
+Let a type with the wrong shape satisfy an interface the caller already depends on.
+
+## The smell it cures
+
+[Alternative Classes with Different Interfaces](../smells/alternative-classes.md), and vendor types leaking into code that should not know them.
+
+## Shape
+
+The caller depends on a port it owns. The adapter implements that port and
+translates to the foreign API, absorbing its vocabulary and its errors.
+
+## Why it earns its keep
+
+It is the mechanism that keeps a [Layer Violation](../smells/layer-violation.md) from being necessary: the inner code names only its own port, and the vendor stays outside. Swapping the vendor becomes one new adapter.
+
+## When NOT to reach for it
+
+You own both sides and can simply change one of them — then converge the interfaces instead and delete the hop. An adapter over code you control is often a [Middle Man](../smells/middle-man.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/bridge.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Bridge
+
+**Family:** Structural · **Deeper reading:** <https://refactoring.guru/design-patterns/bridge>
+
+## Intent
+
+Split an abstraction from its implementation so the two can vary independently.
+
+## The smell it cures
+
+A class hierarchy multiplying along two axes at once — the combinatorial explosion behind [Parallel Inheritance Hierarchies](../smells/parallel-inheritance-hierarchies.md).
+
+## Shape
+
+The abstraction holds a reference to an implementor interface and delegates
+the varying part to it. Both sides subtype independently.
+
+## Why it earns its keep
+
+Turns a multiplicative hierarchy into an additive one: N abstractions and M implementations become N+M types instead of N×M.
+
+## When NOT to reach for it
+
+Only one axis actually varies. Then the second dimension is imagined, and you have paid an indirection for it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/builder.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Builder
+
+**Family:** Creational · **Deeper reading:** <https://refactoring.guru/design-patterns/builder>
+
+## Intent
+
+Construct a complex value step by step, separating how it is assembled from what it becomes.
+
+## The smell it cures
+
+[Long Parameter List](../smells/long-parameter-list.md) in constructors, and telescoping overloads that differ only in which optional arguments they take.
+
+## Shape
+
+A builder accumulates configuration through named steps and produces the
+finished value on a final call. The product is immutable once built.
+
+## Why it earns its keep
+
+Call sites become self-documenting, and optional configuration stops being positional. The product can enforce its invariants once, at build time.
+
+## When NOT to reach for it
+
+The type has a handful of required fields and nothing optional. A builder there adds a mutable intermediate and a way to forget a step — the constructor already had neither.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/chain-of-responsibility.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Chain of Responsibility
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/chain-of-responsibility>
+
+## Intent
+
+Pass a request along a sequence of handlers until one deals with it.
+
+## The smell it cures
+
+A long if/else ladder deciding who should handle something, duplicated wherever the decision is made.
+
+## Shape
+
+Each handler holds the next. It either handles the request or forwards it.
+The chain is assembled at the composition root.
+
+## Why it earns its keep
+
+Handlers are added, removed and reordered without editing each other, and each is testable alone. Request pipelines and middleware stacks are the canonical use.
+
+## When NOT to reach for it
+
+Exactly one handler can ever apply and everyone knows which — that is a lookup, not a chain. Also avoid when an unhandled request falling off the end is silently acceptable: that is a [Silent Catch](../smells/silent-catch.md) in another shape.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/command.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Command
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/command>
+
+## Intent
+
+Turn a request into an object, so it can be passed, queued, logged, or undone.
+
+## The smell it cures
+
+Callers coupled to the receiver and to the timing of an action; undo logic scattered across a UI or a service.
+
+## Shape
+
+An interface with a single \`execute()\`, and optionally \`undo()\`. Concrete
+commands hold their arguments and their receiver.
+
+## Why it earns its keep
+
+Invocation is separated from execution, which is what makes queueing, retrying, auditing and undo possible at all.
+
+## When NOT to reach for it
+
+The action is called immediately, once, from one place. Wrapping a direct call in an object then adds a type per action and buys nothing.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/composite.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Composite
+
+**Family:** Structural · **Deeper reading:** <https://refactoring.guru/design-patterns/composite>
+
+## Intent
+
+Let clients treat individual objects and compositions of them uniformly.
+
+## The smell it cures
+
+Callers branching on 'is this one thing or many' — a [Switch Statement](../smells/switch-statements.md) on structure.
+
+## Shape
+
+A common interface implemented by both leaves and containers; the container
+implements operations by delegating to its children.
+
+## Why it earns its keep
+
+Recursion lives in the structure rather than in every caller, so adding a new operation does not touch the traversal.
+
+## When NOT to reach for it
+
+The hierarchy is shallow and fixed, or leaves and containers genuinely support different operations — forcing a shared interface then produces [Refused Bequest](../smells/refused-bequest.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/decorator.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Decorator
+
+**Family:** Structural · **Deeper reading:** <https://refactoring.guru/design-patterns/decorator>
+
+## Intent
+
+Add behaviour to an object at run time by wrapping it in something with the same interface.
+
+## The smell it cures
+
+Subtype explosion for optional, combinable behaviours; flags on a constructor that switch cross-cutting concerns on and off.
+
+## Shape
+
+The decorator implements the same interface, holds the wrapped instance, and
+adds behaviour before or after delegating.
+
+## Why it earns its keep
+
+Behaviours compose in any order without a type per combination, and each one is testable alone. Retries, caching, logging and metrics around a port are the canonical use.
+
+## When NOT to reach for it
+
+The behaviour is not optional, or the ordering of wrappers is significant and unstated — a stack whose correctness depends on assembly order is worse than one class. Also avoid when callers need to reach the concrete type through the wrapper.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/facade.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Facade
+
+**Family:** Structural · **Deeper reading:** <https://refactoring.guru/design-patterns/facade>
+
+## Intent
+
+Offer one narrow entry point to a broad or awkward subsystem.
+
+## The smell it cures
+
+[Message Chains](../smells/message-chains.md) and callers that must know the order of operations across several collaborators.
+
+## Shape
+
+One type exposing the few operations callers actually need, implemented by
+orchestrating the subsystem behind it.
+
+## Why it earns its keep
+
+Callers depend on a small stable surface instead of a large moving one, so the subsystem can be reorganised without a sweep.
+
+## When NOT to reach for it
+
+It grows to expose everything behind it, at which point it is a [Middle Man](../smells/middle-man.md) that added a name and no constraint. The value is in what it *refuses* to expose.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/factory-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Factory Method
+
+**Family:** Creational · **Deeper reading:** <https://refactoring.guru/design-patterns/factory-method>
+
+## Intent
+
+Let a type defer which concrete thing it creates to a method subtypes override.
+
+## The smell it cures
+
+[Switch Statements](../smells/switch-statements.md) inside a constructor, and construction logic duplicated at call sites.
+
+## Shape
+
+A creator declares \`make() -> Product\` and uses it in its own methods.
+Each subtype returns a different concrete product. Callers hold the creator
+and never name a product type.
+
+## Why it earns its keep
+
+Adding a product is a new subtype rather than an edit to existing code — Open/Closed applied to construction.
+
+## When NOT to reach for it
+
+There is one product and no second in sight; a plain constructor says more. Reaching for it to 'allow future extension' is [Speculative Generality](../smells/speculative-generality.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/flyweight.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Flyweight
+
+**Family:** Structural · **Deeper reading:** <https://refactoring.guru/design-patterns/flyweight>
+
+## Intent
+
+Share the invariant part of many similar objects to cut memory.
+
+## The smell it cures
+
+Memory pressure from large numbers of objects that mostly hold identical data.
+
+## Shape
+
+Split state into intrinsic (shared, immutable) and extrinsic (passed in per
+call). A cache hands out shared intrinsic instances.
+
+## Why it earns its keep
+
+Only when measured. It trades clarity for footprint, and that trade is worth it exactly when the footprint is a demonstrated problem.
+
+## When NOT to reach for it
+
+You have not measured. This is the pattern most often applied to an imaginary problem; without a profile it makes the object model harder for nothing. Immutability of the shared part is a hard requirement — sharing mutable state is a defect.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/interpreter.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Interpreter
+
+**Family:** Behavioral
+
+## Intent
+
+Represent a small language as an object tree and evaluate it by walking the tree.
+
+## The smell it cures
+
+Ad-hoc string parsing and evaluation scattered through a codebase, usually with a [Switch Statement](../smells/switch-statements.md) per operator.
+
+## Shape
+
+One type per grammar rule, each able to evaluate itself against a context.
+Composition of those types is the parsed expression.
+
+## Why it earns its keep
+
+The grammar becomes explicit and each rule is testable alone; adding a rule is a new type.
+
+## When NOT to reach for it
+
+The language is more than trivial. Beyond a handful of rules a parser generator or an existing library beats a hand-built tree, and performance degrades quickly. Reaching for this when a configuration format would do is over-engineering of the most expensive kind.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/iterator.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Iterator
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/iterator>
+
+## Intent
+
+Traverse a collection without exposing how it is stored.
+
+## The smell it cures
+
+Callers that know the internal representation of a collection — an [Inappropriate Intimacy](../smells/inappropriate-intimacy.md) with a data structure.
+
+## Shape
+
+The collection returns a cursor exposing only 'is there more' and 'give me
+the next'. Most languages have this built in.
+
+## Why it earns its keep
+
+The storage can change — array to tree to stream — without touching a caller.
+
+## When NOT to reach for it
+
+Your language already provides iteration and you are hand-rolling it. Implementing this from scratch where an idiom exists is a readability regression, not a pattern.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/mediator.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Mediator
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/mediator>
+
+## Intent
+
+Put many-to-many coordination in one object so the participants need not know each other.
+
+## The smell it cures
+
+[Inappropriate Intimacy](../smells/inappropriate-intimacy.md) among a group of components that all reference one another.
+
+## Shape
+
+Components talk only to the mediator; it decides who else needs to know.
+
+## Why it earns its keep
+
+Turns an N×N mesh into N edges, and puts the coordination rules in one readable place instead of distributing them.
+
+## When NOT to reach for it
+
+The mediator accumulates every rule in the system and becomes a [Large Class](../smells/large-class.md) — the coupling was centralised, not removed. If participants are few and stable, direct references are clearer.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/memento.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Memento
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/memento>
+
+## Intent
+
+Capture an object's internal state so it can be restored later, without exposing that state.
+
+## The smell it cures
+
+Undo or snapshot logic that requires callers to read and write internals, breaking encapsulation.
+
+## Shape
+
+The object produces an opaque token of its own state and accepts one back.
+Only the originator can interpret the token.
+
+## Why it earns its keep
+
+Restoration becomes possible without publishing the internal shape, so the shape can still change freely.
+
+## When NOT to reach for it
+
+The state is already a public immutable value — then a copy is the memento and the pattern is ceremony. Also watch the cost: naive snapshots of large state are a memory problem you introduced.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/observer.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Observer
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/observer>
+
+## Intent
+
+Let interested parties react to a subject's changes without the subject knowing who they are.
+
+## The smell it cures
+
+A subject that must call every interested party by name, edited each time one is added — [Shotgun Surgery](../smells/shotgun-surgery.md).
+
+## Shape
+
+The subject keeps a list of subscribers and notifies them on change.
+Subscribers register and unregister themselves.
+
+## Why it earns its keep
+
+Adding a reaction touches no existing code, which is what makes domain events and reactive UIs tractable.
+
+## When NOT to reach for it
+
+Control flow becomes untraceable — with several observers the order is unspecified and a failure in one can silently affect others. Prefer an explicit call when there is one listener that must run. Always decide what happens when a subscriber throws; leaving it undefined is how this pattern hides failures.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/prototype.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Prototype
+
+**Family:** Creational · **Deeper reading:** <https://refactoring.guru/design-patterns/prototype>
+
+## Intent
+
+Create a new object by copying an existing configured one rather than constructing it from scratch.
+
+## The smell it cures
+
+Construction logic duplicated to reproduce an object whose setup is expensive or whose full configuration the caller cannot see.
+
+## Shape
+
+The type exposes \`copy()\` returning an independent instance. Callers keep a
+configured exemplar and clone it.
+
+## Why it earns its keep
+
+A caller can reproduce an object without knowing how it was configured, which keeps configuration knowledge in one place.
+
+## When NOT to reach for it
+
+The object is cheap to construct, or copying it is ambiguous because it owns references — a shallow copy that shares mutable state is a defect wearing a pattern's name.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/proxy.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Proxy
+
+**Family:** Structural · **Deeper reading:** <https://refactoring.guru/design-patterns/proxy>
+
+## Intent
+
+Stand in for another object to control access to it.
+
+## The smell it cures
+
+Access control, laziness, or remoting logic scattered through callers.
+
+## Shape
+
+Same interface as the subject; the proxy decides whether, when, and how to
+forward.
+
+## Why it earns its keep
+
+Callers stay unaware of laziness, remoteness, or a permission check, so those concerns change without touching them.
+
+## When NOT to reach for it
+
+It only forwards — that is a [Middle Man](../smells/middle-man.md). It is also easily confused with [Decorator](decorator.md): a decorator *adds* behaviour, a proxy *controls access*. Prescribing the wrong one of the two suggests the diagnosis was not made.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/singleton.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Singleton
+
+**Family:** Creational · **Deeper reading:** <https://refactoring.guru/design-patterns/singleton>
+
+## Intent
+
+Guarantee one instance and give the program a global way to reach it.
+
+## The smell it cures
+
+Nominally, repeated construction of something that must be unique.
+
+## Shape
+
+A type that hides its constructor and hands out one shared instance.
+
+## Why it earns its keep
+
+Rarely. The uniqueness is usually a real requirement; the *global access* is the part that is not, and the two are separable.
+
+## When NOT to reach for it
+
+Almost always. It is [Implicit Global](../smells/implicit-global.md) with a design-pattern name: it hides a dependency from the signature, makes tests order-dependent, and prevents substitution. If uniqueness matters, construct one instance at the composition root and **inject** it — you get the invariant without the global. Prescribing this pattern needs a stronger justification than any other in this catalogue.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/state.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# State
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/state>
+
+## Intent
+
+Let an object change its behaviour when its internal state changes, as if it changed type.
+
+## The smell it cures
+
+[Switch Statements](../smells/switch-statements.md) on a status field, repeated in every method, plus [Temporary Field](../smells/temporary-field.md) for values only valid in some states.
+
+## Shape
+
+One type per state, each implementing the same operations and returning the
+next state. The context delegates to its current state.
+
+## Why it earns its keep
+
+Illegal transitions become unrepresentable rather than merely unhandled, and adding a state is a new type instead of an edit to every method.
+
+## When NOT to reach for it
+
+There are two states and one branch. A boolean is clearer than two classes. Closely related to [Strategy](strategy.md) — the difference is that states know about each other and choose successors.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/strategy.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Strategy
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/strategy>
+
+## Intent
+
+Define a family of interchangeable behaviours behind one interface and let the caller receive the one it needs.
+
+## The smell it cures
+
+[Switch Statements](../smells/switch-statements.md) on role, tier, provider, flag or mode — especially the same switch repeated across files.
+
+## Shape
+
+One interface, one implementation per behaviour, injected at the composition
+root. Every scattered conditional collapses into a single call to the injected
+strategy.
+
+## Why it earns its keep
+
+The recurring answer to conditional logic spread across call sites. Adding a case is a new implementation, not edits across N files, and the decision gets exactly one home — so it cannot be asked inconsistently. State what becomes impossible afterwards: not 'the code is cleaner', but 'this rule can no longer be answered two different ways, because there is one gate rather than five'.
+
+## When NOT to reach for it
+
+Only one behaviour exists and no second is in sight — a single-implementation interface is [Speculative Generality](../smells/speculative-generality.md). Also avoid when the branches are one line each and live in one place: [Decompose Conditional](../refactorings/decompose-conditional.md) is the smaller cure, and the smallest cure that removes the smell is the right one.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/template-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Template Method
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/template-method>
+
+## Intent
+
+Fix the skeleton of an algorithm in a base type and let subtypes fill in named steps.
+
+## The smell it cures
+
+[Duplicate Code](../smells/duplicate-code.md) across siblings whose overall shape matches but whose details differ.
+
+## Shape
+
+A non-overridable method calls a sequence of steps; subtypes override the
+steps, never the sequence.
+
+## Why it earns its keep
+
+The invariant order lives in one place and cannot be broken by a subtype, which is exactly the part that is expensive to get wrong.
+
+## When NOT to reach for it
+
+Subtypes need to change the *order*, not the steps — then inheritance is the wrong axis and [Strategy](strategy.md) composes better. Deep hierarchies of template methods produce [Refused Bequest](../smells/refused-bequest.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/patterns/visitor.md",
+    content: `> **Agents depend on this file.** The architect is required to open it — and to
+> read "When NOT to reach for it" — before prescribing this pattern. Moving or
+> renaming it breaks that link in silence.
+
+# Visitor
+
+**Family:** Behavioral · **Deeper reading:** <https://refactoring.guru/design-patterns/visitor>
+
+## Intent
+
+Add operations to a stable object structure without modifying its types.
+
+## The smell it cures
+
+A new operation requiring an edit to every type in a hierarchy — [Shotgun Surgery](../smells/shotgun-surgery.md) over a type tree.
+
+## Shape
+
+Each element accepts a visitor and calls the method for its own type. Each
+new operation is a new visitor.
+
+## Why it earns its keep
+
+Adding an *operation* becomes additive. It also gets exhaustiveness checking in languages that provide it, so a missed case is a compile error rather than a gap.
+
+## When NOT to reach for it
+
+The set of *types* changes more often than the set of operations — visitor makes that direction expensive, since every visitor must gain a method. It is the wrong trade unless the structure is genuinely stable, and it is heavy machinery to read.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/add-parameter.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Add Parameter
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A method needs information its callers have and it does not.
+
+## Mechanics
+
+Add the parameter and update call sites.
+
+## Caution
+
+The obvious move, and often the wrong one. Ask whether the callee could obtain the value itself ([Replace Parameter with Method Call](replace-parameter-with-method-call.md)), or whether the growing list is a [Data Clump](../smells/data-clumps.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/change-association-to-unidirectional.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Change Bidirectional Association to Unidirectional
+
+**Family:** Organizing data
+
+## Trigger
+
+A two-way link where one direction is unused — often behind [Inappropriate Intimacy](../smells/inappropriate-intimacy.md).
+
+## Mechanics
+
+Remove the unused direction and let callers navigate the remaining way.
+
+## Caution
+
+Confirm the direction really is unused, including through serialisation and reflection, before removing it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/change-reference-to-value.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Change Reference to Value
+
+**Family:** Organizing data
+
+## Trigger
+
+A shared object that is small, immutable, and compared by content.
+
+## Mechanics
+
+Make it a value type with equality by content, and stop sharing instances.
+
+## Caution
+
+Requires immutability. Doing this to something still mutated produces defects that appear far from the change.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/change-association-to-bidirectional.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Change Unidirectional Association to Bidirectional
+
+**Family:** Organizing data
+
+## Trigger
+
+One side needs to navigate to the other and currently cannot.
+
+## Mechanics
+
+Add the back-reference, and give exactly one side ownership of keeping both ends consistent.
+
+## Caution
+
+Two-way links are far harder to keep correct. Prefer a query over a stored back-reference where one is possible.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/change-value-to-reference.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Change Value to Reference
+
+**Family:** Organizing data
+
+## Trigger
+
+Many equal copies of an object that should be one shared, updatable thing.
+
+## Mechanics
+
+Introduce a way to look up the single instance by identity and hand that out.
+
+## Caution
+
+Introduces shared mutable state and a lifetime question. Be sure identity, not equality, is what the domain means.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/collapse-hierarchy.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Collapse Hierarchy
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+A supertype and subtype that no longer differ meaningfully — often after [Push Down](push-down-method.md) emptied one.
+
+## Mechanics
+
+Merge them into one type.
+
+## Caution
+
+Check for external subtypes or code that switches on the concrete type before collapsing.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/consolidate-conditional-expression.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Consolidate Conditional Expression
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+Several separate conditions with the same result.
+
+## Mechanics
+
+Combine them into one expression and extract it into a named test.
+
+## Caution
+
+Only when they are one concept. Merging genuinely independent checks hides which one fired, which matters when the answer must be explained.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/consolidate-duplicate-conditional-fragments.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Consolidate Duplicate Conditional Fragments
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+The same code appearing in every branch of a conditional.
+
+## Mechanics
+
+Move it outside the conditional, before or after as its position demands.
+
+## Caution
+
+Confirm the fragment truly is identical and order-independent; a subtle difference between branches is easy to miss.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/decompose-conditional.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Decompose Conditional
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+A complicated conditional whose test and branches are all hard to read.
+
+## Mechanics
+
+[Extract Method](extract-method.md) the condition and each branch, naming each for its meaning.
+
+## Caution
+
+The names must say *why*, not restate the boolean. This is often the smallest fix that removes a conditional smell — try it before reaching for a pattern.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/duplicate-observed-data.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Duplicate Observed Data
+
+**Family:** Organizing data
+
+## Trigger
+
+Domain data living inside a presentation component, so it cannot be used or tested without the UI.
+
+## Mechanics
+
+Move the data to a domain object and let the view observe it — see [Observer](../patterns/observer.md).
+
+## Caution
+
+Two copies of state need a synchronisation rule. Say which side wins, or you have created a drift you cannot debug.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/encapsulate-collection.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Encapsulate Collection
+
+**Family:** Organizing data
+
+## Trigger
+
+A method returns a mutable collection, letting callers change internal state behind the owner's back.
+
+## Mechanics
+
+Return a read-only view or a copy, and add explicit add/remove operations that can enforce invariants.
+
+## Caution
+
+Copying a large collection on every read is a cost — prefer an immutable view where the language offers one.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/encapsulate-field.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Encapsulate Field
+
+**Family:** Organizing data
+
+## Trigger
+
+A public field, so no rule about it can be enforced.
+
+## Mechanics
+
+Make it private and expose only the operations callers legitimately need.
+
+## Caution
+
+Wrapping a field in a getter and setter that do nothing changes nothing. The value is in what you *refuse* to expose.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/extract-class.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Extract Class
+
+**Family:** Moving features between objects
+
+## Trigger
+
+A type with two reasons to change, or a subset of fields touched only by a subset of methods.
+
+## Mechanics
+
+Create the new type, move the field/method partition into it, and have the original hold a reference.
+
+## Caution
+
+The partition must be by *responsibility*. Splitting by size produces two types that still change together — that is worse than one.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/extract-interface.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Extract Interface
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+Several clients using the same subset of a type's members, or a dependency that must be inverted for testing or for a [Layer Violation](../smells/layer-violation.md).
+
+## Mechanics
+
+Declare the subset as an interface, in the layer that *needs* it, and depend on that.
+
+## Caution
+
+The interface belongs to the consumer, not the implementer — declaring it beside the implementation leaves the dependency pointing the same way it did before.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/extract-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Extract Method
+
+**Family:** Composing methods
+
+## Trigger
+
+A fragment that can be grouped and named — most reliably, one a comment already names.
+
+## Mechanics
+
+Move the fragment into a new function named for *what it achieves*, not how. Pass what it reads; return what it produces. If it needs many locals, the group of locals is probably a concept — see [Introduce Parameter Object](introduce-parameter-object.md).
+
+## Caution
+
+A name describing the implementation (\`loopAndSum\`) buys nothing. If you cannot name it, the fragment is not a unit — find a different seam.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/extract-subclass.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Extract Subclass
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+Features used only by some instances, usually with a [Temporary Field](../smells/temporary-field.md) marking which.
+
+## Mechanics
+
+Create a subtype for the variant and move those features into it.
+
+## Caution
+
+Only when the variation is fixed for an instance's lifetime. Otherwise composition — [Strategy](../patterns/strategy.md) — handles it without a type per combination.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/extract-superclass.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Extract Superclass
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+Two types with similar features and no shared ancestor.
+
+## Mechanics
+
+Create a supertype and pull the shared parts up.
+
+## Caution
+
+Shared *shape* is not shared *meaning*. Inheriting for code reuse alone couples two things that may have no reason to change together — prefer [Extract Class](extract-class.md) and delegation.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/extract-variable.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Extract Variable
+
+**Family:** Composing methods
+
+## Trigger
+
+An expression too dense to read, especially a compound condition.
+
+## Mechanics
+
+Assign the sub-expression to a well-named variable and use the name.
+
+## Caution
+
+The name must state the *meaning*, not restate the syntax. \`isEligible\` helps; \`condition1\` does not.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/form-template-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Form Template Method
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+Sibling methods with the same sequence of steps and different details.
+
+## Mechanics
+
+Extract each step, align the sequences, and pull the sequence up — see [Template Method](../patterns/template-method.md).
+
+## Caution
+
+It locks the *order*. If a subtype needs a different order, this is the wrong axis and composition fits better.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/hide-delegate.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Hide Delegate
+
+**Family:** Moving features between objects
+
+## Trigger
+
+[Message Chains](../smells/message-chains.md): a caller navigating through one object to reach another.
+
+## Mechanics
+
+Add a method on the first object that answers the caller's actual question, and hide the path.
+
+## Caution
+
+Applied indiscriminately this produces [Middle Man](../smells/middle-man.md). Add the method callers need, not one per delegate method.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/hide-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Hide Method
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A public method nothing outside the type calls.
+
+## Mechanics
+
+Reduce its visibility.
+
+## Caution
+
+Reflection, serialisation and test helpers can call things a grep will not find. Prove non-use the way you would for [Dead Code](../smells/dead-code.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/inline-class.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Inline Class
+
+**Family:** Moving features between objects
+
+## Trigger
+
+A [Lazy Class](../smells/lazy-class.md) that no longer earns its own file.
+
+## Mechanics
+
+Move its members back into its only caller and delete it.
+
+## Caution
+
+Do not inline a boundary type whose value is the interface it presents — a one-method port is thin on purpose.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/inline-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Inline Method
+
+**Family:** Composing methods
+
+## Trigger
+
+A method whose body is as clear as its name, adding a hop and nothing else.
+
+## Mechanics
+
+Replace every call with the body, then delete the method.
+
+## Caution
+
+Do not inline something polymorphic, or anything outside your control — callers you cannot see depend on it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/inline-temp.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Inline Temp
+
+**Family:** Composing methods
+
+## Trigger
+
+A variable assigned once from a simple expression and used once.
+
+## Mechanics
+
+Replace the reference with the expression and remove the variable.
+
+## Caution
+
+If the expression has side effects or is expensive and used more than once, inlining changes behaviour or cost.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/introduce-assertion.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Introduce Assertion
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+An assumption the code depends on, stated only in a comment or not at all.
+
+## Mechanics
+
+Assert it where it must hold — an assertion is a comment the runtime checks.
+
+## Caution
+
+Assertions state what should be *impossible*. Using one for input that can legitimately be wrong turns a user error into a crash; validate those instead.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/introduce-foreign-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Introduce Foreign Method
+
+**Family:** Moving features between objects
+
+## Trigger
+
+You need a method on a type you cannot modify, and you need it in one or two places.
+
+## Mechanics
+
+Write it as a function taking that type as its first argument, and mark clearly that it belongs elsewhere.
+
+## Caution
+
+A stopgap. Once several accumulate, promote them with [Introduce Local Extension](introduce-local-extension.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/introduce-local-extension.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Introduce Local Extension
+
+**Family:** Moving features between objects
+
+## Trigger
+
+Several foreign methods have accumulated around a type you do not own.
+
+## Mechanics
+
+Create a subtype or wrapper that owns them, and use it where you control construction.
+
+## Caution
+
+A wrapper you cannot construct everywhere leaves two representations in circulation — decide which one crosses your boundaries.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/introduce-null-object.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Introduce Null Object
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+Repeated null checks around one absent value, each caller inventing its own default.
+
+## Mechanics
+
+Substitute an object with neutral behaviour satisfying the same interface. See [Introduce Special Case](introduce-special-case.md), of which this is the classic instance.
+
+## Caution
+
+The neutral behaviour must be *correct*, not merely quiet. A null object that silently does nothing where an error mattered is [Silent Catch](../smells/silent-catch.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/introduce-parameter-object.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Introduce Parameter Object
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+[Long Parameter List](../smells/long-parameter-list.md), or a [Data Clump](../smells/data-clumps.md) travelling together.
+
+## Mechanics
+
+Create a type for the group, and move any validation that was repeated at call sites into it.
+
+## Caution
+
+Name it for the concept, not the call. A type called \`Options\` that collects unrelated values is a bag, and the next change adds a field to it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/introduce-special-case.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Introduce Special Case
+
+**Family:** Organizing data
+
+## Trigger
+
+Repeated checks for a missing or exceptional value, each caller inventing its own default.
+
+## Mechanics
+
+Create an object representing the special case that answers the same interface with sensible behaviour.
+
+## Caution
+
+It must be a *legitimate* case, not a failure. Using it to swallow an error is [Silent Catch](../smells/silent-catch.md) with a nicer name.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/move-field.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Move Field
+
+**Family:** Moving features between objects
+
+## Trigger
+
+A field used more by another type than its own, or one that belongs with data elsewhere.
+
+## Mechanics
+
+Move it, then update accessors. Usually paired with [Move Method](move-method.md).
+
+## Caution
+
+Moving a field across a boundary can change ownership and lifetime. Check who is allowed to mutate it before moving it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/move-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Move Method
+
+**Family:** Moving features between objects
+
+## Trigger
+
+A method used more by another type than its own — [Feature Envy](../smells/feature-envy.md).
+
+## Mechanics
+
+Move it to the type it envies; leave a delegating call behind if callers need time to migrate, then remove it.
+
+## Caution
+
+If only part of the body is envious, [Extract Method](extract-method.md) first and move the extracted part.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/parameterize-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Parameterize Method
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+Several methods doing the same thing with different constant values.
+
+## Mechanics
+
+Merge them into one taking the value as a parameter.
+
+## Caution
+
+If the bodies differ in more than a value, the merged method needs a flag — and a flag parameter is [Replace Parameter with Explicit Methods](replace-parameter-with-explicit-methods.md) run backwards.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/preserve-whole-object.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Preserve Whole Object
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A caller pulling several values out of one object only to pass them all separately.
+
+## Mechanics
+
+Pass the object.
+
+## Caution
+
+This couples the callee to the whole type. If it needs two fields of a large object, passing the object may be the larger coupling — judge which dependency is worse.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/pull-up-constructor-body.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Pull Up Constructor Body
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+Subtype constructors starting with the same initialisation.
+
+## Mechanics
+
+Move the shared part to the supertype constructor and call it.
+
+## Caution
+
+Initialisation order across a hierarchy is subtle; a supertype constructor calling an overridable method sees a half-built subtype.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/pull-up-field.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Pull Up Field
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+The same field in several subtypes.
+
+## Mechanics
+
+Move it to the shared supertype.
+
+## Caution
+
+Same name does not mean same meaning. Check that both subtypes constrain it identically before merging.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/pull-up-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Pull Up Method
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+Identical methods in sibling subtypes — [Duplicate Code](../smells/duplicate-code.md).
+
+## Mechanics
+
+Move one to the supertype and delete the copies.
+
+## Caution
+
+If bodies differ slightly, unify them first, or use [Form Template Method](form-template-method.md) instead of forcing a merge.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/push-down-field.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Push Down Field
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+A supertype field only one subtype uses.
+
+## Mechanics
+
+Move it down.
+
+## Caution
+
+Same check as above: persistence mappings and serialisers often reference fields by the declaring type.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/push-down-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Push Down Method
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+A supertype method only one subtype uses — a partial [Refused Bequest](../smells/refused-bequest.md).
+
+## Mechanics
+
+Move it down to the subtype that needs it.
+
+## Caution
+
+Confirm no external caller relies on reaching it through the supertype.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/remove-assignments-to-parameters.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Remove Assignments to Parameters
+
+**Family:** Composing methods
+
+## Trigger
+
+A parameter reassigned inside the body, so its name no longer means what the caller passed.
+
+## Mechanics
+
+Introduce a local for the changing value and leave the parameter untouched.
+
+## Caution
+
+In languages with reference semantics, distinguish reassigning the parameter from mutating what it points at — they are different problems.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/remove-control-flag.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Remove Control Flag
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+A boolean used purely to break out of a loop or skip the rest of a body.
+
+## Mechanics
+
+Use the language's own \`break\`, \`continue\` or early \`return\`.
+
+## Caution
+
+In deeply nested loops an early exit can skip cleanup. Check what the flag was protecting before deleting it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/remove-middle-man.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Remove Middle Man
+
+**Family:** Moving features between objects
+
+## Trigger
+
+A type that mostly delegates — the over-application of [Hide Delegate](hide-delegate.md).
+
+## Mechanics
+
+Let callers talk to the real object and delete the pass-throughs.
+
+## Caution
+
+Do not remove a deliberate [Facade](../patterns/facade.md) or [Adapter](../patterns/adapter.md). Ask what the hop *constrains* before deleting it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/remove-parameter.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Remove Parameter
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A parameter the body no longer uses, or that every caller passes the same value for.
+
+## Mechanics
+
+Remove it and update call sites.
+
+## Caution
+
+In an overload set, removing a parameter can silently change which overload resolves. Check that the call sites still bind where you expect.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/remove-setting-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Remove Setting Method
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A field that should be set once at construction but has a public setter.
+
+## Mechanics
+
+Remove the setter and set the value in the constructor.
+
+## Caution
+
+Frameworks that construct objects reflectively may need the setter. Confirm nothing outside your code path depends on it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/rename-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Rename Method
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A name that does not say what the method does — or that says what it no longer does.
+
+## Mechanics
+
+Rename it and every call. Where callers are outside your control, keep the old name delegating and mark it for removal.
+
+## Caution
+
+The cheapest fix in this catalogue and the most under-used. A wrong name misleads every future reader; a rename costs one mechanical change.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-array-with-object.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Array with Object
+
+**Family:** Organizing data
+
+## Trigger
+
+An array whose positions mean different things — index 0 is the name, index 1 the count.
+
+## Mechanics
+
+Replace it with a type whose fields are named.
+
+## Caution
+
+Homogeneous collections are not this smell; the trigger is *positional meaning*.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-conditional-with-polymorphism.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Conditional with Polymorphism
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+[Switch Statements](../smells/switch-statements.md) on a type, especially the same switch in more than one place.
+
+## Mechanics
+
+Move each branch into an override on a type per case, and let dispatch replace the switch.
+
+## Caution
+
+One switch at a boundary is where polymorphism is *created* and must remain. Also weigh the cost: a type per case is heavier than a named conditional when there are two cases.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-constructor-with-factory-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Constructor with Factory Method
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+Construction that needs a name, or that must choose between representations.
+
+## Mechanics
+
+Add a named static creator and make the constructor private.
+
+## Caution
+
+Adds indirection. Worth it when construction has meaning worth naming, or when it is the seam that lets a dependency be injected — not by default.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-data-value-with-object.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Data Value with Object
+
+**Family:** Organizing data
+
+## Trigger
+
+[Primitive Obsession](../smells/primitive-obsession.md): a primitive carrying a domain concept with a rule attached.
+
+## Mechanics
+
+Introduce a type for the concept, move the validation into its construction, and use it in signatures.
+
+## Caution
+
+Only where a rule exists. Wrapping a value with no invariant is [Speculative Generality](../smells/speculative-generality.md). Keep primitives at the wire boundary.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-delegation-with-inheritance.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Delegation with Inheritance
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+A type delegating nearly every method of one field, with no narrowing.
+
+## Mechanics
+
+Inherit instead and delete the pass-throughs.
+
+## Caution
+
+The rarer direction, and the riskier one. It only holds if the type genuinely *is* the other and honours its whole contract — otherwise you have created [Refused Bequest](../smells/refused-bequest.md) to remove a [Middle Man](../smells/middle-man.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-error-code-with-exception.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Error Code with Exception
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A method returning a sentinel that callers can, and do, ignore.
+
+## Mechanics
+
+Throw instead, so the failure cannot be dropped silently.
+
+## Caution
+
+Only for genuinely exceptional cases. Using exceptions for expected outcomes makes ordinary control flow expensive and hard to follow — the inverse technique is [Replace Exception with Test](replace-exception-with-test.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-exception-with-test.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Exception with Test
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+An exception used for a condition the caller could simply check.
+
+## Mechanics
+
+Check the condition first and handle it as an ordinary branch.
+
+## Caution
+
+Only for *expected* conditions. Pre-checking a genuine failure produces a race between the check and the use, and reintroduces the failure you removed.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-inheritance-with-delegation.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Inheritance with Delegation
+
+**Family:** Dealing with generalization
+
+## Trigger
+
+[Refused Bequest](../smells/refused-bequest.md): a subtype that wants some behaviour but not the contract.
+
+## Mechanics
+
+Hold an instance instead of extending it, and expose only what is genuinely offered.
+
+## Caution
+
+You lose substitutability where callers relied on it. Check the call sites that hold the supertype first.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-magic-number-with-symbolic-constant.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Magic Number with Symbolic Constant
+
+**Family:** Organizing data
+
+## Trigger
+
+A literal with meaning, appearing in code where its meaning is not stated.
+
+## Mechanics
+
+Name it as a constant, at the level where the meaning belongs.
+
+## Caution
+
+Naming a literal that is only itself (\`0\`, \`1\` as an increment) adds indirection for nothing. If two constants share a value coincidentally, keep them separate.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-method-with-method-object.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Method with Method Object
+
+**Family:** Composing methods
+
+## Trigger
+
+A long method whose locals are so entangled that [Extract Method](extract-method.md) cannot get a grip.
+
+## Mechanics
+
+Turn the method into a class whose fields are its locals. Extract freely now that the locals are fields, then reassemble.
+
+## Caution
+
+An intermediate step, not a destination. Stopping here leaves an object that is a method wearing a type.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-nested-conditional-with-guard-clauses.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Nested Conditional with Guard Clauses
+
+**Family:** Simplifying conditional expressions
+
+## Trigger
+
+[Deep Nesting](../smells/deep-nesting.md) where the nesting is a chain of preconditions.
+
+## Mechanics
+
+Return early for each exceptional case, leaving the main path unindented at the end.
+
+## Caution
+
+Works when cases are genuinely exceptional. Where branches are equally normal alternatives, guard clauses hide that symmetry.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-parameter-with-explicit-methods.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Parameter with Explicit Methods
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A parameter — usually a boolean or an enum — that selects entirely different behaviour.
+
+## Mechanics
+
+Split into one method per behaviour, each named for what it does.
+
+## Caution
+
+Only when the set is small and fixed. With many cases this multiplies the surface; [Strategy](../patterns/strategy.md) is the better answer there.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-parameter-with-method-call.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Parameter with Method Call
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A parameter whose value the callee could obtain itself.
+
+## Mechanics
+
+Remove it and let the callee ask.
+
+## Caution
+
+Only if the callee can reach it *without* new coupling. Trading a parameter for a dependency on a global is [Implicit Global](../smells/implicit-global.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-subclass-with-fields.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Subclass with Fields
+
+**Family:** Organizing data
+
+## Trigger
+
+Subtypes that differ only by constant values returned from methods.
+
+## Mechanics
+
+Collapse them into one type with fields set at construction — see [Collapse Hierarchy](collapse-hierarchy.md).
+
+## Caution
+
+If any subtype has real behaviour, this flattens a distinction that matters.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-temp-with-query.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Temp with Query
+
+**Family:** Composing methods
+
+## Trigger
+
+A temporary holding the result of an expression, blocking [Extract Method](extract-method.md) because the extracted piece would need it.
+
+## Mechanics
+
+Turn the expression into a method and call it where the temp was read.
+
+## Caution
+
+Watch the cost if the query is expensive and was being reused; measure before assuming it matters, and do not add a cache reflexively.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-type-code-with-class.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Type Code with Class
+
+**Family:** Organizing data
+
+## Trigger
+
+A type code as a bare primitive, with no validation of which values are legal.
+
+## Mechanics
+
+Introduce a type whose instances are the legal values.
+
+## Caution
+
+If behaviour varies by code, go further — [Replace Type Code with Subclasses](replace-type-code-with-subclasses.md) or [State/Strategy](replace-type-code-with-state-strategy.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-type-code-with-state-strategy.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Type Code with State/Strategy
+
+**Family:** Organizing data
+
+## Trigger
+
+A behaviour-determining type code that *can* change during an object's life.
+
+## Mechanics
+
+Extract the varying behaviour into [State](../patterns/state.md) or [Strategy](../patterns/strategy.md) objects and delegate.
+
+## Caution
+
+Distinguish the two: [State](../patterns/state.md) objects know their successors; [Strategy](../patterns/strategy.md) objects are chosen from outside and do not.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/replace-type-code-with-subclasses.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Replace Type Code with Subclasses
+
+**Family:** Organizing data
+
+## Trigger
+
+A type code that determines behaviour, and it never changes for an instance.
+
+## Mechanics
+
+Create a subtype per code and move the varying behaviour into it; the switches disappear.
+
+## Caution
+
+Only when the code is immutable for an instance's lifetime. If it changes, use [State/Strategy](replace-type-code-with-state-strategy.md) instead.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/self-encapsulate-field.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Self-Encapsulate Field
+
+**Family:** Organizing data
+
+## Trigger
+
+A type reads its own field directly, and a subtype needs to compute it instead.
+
+## Mechanics
+
+Route internal reads through an accessor so subtypes can override it.
+
+## Caution
+
+Pure ceremony where no subtype exists — accessors on every field make code longer without making it safer.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/separate-query-from-modifier.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Separate Query from Modifier
+
+**Family:** Simplifying method calls
+
+## Trigger
+
+A method that both returns a value and changes state, so callers cannot ask without causing.
+
+## Mechanics
+
+Split it into a query with no side effects and a separate command.
+
+## Caution
+
+Some operations are atomic by necessity — a pop, a compare-and-swap. Splitting those introduces a race that did not exist.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/split-temporary-variable.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Split Temporary Variable
+
+**Family:** Composing methods
+
+## Trigger
+
+One variable assigned more than once for unrelated purposes — a reused scratch slot.
+
+## Mechanics
+
+Introduce one variable per responsibility, each named for its own meaning, each assigned once.
+
+## Caution
+
+Genuine accumulators and loop counters are assigned repeatedly by design; leave them alone.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/refactorings/substitute-algorithm.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> prescribing this technique. Moving or renaming it breaks that link in silence.
+
+# Substitute Algorithm
+
+**Family:** Composing methods
+
+## Trigger
+
+An algorithm that a clearer or better one can replace outright.
+
+## Mechanics
+
+Get the existing behaviour under test first, then swap the body and run them.
+
+## Caution
+
+Without tests this is a rewrite, not a refactoring. Confirm the old behaviour is *specified* somewhere before replacing it — edge cases are the part that is not obvious.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/alternative-classes.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Alternative Classes with Different Interfaces
+
+**Family:** Object-orientation abusers · **Deeper reading:** <https://refactoring.guru/smells/alternative-classes-with-different-interfaces>
+
+## How to spot it
+
+Two types doing the same job with different names, orders, or shapes for the
+same operations. Usually the result of two teams, two eras, or a vendor swap
+that was never finished.
+
+## What it costs
+
+Callers cannot be written against either one, so the choice leaks into every
+call site and no substitution is possible — including in tests.
+
+## Cure
+
+[Rename Method](../refactorings/rename-method.md) and
+[Move Method](../refactorings/move-method.md) to converge the shapes, then
+[Extract Interface](../refactorings/extract-interface.md). Where one side is
+external and cannot be changed, [Adapter](../patterns/adapter.md) is the
+correct answer rather than a rewrite.
+
+## When it is NOT a smell
+
+Two types that look similar but answer different questions, where the
+similarity is in the vocabulary rather than the responsibility. Unifying those
+produces an interface that satisfies neither caller — see
+[Duplicate Code](duplicate-code.md) for the same trap at method level.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/anemic-domain-model.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Anemic Domain Model
+
+**Family:** Structural
+
+## How to spot it
+
+Domain types that are pure data, with every rule implemented in services or use
+cases. The system-wide version of [Data Class](data-class.md): look for a
+service layer that grows whenever a domain rule changes.
+
+## What it costs
+
+The domain layer holds no invariants, so nothing is guaranteed by
+construction — every caller must remember to run the checks in the right order.
+Rules get duplicated across services and drift.
+
+## Cure
+
+[Move Method](../refactorings/move-method.md) to push rules onto the types they
+constrain; [Replace Data Value with Object](../refactorings/replace-data-value-with-object.md)
+so values can enforce themselves. See
+[DDD and clean code](../ddd-and-clean-code.md) for the building blocks.
+
+## When it is NOT a smell
+
+A layer that is *supposed* to be data-only — transport records, persistence
+rows, event payloads, generated clients. Also fine in a system with genuinely no
+domain rules: a pipeline that moves and reshapes data has nothing to enforce, and
+inventing invariants for it is [Speculative Generality](speculative-generality.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/circular-dependency.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Circular Dependency
+
+**Family:** Structural
+
+## How to spot it
+
+Module A depends on B which depends (directly or transitively) on A. Use the
+language's own module graph tooling where one exists; fall back to import
+analysis. Report the **full cycle path**, not just the two ends.
+
+## What it costs
+
+Neither module can be understood, tested, extracted, or initialised
+independently. In languages with load-order semantics it also produces
+partially-initialised values that fail far from the cause.
+
+## Cure
+
+Invert one edge: [Extract Interface](../refactorings/extract-interface.md) and
+depend on the abstraction, or [Move Method](../refactorings/move-method.md) to
+put the shared logic in a third module both can depend on. This is the
+Dependency Inversion Principle applied to a concrete cycle.
+
+## When it is NOT a smell
+
+A cycle **within one cohesive module** that the language resolves and that never
+crosses a published boundary — mutually recursive functions, a type referring to
+itself. The defect is a cycle *between* units that are supposed to be
+separable.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/comments.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Comments
+
+**Family:** Dispensables · **Deeper reading:** <https://refactoring.guru/smells/comments>
+
+## How to spot it
+
+A comment explaining *what* the code does, or apologising for it. The tell is a
+comment that would be unnecessary if a name changed — 'check if user is
+eligible' above an unnamed boolean expression.
+
+## What it costs
+
+The comment is not checked by anything, so it rots. A reader who trusts a stale
+comment is worse off than one who read the code, and there is no test that
+catches the divergence.
+
+## Cure
+
+[Extract Method](../refactorings/extract-method.md) and name it what the comment
+said. [Rename Method](../refactorings/rename-method.md) where the name already
+exists but lies. [Introduce Assertion](../refactorings/introduce-assertion.md)
+where the comment states an assumption — an assertion is a comment the runtime
+checks.
+
+## When it is NOT a smell
+
+A comment explaining **why** — a constraint from outside the code, a rejected
+alternative, a link to the incident that motivated a strange branch. Code can
+express what it does and never why it was chosen, so those comments are the only
+place that knowledge exists. Deleting them destroys information; never flag
+them.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/data-class.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Data Class
+
+**Family:** Dispensables · **Deeper reading:** <https://refactoring.guru/smells/data-class>
+
+## How to spot it
+
+A type that is only fields and accessors, with every rule about those fields
+implemented by its callers. Look for callers that fetch several fields and
+compute something from them — that computation belongs inside.
+
+## What it costs
+
+The invariants of the data have no home, so each caller enforces its own
+version. This is how the same concept ends up with three different definitions
+of 'valid'.
+
+## Cure
+
+[Move Method](../refactorings/move-method.md) to bring the behaviour to the
+data, [Encapsulate Field](../refactorings/encapsulate-field.md) and
+[Encapsulate Collection](../refactorings/encapsulate-collection.md) to stop the
+leak. Systemically this is [Anemic Domain Model](anemic-domain-model.md).
+
+## When it is NOT a smell
+
+A **DTO, event payload, or transport record** at a boundary. Those are
+deliberately behaviour-free: they exist to cross a wire or a layer, and adding
+logic to them couples the boundary to the domain. Also fine for a pure value
+object whose only rule is enforced at construction.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/data-clumps.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Data Clumps
+
+**Family:** Bloaters · **Deeper reading:** <https://refactoring.guru/smells/data-clumps>
+
+## How to spot it
+
+The same group of values appearing together in several places — parameter
+lists, field groups, map keys. Test it: **remove one of them and ask whether
+the rest still mean anything.** If not, they are one concept.
+
+## What it costs
+
+The concept exists in the system but has no name and no home, so the rules
+that govern it are re-implemented at every site and drift apart.
+
+## Cure
+
+[Extract Class](../refactorings/extract-class.md) or
+[Introduce Parameter Object](../refactorings/introduce-parameter-object.md).
+Once the concept has a home, the validation scattered across call sites
+usually collapses into it — that collapse is how you know the extraction was
+right.
+
+## When it is NOT a smell
+
+Values that co-occur by coincidence rather than by meaning — two unrelated
+ids that happen to be passed together in one layer. Bundling them couples
+things that have no reason to change together. Apply the removal test before
+naming this.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/dead-code.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Dead Code
+
+**Family:** Dispensables · **Deeper reading:** <https://refactoring.guru/smells/dead-code>
+
+## How to spot it
+
+Code no execution path reaches: an unreferenced function, a branch whose
+condition cannot hold, a parameter nobody passes, a flag never set. Confirm
+reachability rather than assuming it — dynamic dispatch, reflection, and
+configuration can call things a grep cannot see.
+
+## What it costs
+
+Readers pay to understand it and maintainers pay to keep it compiling. Worse, it
+makes the codebase look like it supports something it does not.
+
+## Cure
+
+Delete it. Version control is the archive; a commented-out block or a
+permanently-false flag is a worse archive than the history. Where a parameter
+survives for signature compatibility,
+[Remove Parameter](../refactorings/remove-parameter.md).
+
+## When it is NOT a smell
+
+Code reached only through a mechanism your search does not model — a plugin
+registry, a serialiser, a framework hook, a public API consumed outside this
+repository. **Prove unreachability before flagging**, and say how you proved it;
+an unproven claim here causes deletions that break consumers.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/deep-nesting.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Deep Nesting
+
+**Family:** Structural
+
+## How to spot it
+
+Control flow indented past a few levels, usually guard conditions and loops
+interleaved. Count nesting depth in the body rather than eyeballing the
+indentation of the file.
+
+## What it costs
+
+The reader must hold every enclosing condition in mind to understand the
+innermost line, and the number of paths through the function grows faster than
+any test suite covers.
+
+## Cure
+
+[Replace Nested Conditional with Guard Clauses](../refactorings/replace-nested-conditional-with-guard-clauses.md)
+to flatten the preconditions,
+[Extract Method](../refactorings/extract-method.md) for whole inner blocks, and
+[Decompose Conditional](../refactorings/decompose-conditional.md) to name the
+tests.
+
+## When it is NOT a smell
+
+Nesting that mirrors a genuinely nested **structure** — walking a tree, parsing a
+grammar, iterating a matrix. There the depth is the problem's, not the code's.
+Flattening it with a state machine can easily be worse.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/divergent-change.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Divergent Change
+
+**Family:** Change preventers · **Deeper reading:** <https://refactoring.guru/smells/divergent-change>
+
+## How to spot it
+
+One file that changes for many unrelated reasons. The evidence is in history:
+run the log for the file and read the commit subjects. If they belong to
+different features, the file has more than one reason to change.
+
+## What it costs
+
+Unrelated work collides in the same file, so changes serialise and merge
+conflicts are routine. Reviewers cannot judge a diff without understanding
+responsibilities that have nothing to do with it.
+
+## Cure
+
+[Extract Class](../refactorings/extract-class.md) per reason to change, then
+[Move Method](../refactorings/move-method.md) to put behaviour with the data it
+serves. This is the Single Responsibility Principle stated as a symptom — see
+[DDD and clean code](../ddd-and-clean-code.md).
+
+## When it is NOT a smell
+
+A composition root, a configuration module, or a route table. Those files exist
+precisely to change whenever anything they wire up changes; the churn is their
+job. Judge them by whether they contain *decisions* — wiring is not a
+responsibility.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/duplicate-code.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Duplicate Code
+
+**Family:** Dispensables · **Deeper reading:** <https://refactoring.guru/smells/duplicate-code>
+
+## How to spot it
+
+The same logic in more than one place. Distinguish two kinds: identical code in
+sibling subtypes, and similar-looking code in unrelated modules. Only the first
+is reliably a defect.
+
+## What it costs
+
+A fix applied to one copy and not the others produces divergent behaviour that
+no type checker sees. The copies also drift under unrelated edits until unifying
+them is no longer possible.
+
+## Cure
+
+[Extract Method](../refactorings/extract-method.md) within a type;
+[Pull Up Method](../refactorings/pull-up-method.md) across siblings;
+[Form Template Method](../refactorings/form-template-method.md) when the steps
+match but the details differ. Where the duplication is in the *shape* of a
+conditional,
+[Consolidate Conditional Expression](../refactorings/consolidate-conditional-expression.md).
+
+## When it is NOT a smell
+
+**Coincidental similarity.** Two pieces of code that look alike but answer to
+different owners and will change for different reasons. Unifying them creates a
+shared abstraction that both callers then fight, and the next change adds a flag
+to it. Respect the Rule of Three, and prefer duplication to the wrong
+abstraction.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/feature-envy.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Feature Envy
+
+**Family:** Couplers · **Deeper reading:** <https://refactoring.guru/smells/feature-envy>
+
+## How to spot it
+
+A method more interested in another object's data than its own — it reaches
+across for several fields and computes something from them. Count the accesses:
+if most are to the other object, the method is in the wrong place.
+
+## What it costs
+
+The rule ends up far from the data it constrains, so a change to the data's
+representation reaches into a module that had no business knowing it.
+
+## Cure
+
+[Move Method](../refactorings/move-method.md), or
+[Extract Method](../refactorings/extract-method.md) first if only part of the
+body is envious.
+
+## When it is NOT a smell
+
+A deliberate **orchestrator** — a use case, a service, a controller — whose job
+is to use its collaborators. Coordination is not envy. The distinction is
+whether the method makes a *decision* that belongs to the other object, or
+merely sequences calls.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/god-file.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# God File
+
+**Family:** Structural
+
+## How to spot it
+
+A single file far larger than its neighbours, usually accumulating unrelated
+responsibilities. Report the **distribution** rather than a fixed threshold: a
+file three times the size of the next-largest is the signal, not a round number.
+
+## What it costs
+
+It becomes the file everyone edits, so it collides, resists review, and cannot
+be reasoned about in one sitting. It is usually
+[Divergent Change](divergent-change.md) with a size symptom attached.
+
+## Cure
+
+[Extract Class](../refactorings/extract-class.md) along the reasons to change,
+not along line count. Splitting by size alone produces arbitrary parts that
+still change together.
+
+## When it is NOT a smell
+
+Generated code, a vendored bundle, a lockfile, a data table, or a
+deliberately-single-file module whose content is one long flat list. Judge by
+responsibilities, and check whether the file is authored at all before
+flagging it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/implicit-global.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Implicit Global
+
+**Family:** Structural
+
+## How to spot it
+
+Code that should be pure reaching for ambient state: the clock, the filesystem,
+the network, environment variables, random numbers, process globals, or a
+singleton registry.
+
+## What it costs
+
+The function's result depends on something its signature does not mention. Tests
+become order-dependent and flaky, and behaviour differs between environments for
+reasons no reader can see.
+
+## Cure
+
+Inject it. Pass the value, or depend on a port —
+[Extract Interface](../refactorings/extract-interface.md) plus
+[Replace Constructor with Factory Method](../refactorings/replace-constructor-with-factory-method.md)
+where construction is the problem. A clock and a random source are dependencies
+like any other.
+
+## When it is NOT a smell
+
+Ambient access in the **outer** layer whose job is exactly that — the entry
+point, an adapter, a configuration loader. The rule is about where the access
+happens, not that it happens; something must eventually touch the world.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/inappropriate-intimacy.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Inappropriate Intimacy
+
+**Family:** Couplers · **Deeper reading:** <https://refactoring.guru/smells/inappropriate-intimacy>
+
+## How to spot it
+
+Two modules that reach into each other's internals — private fields, internal
+helpers, or knowledge of the other's storage shape. Often mutual.
+
+## What it costs
+
+Neither can be changed or tested alone, so they are one module wearing two
+names. Bidirectional coupling also blocks extraction: you cannot move either
+one out.
+
+## Cure
+
+[Move Method](../refactorings/move-method.md) and
+[Move Field](../refactorings/move-field.md) to put things where they are used,
+[Hide Delegate](../refactorings/hide-delegate.md) to stop the reaching, and
+[Change Bidirectional Association to Unidirectional](../refactorings/change-association-to-unidirectional.md)
+where only one direction is needed.
+
+## When it is NOT a smell
+
+Two types inside the **same bounded context or module** that are meant to know
+each other — an aggregate and its entities, a class and its nested helper. The
+smell is intimacy *across a boundary*, so identify the boundary before naming
+it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/large-class.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Large Class
+
+**Family:** Bloaters · **Deeper reading:** <https://refactoring.guru/smells/large-class>
+
+## How to spot it
+
+A type carrying more fields, methods, or responsibilities than one reader can
+hold. Look for subsets of fields that are only ever touched together by
+subsets of methods — that partition is the class trying to split itself.
+
+## What it costs
+
+Every reason to change the system arrives at the same file, so unrelated work
+serialises and conflicts. Tests need most of the object constructed to
+exercise any of it.
+
+## Cure
+
+[Extract Class](../refactorings/extract-class.md) along the field/method
+partition. If the extracted piece is only ever used through the original,
+[Hide Delegate](../refactorings/hide-delegate.md). Where the split is by
+behaviour rather than data, consider
+[Strategy](../patterns/strategy.md).
+
+## When it is NOT a smell
+
+A type that is large because its **domain concept** is large and cohesive — a
+value object with many derived accessors, a state machine with one method per
+transition. If every method genuinely needs the same fields, splitting it just
+creates two classes that must change together.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/layer-violation.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Layer Violation
+
+**Family:** Structural
+
+## How to spot it
+
+An import pointing the wrong way through the layering: domain reaching into
+infrastructure, a use case importing a concrete adapter, any layer importing the
+entry point. Detect the project's convention from its own structure before
+judging — do not assume a naming scheme.
+
+## What it costs
+
+The dependency rule is the entire testability guarantee. Once inner code
+depends on outer code, the inner code cannot be exercised without the outer
+world, and swapping an implementation stops being possible.
+
+## Cure
+
+[Extract Interface](../refactorings/extract-interface.md) in the inner layer and
+inject the implementation from outside — the port-and-adapter shape described in
+[DDD and clean code](../ddd-and-clean-code.md).
+
+## When it is NOT a smell
+
+A **composition root** wiring concrete implementations together: it is the one
+place that is allowed to know everything, and it must be outside the layers it
+wires. Also not a violation when the project genuinely has no layering — say so
+rather than importing a convention it never adopted.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/lazy-class.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Lazy Class
+
+**Family:** Dispensables · **Deeper reading:** <https://refactoring.guru/smells/lazy-class>
+
+## How to spot it
+
+A type that does not earn its existence — one field, one delegating method, or
+whatever is left after a refactoring removed its reason to exist.
+
+## What it costs
+
+Every indirection is a hop the reader must take. A class that adds a name and no
+behaviour makes navigation longer without making anything clearer.
+
+## Cure
+
+[Inline Class](../refactorings/inline-class.md), or
+[Collapse Hierarchy](../refactorings/collapse-hierarchy.md) when a subtype has
+stopped differing from its parent.
+
+## When it is NOT a smell
+
+A deliberately thin **boundary type** — a port interface with one method, a value
+object wrapping one primitive to give it a rule and a name. Those are thin on
+purpose: the value is in the type existing, not in its body. Also tolerate a
+class that is currently thin because a planned second implementation is in the
+same change.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/long-method.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Long Method
+
+**Family:** Bloaters · **Deeper reading:** <https://refactoring.guru/smells/long-method>
+
+## How to spot it
+
+A function whose body you have to scroll, or which needs a comment every few
+lines to stay readable. The reliable tell is not line count but **the comment
+that names a section** — it is telling you where the seam is.
+
+## What it costs
+
+Nothing inside can be reused, tested, or named. Every reader pays the cost of
+understanding the whole to change a part of it, and every change risks the
+parts they did not read.
+
+## Cure
+
+[Extract Method](../refactorings/extract-method.md) at each seam a comment
+names. If the extracted piece needs many locals, that is
+[Long Parameter List](long-parameter-list.md) arriving — see
+[Introduce Parameter Object](../refactorings/introduce-parameter-object.md).
+[Replace Temp with Query](../refactorings/replace-temp-with-query.md) and
+[Decompose Conditional](../refactorings/decompose-conditional.md) usually do
+most of the work.
+
+## When it is NOT a smell
+
+A long, flat sequence of genuinely unrelated setup steps with no branching and
+no reuse — a fixture builder, a wiring root, a generated mapper. Splitting it
+produces a dozen single-caller functions and a reader who now has to jump
+between them. Length alone is not the defect; **hidden structure** is.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/long-parameter-list.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Long Parameter List
+
+**Family:** Bloaters · **Deeper reading:** <https://refactoring.guru/smells/long-parameter-list>
+
+## How to spot it
+
+A signature with more parameters than a caller can order correctly without
+looking. Watch for runs of same-typed parameters — those are the ones callers
+transpose, and no type checker will notice.
+
+## What it costs
+
+Callers pass arguments positionally and get them wrong. Adding a parameter
+edits every call site, which is [Shotgun Surgery](shotgun-surgery.md) waiting
+to happen.
+
+## Cure
+
+[Introduce Parameter Object](../refactorings/introduce-parameter-object.md)
+for parameters that travel together — they are usually a
+[Data Clump](data-clumps.md). [Preserve Whole Object](../refactorings/preserve-whole-object.md)
+when the caller already holds the thing you are unpacking.
+[Replace Parameter with Method Call](../refactorings/replace-parameter-with-method-call.md)
+when the callee can obtain the value itself.
+
+## When it is NOT a smell
+
+A pure function whose parameters are genuinely independent and unrelated —
+bundling them into an object invents a concept nobody names, and the object
+becomes a bag. Also fine when the language has named or keyword arguments and
+the call sites read unambiguously.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/message-chains.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Message Chains
+
+**Family:** Couplers · **Deeper reading:** <https://refactoring.guru/smells/message-chains>
+
+## How to spot it
+
+A caller navigating a graph to reach what it wants. The tell is a chain of
+accessors where each step is only there to get to the next.
+
+## What it costs
+
+The caller is coupled to the shape of the whole path, so any structural change
+anywhere along it breaks a module that only wanted the value at the end.
+
+## Cure
+
+[Hide Delegate](../refactorings/hide-delegate.md) so the first object answers
+the question directly. If the caller only needs the final value,
+[Extract Method](../refactorings/extract-method.md) on the far object and
+[Move Method](../refactorings/move-method.md) it back.
+
+## When it is NOT a smell
+
+A **fluent builder or query DSL**, where chaining is the designed interface and
+each call returns a configured self. Also fine for a short, stable path inside
+one module. Over-applying the cure produces [Middle Man](middle-man.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/middle-man.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Middle Man
+
+**Family:** Couplers · **Deeper reading:** <https://refactoring.guru/smells/middle-man>
+
+## How to spot it
+
+A type whose methods almost all delegate somewhere else. Frequently the result
+of applying [Hide Delegate](../refactorings/hide-delegate.md) until nothing was
+left behind it.
+
+## What it costs
+
+A hop with no value. Readers follow it, and every new method on the delegate
+needs a matching pass-through, which is [Shotgun Surgery](shotgun-surgery.md) in
+miniature.
+
+## Cure
+
+[Remove Middle Man](../refactorings/remove-middle-man.md) and let callers talk
+to the real object, or [Inline Method](../refactorings/inline-method.md) for
+individual pass-throughs.
+
+## When it is NOT a smell
+
+A deliberate **[Facade](../patterns/facade.md), [Adapter](../patterns/adapter.md),
+or anti-corruption layer**. Those delegate on purpose: the value is the
+narrowed, translated, or stabilised interface, not the behaviour. A port
+implementation that delegates to a vendor SDK is doing its job.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/parallel-inheritance-hierarchies.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Parallel Inheritance Hierarchies
+
+**Family:** Change preventers · **Deeper reading:** <https://refactoring.guru/smells/parallel-inheritance-hierarchies>
+
+## How to spot it
+
+Every time you add a subtype in one hierarchy, you must add a matching one in
+another. The two trees mirror each other, and the prefixes give it away.
+
+## What it costs
+
+A special case of [Shotgun Surgery](shotgun-surgery.md) with a name: the
+compiler will not tell you the mirror is missing, so the trees drift and the
+missing case surfaces as a runtime gap.
+
+## Cure
+
+[Move Method](../refactorings/move-method.md) and
+[Move Field](../refactorings/move-field.md) to fold one hierarchy into the
+other, so a single subtype carries both responsibilities. Where the second tree
+is behaviour rather than data, [Visitor](../patterns/visitor.md) can remove the
+need for it entirely.
+
+## When it is NOT a smell
+
+Two hierarchies that mirror each other **today** by coincidence and are expected
+to diverge — for instance a domain model and a transport representation that are
+deliberately decoupled. Merging those couples layers that were separated on
+purpose.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/primitive-obsession.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Primitive Obsession
+
+**Family:** Bloaters · **Deeper reading:** <https://refactoring.guru/smells/primitive-obsession>
+
+## How to spot it
+
+Domain concepts carried as strings, numbers, or maps: an id that is a string
+everywhere, a currency amount as a float, a status as a bare constant. The
+tell is **validation repeated at every use site** — because there is no type
+to put it in.
+
+## What it costs
+
+The rule that constrains the value lives everywhere the value is used, so it
+is enforced inconsistently and silently drifts. Two different concepts with
+the same primitive type are interchangeable to the compiler and to the reader.
+
+## Cure
+
+[Replace Data Value with Object](../refactorings/replace-data-value-with-object.md)
+so the rule has one home. For a fixed set,
+[Replace Type Code with Subclasses](../refactorings/replace-type-code-with-subclasses.md)
+or [Replace Type Code with State/Strategy](../refactorings/replace-type-code-with-state-strategy.md).
+Related: [Data Clumps](data-clumps.md).
+
+## When it is NOT a smell
+
+A primitive at a **boundary** — parsed from a request, read from a column,
+about to be serialised. The wrapper belongs just inside the boundary, not on
+the wire. Wrapping a value that has no rule attached to it and never will is
+[Speculative Generality](speculative-generality.md).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/refused-bequest.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Refused Bequest
+
+**Family:** Object-orientation abusers · **Deeper reading:** <https://refactoring.guru/smells/refused-bequest>
+
+## How to spot it
+
+A subtype that inherits members it does not want — overriding them to throw,
+to do nothing, or to return a value that means 'not applicable'.
+
+## What it costs
+
+Callers holding the supertype cannot rely on its contract, so they type-check
+before calling. The hierarchy claims a substitutability it does not have,
+which is a Liskov violation with a compiler that cannot see it.
+
+## Cure
+
+[Replace Inheritance with Delegation](../refactorings/replace-inheritance-with-delegation.md)
+when the subtype wants the behaviour but not the contract. If several subtypes
+refuse the same members, [Extract Interface](../refactorings/extract-interface.md)
+for the part they all honour and let the rest live elsewhere.
+
+## When it is NOT a smell
+
+A deliberately abstract member the base declares precisely so subtypes must
+supply it, and an optional hook with a documented no-op default. Both are the
+mechanism working as intended — the refusal is a *surprise*, not a design.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/shotgun-surgery.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Shotgun Surgery
+
+**Family:** Change preventers · **Deeper reading:** <https://refactoring.guru/smells/shotgun-surgery>
+
+## How to spot it
+
+The inverse of [Divergent Change](divergent-change.md): one change forces small
+edits across many files. The tell is a commit that touches ten files and adds
+two lines to each.
+
+## What it costs
+
+Every such change is an opportunity to miss a site, and a missed site is a
+silent behavioural divergence rather than a build failure. The cost grows with
+the codebase, so it is worst exactly when it is hardest to fix.
+
+## Cure
+
+[Move Method](../refactorings/move-method.md) and
+[Move Field](../refactorings/move-field.md) to pull the scattered pieces
+together, then [Inline Class](../refactorings/inline-class.md) if what is left is
+hollow. When the scattered thing is a decision rather than data, give the
+decision one home — [Strategy](../patterns/strategy.md) behind a single injected
+gate.
+
+## When it is NOT a smell
+
+A genuine cross-cutting rename or a mechanical migration performed with tool
+support and verified by a build. The smell is a *recurring* need to edit many
+sites, not a one-off sweep.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/silent-catch.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Silent Catch
+
+**Family:** Structural
+
+## How to spot it
+
+A caught error that is neither logged, re-thrown, nor turned into a value the
+caller can act on. Includes an empty handler, one that logs at debug level and
+continues, and one that returns a default indistinguishable from success.
+
+## What it costs
+
+The system continues in a state the author never designed for, and the
+diagnostic evidence is destroyed at the exact point it existed. The failure
+resurfaces later, somewhere unrelated, with no trace back to the cause. Treat
+this as the highest-severity structural finding: it does not merely hide a bug,
+it removes the ability to find one.
+
+## Cure
+
+Decide what the failure *means* and encode it: re-throw with context, return an
+explicit failure value the caller must handle, or handle it fully and log at a
+level that will actually be seen.
+[Replace Error Code with Exception](../refactorings/replace-error-code-with-exception.md)
+and its inverse both apply, depending on which direction the codebase uses.
+
+## When it is NOT a smell
+
+A catch that **fully handles** the case and says so — a documented fallback, an
+optional lookup where absence is a legitimate answer, a cleanup path that must
+not mask the original failure. The test is whether the author decided what the
+error means, or merely stopped it from propagating.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/speculative-generality.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Speculative Generality
+
+**Family:** Dispensables · **Deeper reading:** <https://refactoring.guru/smells/speculative-generality>
+
+## How to spot it
+
+Abstraction with one implementation and no second in sight: an interface with a
+single implementer, a hook nobody registers, an unused type parameter, a
+parameter every caller passes the same value for.
+
+## What it costs
+
+Every reader pays the indirection tax for flexibility nobody uses. Worse, the
+guessed extension point is usually in the wrong place, so the real second case
+does not fit it and the abstraction has to be redone anyway.
+
+## Cure
+
+[Collapse Hierarchy](../refactorings/collapse-hierarchy.md),
+[Inline Class](../refactorings/inline-class.md),
+[Remove Parameter](../refactorings/remove-parameter.md). Prefer the concrete
+thing now and the abstraction when the second case actually arrives — it will
+tell you where the seam belongs.
+
+## When it is NOT a smell
+
+A **port with one adapter** in a hexagonal design, where the interface exists to
+invert a dependency and keep the domain testable. The second implementation is
+the test double, and that is a real second implementation. Also not a smell when
+a published API must stay stable for outside consumers.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/switch-statements.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Switch Statements
+
+**Family:** Object-orientation abusers · **Deeper reading:** <https://refactoring.guru/smells/switch-statements>
+
+## How to spot it
+
+A branch on a type code, role, tier, provider, or mode — and the **same**
+branch appearing in more than one place. One switch is a decision; the same
+switch repeated is a missing abstraction.
+
+## What it costs
+
+Adding a case means finding every copy. The copies drift, so behaviour
+depends on which path the caller took, and the divergence is invisible until
+someone reports it as a bug.
+
+## Cure
+
+[Replace Conditional with Polymorphism](../refactorings/replace-conditional-with-polymorphism.md),
+or [Replace Type Code with State/Strategy](../refactorings/replace-type-code-with-state-strategy.md)
+where the case set is behavioural. The design-level answer is usually
+[Strategy](../patterns/strategy.md) resolved once and injected — one gate, not
+five.
+
+## When it is NOT a smell
+
+A single switch at a **boundary** whose whole job is to dispatch: a parser
+mapping tokens, a factory selecting an implementation, a router. That switch
+is the seam where the polymorphism is created, and it has to exist somewhere.
+The smell is the *second* copy of it.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/architecture/smells/temporary-field.md",
+    content: `> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint \`.claude/agents/architect-expert.md\` and the catalogue
+> README in the same change.
+
+# Temporary Field
+
+**Family:** Object-orientation abusers · **Deeper reading:** <https://refactoring.guru/smells/temporary-field>
+
+## How to spot it
+
+A field that is only meaningful during part of the object's life — set by one
+method, read by another, meaningless otherwise. Often paired with null checks
+that ask 'has this been populated yet'.
+
+## What it costs
+
+The object has states the type does not describe, so every reader must
+reconstruct the protocol by reading the methods in order. Nulls leak outward
+as defensive checks in callers.
+
+## Cure
+
+[Extract Class](../refactorings/extract-class.md) for the fields that belong
+to one phase, so the phase becomes an object with a complete lifetime.
+[Introduce Special Case](../refactorings/introduce-special-case.md) where the
+null is standing in for a real case, and
+[Replace Method with Method Object](../refactorings/replace-method-with-method-object.md)
+when the field only exists to pass state between helpers.
+
+## When it is NOT a smell
+
+A genuine memoisation or cache field, where the empty state means 'not
+computed yet' and is invisible to callers. That is an implementation detail
+with a real invariant, not an undescribed state.
 `,
     executable: false,
     backend: null,

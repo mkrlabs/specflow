@@ -2,6 +2,27 @@
 
 ## 2.x → 3.0.0
 
+### The architect now reads a catalogue before it judges
+
+`specnaut upgrade` adds `.specnaut/memory/architecture/` — an offline catalogue with one file per
+code smell, refactoring technique and design pattern, plus a hub file for layering and SOLID. It
+sits beside the security knowledge base that already shipped, and needs nothing from you.
+
+What changes is the agent's obligation. `architect-expert` now has a mandatory Step 0: read the
+index, then **open the leaf for every item it names in the report** — not for every candidate it
+considered — read the _When it is NOT a smell_ section looking for the reason it is wrong, cite the
+leaf in the finding, and state which leaves it read. A named smell with no leaf behind it is
+downgraded by the agent itself.
+
+The point is narrow and worth stating plainly: an optional lookup does not happen. A catalogue an
+agent _may_ consult produces findings built from vocabulary rather than from method — the right
+technical word attached to the wrong diagnosis, delivered with full confidence, and expensive
+precisely because it reads as expert.
+
+The catalogue is Specnaut-owned, so `upgrade` keeps it current. If you want to add project-specific
+entries, put them in your own file and reference it from `AGENTS.md` rather than editing a leaf — an
+edited leaf becomes a customized file that `upgrade` will stop refreshing.
+
 ### The five auditor agents are now experts
 
 `auditor` described one dispatch shape out of several. These seats are also asked for their
