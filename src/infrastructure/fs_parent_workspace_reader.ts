@@ -1,5 +1,6 @@
 import { dirname, isAbsolute, join, resolve } from "@std/path";
 import type { ParentWorkspaceReader } from "../application/ports.ts";
+import { PARENT_MANAGED_MARKER } from "../domain/parent_managed.ts";
 
 /**
  * Filesystem-backed `ParentWorkspaceReader`.
@@ -23,11 +24,20 @@ export class FsParentWorkspaceReader implements ParentWorkspaceReader {
     const canonicalTarget = await tryRealPath(targetDir);
     if (canonicalTarget === null) return null;
 
+    // The child may declare membership itself. Workspace-array membership was
+    // the only positive signal, which made "is a Deno workspace member" the
+    // definition of "inherits agentic files" — unreachable for a sub-repo on a
+    // different toolchain, deliberately kept out of that array because
+    // including it breaks its own build tooling (#476).
+    const declaredByChild = await fileExists(
+      join(targetDir, ".specnaut", PARENT_MANAGED_MARKER),
+    );
+
     // Walk dirname upward; stop when `dirname` no longer changes (root).
     let current = dirname(canonicalTarget);
     let parent = dirname(current);
     while (parent !== current) {
-      if (await this.isProvidingWorkspace(current, canonicalTarget)) {
+      if (await this.isProvidingWorkspace(current, canonicalTarget, declaredByChild)) {
         // `current` is already canonical (derived from a canonical target via
         // repeated dirname), but normalise via realPath to be safe.
         return await tryRealPath(current) ?? current;
@@ -36,21 +46,30 @@ export class FsParentWorkspaceReader implements ParentWorkspaceReader {
       parent = dirname(current);
     }
     // `current` is now the filesystem root — check it too before giving up.
-    if (await this.isProvidingWorkspace(current, canonicalTarget)) {
+    if (await this.isProvidingWorkspace(current, canonicalTarget, declaredByChild)) {
       return await tryRealPath(current) ?? current;
     }
     return null;
   }
 
   /**
-   * True iff `ancestor/.specnaut/` exists AND `ancestor/deno.json` declares a
-   * workspace member canonically equal to `canonicalTarget`.
+   * True iff `ancestor/.specnaut/` exists AND either the child declared itself
+   * parent-managed, or `ancestor/deno.json` declares a workspace member
+   * canonically equal to `canonicalTarget`. The `workspace[]` signal is kept as
+   * a fallback so existing Deno-workspace children need no new file.
    */
   private async isProvidingWorkspace(
     ancestor: string,
     canonicalTarget: string,
+    declaredByChild: boolean,
   ): Promise<boolean> {
     if (!(await isDir(join(ancestor, ".specnaut")))) return false;
+
+    // The child's declaration still requires a providing ancestor — it says
+    // "my enclosing workspace manages me", not "provision nothing". Skipping
+    // this check would leave a child with `.claude/` suppressed and nothing
+    // supplying it.
+    if (declaredByChild) return true;
 
     const members = await readWorkspaceMembers(join(ancestor, "deno.json"));
     if (members === null) return false;
