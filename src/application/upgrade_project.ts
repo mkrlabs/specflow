@@ -329,6 +329,14 @@ export class UpgradeProjectUseCase {
       const existing = lock.entries.get(dest);
       const sha = await shaOfBundle(bundle[dest]);
       const wrote = toWrite[dest] !== undefined;
+      // A `skipIfExists` file the user already had is theirs, and init
+      // deliberately left it out of the lock. An upgrade that did not write it
+      // must not adopt it either: recording the BUNDLE's sha against THEIR
+      // file makes every later upgrade report it as "customized locally" and
+      // dump a full diff — and makes `--force` overwrite it. That is the #163
+      // false positive, arriving one run later through the lock instead of
+      // through the plan.
+      if (!wrote && existing === undefined && bundle[dest]?.skipIfExists === true) continue;
       updatedEntries.set(dest, {
         sha256: wrote ? sha : existing?.sha256 ?? sha,
         installedAt: wrote ? now : (existing?.installedAt ?? now),
