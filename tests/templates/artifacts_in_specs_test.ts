@@ -13,7 +13,7 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
  * These locks live on the bundled template content so the guidance can't drift
  * out of the shipped binary. Two load-bearing surfaces carry it:
  *   - the `spec-template.md` skeleton (the optional, conditional section), and
- *   - the `specify` phase doc (the reuse-the-a11y-gate instruction).
+ *   - the `plan` phase doc (the reuse-the-a11y-gate instruction).
  *
  * The gate MUST reuse the accessibility auditor's front-end-surface signal
  * list (not a second heuristic) — that reuse is the acceptance criterion.
@@ -31,8 +31,8 @@ function specTemplate(): CoreEntry | undefined {
   );
 }
 
-function specifyPhase(): CoreEntry | undefined {
-  return CORE_BUNDLE.find((e) => e.category === "phase" && e.name === "specify");
+function planPhase(): CoreEntry | undefined {
+  return CORE_BUNDLE.find((e) => e.category === "phase" && e.name === "plan");
 }
 
 Deno.test("spec-template ships the Claude Artifacts section with public docs links", () => {
@@ -72,15 +72,15 @@ Deno.test("spec-template gates the Artifacts section on a front-end surface (a11
   );
 });
 
-Deno.test("specify phase reinforces the FE gate by reusing the a11y-auditor signals", () => {
-  const entry = specifyPhase();
-  assert(entry, "expected the specify phase entry in CORE_BUNDLE");
+Deno.test("plan phase reinforces the FE gate by reusing the a11y-auditor signals", () => {
+  const entry = planPhase();
+  assert(entry, "expected the plan phase entry in CORE_BUNDLE");
   const { content } = entry;
   assertStringIncludes(content, "Visual Prototyping with Claude Artifacts");
   assertStringIncludes(
     content,
     "a11y-auditor",
-    "specify must point spec authors at the accessibility gate's signal list",
+    "plan must point authors at the accessibility gate's signal list",
   );
   // A back-end/CLI-only spec must be told NOT to mention artifacts. (The
   // trailing "artifacts" may wrap to the next line in the source prose, so

@@ -51,7 +51,7 @@ Deno.test("specnaut init --ai cursor scaffolds a Cursor layout", async () => {
     // Cursor-specific (v1.0.0 consolidated layout)
     assertEquals(await exists(join(root, ".cursor/skills/specnaut/SKILL.md")), true);
     assertEquals(
-      await exists(join(root, ".cursor/skills/specnaut/phases/specify.md")),
+      await exists(join(root, ".cursor/skills/specnaut/phases/plan.md")),
       true,
     );
     assertEquals(
@@ -63,7 +63,7 @@ Deno.test("specnaut init --ai cursor scaffolds a Cursor layout", async () => {
     assertEquals(await exists(join(root, ".cursor/rules/specify-rules.mdc")), true);
     // Old per-phase folders are gone post-consolidation.
     assertEquals(
-      await exists(join(root, ".cursor/skills/specnaut-specify/SKILL.md")),
+      await exists(join(root, ".cursor/skills/specnaut-plan/SKILL.md")),
       false,
     );
 

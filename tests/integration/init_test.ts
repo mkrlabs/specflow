@@ -52,13 +52,13 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
     assertEquals(await exists(join(root, ".specnaut/backlog.md")), true);
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);
     assertEquals(await exists(join(root, ".specnaut/templates/spec-template.md")), true);
-    // v1.0.0: 11 phases consolidated into the specnaut router skill.
+    // The phase chain lives in the specnaut router skill (#455 / #456).
     assertEquals(
       await exists(join(root, ".claude/skills/specnaut/SKILL.md")),
       true,
     );
     assertEquals(
-      await exists(join(root, ".claude/skills/specnaut/phases/specify.md")),
+      await exists(join(root, ".claude/skills/specnaut/phases/plan.md")),
       true,
     );
     assertEquals(
@@ -72,16 +72,26 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
     );
     // Old per-phase folders are gone post-consolidation.
     assertEquals(
-      await exists(join(root, ".claude/skills/specnaut-specify/SKILL.md")),
+      await exists(join(root, ".claude/skills/specnaut-plan/SKILL.md")),
       false,
     );
+    // #455: the four folded phases no longer scaffold.
+    for (
+      const gone of ["brainstorm", "specify", "clarify", "analyze", "checklist", "list-skills"]
+    ) {
+      assertEquals(
+        await exists(join(root, `.claude/skills/specnaut/phases/${gone}.md`)),
+        false,
+        `removed phase must NOT scaffold: ${gone}.md`,
+      );
+    }
     assertEquals(
       await exists(join(root, ".claude/skills/specnaut-groom/SKILL.md")),
       false,
     );
     // The /backlog command keeps the flat-file format. The /specnaut
     // command is a thin slash-command shim added post-v1.0.0 so users
-    // can type `/specnaut specify ...` literally (Claude-only — see F3).
+    // can type `/specnaut plan ...` literally (Claude-only — see F3).
     assertEquals(await exists(join(root, ".claude/commands/backlog.md")), true);
     assertEquals(await exists(join(root, ".claude/commands/specnaut.md")), true);
     assertEquals(await exists(join(root, ".claude/agents/product-owner.md")), true);
@@ -193,13 +203,13 @@ Deno.test("specnaut init's Next steps nudges towards /specnaut-constitution firs
     assertEquals(code, 0);
     assertStringIncludes(stdout, "Next steps:");
     assertStringIncludes(stdout, "/specnaut constitution");
-    // The constitution step must come before /specnaut specify in the rendered list.
+    // The constitution step must come before /specnaut plan in the rendered list.
     const constitutionIdx = stdout.indexOf("/specnaut constitution");
-    const specifyIdx = stdout.indexOf("/specnaut specify");
+    const planIdx = stdout.indexOf("/specnaut plan");
     assertEquals(
-      constitutionIdx > 0 && constitutionIdx < specifyIdx,
+      constitutionIdx > 0 && constitutionIdx < planIdx,
       true,
-      "constitution step must precede specify step in Next steps",
+      "constitution step must precede plan step in Next steps",
     );
   });
 });
@@ -433,7 +443,7 @@ Deno.test("specnaut init --here on a project with existing constitution.md leave
 
 // ── Consolidated router skill (v1.0.0) ──────────────────────────────────
 
-Deno.test("specnaut init scaffolds the consolidated router skill + 11 phase docs", async () => {
+Deno.test("specnaut init scaffolds the consolidated router skill + its phase docs", async () => {
   await withTempDir(async (dir) => {
     const { code } = await runSpecnaut(
       ["init", "demo", "--no-git", "--ai", "claude", "--backlog", "local"],
@@ -448,17 +458,13 @@ Deno.test("specnaut init scaffolds the consolidated router skill + 11 phase docs
     );
     for (
       const name of [
-        "brainstorm",
-        "specify",
         "plan",
+        "plan-audits",
         "tasks",
         "implement",
-        "analyze",
         "review",
         "merge",
         "constitution",
-        "checklist",
-        "clarify",
         "groom",
       ]
     ) {

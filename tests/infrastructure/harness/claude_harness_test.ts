@@ -22,15 +22,15 @@ Deno.test("ClaudeHarness.mapBundle emits the Claude tree", () => {
   const keys = Object.keys(mapped);
   assert(keys.length > 50, `expected ~58 entries, got ${keys.length}`);
   assert(".claude/skills/specnaut/SKILL.md" in mapped);
-  assert(".claude/skills/specnaut/phases/specify.md" in mapped);
+  assert(".claude/skills/specnaut/phases/plan.md" in mapped);
   assert(".claude/skills/specnaut/phases/groom.md" in mapped);
   assert(".claude/skills/specnaut-review/SKILL.md" in mapped);
   // /backlog stays as a flat command
   assert(".claude/commands/backlog.md" in mapped);
   // Old per-phase skill folders are gone post-consolidation
-  assert(!(".claude/skills/specnaut-specify/SKILL.md" in mapped));
+  assert(!(".claude/skills/specnaut-plan/SKILL.md" in mapped));
   assert(!(".claude/skills/specnaut-groom/SKILL.md" in mapped));
-  assert(!(".claude/commands/specnaut-specify.md" in mapped));
+  assert(!(".claude/commands/specnaut-plan.md" in mapped));
   // Bundled assets unchanged
   assert(".claude/loop.md" in mapped);
   assert(".claude/settings.json" in mapped);
