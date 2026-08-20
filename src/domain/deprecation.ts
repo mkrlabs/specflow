@@ -15,4 +15,4 @@ export function isLegacyInvocation(execPath: string): boolean {
 export const LEGACY_INVOCATION_WARNING =
   "warning: the 'specflow' command is deprecated — use 'specnaut' instead. " +
   "Run 'specnaut self-update' (or reinstall) to get the renamed binary; " +
-  "the 'specflow' alias will be removed in the next major release.";
+  "the 'specflow' alias will be removed in a future major release.";
