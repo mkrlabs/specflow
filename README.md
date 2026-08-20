@@ -14,6 +14,9 @@ to drive a spec-driven workflow inside your project. It adds three things upstre
 - **Product backlog** — Markdown index + one file per task with structured frontmatter, a Product
   Owner agent for management, one-way sync to GitHub Issues/Project V2
 
+> **Upgrading from 1.x?** The phase chain changed. Read [UPGRADING.md](UPGRADING.md) before running
+> `specnaut upgrade`.
+
 ## What Specnaut is not
 
 Specnaut does not talk to any LLM. Specnaut does not orchestrate any agent. You need a compatible AI
