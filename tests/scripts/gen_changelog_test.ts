@@ -726,3 +726,162 @@ Deno.test("the guard stays silent when it should", () => {
   const ordinary = [{ hash: "a1", subject: "feat: adds a phase" }].map(classifyCommit);
   assertEquals(breakingGuardWarning(ordinary, "v2.1.0"), null, "a minor needs no marker");
 });
+
+// ---------------------------------------------------------------------------
+// The Adoption guide has never actually been published.
+//
+// `extractPrNumber` only ever found a PR through a trailing `(#NNN)` in the
+// subject. GitHub writes that on a SQUASH merge; this repository REBASE-merges,
+// which writes nothing. So every `feat` commit took the documented
+// "no ref ⇒ no entry, no failure" path and its section was dropped in silence —
+// while CI kept rejecting `feat:` PRs that omitted the very section no release
+// body has ever carried. v2.0.0: seven feat commits, zero adoption entries.
+//
+// Two more defects surfaced only by reading the RENDERED output, not by
+// checking that a guide existed: the comment stripper deleted the fence markers
+// an adoption prompt was teaching, and a trailing section swallowed the PR
+// footer into the published notes.
+// ---------------------------------------------------------------------------
+
+import { type PrNumberResolver, type PrRefOutcome } from "../../scripts/gen-changelog.ts";
+
+/** A `feat` commit with NO trailing PR ref — what a rebase merge actually leaves. */
+function rebasedFeatCommit(subject: string, hash = "be14410"): Classified {
+  return {
+    hash,
+    subject,
+    category: "feat",
+    cleanedSubject: subject.charAt(0).toUpperCase() + subject.slice(1),
+  };
+}
+
+function fakeResolver(map: Map<string, PrRefOutcome>): PrNumberResolver {
+  return (hash: string) => Promise.resolve(map.get(hash) ?? { kind: "absent" });
+}
+
+Deno.test("assembleAdoptionEntries: a rebased feat commit is resolved from its SHA", async () => {
+  const commits = [rebasedFeatCommit("deliver the section to projects that upgrade")];
+  const bodies = new Map<number, PrBodyOutcome>([
+    [471, { kind: "retrieved", body: adoptionBody("move your rules out of the block") }],
+  ]);
+  const refs = new Map<string, PrRefOutcome>([["be14410", { kind: "resolved", prNum: 471 }]]);
+
+  const { entries, failures } = await assembleAdoptionEntries(
+    commits,
+    fakeFetcher(bodies),
+    fakeResolver(refs),
+  );
+  assertEquals(failures.length, 0);
+  assertEquals(entries.length, 1);
+  assertEquals(entries[0].prNum, 471);
+});
+
+Deno.test("assembleAdoptionEntries: a failed SHA lookup is a recorded failure, never a skip", async () => {
+  // The whole point: "this commit has no PR" and "we could not ask" must stay
+  // distinguishable, so --strict can refuse to publish a partial guide.
+  const commits = [rebasedFeatCommit("deliver the section", "cafe123")];
+  const refs = new Map<string, PrRefOutcome>([
+    ["cafe123", { kind: "failed", reason: "gh api: HTTP 403" }],
+  ]);
+
+  const { entries, failures } = await assembleAdoptionEntries(
+    commits,
+    fakeFetcher(new Map()),
+    fakeResolver(refs),
+  );
+  assertEquals(entries.length, 0);
+  assertEquals(failures.length, 1);
+  assertEquals(failures[0].prNum, null);
+  assertEquals(failures[0].hash, "cafe123");
+});
+
+Deno.test("assembleAdoptionEntries: a commit genuinely without a PR stays a quiet skip", async () => {
+  const commits = [rebasedFeatCommit("pushed straight to main", "0000001")];
+  const { entries, failures } = await assembleAdoptionEntries(
+    commits,
+    fakeFetcher(new Map()),
+    fakeResolver(new Map()),
+  );
+  assertEquals(entries.length, 0);
+  assertEquals(failures.length, 0);
+});
+
+Deno.test("extractAdoption: an HTML comment inside code is content, not markup", () => {
+  // Specnaut's own managed-section fence IS an HTML comment. Stripping it left
+  // the prompt telling agents to look for a block delimited by nothing.
+  const body = [
+    "## Agent adoption",
+    "",
+    "Find the block fenced by `<!-- --- Specnaut: chain-stops --- -->`.",
+    "",
+    "```prompt",
+    "Look for `<!-- --- End Specnaut: chain-stops --- -->` in AGENTS.md.",
+    "```",
+  ].join("\n");
+
+  const got = extractAdoption(body);
+  assert(got !== null);
+  assertStringIncludes(got!, "<!-- --- Specnaut: chain-stops --- -->");
+  assertStringIncludes(got!, "<!-- --- End Specnaut: chain-stops --- -->");
+});
+
+Deno.test("extractAdoption: still strips a bare template placeholder comment", () => {
+  const body = [
+    "## Agent adoption",
+    "",
+    "<!-- describe what existing projects must do -->",
+    "Real prose.",
+    "",
+    "```prompt",
+    "do the thing",
+    "```",
+  ].join("\n");
+
+  const got = extractAdoption(body);
+  assert(got !== null);
+  assert(!got!.includes("describe what existing projects"), "placeholders must still go");
+  assertStringIncludes(got!, "Real prose.");
+});
+
+Deno.test("extractAdoption: interleaved code spans and fences are restored in place", () => {
+  // Regression: the two lifting passes pushed in their own order while the
+  // placeholders sat interleaved, so a code span came back as a fenced block.
+  const body = [
+    "## Agent adoption",
+    "",
+    "First `ALPHA` then `BETA`.",
+    "",
+    "```prompt",
+    "GAMMA",
+    "```",
+  ].join("\n");
+
+  const got = extractAdoption(body);
+  assert(got !== null);
+  assertStringIncludes(got!, "First `ALPHA` then `BETA`.");
+  assertStringIncludes(got!, "GAMMA");
+});
+
+Deno.test("extractAdoption: a trailing section stops at the prompt, not at EOF", () => {
+  // Every PR body carries a tooling footer. When `## Agent adoption` is the
+  // last H2, "run to EOF" printed that footer inside the release notes.
+  const body = [
+    "## Agent adoption",
+    "",
+    "Prose.",
+    "",
+    "```prompt",
+    "do the thing",
+    "```",
+    "",
+    "🤖 Generated with [Some Tool](https://example.invalid)",
+    "",
+    "https://example.invalid/session/abc",
+  ].join("\n");
+
+  const got = extractAdoption(body);
+  assert(got !== null);
+  assertStringIncludes(got!, "do the thing");
+  assert(!got!.includes("Generated with"), "the footer must not reach the release body");
+  assert(!got!.includes("example.invalid"), "no session links in published notes");
+});

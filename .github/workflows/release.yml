@@ -263,7 +263,7 @@ jobs:
       - name: Sync to Codex marketplace fork (#277 / B1)
         if: ${{ !cancelled() && steps.release.outcome == 'success' }}
         # Mirrors the Specnaut plugin content into
-        # `mkrlabs/plugins:plugins/specnaut/`. A human rebases that
+        # `specnaut/specnaut-plugins:plugins/specnaut/`. A human rebases that
         # fork's PR into upstream `openai/plugins` for the actual
         # marketplace publish. If CODEX_SYNC_TOKEN is unset, the
         # script emits a workflow ::warning and exits 0 — the release

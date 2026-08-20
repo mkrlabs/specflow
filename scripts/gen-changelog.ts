@@ -84,19 +84,47 @@ const NEXT_H2_RE = /^## /m;
 const HTML_COMMENT_RE = /<!--[\s\S]*?-->/g;
 const PROMPT_FENCE_RE = /^```prompt\s*$/m;
 
+const FENCED_BLOCK_RE = /```[\s\S]*?```/g;
+const INLINE_CODE_RE = /`[^`\n]*`/g;
+// Private-use sentinel rather than NUL: same "cannot occur in real prose"
+// property without tripping the control-character lint. Any pre-existing
+// occurrence is stripped from the input first, so the index can never slip.
+const SENTINEL = "\uE000";
+const PLACEHOLDER_RE = /\uE000(\d+)\uE000/g;
+
 /**
- * Strip HTML comments from a string, looping until idempotent so that
- * nested or malformed patterns like `<!-- foo <!-- bar -->` leave no residue.
+ * Strip HTML comments that are *markup*, leaving alone any that are *content*.
+ *
+ * The strip exists to drop the PR template's `<!-- placeholder -->` hints. But
+ * an HTML comment inside a code span or fenced block is something the author is
+ * deliberately showing the reader — and Specnaut's own managed-section fence is
+ * literally an HTML comment, so an adoption prompt teaching users about
+ * `<!-- --- Specnaut: … --- -->` had its subject matter deleted out of it,
+ * leaving empty backticks and instructions to look for nothing.
+ *
+ * Code regions are lifted out, the remainder is stripped to a fixed point
+ * (catching nested/malformed runs like `<!-- foo <!-- bar -->`), then the code
+ * is put back exactly as written.
  */
 function stripHtmlComments(s: string): string {
-  // Repeated pass to catch overlapping / nested patterns.
+  const preserved: string[] = [];
+  // Indexed placeholders, not positional ones: the two lifting passes push in
+  // their own order while the placeholders sit interleaved in the document, so
+  // restoring by order of appearance swaps a code span for a fenced block.
+  const lift = (text: string, re: RegExp) =>
+    text.replace(re, (m) => `${SENTINEL}${preserved.push(m) - 1}${SENTINEL}`);
+
+  // Fenced blocks first: an inline-code pass would otherwise chew through the
+  // backtick runs that delimit them.
+  let current = lift(lift(s.replaceAll(SENTINEL, ""), FENCED_BLOCK_RE), INLINE_CODE_RE);
+
   let prev: string;
-  let current = s;
   do {
     prev = current;
     current = current.replace(HTML_COMMENT_RE, "");
   } while (current !== prev);
-  return current;
+
+  return current.replace(PLACEHOLDER_RE, (_m, idx) => preserved[Number(idx)]);
 }
 
 /**
@@ -121,7 +149,25 @@ export function extractAdoption(body: string): string | null {
 
   const cleaned = stripHtmlComments(section).trim();
   if (!PROMPT_FENCE_RE.test(cleaned)) return null;
-  return cleaned;
+  return truncateAfterPrompt(cleaned);
+}
+
+/**
+ * Cut the section after the closing fence of its ```prompt block.
+ *
+ * `CONTRIBUTING.md` defines the shape as prose first, one ```prompt block
+ * second — so the block's closing fence IS the end of the guide. Without this,
+ * a section that happens to be the last `## ` in the PR body swallows whatever
+ * follows it, and the tooling footer every PR carries ends up printed inside
+ * the published release notes as if it were adoption guidance.
+ */
+function truncateAfterPrompt(section: string): string {
+  const open = section.match(PROMPT_FENCE_RE);
+  if (!open || open.index === undefined) return section;
+  const afterOpen = open.index + open[0].length;
+  const close = section.slice(afterOpen).match(/^```\s*$/m);
+  if (!close || close.index === undefined) return section;
+  return section.slice(0, afterOpen + close.index + close[0].length).trimEnd();
 }
 
 const PR_NUMBER_RE = /\s\(#(\d+)\)\s*$/;
@@ -134,6 +180,75 @@ export function extractPrNumber(subject: string): number | null {
   const m = subject.match(PR_NUMBER_RE);
   if (!m) return null;
   return parseInt(m[1], 10);
+}
+
+/**
+ * The three-way result of resolving a commit back to its PR.
+ *
+ * Same discipline as {@link PrBodyOutcome}, for the same reason: "this commit
+ * has no PR" and "we could not ask" must never collapse into one value. That
+ * collapse is what made the previous gap invisible.
+ */
+export type PrRefOutcome =
+  | { kind: "resolved"; prNum: number }
+  | { kind: "absent" }
+  | { kind: "failed"; reason: string };
+
+/**
+ * Injection seam for SHA → PR resolution. The real implementation is the
+ * `gh`-backed {@link resolvePrFromSha}; tests pass a fake.
+ */
+export type PrNumberResolver = (hash: string) => Promise<PrRefOutcome>;
+
+const PR_SHA_CACHE = new Map<string, PrRefOutcome>();
+
+/**
+ * Resolve the PR a commit belongs to from its SHA, via
+ * `gh api repos/{owner}/{repo}/commits/<sha>/pulls`.
+ *
+ * This exists because this repository **rebase-merges**. A squash merge stamps
+ * `(#NNN)` onto the subject and {@link extractPrNumber} finds it; a rebase does
+ * not, so every rebased `feat` commit looked like a commit with no PR — the
+ * documented "no entry, no failure" path — and its Agent adoption section was
+ * dropped without a word. CI has been rejecting `feat:` PRs that omit that
+ * section while no release body has ever carried one.
+ *
+ * GitHub keeps the association across the rewrite, so the post-rebase SHA still
+ * resolves. Cached per process, failures included.
+ */
+export async function resolvePrFromSha(hash: string): Promise<PrRefOutcome> {
+  const cached = PR_SHA_CACHE.get(hash);
+  if (cached !== undefined) return cached;
+  const cmd = new Deno.Command("gh", {
+    args: [
+      "api",
+      `repos/{owner}/{repo}/commits/${hash}/pulls`,
+      "--jq",
+      ".[0].number",
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  });
+  let outcome: PrRefOutcome;
+  try {
+    const out = await cmd.output();
+    if (!out.success) {
+      const reason = new TextDecoder().decode(out.stderr).trim() ||
+        `gh api commits/${hash}/pulls exited non-zero`;
+      console.warn(`gen-changelog: failed to resolve PR for ${hash} — ${reason}`);
+      outcome = { kind: "failed", reason };
+    } else {
+      const decoded = new TextDecoder().decode(out.stdout).trim();
+      const num = decoded === "" || decoded === "null" ? NaN : Number(decoded);
+      outcome = Number.isInteger(num) ? { kind: "resolved", prNum: num } : { kind: "absent" };
+    }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.warn(`gen-changelog: cannot run gh CLI (${reason}) — PR lookup failed for ${hash}`);
+    outcome = { kind: "failed", reason };
+  }
+  PR_SHA_CACHE.set(hash, outcome);
+  return outcome;
 }
 
 /**
@@ -231,7 +346,8 @@ export type AdoptionEntry = {
 /** Result of {@link assembleAdoptionEntries}: the guide entries plus any retrieval failures. */
 export type AdoptionAssembly = {
   entries: AdoptionEntry[];
-  failures: { prNum: number; reason: string }[];
+  /** `prNum` is `null` when the PR could not be resolved from the commit at all. */
+  failures: { prNum: number | null; hash?: string; reason: string }[];
 };
 
 const TRAILING_PR_REF_RE = /\s\(#\d+\)\s*$/;
@@ -242,8 +358,10 @@ const TRAILING_PR_REF_RE = /\s\(#\d+\)\s*$/;
  * keeping retrieval *failures* strictly separate from legitimate *absences*
  * (#363, FR-004). This is the unit-testable seam extracted from `main()`:
  *
- * - non-`feat` commit, or `feat` with no trailing `(#NNN)` ⇒ no entry, no
- *   failure (identical behaviour local and in CI).
+ * - non-`feat` commit ⇒ no entry, no failure.
+ * - `feat` with no trailing `(#NNN)` ⇒ resolved from its SHA via
+ *   `resolveFromSha` (this repo rebase-merges, so the ref is never in the
+ *   subject); `absent` is a quiet skip, `failed` is recorded like any other.
  * - `retrieved` ⇒ run `extractAdoption`; a valid block yields an entry, an
  *   invalid/missing block is a quiet informational skip.
  * - `absent` ⇒ quiet informational skip.
@@ -254,14 +372,34 @@ const TRAILING_PR_REF_RE = /\s\(#\d+\)\s*$/;
 export async function assembleAdoptionEntries(
   classified: Classified[],
   fetch: PrBodyFetcher,
+  resolveFromSha: PrNumberResolver = () => Promise.resolve({ kind: "absent" }),
 ): Promise<AdoptionAssembly> {
   const entries: AdoptionEntry[] = [];
-  const failures: { prNum: number; reason: string }[] = [];
+  const failures: { prNum: number | null; hash?: string; reason: string }[] = [];
 
   for (const c of classified) {
     if (c.category !== "feat") continue;
-    const prNum = extractPrNumber(c.subject);
-    if (prNum === null) continue;
+    let prNum = extractPrNumber(c.subject);
+    if (prNum === null) {
+      // No `(#NNN)` in the subject. Under squash-merge that means "no PR";
+      // under rebase-merge it means nothing at all, because the rebase never
+      // wrote one. Ask the forge before concluding the commit is unattached.
+      const ref = await resolveFromSha(c.hash);
+      if (ref.kind === "failed") {
+        failures.push({ prNum: null, hash: c.hash, reason: ref.reason });
+        continue;
+      }
+      if (ref.kind === "absent") {
+        // Under this repo's convention every feat lands through a PR, so this
+        // is worth a line even though it is not a failure. A skip nobody can
+        // see is how the guide stayed empty across a whole major release.
+        console.warn(
+          `gen-changelog: feat commit ${c.hash} resolves to no PR — skipping adoption`,
+        );
+        continue;
+      }
+      prNum = ref.prNum;
+    }
 
     const outcome = await fetch(prNum);
     if (outcome.kind === "failed") {
@@ -461,11 +599,12 @@ async function main() {
   const { entries: adoptionEntries, failures } = await assembleAdoptionEntries(
     classified,
     fetchPrBody,
+    resolvePrFromSha,
   );
 
   if (failures.length > 0) {
     for (const f of failures) {
-      console.error(`#${f.prNum}: ${f.reason}`);
+      console.error(`${f.prNum === null ? f.hash : `#${f.prNum}`}: ${f.reason}`);
     }
     if (strict) {
       console.error(
