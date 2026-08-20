@@ -72,12 +72,25 @@ mktemp_workdir() {
 
 # git_bot_identity
 #
-# Set the local git user.email and user.name to the Specnaut sync
-# bot identity. Must be called from inside the destination clone
-# (after `cd` into it).
+# Set the local git identity for an automated commit. Must be called from
+# inside the destination clone (after `cd` into it).
+#
+# THIS IS THE ONE IDENTITY FOR EVERY AUTOMATED COMMIT IN THIS REPO. If you
+# add another path that commits on our behalf, call this — do not invent a
+# third. `scripts/bump-tap-formula.ts` sets the same name and address
+# directly, because it is TypeScript and cannot source this file; keep the
+# two in step.
+#
+# It is GitHub's own bot identity, which is what makes it the right choice:
+# these commits are pushed to public repositories, the forge renders the
+# author as a bot rather than a person, and it needs no address that has to
+# be owned, routed or kept alive. The previous value was a hand-picked
+# address on a domain unrelated to any of the destination repos — nothing
+# was broken by it, but it meant two identities to recognise in `git log`
+# and two to allowlist wherever bot authorship is checked (#473).
 git_bot_identity() {
-  git config user.email "specnaut-bot@mkrlabs.dev"
-  git config user.name "Specnaut Sync Bot"
+  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+  git config user.name "github-actions[bot]"
 }
 
 # wire_gh_token_to_remote
@@ -109,7 +122,7 @@ wire_gh_token_to_remote() {
 # (an earlier run already pushed the same content; nothing to do).
 #
 # Arguments:
-#   $1 — repo (e.g. mkrlabs/plugins)
+#   $1 — repo (e.g. specnaut/specnaut-plugins)
 #   $2 — branch (e.g. specnaut-sync/v1.8.0)
 #   $3 — PR title
 #   $4 — PR body (multi-line OK)

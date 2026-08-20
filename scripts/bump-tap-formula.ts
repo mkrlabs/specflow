@@ -143,6 +143,10 @@ async function main(): Promise<number> {
       return 0;
     }
 
+    // The one identity for every automated commit in this repo. Set inline
+    // rather than shared because `scripts/lib/sync-helpers.sh` is bash and
+    // this is TypeScript — the two cannot import each other, so they are kept
+    // in step by hand. Change one, change the other (#473).
     await run(["git", "config", "user.name", "github-actions[bot]"], workdir);
     await run(
       [
