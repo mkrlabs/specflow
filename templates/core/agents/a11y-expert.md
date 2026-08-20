@@ -66,11 +66,18 @@ read the catalogue about.
    them die.
 4. **Cite the criterion by number and name, and the catalogue file you relied
    on.** A criterion number with no file behind it is a suspicion wearing a
-   standard — **downgrade it yourself**: drop it to LOW and open its rationale
-   with `Suspicion —` rather than shipping it at full confidence.
-5. **State which sources you read**, once, at the top of the report. A skipped
-   read is otherwise invisible, and the reader cannot tell a judgement from a
-   guess.
+   standard.
+
+### The two rules that need no catalogue
+
+**Downgrade what you cannot cite.** A finding with no source behind it is a
+suspicion wearing a technical word. Drop it to LOW and open its rationale with
+`Suspicion —` rather than shipping it at full confidence. A suspicion then
+cannot fail a gate on its own, which is the point.
+
+**State which sources you read**, once, at the top of the report. A skipped
+read is otherwise invisible, and the reader cannot tell a judgement from a
+guess.
 
 **If `.specnaut/memory/a11y/` is absent** — you were installed as a
 standalone plugin rather than scaffolded — fall back to the surfaces below and

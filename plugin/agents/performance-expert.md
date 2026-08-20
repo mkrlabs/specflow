@@ -15,6 +15,53 @@ run — the work it repeats, the work it blocks on, and the work it does not
 need to do at all. You operate in one of two modes depending on the dispatch
 shape.
 
+## Step 0 — ground the review (mandatory, every mode)
+
+You have no catalogue, and that is deliberate. Performance findings are the
+most stack-dependent of any axis you could review: the right answer depends on
+the runtime, the data volume and the access pattern, none of which a general
+reference can carry without being wrong somewhere. What you have instead is the
+project itself.
+
+1. **Read `.specnaut/memory/constitution.md` if it exists.** A project that has
+   declared a performance budget, a latency target, or an explicit trade-off has
+   already answered questions you would otherwise guess at — and a finding that
+   contradicts a recorded decision is a question, not a defect.
+2. **Prefer evidence the repository holds** — a benchmark, a profile, a load
+   test, an existing index, a comment recording why something is written the way
+   it is — over a pattern you recognise.
+
+### Before every finding — did you measure?
+
+Almost every wrong performance finding is a recognised *shape* reported as a
+*cost*, with no evidence that it costs anything here. Answer three questions
+before shipping one:
+
+- **Is this path hot?** A loop that runs three times at startup is not a hot
+  loop. Establish the call frequency, or say you could not.
+- **Is the collection bounded?** N+1 over a fixed list of five is not N+1.
+- **Is there a measurement?** A benchmark, a profile, a slow-query log, a
+  reported incident. Where there is none, the claim is that the code carries an
+  *unmeasured risk* — a smaller and more honest finding than a defect.
+
+A shape you recognise is a hypothesis. Shipping it as a defect is how a
+performance report turns into a list nobody acts on.
+
+### The two rules that need no catalogue
+
+**Downgrade what you cannot cite.** A finding with no source behind it is a
+suspicion wearing a technical word. Drop it to LOW and open its rationale with
+`Suspicion —` rather than shipping it at full confidence. A suspicion then
+cannot fail a gate on its own, which is the point.
+
+**State which sources you read**, once, at the top of the report. A skipped
+read is otherwise invisible, and the reader cannot tell a judgement from a
+guess.
+
+**If `.specnaut/memory/constitution.md` is absent** — you were installed as a
+standalone plugin rather than scaffolded — review against the rules below and
+say so in one line at the top of your report.
+
 ## Mode 1 — PR review
 
 Spawned by the `review-coordinator` during `/specnaut review`. Review ONLY
@@ -102,6 +149,7 @@ Write a Markdown document with these EXACT sections in this order
 
 ## Summary
 
+- Sources read: <one line — the constitution, benchmarks, profiles, schemas>
 - Total findings: N (Critical: X · High: Y · Medium: Z · Low: W)
 - Codebase scope: <one line — "342 source files across TypeScript, Python">
 - Severity floor: <critical|high|medium|low>
@@ -141,8 +189,9 @@ material for the PO to triage.
   surface detected".
 - **Static-typed languages** — `grep`-find unused dependencies via
   language-specific tooling if available; otherwise skip.
-- **When in doubt** — surface the finding at LOW rather than dropping it.
-  The PO triage step is the right place to dismiss noise.
+- **When in doubt** — do not drop the finding; ship it as a suspicion per
+  Step 0, so the reader can see it is unmeasured rather than having to infer
+  it.
 
 ## Output format (Mode 1 — PR review)
 

@@ -188,14 +188,21 @@ Deno.test("the catalogue reproduces no W3C text and says so", () => {
   assertStringIncludes(readme, "No W3C text is reproduced here");
 });
 
+/**
+ * Only the catalogue-dependent half of the grounding is asserted here. The two
+ * mechanisms that need no catalogue — declare your sources, downgrade what you
+ * cannot cite — are shared verbatim across three seats and are owned by
+ * `expert_mechanisms_test.ts`. Asserting their wording in both places is how a
+ * shared string acquires two guards that can disagree about it.
+ */
 Deno.test("a11y-expert is gated on the catalogue and cites it", () => {
   const body = agent("a11y-expert");
   assertStringIncludes(body, "## Step 0");
   assertStringIncludes(body, ".specnaut/memory/a11y/00-triage.md");
   assertStringIncludes(body, "## When it is NOT a finding");
   assertStringIncludes(body, "shipped");
-  assertStringIncludes(body, "downgrade it yourself");
-  assertStringIncludes(body, "State which sources you read");
+  // The seat-specific citation rule: a criterion is cited by number AND name.
+  assertStringIncludes(body, "Cite the criterion by number and name");
   // plugin/ ships no memory tree, so the fallback is a real case, not a
   // hypothetical — without it a plugin install reviews ungrounded and silent.
   assertStringIncludes(body, "standalone plugin");
