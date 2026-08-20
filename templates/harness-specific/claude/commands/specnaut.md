@@ -15,4 +15,4 @@ Invoke the **specnaut** skill (at `.claude/skills/specnaut/SKILL.md`) using the 
 
 Empty `$ARGUMENTS` → the skill prints the workflow overview and stops.
 
-This command is a thin slash-command shim so users can type `/specnaut specify "..."` directly. The router auto-chains the rest of the workflow by default; pass `--manual` to opt out, or `--once` / `--continue` to override the mid-chain artefact-detection heuristic.
+This command is a thin slash-command shim so users can type `/specnaut plan "..."` directly. The router auto-chains the rest of the workflow by default; pass `--manual` to run a single phase and stop. Re-entry needs no flag — a phase whose downstream artefacts already exist runs one-shot.

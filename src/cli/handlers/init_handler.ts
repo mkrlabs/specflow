@@ -602,7 +602,7 @@ export async function runInit(intent: InitIntent): Promise<number> {
     } for your stack`,
   );
   console.log(
-    `  3. Run ${bold('/specnaut specify "<feature description>"')} to scaffold your first feature`,
+    `  3. Run ${bold('/specnaut plan "<feature description>"')} to plan your first feature`,
   );
   console.log(`  4. Use ${bold('/backlog add "<task title>"')} for follow-up work`);
 

@@ -103,7 +103,7 @@
 ## Domain Model *(mandatory)*
 
 <!--
-  ACTION REQUIRED: Populated by the Product Owner during /specnaut clarify.
+  ACTION REQUIRED: Populated during /specnaut plan, before the stop.
   The developer refuses to proceed without this section.
   Format mirrors the PO's /backlog brief output — same shape everywhere.
 -->

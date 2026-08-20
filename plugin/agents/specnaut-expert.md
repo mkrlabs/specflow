@@ -6,7 +6,7 @@ description: >
   Trigger me when the user asks "how does specnaut", "what is /specnaut X",
   "explain specnaut", "quoi de neuf specnaut", "what's new in specnaut",
   or any question about the tool. Do NOT trigger on plain command
-  invocations (`specnaut init`, `specnaut upgrade`, `/specnaut specify`,
+  invocations (`specnaut init`, `specnaut upgrade`, `/specnaut plan`,
   `/backlog ...`) — those are command runs, not questions.
 model: sonnet
 effort: medium
@@ -188,7 +188,7 @@ Enhanced fork of [`specify` CLI](https://github.com/github/spec-kit), distribute
 
 **Harnesses:** claude, cursor, codex, windsurf, copilot, opencode, antigravity — all share `templates/core/` content, mapped per-harness by an adapter.
 
-**Different from upstream Spec Kit:** auto-chained pipeline (`/specnaut specify` chains all phases); dedicated `review` phase after implement; backlog as product source of truth via `product-owner` agent (backends: local, github, gitlab); Claude Code plugin distribution (`specnaut-plugin` marketplace).
+**Different from upstream Spec Kit:** auto-chained pipeline (`/specnaut plan` chains all phases); dedicated `review` phase after implement; backlog as product source of truth via `product-owner` agent (backends: local, github, gitlab); Claude Code plugin distribution (`specnaut-plugin` marketplace).
 
 **Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-auditor, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-expert.
 

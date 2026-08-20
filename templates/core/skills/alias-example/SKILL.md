@@ -12,7 +12,7 @@ overlays:
 # alias-example
 
 This file demonstrates the two optional frontmatter fields that
-Specnaut's `/specnaut list-skills` phase recognises:
+Specnaut records in a skill's frontmatter:
 
 - **`alias_of: <skill-name>`** — declares that this skill is a wrapper
   around an upstream skill. Convention is dotted notation, with the
@@ -36,9 +36,9 @@ Rather than fork the canonical `specnaut.tag-version` script, the
 project ships a thin wrapper as `alias_of: specnaut.tag-version` plus
 an overlay that runs `cd inner-repo` before delegating.
 
-The result is grep-able and self-documenting: anyone running
-`/specnaut list-skills` sees the alias relationship and the overlay
-hooks in one table. No code archaeology needed.
+The result is grep-able and self-documenting: the alias relationship
+and the overlay hooks are declared in the frontmatter itself, where
+anyone reading the skill sees them. No code archaeology needed.
 
 ## What Specnaut does with this file
 
@@ -55,8 +55,8 @@ will never scaffold it into your project. To use the pattern:
    the overlay paths.
 3. Write the actual delegate-and-hook logic in the body of the file
    (or in the overlay scripts).
-4. Run `/specnaut list-skills` to confirm the harness sees the new
-   alias and overlay.
+4. Confirm the harness picks up the new alias and overlay — how it
+   reports that is harness-specific.
 
 ## Prior art
 
