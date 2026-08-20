@@ -24,6 +24,34 @@ plan → tasks → implement → review → merge
 `merge` is never automatic. It is asked for — **unless the user already said to merge**, in which
 case that is their instruction and it is followed without a second confirmation.
 
+## ⛔ NEVER stop at a boundary that is not one of the two
+
+It applies to **every** hand-off in the chain, not just one:
+
+| Boundary | What happens |
+| :--- | :--- |
+| user answers the last question at STOP 1 → `tasks` | invoked in the same turn |
+| `tasks` commits the breakdown → `implement` | invoked in the same turn |
+| gates green, tree frozen → `review` | invoked in the same turn |
+| `review` returns findings | **STOP 2** — triage, then the merge request |
+
+No question, no proposal, no menu, at any of those arrows.
+
+None of these is a reason to stop, and each one gets used as one:
+
+| The excuse | Why it is not a reason |
+| :--- | :--- |
+| "That's a lot of tasks — confirm first?" | The size was known when the chain started. The user chose the work at STOP 1. |
+| "MVP only, or the whole thing?" | The plan states both. Build the full path; the MVP is a checkpoint inside it, not a fork to offer. |
+| "This is where the real code gets written." | Yes. That is the point of the chain. |
+| "The audits found a lot — re-confirm scope?" | The findings were folded into the plan and the plan was approved. That approval covers what the plan now says. |
+| "The user has been checkpointing each step." | Answering a question is not a request to be asked another one. |
+
+Asking again after STOP 1 **re-litigates a decision the user already made**, and it costs them the
+thing the chain exists to give: they approve an architecture once, and get an implemented, reviewed
+branch back. A chain that halts at every phase boundary is a slower manual workflow wearing a
+skill's name.
+
 ## Per-phase behavior
 
 After each phase completes successfully, **invoke the next phase yourself, in the same turn**, via
@@ -84,6 +112,24 @@ Then resolve the approval:
   **Never merge without an explicit approval.**
 - **Local mode** (default) — ask once: "Ready to merge? (yes to run `/specnaut merge`, no to stay on
   the branch)". On "yes", invoke `merge`.
+
+### Triage, and the rule that ends the loop
+
+**Only a CRITICAL or HIGH finding buys another fix cycle.** MEDIUM and LOW go to the backlog and the
+branch ships.
+
+Those fix cycles run **inside** this stop. Do not ask again between each one — the user asked for a
+working branch, not for a vote on every round.
+
+A reviewer reports **harm, not labels**: sort each finding into *"would hurt a user, a maintainer,
+or the data if shipped"* versus *"should be better"*, and choose by the harm rather than the
+severity word. **"Nothing here would hurt anyone" is a valid and valuable verdict**, not a failure
+to find things.
+
+Justifying another round with "the last one found something" is not a reason — it is always true,
+and **a loop with no exit criterion does not terminate**. Two habits produce the runaway: treating a
+severity as a label to be cleared rather than asking what harm it describes, and re-reviewing
+because the previous review was not empty.
 
 After merge, the chain ends.
 
