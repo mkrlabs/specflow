@@ -11,132 +11,98 @@ export const CORE_BUNDLE: CoreBundle = [
     suffix: null,
     content: `---
 name: specnaut
-description: Specnaut workflow router — entry point for the spec-driven pipeline. \`/specnaut <phase> [args]\` dispatches to a single phase (brainstorm, specify, clarify, plan, tasks, analyze, implement, review, merge, constitution, checklist, groom, tag-version, release-version, list-skills, audit). \`/specnaut\` with no args prints the workflow overview.
-argument-hint: <brainstorm|specify|clarify|plan|tasks|analyze|implement|review|merge|constitution|checklist|groom|tag-version|release-version|list-skills|audit> [args]
+description: Specnaut workflow router — entry point for the spec-driven pipeline. \`/specnaut <phase> [args]\` dispatches to a single phase (plan, tasks, implement, review, merge, constitution, groom, tag-version, release-version, audit). \`/specnaut\` with no args prints the workflow overview.
+argument-hint: <plan|tasks|implement|review|merge|constitution|groom|tag-version|release-version|audit> [args]
 when_to_use: |
   Trigger phrases that should route here:
-  - brainstorm: "I have a rough idea", "help me figure out what to build", "let's brainstorm a feature", "I don't know exactly what I want yet"
-  - specify: "spec out a feature", "write a spec", "create a specification"
-  - clarify: "clarify requirements", "fill in gaps in the spec"
-  - plan: "plan a feature", "build a technical plan"
+  - plan: "plan a feature", "spec out a feature", "write a spec", "build a technical plan", "I have a rough idea", "help me figure out what to build", "I don't know exactly what I want yet", "clarify requirements"
   - tasks: "generate tasks", "break down the plan"
-  - analyze: "check consistency", "analyze artifacts"
   - implement: "implement the feature", "start coding"
   - review: "review the implementation", "run quality gates"
   - merge: "merge the branch", "ship the feature"
   - constitution: "update the constitution", "edit project rules"
-  - checklist: "generate a checklist"
   - groom: "groom the backlog", "run a hygiene pass"
   - tag-version: "tag a version", "create a release tag", "bump the version"
   - release-version: "release", "publish a release", "create release notes"
-  - list-skills: "list installed skills", "show skill aliases", "what overlays are active"
   - audit: "audit security / performance / accessibility / architecture / dependencies", "scan the codebase for X issues"
 ---
 
 # Specnaut router
 
-\`\$ARGUMENTS\` carries the user's input. Parse it as \`[<flag>...] <phase> [rest]\`:
+\`\$ARGUMENTS\` carries the user's input. Parse it as \`[--manual] <phase> [rest]\`:
 
-1. **Chain mode parsing** — scan the tokens for at most one of
-   \`--manual\`, \`--once\`, \`--continue\`. They are mutually exclusive; if
-   more than one is present, report \`error: --manual, --once, and --continue are mutually exclusive\` and stop.
-   - \`--manual\` → CHAIN_MODE = \`off\`
-   - \`--once\`   → CHAIN_MODE = \`once\`
-   - \`--continue\` → CHAIN_MODE = \`continue\`
-   - none      → CHAIN_MODE = \`auto\` (the default)
+1. **Chain mode parsing** — scan the tokens for \`--manual\`. It is the only chain flag.
+   - \`--manual\` present → CHAIN_MODE = \`off\` (run this one phase, then stop)
+   - absent → CHAIN_MODE = \`auto\` (the default)
 
-   Strip the matched flag from the token list before going further.
+   Strip it from the token list before going further.
 
-   **Chain shape parsing** — additionally scan the tokens for at most
-   one of \`--lite\`, \`--full\`. They are mutually exclusive with each
-   other; if both are present, report \`error: --lite and --full are mutually exclusive\`
-   and stop. They **compose** with the pace flags above (e.g. \`--once --lite\`
-   is valid).
-   - \`--lite\` → CHAIN_SHAPE = \`lite\` (force the lite chain — \`specify
-     → plan → analyze → implement → review\`, skipping \`clarify\` and
-     \`tasks\`; see \`phases/lite-heuristic.md\` and the "Lite chain"
-     section in \`phases/auto-chain.md\`)
-   - \`--full\` → CHAIN_SHAPE = \`full\` (force the full chain even when
-     the specify-phase heuristic would otherwise propose lite)
-   - none → CHAIN_SHAPE = \`auto\` (the default; \`phases/specify.md\`
-     applies the heuristic and may prompt the user once)
+2. **Phase extraction** — the first remaining token is the phase name. Everything after the first
+   whitespace is the argument string for that phase.
 
-   Strip the matched flag from the token list before going further.
+   **Compound \`audit\` phase exception** — when the first token is exactly \`audit\` AND the next token
+   is one of \`security\`, \`performance\`, \`accessibility\`, \`architecture\`, or \`dependencies\`, treat
+   the pair as a single hyphenated phase name \`audit-<axis>\` (matching \`phases/audit-<axis>.md\`).
+   The remaining tokens become the argument string. Users may also invoke the hyphenated form
+   directly (\`/specnaut audit-security\`); both forms route to the same phase doc.
 
-2. **Phase extraction** — the first remaining token is the phase name.
-   Everything after the first whitespace is the argument string for
-   that phase.
-
-   **Compound \`audit\` phase exception** — when the first token is exactly
-   \`audit\` AND the next token is one of \`security\`, \`performance\`,
-   \`accessibility\`, \`architecture\`, or \`dependencies\`, treat the pair
-   as a single hyphenated phase name \`audit-<axis>\` (matching the file
-   \`phases/audit-<axis>.md\`). The remaining tokens after the axis become
-   the argument string. Examples:
-   \`audit security\` → phase \`audit-security\`, args \`\`;
-   \`audit performance --severity medium\` → phase \`audit-performance\`, args \`--severity medium\`;
-   \`audit accessibility\` → phase \`audit-accessibility\`, args \`\`;
-   \`audit architecture\` → phase \`audit-architecture\`, args \`\`;
-   \`audit dependencies\` → phase \`audit-dependencies\`, args \`\`.
-   Users may also invoke the hyphenated form directly
-   (\`/specnaut audit-security\`, \`/specnaut audit-performance\`,
-   \`/specnaut audit-accessibility\`, \`/specnaut audit-architecture\`,
-   \`/specnaut audit-dependencies\`); both forms route to the same
-   phase doc.
-
-3. **Empty arguments** — if no tokens remain after flag parsing (or
-   \`\$ARGUMENTS\` was empty to start with), render the **Workflow overview**
-   below and stop. Do not pick a phase yourself.
+3. **Empty arguments** — if no tokens remain after flag parsing (or \`\$ARGUMENTS\` was empty to start
+   with), render the **Workflow overview** below and stop. Do not pick a phase yourself.
 
 ## Phase index
 
 | Phase | Reference | One-liner |
 |-------|-----------|-----------|
-| \`brainstorm\` | \`phases/brainstorm.md\` | Optional step 0 — discover a fuzzy idea through dialogue, then hand the agreed brief to \`specify\`. |
-| \`specify\` | \`phases/specify.md\` | Create or update the feature spec from a natural-language description. |
-| \`clarify\` | \`phases/clarify.md\` | Resolve ambiguities in the spec via structured questioning. |
-| \`plan\` | \`phases/plan.md\` | Generate the technical plan, research, data model, contracts, quickstart. |
-| \`tasks\` | \`phases/tasks.md\` | Produce \`tasks.md\` from the plan. |
-| \`analyze\` | \`phases/analyze.md\` | Cross-artifact consistency check (spec ↔ plan ↔ tasks). |
-| \`implement\` | \`phases/implement.md\` | Run the developer → review-coordinator → qa-tester pipeline against \`tasks.md\`. |
-| \`review\` | \`phases/review.md\` | Final quality scan over the implementation. |
+| \`plan\` | \`phases/plan.md\` | The feature's **one** document: why, scenarios, requirements, criteria, the binding decision table, constitution check, surfaces, risks — then a mandatory architecture **and** security audit of the plan itself, then the stop. |
+| \`tasks\` | \`phases/tasks.md\` | The dependency-ordered breakdown, derived from the **approved** plan. |
+| \`implement\` | \`phases/implement.md\` | Build it. Ends by invoking \`review\` — an implementation not through review is not finished. |
+| \`review\` | \`phases/review.md\` | The quality battery on a frozen tree. Its verdict is the merge request. |
 | \`merge\` | \`phases/merge.md\` | Pre-merge validation and merge the feature branch. |
 | \`constitution\` | \`phases/constitution.md\` | Edit the project's \`constitution.md\` rules. |
-| \`checklist\` | \`phases/checklist.md\` | Generate a quality checklist for the current spec. |
 | \`groom\` | \`phases/groom.md\` | Backlog hygiene pass via the product-owner agent. |
 | \`tag-version\` | \`phases/tag-version.md\` | Bump + create an annotated git tag using the project's versioning scheme. |
 | \`release-version\` | \`phases/release-version.md\` | Generate categorized release notes for a tag (default: latest). |
-| \`list-skills\` | \`phases/list-skills.md\` | List installed skills, flagging aliases and overlay hooks. |
 | \`audit security\` | \`phases/audit-security.md\` | Read-only project-wide security sweep; emits a findings report. |
 | \`audit performance\` | \`phases/audit-performance.md\` | Read-only project-wide performance sweep; emits a findings report. |
 | \`audit accessibility\` | \`phases/audit-accessibility.md\` | Read-only project-wide WCAG 2.1 AA sweep; skips when no FE surface is detected. |
 | \`audit architecture\` | \`phases/audit-architecture.md\` | Read-only project-wide architectural sweep — hex-layer violations, circular deps, god files, bounded-context leaks. |
-| \`audit dependencies\` | \`phases/audit-dependencies.md\` | Read-only multi-manifest dependency-hygiene sweep — unbounded ranges, missing lockfiles, unused deps, license violations, typosquats. |
+| \`audit dependencies\` | \`phases/audit-dependencies.md\` | Read-only multi-manifest dependency-hygiene sweep. |
 
-Chainable phases are: \`brainstorm\`, \`specify\`, \`clarify\`, \`plan\`, \`tasks\`,
-\`analyze\`, \`implement\`, \`review\`. The others (\`merge\`, \`constitution\`,
-\`checklist\`, \`groom\`, \`tag-version\`, \`release-version\`, \`list-skills\`,
-\`audit security\`, \`audit performance\`, \`audit accessibility\`,
-\`audit architecture\`, \`audit dependencies\`) are one-shot regardless
-of chain mode.
+\`phases/plan-audits.md\` and \`phases/auto-chain.md\` are **contract docs, not routable phases** —
+\`plan\` loads the first at its step 6, the router loads the second when it chains. Naming either as a
+phase prints the index and stops.
 
-\`audit <axis>\` is dispatched as a two-token phase: the router reads
-\`phases/audit-<axis>.md\`. Five axes are wired (\`security\`,
-\`performance\`, \`accessibility\`, \`architecture\`, \`dependencies\`). The
-accessibility phase is FE-gated — projects without front-end source
-receive a one-line "skipped — no FE surface" response instead of an
-empty report. The dependencies phase aborts with "skipped — no
-dependency manifest detected" when zero recognised manifests are
-present. The architecture phase is always-on (universal applicability);
-axes that don't match the codebase's structure go to "Out of scope" in
-the report rather than skipping the whole run.
+Chainable phases are: \`plan\`, \`tasks\`, \`implement\`, \`review\`. The others (\`merge\`, \`constitution\`,
+\`groom\`, \`tag-version\`, \`release-version\`, \`audit <axis>\`) are one-shot regardless of chain mode.
+
+The accessibility phase is FE-gated — projects without front-end source receive a one-line "skipped
+— no FE surface" response instead of an empty report. The dependencies phase aborts with "skipped —
+no dependency manifest detected" when zero recognised manifests are present. The architecture phase
+is always-on; axes that don't match the codebase's structure go to "Out of scope" in the report
+rather than skipping the whole run.
+
+## Removed phases — this is deliberate, not a gap
+
+\`brainstorm\`, \`specify\`, \`clarify\` and \`analyze\` **no longer exist**, and neither do \`checklist\` and
+\`list-skills\`. If the user names one, print this phase index and stop — do not improvise the old
+behaviour, and do not route it silently.
+
+| Gone | Where its work happens now |
+|------|----------------------------|
+| \`brainstorm\` | \`plan\`, step 1 — the discovery dialogue when the input is too fuzzy to plan. |
+| \`specify\` | \`plan\` — the same document, sections 1–4. |
+| \`clarify\` | \`plan\`, step 8 — questions asked one at a time at the stop, before any code exists. |
+| \`analyze\` | Replaced, not moved. With one document there are no artefacts to hold in agreement; the plan-time architecture and security audits are its successor and run *before* the code. |
+| \`checklist\` | \`plan\`'s success criteria and decision table. |
+| \`list-skills\` | \`.specnaut/installed.lock\` is readable directly. |
 
 ## Routing
 
-1. **Read** the phase reference file (\`phases/<phase>.md\`) for the requested phase using the \`Read\` tool.
+1. **Read** the phase reference file (\`phases/<phase>.md\`) for the requested phase using the \`Read\`
+   tool.
 2. **Substitute** the stripped phase arguments for the phase's input.
 3. **Execute** the procedure in the reference file end-to-end.
-4. **Decide whether to chain** (see "Chain decision" below).
+4. **Decide whether to chain** (see below).
 
 Unknown phase → print the phase index and stop.
 
@@ -144,638 +110,58 @@ Unknown phase → print the phase index and stop.
 
 After the phase procedure completes successfully:
 
-- \`CHAIN_MODE == off\` (the user passed \`--manual\`) → stop. Report the
-  phase outcome and leave the next step to the user.
-- Phase is not in the chainable list (e.g. \`constitution\`, \`checklist\`,
-  \`groom\`, \`tag-version\`, \`release-version\`) → stop.
-- \`CHAIN_MODE == once\` → stop.
-- \`CHAIN_MODE == continue\` → read \`phases/auto-chain.md\` and chain
-  through the remaining phases regardless of downstream-artefact state.
-- \`CHAIN_MODE == auto\` (the default) → read \`phases/auto-chain.md\`. For
-  \`brainstorm\` and \`specify\`, the chain always continues. For any other
-  chainable phase, apply the artefact-detection table in that file — chain
-  if downstream artefacts are absent, one-shot if present.
+- \`CHAIN_MODE == off\` (the user passed \`--manual\`) → stop. Report the phase outcome.
+- Phase is not chainable (\`merge\`, \`constitution\`, \`groom\`, \`tag-version\`, \`release-version\`,
+  \`audit <axis>\`) → stop.
+- Otherwise → read \`phases/auto-chain.md\` and follow it.
+
+**Re-entry needs no flag.** Invoking a phase whose downstream artefacts already exist runs one-shot
+— the user is re-running a single step. Invoking one whose downstream artefacts are absent chains —
+the user is resuming an interrupted flow. \`phases/auto-chain.md\` holds the detection table.
 
 ## Workflow overview
 
 \`\`\`
-(brainstorm) → specify → clarify → plan → tasks → analyze → implement → review → merge
-    ▲                                                                              ▲
-    optional step 0 — only when the idea is still fuzzy            STOP for pre-merge validation
+plan → tasks → implement → review → merge
+  ▲                          │        ▲
+  │                          └────────┘
+  │                     review is implement's
+  │                     mandatory last act
+  │
+  └── discovery (if fuzzy) → the one document
+      → architecture + security audit OF THE PLAN
+      → STOP 1
 \`\`\`
 
-Default behavior: \`/specnaut specify "..."\` runs the entire chain in one
-session, pausing only at STOP #1 (if clarifications are needed) and
-STOP #2 (pre-merge confirmation). See \`phases/auto-chain.md\` for the
-chain mechanics.
+**There are exactly two stops in this chain**, and no third:
 
-\`brainstorm\` is an **optional front-end**: when the user doesn't yet have a
-clear enough idea to spec, \`/specnaut brainstorm "<rough idea>"\` runs a
-discovery dialogue (one question at a time, 2–3 approaches, design approval)
-and then chains into \`specify\` with the agreed brief. When the brief is
-already clear, start at \`/specnaut specify\` and skip it.
+1. **The end of \`plan\`** — the architecture is presented with its alternatives, both audits' findings
+   are presented separately, and the open questions are asked one at a time. Always.
+2. **The review verdict** — which *is* the merge request. There is no separate pre-merge stop.
 
-\`constitution\`, \`checklist\`, \`groom\`, \`tag-version\`, \`release-version\`, \`list-skills\`, and \`audit <axis>\` (any of \`security\`, \`performance\`, \`accessibility\`, \`architecture\`, \`dependencies\`) are out-of-band utilities, not part of the linear flow.
+Every other boundary is crossed by invoking the next phase yourself, in the same turn. See
+\`phases/auto-chain.md\`.
 
 ## Typical flow
 
-When the idea is still fuzzy, start one phase earlier:
-
 \`\`\`
-/specnaut brainstorm "let users monitor agent runs from their phone"
-  → discovery dialogue (one question at a time, 2–3 approaches, design approval)
-  → on approval, auto-chains into /specnaut specify with the agreed brief
-\`\`\`
-
-When the brief is already clear, start at \`specify\`:
-
-\`\`\`
-/specnaut specify "Add OAuth2 login"
-  → drafts the spec, then auto-chains:
-    → /specnaut clarify  (STOP #1 only if [NEEDS CLARIFICATION] markers remain)
-    → /specnaut plan
-    → /specnaut tasks
-    → /specnaut analyze
-    → /specnaut implement
-    → /specnaut review
-    → STOP #2 — summary + "Ready to merge?" confirmation
-    → /specnaut merge  (on "yes")
+/specnaut plan "Add OAuth2 login"
+  → discovery dialogue only if the brief is too fuzzy to plan
+  → writes plan.md (one document)
+  → architecture + security audits run concurrently on the plan
+  → STOP 1 — architecture proposal, audit findings, questions one at a time
+  → /specnaut tasks       (same turn as the last answer)
+  → /specnaut implement   (same turn)
+  → /specnaut review      (same turn)
+  → STOP 2 — verdict + "ready to merge?"
+  → /specnaut merge       (on approval, or immediately if merge was already asked for)
 \`\`\`
 
-To run a single phase only (no chain), pass \`--manual\`:
+To run a single phase only:
 
 \`\`\`
-/specnaut specify --manual "Add OAuth2 login"
+/specnaut plan --manual "Add OAuth2 login"
 \`\`\`
-
-To force or skip the chain mid-flow:
-
-\`\`\`
-/specnaut plan 042 --once       # regenerate plan.md only, do not cascade
-/specnaut plan 042 --continue   # regenerate plan.md AND cascade tasks → review
-\`\`\`
-
-To opt in or out of the **lite chain** (skip \`clarify\` and \`tasks\` —
-calibrated for small single-file features like markdown docs, README
-tweaks, agent definitions):
-
-\`\`\`
-/specnaut specify --lite "Document the OSS/proprio boundary in AGENTS.md"
-/specnaut specify --full "Add OAuth2 login"   # opt out of auto-detected lite
-\`\`\`
-
-Without an explicit flag, \`phases/specify.md\` scores the brief
-against \`phases/lite-heuristic.md\` and either prompts the user once or
-commits to a shape silently. See \`phases/auto-chain.md\` for how the
-chain sequence adapts to the chosen shape.
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "phase",
-    name: "brainstorm",
-    suffix: "brainstorm.md",
-    content: `## User Input
-
-\`\`\`text
-\$ARGUMENTS
-\`\`\`
-
-\`\$ARGUMENTS\` is the rough idea to brainstorm. It may be vague ("something to
-let users monitor agent runs from their phone"), a bare issue title, or
-**empty** — if empty, open with a single question: "What do you want to
-build? Describe it in a sentence or two, even roughly." Do not pick a topic
-yourself.
-
-## Purpose
-
-\`brainstorm\` is the optional **step 0** of the spec-driven pipeline: the
-entry point for when the user does NOT yet have a clear enough idea to write
-a spec. It runs a collaborative discovery dialogue, turns the fuzzy idea into
-an approved design brief, then hands that brief to \`/specnaut specify\` — which
-owns writing the formal \`.specnaut/specs/<feature>/spec.md\`.
-
-Use this phase when the idea needs *discovery* before it can be specified.
-When the user already has a clear brief, they invoke \`/specnaut specify\`
-directly and skip this phase.
-
-## Procedure
-
-The discovery dialogue is already defined, in full, by the bundled
-**\`brainstorming\` skill**. Do not duplicate it here.
-
-1. **Run the \`brainstorming\` skill's discovery process.** Read the
-   \`brainstorming\` skill (via the \`Skill\` tool, or read its \`SKILL.md\` if the
-   platform cannot invoke it) and follow its **Steps 1–6**:
-   - Step 1 — explore project context (\`git log\`, \`AGENTS.md\`,
-     \`.specnaut/memory/constitution.md\`, the relevant directory structure).
-   - Step 2 — assess scope; if the idea spans multiple independent
-     subsystems, propose splitting it into one brainstorm per subsystem
-     (a multi-subsystem idea is an Epic, not one feature).
-   - Step 3 — ask clarifying questions **one at a time**, multiple-choice
-     where possible (purpose, success criteria, constraints, out of scope).
-   - Step 4 — propose 2–3 approaches with trade-offs; lead with a
-     recommendation.
-   - Step 5 — present the design section by section, confirming each.
-   - Step 6 — design for isolation and clarity.
-
-2. **Get explicit design approval.** Honour the skill's hard rule: no
-   handoff until the user has approved the design. The design may be short
-   for small ideas, but it MUST be presented and approved.
-
-## Terminal handoff — overridden for the spec-kit chain
-
-The standalone \`brainstorming\` skill ends (its Steps 7–10) by writing its own
-markdown design doc and forking to \`writing-plans\` **or** \`/specnaut specify\`.
-Inside the \`/specnaut\` router this phase **overrides that ending**:
-
-- **Do NOT** write a separate design doc and do **NOT** hand off to
-  \`writing-plans\`. \`/specnaut specify\` is the next phase and it owns writing
-  \`.specnaut/specs/<feature>/spec.md\`, so a brainstorm-authored doc would only
-  double up.
-- Instead, distill the approved design into a concise **feature brief**
-  (2–6 sentences capturing goal, the chosen approach, key constraints, and
-  explicit out-of-scope items) and carry it forward as the input to
-  \`/specnaut specify\`.
-
-## Chain decision
-
-\`brainstorm\` is a **chainable** phase. Its next phase is always \`specify\`
-(in both the full and lite chain shapes).
-
-- \`CHAIN_MODE == auto\` (default) or \`continue\` → after design approval,
-  immediately invoke \`/specnaut specify\` with the distilled feature brief as
-  its \`\$ARGUMENTS\`. Emit \`✓ brainstorm complete — proceeding to specify\`.
-  The chain then continues normally from \`specify\` (which applies its own
-  lite/full shape heuristic).
-- \`CHAIN_MODE == off\` (\`--manual\`) or \`once\` → stop after design approval.
-  Print the approved feature brief and tell the user they can run
-  \`/specnaut specify "<brief>"\` when ready. Do not auto-invoke \`specify\`.
-
-## Notes
-
-- This phase is design-only: it asks questions and produces a brief. It
-  writes no spec, no plan, and no code — those belong to \`specify\` and the
-  phases after it.
-- Backlog mutations (e.g. refining a vague issue body into the agreed brief)
-  go through the \`product-owner\` agent, never inline — consistent with the
-  rest of the pipeline.
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "phase",
-    name: "specify",
-    suffix: "specify.md",
-    content: `
-## User Input
-
-\`\`\`text
-\$ARGUMENTS
-\`\`\`
-
-You **MUST** consider the user input before proceeding (if not empty).
-
-## Pre-Execution Checks
-
-**Check extension hooks (\`hooks.before_specify\` in \`.specnaut/extensions.yml\`)**:
-Skip silently if the file is absent or unparseable. For each enabled entry
-(treat missing \`enabled\` as \`true\`) without a non-empty \`condition\`, emit:
-
-- \`optional: true\` → \`## Extension Hooks\` block with \`**Optional Pre-Hook**: {extension}\`,
-  command, description, and prompt.
-- \`optional: false\` → \`## Extension Hooks\` block with \`**Automatic Pre-Hook**: {extension}\`,
-  \`EXECUTE_COMMAND: {command}\`, and wait for the result before proceeding.
-
-Hooks with non-empty \`condition\` are deferred to the HookExecutor.
-
-## Chain shape selection
-
-Before running the outline below, determine the **chain shape** that
-will apply to this \`/specnaut specify\` invocation (and the rest of
-the chain after it):
-
-1. **Read \`CHAIN_SHAPE\` from the router context** (set by \`SKILL.md\`
-   step 1 chain-shape parsing).
-   - \`CHAIN_SHAPE == lite\` → use lite, no prompt. Skip step 2.
-   - \`CHAIN_SHAPE == full\` → use full, no prompt. Skip step 2.
-   - \`CHAIN_SHAPE == auto\` → proceed to step 2.
-
-2. **Apply the lite heuristic.** Read \`phases/lite-heuristic.md\`,
-   score the feature brief (the original user input from
-   \`/specnaut specify\`, before flag stripping is irrelevant — use the
-   substantive brief), and:
-   - If \`score < 2\`: silently set \`CHAIN_SHAPE = full\`. No prompt.
-   - If \`score ≥ 2\`: emit the prompt from \`phases/lite-heuristic.md\`
-     ("This brief looks small — run the lite chain? [Y/n]") **exactly
-     once**, wait for the user's answer:
-     - \`Y\` / \`yes\` / empty (default-Y if you treated the prompt as a
-       Y/n with capital Y) → \`CHAIN_SHAPE = lite\`.
-     - \`n\` / \`no\` / anything else interpreted as no → \`CHAIN_SHAPE =
-       full\`.
-
-3. **Persist the chosen shape** to \`.specnaut/feature.json\` (when
-   step 3 of the Outline below writes that file, include
-   \`"workflow_shape": "lite"\` or \`"workflow_shape": "full"\` alongside
-   \`feature_directory\` and \`linked_issue\`).
-
-4. **Log line on phase transition** (used by the chain when invoking
-   the next phase): emit \`✓ specify (lite) complete — proceeding to
-   plan\` when \`CHAIN_SHAPE == lite\`, or the unchanged \`✓ specify
-   complete — proceeding to clarify\` when \`CHAIN_SHAPE == full\`.
-   \`phases/auto-chain.md\` reads \`workflow_shape\` from \`feature.json\`
-   to decide which phase to chain to next.
-
-## Outline
-
-The text the user typed after \`/specnaut specify\` is the feature description. Do not ask the user to repeat it unless they provided an empty command.
-
-Given that feature description, do this:
-
-1. **Generate a concise short name** (2-4 words) for the feature:
-   - Use action-noun format when possible (e.g., "add-user-auth", "fix-payment-bug")
-   - Preserve technical terms and acronyms (OAuth2, API, JWT, etc.)
-
-<!-- BEGIN: spec-backend=local -->
-2. **Branch creation** (optional, via hook):
-
-   If a \`before_specify\` hook ran, it will have created/switched to a git branch and output JSON with \`BRANCH_NAME\` and \`FEATURE_NUM\`. Note these for reference; the branch name does **not** dictate the spec directory name.
-
-   If the user explicitly provided \`GIT_BRANCH_NAME\`, pass it to the hook so it uses that exact value.
-
-3. **Create the spec feature directory**:
-
-   Specs live under \`.specnaut/specs/\` unless the user provides \`SPECIFY_FEATURE_DIRECTORY\`.
-
-   **Resolution order for \`SPECIFY_FEATURE_DIRECTORY\`**:
-   1. If the user explicitly provided it, use as-is.
-   2. Otherwise auto-generate under \`.specnaut/specs/\`:
-      - Check \`.specnaut/init-options.json\` for \`branch_numbering\`
-      - \`"timestamp"\`: prefix is \`YYYYMMDD-HHMMSS\`
-      - \`"sequential"\` or absent: prefix is \`NNN\` (next available 3-digit number)
-      - Construct: \`<prefix>-<short-name>\` (e.g., \`003-user-auth\`)
-      - Set \`SPECIFY_FEATURE_DIRECTORY\` to \`.specnaut/specs/<directory-name>\`
-
-   **Create the directory and spec file**:
-   - \`mkdir -p SPECIFY_FEATURE_DIRECTORY\`
-   - Copy \`templates/spec-template.md\` to \`SPECIFY_FEATURE_DIRECTORY/spec.md\`
-   - Set \`SPEC_FILE\` to \`SPECIFY_FEATURE_DIRECTORY/spec.md\`
-   - Persist to \`.specnaut/feature.json\`:
-     \`\`\`json
-     { "feature_directory": "<resolved feature dir>", "linked_issue": <N or null>, "workflow_shape": "<lite|full>" }
-     \`\`\`
-     Write the actual resolved path (e.g., \`.specnaut/specs/003-user-auth\`), not the literal string.
-     This lets downstream commands (\`/specnaut plan\`, \`/specnaut tasks\`, etc.) locate the feature directory.
-
-     **\`linked_issue\`**: when the user invokes \`/specnaut specify\` with \`--issue <id>\` (or the
-     hook's JSON output includes a non-null \`LINKED_ISSUE\`), persist it as a JSON integer here.
-     Otherwise persist \`null\`. The merge phase reads this field to auto-close the linked
-     backlog item on the project board after a successful fast-forward + push. Backward-compat
-     with existing \`feature.json\` files: absent or null is a no-op everywhere downstream.
-
-     **\`workflow_shape\`**: the chain shape chosen during "Chain shape selection" above —
-     \`"lite"\` or \`"full"\`. \`phases/auto-chain.md\` reads this field at every chain transition
-     to decide which phase comes next (lite skips \`clarify\` and \`tasks\`). Backward-compat
-     with existing \`feature.json\` files: absent → treat as \`"full"\` everywhere downstream.
-
-   **IMPORTANT**:
-   - Create only one feature per \`/specnaut specify\` invocation.
-   - The spec directory name and git branch name are independent.
-   - The spec directory and file are always created by this command, never by the hook.
-<!-- END: spec-backend=local -->
-<!-- BEGIN: spec-backend=cloud -->
-2. **Cloud spec authoring** (spec backend = cloud — NO git branch, NO local files):
-
-   This project stores specifications on SpecNaut Cloud, not in \`.specnaut/specs/\`.
-   Do **NOT** create a git branch and do **NOT** write any \`.specnaut/specs/<n>/\`
-   files. The branch is created later, at \`/specnaut implement\`. The spec is
-   authored directly to the linked backlog task and read back on demand with
-   \`specnaut spec pull <task>\`.
-
-3. **Resolve the linked task and author the spec to Cloud**:
-
-   1. Determine the task number:
-      - If the user passed \`--issue <N>\`, use it.
-      - Otherwise \`specnaut spec push\` auto-creates a backlog task named from the
-        feature and links it — the task and its spec are created together (no
-        manual pre-step).
-   2. Generate the spec body using \`templates/spec-template.md\` for structure,
-      exactly as you would locally (same sections, same mandatory Domain Model
-      block).
-   3. Write the generated spec to the gitignored cache as the \`specify\` step:
-      \`.specnaut/specs/.cache/<task>/1-specify.md\`, then push it:
-      \`specnaut spec push <task>\` (upsert-only; it never deletes other tabs).
-   4. Persist the resolved task number to \`.specnaut/feature.json\`
-      (\`{ "linked_issue": <N>, "workflow_shape": "<lite|full>" }\`) so downstream
-      phases locate the spec. No \`feature_directory\` is written in cloud mode.
-
-   **Parallel authoring (cloud):** because cloud \`specify\` creates NO git branch and writes
-   NO shared \`.specnaut/specs/\` state, several task specs can be authored concurrently — drive
-   one \`specify\` per task in parallel (a user, or an agent fleet) with no git-branch collision
-   and no shared-state clash. Each spec is pushed to its own task independently (last write
-   wins per task, Lot 1 upsert).
-<!-- END: spec-backend=cloud -->
-
-4. Load \`templates/spec-template.md\` to understand required sections.
-
-5. Follow this execution flow:
-    1. Parse user description; if empty: ERROR "No feature description provided"
-    2. Extract key concepts: actors, actions, data, constraints
-    3. For unclear aspects, make informed guesses. Mark with \`[NEEDS CLARIFICATION: question]\` only when the choice significantly impacts scope/UX and no reasonable default exists. **Maximum 3 markers total.**
-    4. Fill User Scenarios & Testing; if no clear user flow: ERROR "Cannot determine user scenarios"
-    5. Generate Functional Requirements — each must be testable
-    6. Define Success Criteria — measurable, technology-agnostic, verifiable
-    7. **Populate the \`## Domain Model\` block (mandatory)** — Bounded context, Vocabulary (Ubiquitous language), Entities (have identity), Value objects, Invariants, Out of scope. Use \`[NEEDS CLARIFICATION: <question>]\` markers for fields the input does not let you fill — \`/specnaut clarify\` resolves them. The developer refuses to proceed if this block is absent or contains unresolved placeholders.
-    8. Return: SUCCESS (spec ready for planning)
-
-6. Write the specification to \`SPEC_FILE\` using the template structure, replacing placeholders with concrete details while preserving section order and headings.
-
-7. **Specification Quality Validation**: After writing the spec, validate it:
-
-   a. **Create Spec Quality Checklist** at \`SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md\`:
-
-      \`\`\`markdown
-      # Specification Quality Checklist: [FEATURE NAME]
-
-      **Purpose**: Validate specification completeness before planning
-      **Created**: [DATE]
-      **Feature**: [Link to spec.md]
-
-      ## Content Quality
-      - [ ] No implementation details (languages, frameworks, APIs)
-      - [ ] Focused on user value and business needs
-      - [ ] All mandatory sections completed
-
-      ## Requirement Completeness
-      - [ ] No [NEEDS CLARIFICATION] markers remain
-      - [ ] Requirements are testable and unambiguous
-      - [ ] Success criteria are measurable and technology-agnostic
-      - [ ] All acceptance scenarios defined; edge cases identified
-      - [ ] Scope clearly bounded; dependencies and assumptions identified
-
-      ## Feature Readiness
-      - [ ] All functional requirements have acceptance criteria
-      - [ ] User scenarios cover primary flows
-      - [ ] No implementation details in specification
-
-      ## Notes
-      Items marked incomplete require spec updates before \`/specnaut clarify\` or \`/specnaut plan\`
-      \`\`\`
-
-   b. **Run Validation**: Review spec against each checklist item; document specific failures.
-
-   c. **Handle Results**:
-
-      - **All pass**: Mark checklist complete and proceed to step 8.
-
-      - **Items fail** (excluding [NEEDS CLARIFICATION]):
-        1. List failing items and issues; update spec; re-run (max 3 iterations).
-        2. After 3 iterations, document remaining issues and warn user.
-
-      - **[NEEDS CLARIFICATION] markers remain**: keep ≤3 most critical,
-        document informed-guess defaults in Assumptions, leave the
-        surviving markers verbatim for \`/specnaut clarify\` to resolve.
-        **Do NOT prompt inline.** In \`lite\` shape, markers become
-        Assumptions and the chain continues.
-
-   d. **Update Checklist** after each validation iteration.
-
-8. **Report completion and proceed (no permission ask)**:
-   - Report \`SPECIFY_FEATURE_DIRECTORY\`, \`SPEC_FILE\`, and checklist
-     summary in one short block.
-   - Chain unconditionally to the next phase: \`full\` → \`/specnaut clarify\`,
-     \`lite\` → \`/specnaut plan\`. Pause only on \`--manual\` or \`--once\`.
-     Transition wording is a statement (\`✓ specify complete — proceeding
-     to <next>\`), never a question.
-
-9. **Check extension hooks (\`hooks.after_specify\` in \`.specnaut/extensions.yml\`)**:
-   Same rules as Pre-Execution Checks. For each executable hook emit:
-
-   - \`optional: true\` → \`## Extension Hooks\` block with \`**Optional Hook**: {extension}\`, command, description, prompt.
-   - \`optional: false\` → \`## Extension Hooks\` block with \`**Automatic Hook**: {extension}\`, \`EXECUTE_COMMAND: {command}\`.
-
-<!-- BEGIN: spec-backend=local -->
-**NOTE:** Branch creation is handled by the \`before_specify\` hook. Spec directory and file creation are always handled by this core command.
-<!-- END: spec-backend=local -->
-<!-- BEGIN: spec-backend=cloud -->
-**NOTE:** In cloud spec mode no git branch and no \`.specnaut/specs/\` files are created here — the spec is pushed to SpecNaut Cloud and the branch is created later at \`/specnaut implement\`.
-<!-- END: spec-backend=cloud -->
-
-## Quick Guidelines
-
-- Focus on **WHAT** users need and **WHY**. Avoid HOW (no tech stack, APIs, code structure).
-- Written for business stakeholders, not developers.
-- Do NOT embed checklists in the spec itself — that is a separate command.
-
-### Section Requirements
-
-- **Mandatory sections**: complete for every feature.
-- **Optional sections**: include only when relevant; remove inapplicable sections entirely (don't leave "N/A").
-- **Front-end / UX-UI features**: when the project has a front-end surface,
-  keep the optional \`## Visual Prototyping with Claude Artifacts\` section
-  (detect the surface with the SAME signals the accessibility gate uses — the
-  \`a11y-auditor\` FE-surface list; don't invent a new heuristic). No front-end
-  surface → remove that section: a back-end/CLI-only spec must not mention
-  artifacts.
-
-### For AI Generation
-
-1. **Make informed guesses** using context, industry standards, and common patterns.
-2. **Document assumptions** in the Assumptions section.
-3. **Limit clarifications**: max 3 \`[NEEDS CLARIFICATION]\` markers — only for critical decisions with no reasonable default.
-4. **Prioritize**: scope > security/privacy > user experience > technical details.
-5. **Think like a tester**: vague requirements should fail the "testable and unambiguous" check.
-
-**Reasonable defaults** (don't ask about these): data retention, performance targets, error handling, authentication method, integration patterns.
-
-### Success Criteria Guidelines
-
-Success criteria must be **measurable** (specific metrics), **technology-agnostic** (no frameworks/databases), **user-focused** (outcomes from user/business perspective), and **verifiable** without implementation knowledge.
-
-**Good**: "Users can complete checkout in under 3 minutes" · "System supports 10,000 concurrent users" · "95% of searches return results in under 1 second"
-
-**Bad**: "API response time under 200ms" (too technical) · "Database handles 1000 TPS" (implementation detail) · "React components render efficiently" (framework-specific)
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "phase",
-    name: "clarify",
-    suffix: "clarify.md",
-    content: `
-## User Input
-
-\`\`\`text
-\$ARGUMENTS
-\`\`\`
-
-You **MUST** consider the user input before proceeding (if not empty).
-
-## Pre-Execution Checks
-
-**Check extension hooks (\`hooks.before_clarify\` in \`.specnaut/extensions.yml\`)**:
-Skip silently if the file is absent or unparseable. For each enabled entry
-(treat missing \`enabled\` as \`true\`) without a non-empty \`condition\`, emit:
-
-- \`optional: true\` → \`## Extension Hooks\` block with \`**Optional Pre-Hook**: {extension}\`,
-  command, description, and prompt.
-- \`optional: false\` → \`## Extension Hooks\` block with \`**Automatic Pre-Hook**: {extension}\`,
-  \`EXECUTE_COMMAND: {command}\`, and wait for the result before proceeding.
-
-Hooks with non-empty \`condition\` are deferred to the HookExecutor.
-
-## Outline
-
-Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
-
-Note: This clarification workflow is expected to run (and be completed) BEFORE invoking \`/specnaut plan\`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
-
-Execution steps:
-
-1. Run \`{SCRIPT}\` from repo root **once** (combined \`--json --paths-only\` mode / \`-Json -PathsOnly\`). Parse minimal JSON payload fields:
-   - \`FEATURE_DIR\`
-   - \`FEATURE_SPEC\`
-   - (Optionally capture \`IMPL_PLAN\`, \`TASKS\` for future chained flows.)
-   - If JSON parsing fails, abort and instruct user to re-run \`/specnaut specify\` or verify feature branch environment.
-   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\\''m Groot' (or double-quote if possible: "I'm Groot").
-
-2. Load the current spec file. Perform a structured ambiguity & coverage scan. For each category mark status: Clear / Partial / Missing (internal map only; do not output unless no questions will be asked).
-
-   Taxonomy categories:
-   - Functional Scope & Behavior (goals, out-of-scope, roles)
-   - Domain & Data Model (entities, identity, lifecycle, scale)
-   - Interaction & UX Flow (journeys, error/empty states, a11y)
-   - Non-Functional Quality Attributes (perf, scalability, reliability, observability, security, compliance)
-   - Integration & External Dependencies (APIs, formats, versioning)
-   - Edge Cases & Failure Handling (negatives, rate-limiting, conflicts)
-   - Constraints & Tradeoffs (technical constraints, rejected alternatives)
-   - Terminology & Consistency (canonical terms, avoided synonyms)
-   - Completion Signals (testable AC, measurable DoD indicators)
-   - Misc / Placeholders (TODOs, vague adjectives lacking quantification)
-
-   For each Partial or Missing category, add a candidate question unless clarification would not materially change implementation or is better deferred to planning.
-
-3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
-    - Maximum of 5 total questions across the whole session.
-    - Each question must be answerable with EITHER:
-       - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
-       - A one-word / short‑phrase answer (explicitly constrain: "Answer in <=5 words").
-    - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
-    - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
-    - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
-    - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
-    - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
-
-3a. Remote-mode check (#358): run \`specnaut gate status\` once. Exit 0 ⇒ ON, use step 4R (gates).
-    Non-zero ⇒ OFF/not-linked (default), use step 4 verbatim. Caps/rules identical in both modes.
-
-4. Sequential questioning loop (interactive — used when remote mode is OFF):
-    - Present EXACTLY ONE question at a time.
-    - For multiple‑choice questions:
-       - **Analyze all options** and determine the **most suitable option** based on best practices, common patterns, risk reduction, and alignment with project goals.
-       - Present your **recommended option prominently** at the top: \`**Recommended:** Option [X] - <reasoning>\`
-       - Render all options as a Markdown table:
-
-       | Option | Description |
-       |--------|-------------|
-       | A | <Option A description> |
-       | B | <Option B description> |
-       | C | <Option C description> (add D/E as needed up to 5) |
-       | Short | Provide a different short answer (<=5 words) (Include only if free-form alternative is appropriate) |
-
-       - After the table, add: \`You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.\`
-    - For short‑answer style (no meaningful discrete options):
-       - Provide your **suggested answer** based on best practices and context.
-       - Format as: \`**Suggested:** <your proposed answer> - <brief reasoning>\`
-       - Then output: \`Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.\`
-    - After the user answers:
-       - If the user replies with "yes", "recommended", or "suggested", use your previously stated recommendation/suggestion as the answer.
-       - Otherwise, validate the answer maps to one option or fits the <=5 word constraint.
-       - If ambiguous, ask for a quick disambiguation (count still belongs to same question; do not advance).
-       - Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question.
-    - Stop asking further questions when:
-       - All critical ambiguities resolved early (remaining queued items become unnecessary), OR
-       - User signals completion ("done", "good", "no more"), OR
-       - You reach 5 asked questions.
-    - Never reveal future queued questions in advance.
-    - If no valid questions exist at start, immediately report no critical ambiguities.
-
-4R. Remote questioning loop (step 3a found remote mode ON). Same queue/caps; per question raise a
-    gate via \`specnaut gate raise --type <t> --title "<question>" --payload '<json>'\`. Multiple-choice
-    → \`decision\` (\`{question,options:[{id,label,description?}],context?}\`); short-answer →
-    \`clarification\` (\`{question,context?}\`); add \`--task <n>\` if task-scoped. Branch on exit code
-    (answer JSON on stdout): **0** → parse (\`decision\`→\`choiceId\`, \`clarification\`→\`text\`), accept,
-    integrate via step 5. **3/4** (timeout/cancelled) → stop, list Outstanding, recommend re-run;
-    never invent an answer. **5** → \`specnaut cloud login\` needed, fall back to step 4. **1** → report
-    and stop. Idempotent: skip questions already in \`## Clarifications\`; apply each answer once.
-
-5. Integration after EACH accepted answer (incremental update approach):
-    - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
-    - For the first integrated answer in this session:
-       - Ensure a \`## Clarifications\` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
-       - Under it, create (if not present) a \`### Session YYYY-MM-DD\` subheading for today.
-    - Append a bullet line immediately after acceptance: \`- Q: <question> → A: <final answer>\`.
-    - Then immediately apply the clarification to the most appropriate section(s):
-       - Functional ambiguity → Update or add a bullet in Functional Requirements.
-       - User interaction / actor distinction → Update User Stories or Actors subsection (if present).
-       - Data shape / entities → Update Data Model (add fields, types, relationships) preserving ordering.
-       - Non-functional constraint → Add/modify measurable criteria in Success Criteria > Measurable Outcomes.
-       - Edge case / negative flow → Add a new bullet under Edge Cases / Error Handling (or create subsection if missing).
-       - Terminology conflict → Normalize term across spec; retain original only if necessary by adding \`(formerly referred to as "X")\` once.
-    - If the clarification invalidates an earlier ambiguous statement, replace that statement instead of duplicating; leave no obsolete contradictory text.
-    - Save the spec file AFTER each integration to minimize risk of context loss (atomic overwrite).
-    - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
-    - Keep each inserted clarification minimal and testable (avoid narrative drift).
-
-6. Validation (performed after EACH write plus final pass):
-   - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
-   - Total asked (accepted) questions ≤ 5.
-   - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
-   - No contradictory earlier statement remains.
-   - Markdown structure valid; only allowed new headings: \`## Clarifications\`, \`### Session YYYY-MM-DD\`.
-   - Terminology consistency: same canonical term used across all updated sections.
-   - **Domain Model exit gate (NON-NEGOTIABLE)**: the spec's \`## Domain Model\` section MUST be fully populated — Bounded context, Vocabulary, Entities, Value objects, Invariants, and Out of scope all filled, with no \`[NEEDS CLARIFICATION]\` markers and no template placeholders remaining. If unfilled fields remain at the end of the clarify session, do not advance — surface them as Outstanding and recommend running \`/specnaut clarify\` again. The downstream \`/specnaut implement\` step will refuse to proceed without this section.
-
-7. Write the updated spec back to \`FEATURE_SPEC\`.
-
-8. Report completion (after questioning loop ends or early termination):
-   - Number of questions asked & answered.
-   - Path to updated spec.
-   - Sections touched (list names).
-   - Coverage summary table: each taxonomy category with Status: Resolved / Deferred / Clear / Outstanding.
-   - If any Outstanding or Deferred remain, recommend whether to proceed to \`/specnaut plan\` or run \`/specnaut clarify\` again.
-   - Suggested next command.
-
-Behavior rules:
-
-- If no meaningful ambiguities found, respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
-- If spec file missing, instruct user to run \`/specnaut specify\` first (do not create a new spec here).
-- Never exceed 5 total asked questions (clarification retries for a single question do not count as new questions).
-- Avoid speculative tech stack questions unless the absence blocks functional clarity.
-- Respect user early termination signals ("stop", "done", "proceed").
-- If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
-- If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
-
-Context for prioritization: {ARGS}
-
-## Post-Execution Checks
-
-**Check extension hooks (\`hooks.after_clarify\` in \`.specnaut/extensions.yml\`)**:
-Skip silently if the file is absent or unparseable. For each enabled entry
-(treat missing \`enabled\` as \`true\`) without a non-empty \`condition\`, emit:
-
-- \`optional: true\` → \`## Extension Hooks\` block with \`**Optional Hook**: {extension}\`,
-  command, description, and prompt.
-- \`optional: false\` → \`## Extension Hooks\` block with \`**Automatic Hook**: {extension}\`,
-  \`EXECUTE_COMMAND: {command}\`.
-
-Hooks with non-empty \`condition\` are deferred to the HookExecutor.
 `,
     executable: false,
     backend: null,
@@ -785,8 +171,7 @@ Hooks with non-empty \`condition\` are deferred to the HookExecutor.
     category: "phase",
     name: "plan",
     suffix: "plan.md",
-    content: `
-## User Input
+    content: `## User Input
 
 \`\`\`text
 \$ARGUMENTS
@@ -794,135 +179,266 @@ Hooks with non-empty \`condition\` are deferred to the HookExecutor.
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## What this phase is for
+
+**One planning document per feature**: what it does, the architecture it must obey, and the
+questions only the user can answer. It replaces four phases and asks the one question that decides
+whether a feature ships once or four times: **what are this feature's decisions, and where does each
+one live?** A developer free to choose where a rule lives will spell it twice, and finding that at
+review time means rebuilding after the code exists. So: **shorter** than what it replaced,
+**stricter** about that one thing.
+
 ## Pre-Execution Checks
 
-**Check for extension hooks (before planning)**:
-- Check if \`.specnaut/extensions.yml\` exists in the project root.
-- If it exists, read it and look for entries under the \`hooks.before_plan\` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where \`enabled\` is explicitly \`false\`. Treat hooks without an \`enabled\` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook \`condition\` expressions:
-  - If the hook has no \`condition\` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty \`condition\`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- For each executable hook, output the following based on its \`optional\` flag:
-  - **Optional hook** (\`optional: true\`):
-    \`\`\`
-    ## Extension Hooks
+**Check \`hooks.before_plan\` in \`.specnaut/extensions.yml\`** — skip silently if absent or
+unparseable. For each enabled entry (missing \`enabled\` counts as \`true\`) with no non-empty
+\`condition\`, emit an \`## Extension Hooks\` block: \`**Optional Pre-Hook**\` with command, description
+and prompt, or \`**Automatic Pre-Hook**\` with \`EXECUTE_COMMAND: {command}\` — then wait for its
+result. Non-empty \`condition\`s are deferred to the HookExecutor.
 
-    **Optional Pre-Hook**: {extension}
-    Command: \`/{command}\`
-    Description: {description}
+## Steps
 
-    Prompt: {prompt}
-    To execute: \`/{command}\`
-    \`\`\`
-  - **Mandatory hook** (\`optional: false\`):
-    \`\`\`
-    ## Extension Hooks
+### 1. If the idea is still fuzzy, find out what it is — then keep going
 
-    **Automatic Pre-Hook**: {extension}
-    Executing: \`/{command}\`
-    EXECUTE_COMMAND: {command}
+Judge the input on one question: **can this be planned as written?** A brief naming an outcome, an
+actor and a rough scope can; "something to keep track of runs" cannot.
 
-    Wait for the result of the hook command before proceeding to the Outline.
-    \`\`\`
-- If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
+When it cannot, run a short discovery dialogue **before** writing anything: **one question at a
+time** via the harness's structured question mechanism, 2–4 real options each, recommendation first
+— never a numbered wall of prose. Offer 2–3 genuinely different shapes, not three phrasings of one.
+Stop as soon as you can state the outcome, the actor, and what is out of scope.
 
-## Outline
+Then **continue into step 2 in the same turn.** Discovery opens this phase; it is not a phase of its
+own, and not a reason to hand control back.
 
-1. **Setup**: Run \`{SCRIPT}\` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\\''m Groot' (or double-quote if possible: "I'm Groot").
+### 2. Resolve the feature and create its home
 
-2. **Load context**: Read FEATURE_SPEC and \`/memory/constitution.md\`. Load IMPL_PLAN template (already copied).
+<!-- BEGIN: spec-backend=local -->
+Generate a concise short name (2–4 words, action-noun where possible — \`add-user-auth\`,
+\`fix-payment-bug\`), preserving technical terms and acronyms. Then:
 
-3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
-   - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
-   - Fill Constitution Check section from constitution
-   - Evaluate gates (ERROR if violations unjustified)
-   - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md
-   - Phase 1: Update agent context by running the agent script
-   - Re-evaluate Constitution Check post-design
+\`\`\`bash
+.specnaut/scripts/bash/create-new-feature.sh --json --short-name "<short-name>" [--issue <N>] "<description>"
+.specnaut/scripts/bash/setup-plan.sh --json
+\`\`\`
 
-4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts. (In remote mode the chain raises a \`plan_approval\` gate before \`tasks\` — see \`phases/auto-chain.md\` "Plan approval checkpoint".)
+Read \`BRANCH_NAME\`, \`SPEC_FILE\` and the feature directory from the JSON. \`create-new-feature.sh\` is
+re-entrant: run against an existing feature it switches to the existing branch. Specs live under
+\`.specnaut/specs/<prefix>-<short-name>/\`, the prefix following \`branch_numbering\` in
+\`.specnaut/init-options.json\`.
 
-5. **Check for extension hooks**: After reporting, check if \`.specnaut/extensions.yml\` exists in the project root.
-   - If it exists, read it and look for entries under the \`hooks.after_plan\` key
-   - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-   - Filter out hooks where \`enabled\` is explicitly \`false\`. Treat hooks without an \`enabled\` field as enabled by default.
-   - For each remaining hook, do **not** attempt to interpret or evaluate hook \`condition\` expressions:
-     - If the hook has no \`condition\` field, or it is null/empty, treat the hook as executable
-     - If the hook defines a non-empty \`condition\`, skip the hook and leave condition evaluation to the HookExecutor implementation
-   - For each executable hook, output the following based on its \`optional\` flag:
-     - **Optional hook** (\`optional: true\`):
-       \`\`\`
-       ## Extension Hooks
+Persist \`{ "feature_directory": "<resolved dir>", "linked_issue": <N or null> }\` to
+\`.specnaut/feature.json\` — the resolved path, not the literal string, since downstream phases locate
+the feature from it. \`linked_issue\` is the backlog item id when \`--issue <N>\` was passed (or a hook
+returned one); \`merge\` reads it to close the item, and its absence is a no-op downstream.
 
-       **Optional Hook**: {extension}
-       Command: \`/{command}\`
-       Description: {description}
+**One feature per invocation.** The feature directory name and the branch name are independent.
+<!-- END: spec-backend=local -->
+<!-- BEGIN: spec-backend=cloud -->
+This project stores specifications on SpecNaut Cloud. Do **NOT** create a git branch and do **NOT**
+write any \`.specnaut/specs/<n>/\` files here — the branch is created later, at \`/specnaut implement\`.
 
-       Prompt: {prompt}
-       To execute: \`/{command}\`
-       \`\`\`
-     - **Mandatory hook** (\`optional: false\`):
-       \`\`\`
-       ## Extension Hooks
+1. Determine the task number: use \`--issue <N>\` when the user passed one; otherwise
+   \`specnaut spec push\` auto-creates a backlog task named from the feature and links it.
+2. Write the planning document to the gitignored cache as the \`plan\` step:
+   \`.specnaut/specs/.cache/<task>/1-plan.md\`, then \`specnaut spec push <task>\` (upsert-only; it
+   never deletes other tabs).
+3. Persist \`{ "linked_issue": <N> }\` to \`.specnaut/feature.json\`. No \`feature_directory\` in cloud
+   mode.
 
-       **Automatic Hook**: {extension}
-       Executing: \`/{command}\`
-       EXECUTE_COMMAND: {command}
-       \`\`\`
-   - If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
+**Parallel authoring:** cloud \`plan\` creates no branch and writes no shared state, so several
+features can be planned concurrently — one \`plan\` per task, each pushed independently.
+<!-- END: spec-backend=cloud -->
 
-## Phases
+### 3. Read the ground truth before writing a line
 
-### Phase 0: Outline & Research
+- \`.specnaut/memory/constitution.md\` — binding, and it outranks this file.
+- The linked backlog item's body, when there is one.
+- **The code the feature touches.** Most of what looks like a design question is already decided
+  somewhere in the repository, and a plan that re-decides it produces a second spelling — the exact
+  defect this phase exists to prevent.
 
-1. **Extract unknowns from Technical Context** above:
-   - For each NEEDS CLARIFICATION → research task
-   - For each dependency → best practices task
-   - For each integration → patterns task
+### 4. Write ONE document: \`plan.md\`
 
-2. **Generate and dispatch research agents**:
+One file, read whole by whoever implements. Twelve sections, in order, **none optional**:
 
-   \`\`\`text
-   For each unknown in Technical Context:
-     Task: "Research {unknown} for {feature context}"
-   For each technology choice:
-     Task: "Find best practices for {tech} in {domain}"
-   \`\`\`
+1. **Why this exists** — the problem in the user's terms, measured where a measurement is available.
+2. **User scenarios** — prioritised journeys (P1, P2, P3…), each independently testable, with
+   Given/When/Then acceptance scenarios. Edge cases named.
+3. **Requirements** — \`FR-001…\`, each testable.
+4. **Success criteria** — \`SC-001…\`, measurable and technology-agnostic.
+5. **🔒 The decision table** — step 5. **This is the section this phase exists for.**
+6. **Technical context** — language, storage, testing, constraints, scale. Where the feature has
+   entities worth naming, the domain model goes here: bounded context, vocabulary, entities (which
+   have identity), value objects, invariants.
+7. **Constitution check** — every principle, with a verdict. A violation goes in Complexity Tracking
+   with its justification, or the plan is not done.
+8. **Surface impact** — every client surface the feature touches, plus the interface contracts it
+   exposes. "One surface only" is a valid answer; an unstated one is not.
+   **Front-end / UX-UI features**: where the project has a front-end surface, add a
+   \`## Visual Prototyping with Claude Artifacts\` subsection. Detect that surface with the SAME
+   signals the accessibility gate uses — the \`a11y-auditor\` FE-surface list; don't invent a second
+   heuristic. No front-end surface → the plan **must not mention** artifacts at all.
+9. **Risks** — each with its mitigation.
+10. **Architecture audit** — findings, and what was done with each. Step 6.
+11. **Security audit** — same, and kept **separate**: the two answer different questions and a
+    reader needs both verdicts on their own terms.
+12. **Open questions**, and the answers once given. Step 8.
 
-3. **Consolidate findings** in \`research.md\` using format:
-   - Decision: [what was chosen]
-   - Rationale: [why chosen]
-   - Alternatives considered: [what else evaluated]
+Write for whoever implements: **what** and **why**, and the **how** only where it is a decision the
+implementer must not re-take.
 
-**Output**: research.md with all NEEDS CLARIFICATION resolved
+> \`plan-template.md\` still carries the older shape. **This file is the authority on the twelve
+> sections** until the template is realigned.
 
-### Phase 1: Design & Contracts
+### 5. 🔒 The decision table — binding, and mechanically checkable
 
-**Prerequisites:** \`research.md\` complete
+Prose does not bind anything. A table does, because a reviewer can diff the code against it. For
+every rule the feature introduces:
 
-1. **Extract entities from feature spec** → \`data-model.md\`:
-   - Entity name, fields, relationships
-   - Validation rules from requirements
-   - State transitions if applicable
+| The decision | Its single home | What would duplicate it |
+| :--- | :--- | :--- |
+| _the rule, in the user's words_ | _one file path_ | _the shapes a second spelling takes_ |
 
-2. **Define interface contracts** (if project has external interfaces) → \`/contracts/\`:
-   - Identify what interfaces the project exposes to users or other systems
-   - Document the contract format appropriate for the project type
-   - Examples: public APIs for libraries, command schemas for CLI tools, endpoints for web services, grammars for parsers, UI contracts for applications
-   - Skip if project is purely internal (build scripts, one-off tools, etc.)
+- **Every requirement that is a rule gets a row.** If a requirement says "closed by default", the
+  table says where "closed" is decided.
+- **A home is a file, not a layer.** "the service layer" is not a home.
+- **The third column is the useful one.** It is what a reviewer greps for, and writing it forces you
+  to notice when a schema constraint and an application check are two spellings of one rule.
+- **A rule with two genuine enforcement points** names the ONE place the *decision* is made, and
+  records that both *ask* it. Two askers is fine; two deciders is the defect.
 
-3. **Agent context update**:
-   - Update the plan reference between the \`<!-- SPECNAUT START -->\` and \`<!-- SPECNAUT END -->\` markers in \`__CONTEXT_FILE__\` to point to the plan file created in step 1 (the IMPL_PLAN path)
+**Binding on the implementer.** A decision may not move out of its home without the plan being
+amended first. A review finding that a decision has two homes is a **plan violation, not a style
+opinion**.
 
-**Output**: data-model.md, /contracts/*, quickstart.md, updated agent context file
+### 6. 🔒 The two audits — MANDATORY, and they audit the PLAN, not the code
+
+Read \`phases/plan-audits.md\` and follow it. It dispatches \`architecture-auditor\` and
+\`security-auditor\` on \`plan.md\` **in the same message**, before a single line is written, and it
+carries the eight questions they are asked and the rule that their findings land **in \`plan.md\`**.
+
+Not optional, and not deferrable to \`review\`: architecture found at review time is architecture
+rebuilt, and a security finding against existing code moves a boundary the whole feature was built
+against.
+
+### 8. STOP — the user answers before any code exists
+
+**Mandatory. Never skipped, never inferred, never assumed from silence.** This is stop 1 of the
+chain's two stops. Present, in this order:
+
+1. **The architecture, as a proposal with its alternatives.** Name what you rejected and why. A
+   single option presented as settled gets approved by default — the same as not asking.
+2. **Both audits' findings — architecture AND security** — and what you did with each: changed the
+   plan, or accepted the objection with a reason. Never as a formality that passed, never folded
+   together.
+3. **The open questions** — business rules, thresholds, what happens to existing data, anything
+   where two readings lead to materially different work. **One at a time**, 2–4 real options each,
+   recommendation first, ordered so the answer that invalidates the most others comes first.
+4. **Anything you decided yourself** because the code or a standing decision already answered it —
+   one line each, so a wrong assumption is visible rather than buried.
+
+Record every answer **in \`plan.md\` as a settled decision, with its date**. If there is genuinely
+nothing to ask, say so and present the architecture anyway: **the user's veto on the architecture is
+the point of this stop, not the questions.**
+
+### 9. Commit, then INVOKE \`tasks\` — same turn
+
+<!-- BEGIN: spec-backend=local -->
+\`\`\`bash
+git add .specnaut/specs/<feature-dir>/ && git commit -m "plan(<id>): <what the feature does>"
+\`\`\`
+
+Commit **before** handing off: a worktree runs off committed HEAD, and an uncommitted plan is
+invisible to whoever needs it.
+<!-- END: spec-backend=local -->
+
+**INVOKE \`tasks\` yourself, in the same turn as the user's last answer** — your own next action, not
+a command printed for them to paste. The stop is over the moment the questions are answered; asking
+for a second approval re-litigates what they just decided.
+
+\`tasks\` derives from the **approved** plan — hence a separate phase; decomposing here would break
+down an architecture the user has not approved. Only an **unanswered** question legitimately holds
+it. Answered means go. Pause only when the run was started with \`--manual\`.
+
+## Post-Execution Checks
+
+**Check \`hooks.after_plan\`** — same rules, \`**Optional Hook**\` / \`**Automatic Hook**\` wording.
 
 ## Key rules
 
-- Use absolute paths for filesystem operations; use project-relative paths for references in documentation and agent context files
-- ERROR on gate failures or unresolved clarifications
+- **Absolute paths** for filesystem operations; project-relative paths inside documents.
+- **A number is not a name.** Follow the \`backlog-reference-contract\` skill for every reference.
+- **A requirement that quantifies over a set must say so unambiguously.** "every", "all", "none
+  anywhere" names a set, and \`tasks\` decomposes it by SEARCH, never by example. Name the search that
+  enumerates it where you can.
+- **Make informed guesses** from context and common patterns, recorded under open questions as
+  decisions you took — one line each. No need to ask about data retention, performance targets,
+  error handling, authentication method or integration patterns.
+- **Success criteria are measurable, technology-agnostic and user-focused.** "Users complete
+  checkout in under 3 minutes", not "API response time under 200ms".
+- **The code is the present; a document is a claim about the past.** Where they disagree, the code
+  wins and the document is corrected in the same change.
+- **There is no cross-artefact consistency check any more, and none should be re-added.** With one
+  document there are no artefacts to hold in agreement — the step-6 audits replaced it, and run
+  before the code exists rather than after.
+- **Do not pad.** A plan long enough to be skimmed is a plan nobody reads.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "phase",
+    name: "plan-audits",
+    suffix: "plan-audits.md",
+    content: `# Plan audits — architecture and security, against the plan
+
+Loaded by \`phases/plan.md\` at step 6. Both audits run **before a single line of code is written**,
+dispatched **in the same message** so they execute concurrently. They judge different things and
+neither substitutes for the other.
+
+**Both are read-only and advisory.** They do not veto — the user does, at the stop that ends \`plan\`.
+But their findings go **into \`plan.md\`**: either the plan changes, or it records why the objection
+was accepted. An audit whose output is not written down did not happen. A clean verdict is written
+down **with its coverage**, because a clean verdict is worth exactly what it covered.
+
+## 🔒 The architecture audit
+
+**Dispatch the \`architecture-auditor\` agent on \`plan.md\` before a single line is written** — here,
+while changing your mind is still free, because architecture found at review time is architecture
+rebuilt. The defect class it catches: a decision that must agree, spelled in more than one place, or
+asked in a caller instead of at the decision. Ask four questions, in this order:
+
+1. **Is the decision table complete?** Name any rule in the requirements with no row. A missing row
+   is the defect this phase exists to prevent.
+2. **Is each home the right home?** A pure rule belongs in its bounded context, not in a service; a
+   decision asked by two gates belongs *in* the decision, not in either caller.
+3. **What is the blast radius?** How many existing call sites, routes, components or surfaces does
+   each new rule touch — **counted, not estimated.** This is where the cost hides: a gate described
+   in one sentence can change the behaviour of two hundred routes.
+4. **What would a reviewer find in this design three cycles from now?** In writing. A design whose
+   predicted findings are already known can be corrected now, for the price of an edit.
+
+## 🛡 The security audit
+
+**Dispatch the \`security-auditor\` agent on \`plan.md\` in the same message as the architecture audit**
+so both run concurrently. Neither substitutes for the other: the architect asks whether a rule has
+one home, the security seat asks whether that home is reachable by someone who should not reach it.
+These are the most expensive findings to fix late — a missing authorization gate is one line, but a
+data model that made the gate impossible is a migration, a backfill, and every caller. Ask four
+questions, in this order:
+
+1. **Which new surface accepts input, and where does it stop?** Every route, job, webhook and upload
+   path the plan adds, and the validator that bounds it. A boundary with no validator named is the
+   finding.
+2. **Who is allowed, and where is that decided?** One authorization decision per new capability, at
+   its home. Two gates for one rule, or a gate in a caller rather than at the decision, is the
+   architect's defect class arriving through a different door.
+3. **What identifiers and what bytes become reachable?** Enumerable ids, a path that skips its
+   access check, a field that should never leave the server.
+4. **What does this let an authenticated stranger do to somebody else's account?** In writing.
+   "Nothing" is acceptable only when it names what was checked.
 `,
     executable: false,
     backend: null,
@@ -1134,268 +650,6 @@ Every task MUST strictly follow this format:
   },
   {
     category: "phase",
-    name: "analyze",
-    suffix: "analyze.md",
-    content: `
-## User Input
-
-\`\`\`text
-\$ARGUMENTS
-\`\`\`
-
-You **MUST** consider the user input before proceeding (if not empty).
-
-## Pre-Execution Checks
-
-**Check for extension hooks (before analysis)**:
-- Check if \`.specnaut/extensions.yml\` exists in the project root.
-- If it exists, read it and look for entries under the \`hooks.before_analyze\` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where \`enabled\` is explicitly \`false\`. Treat hooks without an \`enabled\` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook \`condition\` expressions:
-  - If the hook has no \`condition\` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty \`condition\`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- For each executable hook, output the following based on its \`optional\` flag:
-  - **Optional hook** (\`optional: true\`):
-    \`\`\`
-    ## Extension Hooks
-
-    **Optional Pre-Hook**: {extension}
-    Command: \`/{command}\`
-    Description: {description}
-
-    Prompt: {prompt}
-    To execute: \`/{command}\`
-    \`\`\`
-  - **Mandatory hook** (\`optional: false\`):
-    \`\`\`
-    ## Extension Hooks
-
-    **Automatic Pre-Hook**: {extension}
-    Executing: \`/{command}\`
-    EXECUTE_COMMAND: {command}
-
-    Wait for the result of the hook command before proceeding to the Goal.
-    \`\`\`
-- If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
-
-## Goal
-
-Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (\`spec.md\`, \`plan.md\`, \`tasks.md\`) before implementation. This command MUST run only after \`/specnaut tasks\` has successfully produced a complete \`tasks.md\`.
-
-## Operating Constraints
-
-**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
-
-**Constitution Authority**: The project constitution (\`/memory/constitution.md\`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside \`/specnaut analyze\`.
-
-## Execution Steps
-
-<!-- BEGIN: spec-backend=cloud -->
-**Materialise the spec (cloud backend):** run \`specnaut spec pull <task>\` ONCE now, before
-loading any artifact. It writes the spec's tabs to the gitignored
-\`.specnaut/specs/.cache/<task>/\`; read the spec from there as files. If the pull fails
-(offline/auth), stop with its message — do not proceed against an empty spec.
-
-<!-- END: spec-backend=cloud -->
-### 1. Initialize Analysis Context
-
-Run \`{SCRIPT}\` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
-
-- SPEC = FEATURE_DIR/spec.md
-- PLAN = FEATURE_DIR/plan.md
-- TASKS = FEATURE_DIR/tasks.md
-
-Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
-For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\\''m Groot' (or double-quote if possible: "I'm Groot").
-
-### 2. Load Artifacts (Progressive Disclosure)
-
-Load only the minimal necessary context from each artifact:
-
-**From spec.md:**
-
-- Overview/Context
-- Functional Requirements
-- Success Criteria (measurable outcomes — e.g., performance, security, availability, user success, business impact)
-- User Stories
-- Edge Cases (if present)
-
-**From plan.md:**
-
-- Architecture/stack choices
-- Data Model references
-- Phases
-- Technical constraints
-
-**From tasks.md:**
-
-- Task IDs
-- Descriptions
-- Phase grouping
-- Parallel markers [P]
-- Referenced file paths
-
-**From constitution:**
-
-- Load \`/memory/constitution.md\` for principle validation
-
-### 3. Build Semantic Models
-
-Create internal representations (do not include raw artifacts in output):
-
-- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → \`user-can-upload-file\`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
-- **User story/action inventory**: Discrete user actions with acceptance criteria
-- **Task coverage mapping**: Map each task to one or more requirements or stories (inference by keyword / explicit reference patterns like IDs or key phrases)
-- **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
-
-### 4. Detection Passes (Token-Efficient Analysis)
-
-Focus on high-signal findings. Limit to 50 findings total; aggregate remainder in overflow summary.
-
-#### A. Duplication Detection
-
-- Identify near-duplicate requirements
-- Mark lower-quality phrasing for consolidation
-
-#### B. Ambiguity Detection
-
-- Flag vague adjectives (fast, scalable, secure, intuitive, robust) lacking measurable criteria
-- Flag unresolved placeholders (TODO, TKTK, ???, \`<placeholder>\`, etc.)
-
-#### C. Underspecification
-
-- Requirements with verbs but missing object or measurable outcome
-- User stories missing acceptance criteria alignment
-- Tasks referencing files or components not defined in spec/plan
-
-#### D. Constitution Alignment
-
-- Any requirement or plan element conflicting with a MUST principle
-- Missing mandated sections or quality gates from constitution
-
-#### E. Coverage Gaps
-
-- Requirements with zero associated tasks
-- Tasks with no mapped requirement/story
-- Success Criteria requiring buildable work (performance, security, availability) not reflected in tasks
-
-#### F. Inconsistency
-
-- Terminology drift (same concept named differently across files)
-- Data entities referenced in plan but absent in spec (or vice versa)
-- Task ordering contradictions (e.g., integration tasks before foundational setup tasks without dependency note)
-- Conflicting requirements (e.g., one requires Next.js while other specifies Vue)
-
-### 5. Severity Assignment
-
-Use this heuristic to prioritize findings:
-
-- **CRITICAL**: Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality
-- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
-- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
-- **LOW**: Style/wording improvements, minor redundancy not affecting execution order
-
-### 6. Produce Compact Analysis Report
-
-Output a Markdown report (no file writes) with the following structure:
-
-## Specification Analysis Report
-
-| ID | Category | Severity | Location(s) | Summary | Recommendation |
-|----|----------|----------|-------------|---------|----------------|
-| A1 | Duplication | HIGH | spec.md:L120-134 | Two similar requirements ... | Merge phrasing; keep clearer version |
-
-(Add one row per finding; generate stable IDs prefixed by category initial.)
-
-**Coverage Summary Table:**
-
-| Requirement Key | Has Task? | Task IDs | Notes |
-|-----------------|-----------|----------|-------|
-
-**Constitution Alignment Issues:** (if any)
-
-**Unmapped Tasks:** (if any)
-
-**Metrics:**
-
-- Total Requirements
-- Total Tasks
-- Coverage % (requirements with >=1 task)
-- Ambiguity Count
-- Duplication Count
-- Critical Issues Count
-
-### 7. Provide Next Actions
-
-At end of report, output a concise Next Actions block:
-
-- If CRITICAL issues exist: Recommend resolving before \`/specnaut implement\`
-- If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
-- Provide explicit command suggestions: e.g., "Run /specnaut specify --manual to refine the spec without re-cascading", "Run /specnaut plan --once to regenerate the plan only, or /specnaut plan to cascade through tasks → review", "Manually edit tasks.md to add coverage for 'performance-metrics'"
-
-### 8. Offer Remediation
-
-Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
-
-### 9. Check for extension hooks
-
-After reporting, check if \`.specnaut/extensions.yml\` exists in the project root.
-- If it exists, read it and look for entries under the \`hooks.after_analyze\` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where \`enabled\` is explicitly \`false\`. Treat hooks without an \`enabled\` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook \`condition\` expressions:
-  - If the hook has no \`condition\` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty \`condition\`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- For each executable hook, output the following based on its \`optional\` flag:
-  - **Optional hook** (\`optional: true\`):
-    \`\`\`
-    ## Extension Hooks
-
-    **Optional Hook**: {extension}
-    Command: \`/{command}\`
-    Description: {description}
-
-    Prompt: {prompt}
-    To execute: \`/{command}\`
-    \`\`\`
-  - **Mandatory hook** (\`optional: false\`):
-    \`\`\`
-    ## Extension Hooks
-
-    **Automatic Hook**: {extension}
-    Executing: \`/{command}\`
-    EXECUTE_COMMAND: {command}
-    \`\`\`
-- If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
-
-## Operating Principles
-
-### Context Efficiency
-
-- **Minimal high-signal tokens**: Focus on actionable findings, not exhaustive documentation
-- **Progressive disclosure**: Load artifacts incrementally; don't dump all content into analysis
-- **Token-efficient output**: Limit findings table to 50 rows; summarize overflow
-- **Deterministic results**: Rerunning without changes should produce consistent IDs and counts
-
-### Analysis Guidelines
-
-- **NEVER modify files** (this is read-only analysis)
-- **NEVER hallucinate missing sections** (if absent, report them accurately)
-- **Prioritize constitution violations** (these are always CRITICAL)
-- **Use examples over exhaustive rules** (cite specific instances, not generic patterns)
-- **Report zero issues gracefully** (emit success report with coverage statistics)
-
-## Context
-
-{ARGS}
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "phase",
     name: "implement",
     suffix: "implement.md",
     content: `
@@ -1445,7 +699,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 <!-- BEGIN: spec-backend=cloud -->
 0. **Cloud spec setup** (spec backend = cloud): the spec lives on SpecNaut Cloud
-   and \`/specnaut specify\` created NO git branch. Before anything else, in this order:
+   and \`/specnaut plan\` created NO git branch. Before anything else, in this order:
    - **Materialise the spec (pull-on-entry)** — run \`specnaut spec pull <task>\` ONCE
      now; it writes the spec's tabs to the gitignored \`.specnaut/specs/.cache/<task>/\`.
      Read the spec, plan, tasks, and the mandatory Domain Model block from that cache
@@ -1492,7 +746,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 3. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
-   - **REQUIRED**: Read the \`## Domain Model\` section in spec.md. If the section is absent, empty, or still contains \`[NEEDS CLARIFICATION]\` markers / template placeholders → halt and report BLOCKED with reason \`awaiting:product-owner-domain-brief\`. The developer agent refuses to write code without this brief — its "First action" checklist (step 4) reads the block and returns the same BLOCKED reason. Recommend running \`/specnaut clarify\` to fill the section before re-attempting \`/specnaut implement\`.
+   - **REQUIRED**: Read the domain model in the plan's technical-context section. If the section is absent, empty, or still contains \`[NEEDS CLARIFICATION]\` markers / template placeholders → halt and report BLOCKED with reason \`awaiting:product-owner-domain-brief\`. The developer agent refuses to write code without this brief — its "First action" checklist (step 4) reads the block and returns the same BLOCKED reason. Recommend re-running \`/specnaut plan\` to fill it before re-attempting \`/specnaut implement\`.
    - **IF EXISTS**: Read data-model.md for entities and relationships
    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
    - **IF EXISTS**: Read research.md for technical decisions and constraints
@@ -1728,8 +982,7 @@ If Overall = PASS, surface the STOP #2 summary block defined in
 ## Preconditions
 
 - The feature branch must be checked out.
-- All Specnaut phases must have completed successfully (clarify, plan, tasks, analyze, implement,
-  review).
+- All Specnaut phases must have completed successfully (plan, tasks, implement, review).
 - \`\$ARGUMENTS\` is optional. If empty, the base branch is \`main\`. Otherwise it is the first token of
   \`\$ARGUMENTS\`.
 
@@ -1933,178 +1186,6 @@ Check if \`.specnaut/extensions.yml\` exists in the project root.
     EXECUTE_COMMAND: {command}
     \`\`\`
 - If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "phase",
-    name: "checklist",
-    suffix: "checklist.md",
-    content: `
-## Checklist Purpose: "Unit Tests for English"
-
-**CRITICAL CONCEPT**: Checklists are **UNIT TESTS FOR REQUIREMENTS WRITING** — they validate quality, clarity, and completeness of requirements. They do NOT verify implementation behavior.
-
-- ❌ NOT "Verify the button clicks correctly" / "Test error handling works" / "Confirm API returns 200"
-- ✅ "Is 'prominent display' quantified with specific sizing/positioning?" (clarity)
-- ✅ "Are hover state requirements consistent across all interactive elements?" (consistency)
-- ✅ "Does the spec define what happens when logo image fails to load?" (edge cases)
-
-If your spec is code written in English, the checklist is its unit test suite — testing whether requirements are well-written and ready for implementation, NOT whether the implementation works.
-
-## User Input
-
-\`\`\`text
-\$ARGUMENTS
-\`\`\`
-
-You **MUST** consider the user input before proceeding (if not empty).
-
-## Pre-Execution Checks
-
-**Check extension hooks (\`hooks.before_checklist\` in \`.specnaut/extensions.yml\`)**:
-Skip silently if the file is absent or unparseable. For each enabled entry
-(treat missing \`enabled\` as \`true\`) without a non-empty \`condition\`, emit:
-
-- \`optional: true\` → \`## Extension Hooks\` block with \`**Optional Pre-Hook**: {extension}\`,
-  command, description, and prompt.
-- \`optional: false\` → \`## Extension Hooks\` block with \`**Automatic Pre-Hook**: {extension}\`,
-  \`EXECUTE_COMMAND: {command}\`, and wait for the result before proceeding.
-
-Hooks with non-empty \`condition\` are deferred to the HookExecutor.
-
-## Execution Steps
-
-1. **Setup**: Run \`{SCRIPT}\` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS list.
-   - All file paths must be absolute.
-   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\\''m Groot' (or double-quote if possible: "I'm Groot").
-
-2. **Clarify intent (dynamic)**: Derive up to THREE contextual clarifying questions (no pre-baked catalog). Questions MUST be generated from the user's phrasing + signals extracted from spec/plan/tasks; skip any already answered in \`\$ARGUMENTS\`; cover only information that materially changes checklist content.
-
-   Archetypes: scope refinement, risk prioritization, depth calibration (lightweight sanity vs. formal release gate), audience framing (author vs. PR reviewer), boundary exclusion, scenario class gaps (recovery/rollback in scope?). Present options as a compact table (Option | Candidate | Why It Matters), max A–E; use free-form if clearer. Never ask the user to restate what they said.
-
-   Defaults when interaction impossible: Depth=Standard; Audience=Reviewer(PR) for code, Author otherwise; Focus=top 2 relevance clusters.
-
-   Label Q1/Q2/Q3. After answers, if ≥2 scenario classes (Alternate/Exception/Recovery/NFR) remain unclear, ask up to TWO follow-ups Q4/Q5 with one-line justification each. Max five questions total; skip escalation if user declines.
-
-3. **Understand user request**: Combine \`\$ARGUMENTS\` + clarifying answers:
-   - Derive checklist theme (e.g., security, review, deploy, ux)
-   - Consolidate explicit must-have items mentioned by user
-   - Map focus selections to category scaffolding
-   - Infer any missing context from spec/plan/tasks (do NOT hallucinate)
-
-4. **Load feature context**: Read from FEATURE_DIR:
-   - spec.md: Feature requirements and scope
-   - plan.md (if exists): Technical details, dependencies
-   - tasks.md (if exists): Implementation tasks
-
-   **Context Loading Strategy**:
-   - Load only necessary portions relevant to active focus areas (avoid full-file dumping)
-   - Prefer summarizing long sections into concise scenario/requirement bullets
-   - Use progressive disclosure: add follow-on retrieval only if gaps detected
-   - If source docs are large, generate interim summary items instead of embedding raw text
-
-5. **Generate checklist** - Create "Unit Tests for Requirements":
-   - Create \`FEATURE_DIR/checklists/\` directory if it doesn't exist
-   - Generate unique checklist filename using short, descriptive domain name (e.g., \`ux.md\`, \`api.md\`, \`security.md\`)
-   - File handling: if file does NOT exist create new and number from CHK001; if file exists append continuing from last CHK ID. Never delete or replace existing content.
-
-   **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
-   Every checklist item MUST evaluate the REQUIREMENTS THEMSELVES for:
-   - **Completeness**: Are all necessary requirements present?
-   - **Clarity**: Are requirements unambiguous and specific?
-   - **Consistency**: Do requirements align with each other?
-   - **Measurability**: Can requirements be objectively verified?
-   - **Coverage**: Are all scenarios/edge cases addressed?
-
-   **Category Structure** - Group items by requirement quality dimensions:
-   - **Requirement Completeness**, **Requirement Clarity**, **Requirement Consistency**
-   - **Acceptance Criteria Quality**, **Scenario Coverage**, **Edge Case Coverage**
-   - **Non-Functional Requirements** (Performance, Security, Accessibility)
-   - **Dependencies & Assumptions**, **Ambiguities & Conflicts**
-
-   **ITEM STRUCTURE**: Question format testing requirement quality. Include quality dimension in brackets. Reference \`[Spec §X.Y]\` for existing requirements; use \`[Gap]\` for missing ones. MINIMUM ≥80% of items MUST carry a traceability marker: \`[Spec §X.Y]\`, \`[Gap]\`, \`[Ambiguity]\`, \`[Conflict]\`, or \`[Assumption]\`.
-
-   Examples by dimension:
-   - Completeness: \`"Are error handling requirements defined for all API failure modes? [Gap]"\`
-   - Clarity: \`"Is 'fast loading' quantified with specific thresholds? [Clarity, Spec §NFR-2]"\`
-   - Consistency: \`"Do navigation requirements align across all pages? [Consistency, Spec §FR-10]"\`
-   - Coverage: \`"Are requirements defined for zero-state scenarios? [Coverage, Edge Case]"\`
-   - Measurability: \`"Can 'balanced visual weight' be objectively verified? [Measurability, Spec §FR-2]"\`
-
-   **Scenario Classification**: Confirm requirements exist for Primary, Alternate, Exception/Error, Recovery, and Non-Functional scenarios. For any missing class: "Are [scenario type] requirements intentionally excluded? [Gap]". Include rollback requirements when state mutation occurs.
-
-   **Content Consolidation**: Soft cap 40 items — prioritize by risk/impact, merge near-duplicates, collapse >5 low-impact edge cases into one item.
-
-   **🚫 PROHIBITED**: Items starting with "Verify/Test/Confirm/Check" + behavior; references to code execution or user actions; "displays correctly", "works properly", implementation details.
-
-   **✅ REQUIRED**: "Are [X] defined/specified for [scenario]?" · "Is [vague term] quantified?" · "Are requirements consistent between [A] and [B]?" · "Can [requirement] be objectively measured?"
-
-6. **Structure Reference**: Generate the checklist following the canonical template in \`templates/checklist-template.md\` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, \`##\` category sections containing \`- [ ] CHK### <requirement item>\` lines with globally incrementing IDs starting at CHK001.
-
-7. **Report**: Output full path to checklist file, item count, and summarize whether the run created a new file or appended to an existing one. Summarize focus areas selected, depth level, actor/timing, and any explicit user-specified must-have items incorporated.
-
-**Important**: Each \`/specnaut checklist\` command invocation uses a short, descriptive checklist filename and either creates a new file or appends to an existing one — allowing multiple checklists of different types (e.g., \`ux.md\`, \`test.md\`, \`security.md\`). Use descriptive types and clean up obsolete checklists when done.
-
-## Example Checklist Types & Sample Items
-
-**UX Requirements Quality:** \`ux.md\`
-- "Are visual hierarchy requirements defined with measurable criteria? [Clarity, Spec §FR-1]"
-- "Are interaction state requirements (hover, focus, active) consistently defined? [Consistency]"
-- "Are accessibility requirements specified for all interactive elements? [Coverage, Gap]"
-- "Is fallback behavior defined when images fail to load? [Edge Case, Gap]"
-
-**API Requirements Quality:** \`api.md\`
-- "Are error response formats specified for all failure scenarios? [Completeness]"
-- "Are rate limiting requirements quantified with specific thresholds? [Clarity]"
-- "Are retry/timeout requirements defined for external dependencies? [Coverage, Gap]"
-
-**Performance Requirements Quality:** \`performance.md\`
-- "Are performance requirements quantified with specific metrics? [Clarity]"
-- "Are performance targets defined for all critical user journeys? [Coverage]"
-- "Are degradation requirements defined for high-load scenarios? [Edge Case, Gap]"
-
-**Security Requirements Quality:** \`security.md\`
-- "Are authentication requirements specified for all protected resources? [Coverage]"
-- "Is the threat model documented and requirements aligned to it? [Traceability]"
-- "Are security failure/breach response requirements defined? [Gap, Exception Flow]"
-
-## Anti-Examples: What NOT To Do
-
-**❌ WRONG - These test implementation, not requirements:**
-
-\`\`\`markdown
-- [ ] CHK001 - Verify landing page displays 3 episode cards [Spec §FR-001]
-- [ ] CHK002 - Test hover states work correctly on desktop [Spec §FR-003]
-- [ ] CHK003 - Confirm logo click navigates to home page [Spec §FR-010]
-\`\`\`
-
-**✅ CORRECT - These test requirements quality:**
-
-\`\`\`markdown
-- [ ] CHK001 - Are the number and layout of featured episodes explicitly specified? [Completeness, Spec §FR-001]
-- [ ] CHK002 - Are hover state requirements consistently defined for all interactive elements? [Consistency, Spec §FR-003]
-- [ ] CHK003 - Are navigation requirements clear for all clickable brand elements? [Clarity, Spec §FR-010]
-- [ ] CHK004 - Is the selection criteria for related episodes documented? [Gap, Spec §FR-005]
-- [ ] CHK005 - Can "visual hierarchy" requirements be objectively measured? [Measurability, Spec §FR-001]
-\`\`\`
-
-Key differences: Wrong tests if the system *works*; Correct tests if requirements are *written correctly*. Wrong: "Does it do X?" — Correct: "Is X clearly specified?"
-
-## Post-Execution Checks
-
-**Check extension hooks (\`hooks.after_checklist\` in \`.specnaut/extensions.yml\`)**:
-Skip silently if the file is absent or unparseable. For each enabled entry
-(treat missing \`enabled\` as \`true\`) without a non-empty \`condition\`, emit:
-
-- \`optional: true\` → \`## Extension Hooks\` block with \`**Optional Hook**: {extension}\`,
-  command, description, and prompt.
-- \`optional: false\` → \`## Extension Hooks\` block with \`**Automatic Hook**: {extension}\`,
-  \`EXECUTE_COMMAND: {command}\`.
-
-Hooks with non-empty \`condition\` are deferred to the HookExecutor.
 `,
     executable: false,
     backend: null,
@@ -2710,303 +1791,128 @@ The script emits the body verbatim. Do NOT:
     suffix: "auto-chain.md",
     content: `# Auto-chain control
 
-This file carries the chain mechanics that the \`/specnaut\` router follows
-when chain mode is engaged. The router reads it after a chainable phase
-(\`brainstorm\`, \`specify\`, \`clarify\`, \`plan\`, \`tasks\`, \`analyze\`, \`implement\`,
-\`review\`) completes — unless \`--manual\` or \`--once\` was passed, or downstream
-artefacts indicate one-shot intent.
+This file carries the chain mechanics the \`/specnaut\` router follows after a chainable phase
+(\`plan\`, \`tasks\`, \`implement\`, \`review\`) completes — unless \`--manual\` was passed, or downstream
+artefacts indicate the user is re-running a single step.
 
-## Default flow
+## The flow
 
 \`\`\`
-(brainstorm) → specify → clarify → plan → tasks → analyze → implement → review → merge
-                         ▲                                                        ▲
-                         STOP #1 (only if clarifications needed)                  STOP #2 (pre-merge validation)
+plan → tasks → implement → review → merge
+  ▲                                   ▲
+  STOP 1                              STOP 2
+  (always, at the end of plan)        (the review verdict IS the merge request)
 \`\`\`
 
-\`brainstorm\` is the optional step 0 (see \`phases/brainstorm.md\`). It runs
-only when the user invokes \`/specnaut brainstorm\` because the idea is still
-fuzzy; on design approval it always chains into \`specify\`, which then drives
-the rest of the flow. Entering at \`specify\` skips it.
+## There are EXACTLY TWO stops. There is no third.
 
-## Lite chain
+1. **The end of \`plan\`.** Always. The architecture is presented as a proposal with the alternatives
+   that were rejected and why; both audits' findings are presented **separately**; the open
+   questions are asked **one at a time**. See \`phases/plan.md\` step 8.
+2. **The review verdict.** Its findings are triaged, then the merge is requested. There is no
+   separate pre-merge stop — the verdict and the merge question are the same moment.
 
-For small, single-file features (markdown documentation, agent
-definitions, README/AGENTS/CLAUDE/CHANGELOG tweaks), the chain runs in
-a lighter shape that skips \`clarify\` and \`tasks\`:
-
-\`\`\`
-specify → plan → analyze → implement → review → merge
-                                                  ▲
-                                                  STOP #2 (pre-merge validation)
-\`\`\`
-
-STOP #1 (clarification checkpoint) is **n/a in lite mode** — no
-\`clarify\` phase runs, so there are no \`[NEEDS CLARIFICATION]\` markers
-to resolve mid-chain. The \`phases/specify.md\` procedure makes informed
-guesses for ambiguities and notes them in the spec's Assumptions
-section rather than blocking on user questions. STOP #2 behaves
-identically to the full chain.
-
-**Shape selection** happens once, in \`phases/specify.md\`:
-- The router's \`--lite\` / \`--full\` flag (parsed in \`SKILL.md\` step 1)
-  forces the shape and skips any heuristic / prompt.
-- Otherwise, \`phases/specify.md\` scores the brief against
-  \`phases/lite-heuristic.md\`. If the score crosses the threshold, the
-  user is prompted once; if not, full chain runs silently.
-- The chosen shape is persisted to \`.specnaut/feature.json\` as
-  \`workflow_shape: "lite" | "full"\`.
-
-At every chain transition below, read \`workflow_shape\` from
-\`.specnaut/feature.json\`. When the field is absent (legacy
-\`feature.json\`), treat as \`"full"\`.
+\`merge\` is never automatic. It is asked for — **unless the user already said to merge**, in which
+case that is their instruction and it is followed without a second confirmation.
 
 ## Per-phase behavior
 
-After each phase completes successfully, immediately invoke the next phase via
-the \`Skill\` tool (or the platform equivalent). Do not emit a user-facing "ready
-for next step?" prompt. A one-line \`✓ <phase> complete — proceeding to <next>\`
-log is sufficient.
+After each phase completes successfully, **invoke the next phase yourself, in the same turn**, via
+the \`Skill\` tool (or the platform equivalent). Not a suggestion, not a command printed for the user
+to paste — your own next action. A one-line \`✓ <phase> complete — proceeding to <next>\` log is
+sufficient, and it is a **statement, never a question**.
 
-The **next phase** depends on the chain shape recorded in
-\`.specnaut/feature.json\` (\`workflow_shape\`):
-
-| Current phase | Next (full) | Next (lite) |
-|---|---|---|
-| \`brainstorm\` | \`specify\`   | \`specify\`   |
-| \`specify\`   | \`clarify\`   | \`plan\`      |
-| \`clarify\`   | \`plan\`      | n/a (lite never runs clarify) |
-| \`plan\`      | \`tasks\`     | \`analyze\`   |
-| \`tasks\`     | \`analyze\`   | n/a (lite never runs tasks)   |
-| \`analyze\`   | \`implement\` | \`implement\` |
-| \`implement\` | \`review\`    | \`review\`    |
-| \`review\`    | STOP #2 → \`merge\` | STOP #2 → \`merge\` |
-
-When \`workflow_shape\` is absent from \`feature.json\`, treat as \`"full"\`.
-
-## STOP #1 — Clarification checkpoint
-
-Applies only when \`workflow_shape == "full"\`. Lite mode does not run
-\`clarify\`, so there is no STOP #1 in lite chains.
-
-After \`/specnaut clarify\` finishes:
-
-- If zero \`[NEEDS CLARIFICATION]\` markers remain in \`spec.md\`, continue silently
-  to \`/specnaut plan\`.
-- If markers remain, present the top 3 questions to the user (per the
-  \`/specnaut clarify\` format) and wait for answers. Once the spec is updated,
-  resume the chain automatically.
+| Current phase | Next |
+|---|---|
+| \`plan\` | \`tasks\` — invoked in the same turn as the user's last answer at STOP 1 |
+| \`tasks\` | \`implement\` — invoked in the same turn as the dossier commit |
+| \`implement\` | \`review\` — invoked in the same turn the gates go green and the tree is frozen |
+| \`review\` | **STOP 2** — triage, then the merge request |
 
 ## Silent gates
 
-These phases run without user interruption unless they fail hard or surface
-CRITICAL findings:
+These run without user interruption unless they fail hard:
 
-- \`/specnaut plan\` — generates plan + research + data-model + contracts + quickstart.
-- \`/specnaut tasks\` — generates tasks.md.
-- \`/specnaut analyze\` — cross-artifact consistency check. On LOW/MEDIUM findings,
-  log a summary and continue. On CRITICAL findings, stop and surface them.
-- \`/specnaut implement\` — runs the developer → review-coordinator → qa-tester
-  pipeline. Has its own internal fix loop for review findings; do not intercept.
-- \`/specnaut review\` — final quality scan.
+- \`plan\` — up to its own STOP 1, which is not a chain decision but part of the phase.
+- \`tasks\` — generates \`tasks.md\`.
+- \`implement\` — runs the developer → review-coordinator → qa-tester pipeline. It has its own
+  internal fix loop; do not intercept it.
+- \`review\` — the quality battery on a frozen tree.
 
 ## Plan approval checkpoint (remote mode only)
 
-After \`/specnaut plan\` completes and **before** chaining into \`/specnaut tasks\`, check remote mode
+After \`plan\` completes and **before** chaining into \`tasks\`, check remote mode
 (\`specnaut gate status\`):
 
 - **Exit 0** (remote on) — raise a plan-approval gate and suspend:
   \`specnaut gate raise --type plan_approval --title "Approve the plan for <feature>" --payload '{"summary":"<plan summary>","planRef":"<plan.md path>","context":"<short>"}'\`.
-  exit 0 + \`{"approved":true}\` → resume into \`/specnaut tasks\`; exit 0 +
-  \`{"approved":false}\` → halt and report the rejection + any \`note\` (revise);
-  exit 3/4/1 → halt cleanly with the reason; exit 5 → report \`specnaut cloud login\`
-  is needed and fall back to the default below. **Never proceed to \`tasks\` without
-  an explicit approval.**
-- **Non-zero** (remote off / not Cloud-linked — the default) — \`plan\` stays a
-  silent gate: continue straight to \`/specnaut tasks\` exactly as today (no gate,
-  no prompt, no behavioural change).
+  exit 0 + \`{"approved":true}\` → resume into \`tasks\`; exit 0 + \`{"approved":false}\` → halt and
+  report the rejection + any \`note\`; exit 3/4/1 → halt cleanly with the reason; exit 5 → report
+  \`specnaut cloud login\` is needed and fall back to the default below. **Never proceed to \`tasks\`
+  without an explicit approval.**
+- **Non-zero** (remote off / not Cloud-linked — the default) — STOP 1 is the local approval and the
+  chain continues straight into \`tasks\`.
 
-## STOP #2 — Pre-merge validation
+## STOP 2 — the review verdict
 
-After \`/specnaut review\` passes, ALWAYS stop and present a compact summary
-before invoking \`/specnaut merge\`. The summary must include:
+After \`review\` completes, present a compact summary:
 
 - Feature name and branch
 - Files created / modified (count + key paths)
 - Tests added and full-suite status
-- Known deviations from tasks.md and rationale
-- Open risks / deferred items
+- Known deviations from \`tasks.md\` and the rationale
+- Open risks / deferred findings
 - One-line business outcome
 
 Then resolve the approval:
 
-- **Remote mode** (run \`specnaut gate status\`; exit 0 ⇒ on) — raise a
-  \`merge_approval\` gate instead of a terminal prompt:
+- **Remote mode** (\`specnaut gate status\` exit 0) — raise a \`merge_approval\` gate instead of a
+  terminal prompt:
   \`specnaut gate raise --type merge_approval --title "Approve merge of <feature>" --payload '{"summary":"<change summary>","prUrl":"<pr/diff ref>","context":"<short>"}'\`.
-  Branch on the result: exit 0 + \`{"approved":true}\` → invoke \`/specnaut merge\`;
-  exit 0 + \`{"approved":false}\` → halt on the branch and report the rejection +
-  any \`note\` (comment-and-revise); exit 3/4 (timeout/cancelled) or 1 → halt
-  cleanly with the reason; exit 5 → report \`specnaut cloud login\` is needed and
-  fall back to the local prompt below. **Never merge without an explicit approval.**
-- **Local mode** (default, gate status non-zero) — ask explicitly:
-  "Ready to merge? (yes to run /specnaut merge, no to stay on the branch)". Wait for
-  explicit confirmation. On "yes", invoke \`/specnaut merge\`.
+  exit 0 + \`{"approved":true}\` → invoke \`merge\`; exit 0 + \`{"approved":false}\` → halt on the branch
+  and report the rejection + any \`note\`; exit 3/4 (timeout/cancelled) or 1 → halt cleanly with the
+  reason; exit 5 → report \`specnaut cloud login\` is needed and fall back to the local prompt below.
+  **Never merge without an explicit approval.**
+- **Local mode** (default) — ask once: "Ready to merge? (yes to run \`/specnaut merge\`, no to stay on
+  the branch)". On "yes", invoke \`merge\`.
 
 After merge, the chain ends.
 
-## Mid-chain re-entry
+## Re-entry, without a flag
 
-When the user invokes any phase other than \`specify\` directly (e.g.
-\`/specnaut plan 042\`, \`/specnaut implement 042\`), apply this
-context-aware default:
+When the user invokes a phase directly (\`/specnaut implement\`, \`/specnaut review\`), decide from what
+is on disk:
 
-- **Downstream artefacts missing** → chain. The user is resuming an
-  interrupted flow (long session, fresh shell after compaction, manual
-  review between early phases). Continue through the remaining phases →
-  STOP #2 with the same checkpoints as the entry-point flow.
-- **Downstream artefacts present** → one-shot. The user is re-running a
-  single phase (regenerate \`plan.md\` after a tweak, re-analyse after a
-  spec edit). Do NOT cascade.
+- **Downstream artefacts missing** → chain. The user is resuming an interrupted flow (a long
+  session, a fresh shell after compaction). Continue through the remaining phases to STOP 2.
+- **Downstream artefacts present** → one-shot. The user is re-running a single phase (regenerating
+  \`plan.md\` after a tweak).
 
-"Downstream artefacts" means files under \`.specnaut/specs/<feature>/\`
-produced by phases AFTER the one being invoked:
+"Downstream artefacts" means files under the feature directory produced by phases **after** the one
+being invoked:
 
 | Invoked phase | Downstream artefacts to check |
 |---|---|
-| \`clarify\`   | \`plan.md\`, \`tasks.md\` |
-| \`plan\`      | \`tasks.md\`, \`data-model.md\`, \`contracts/\`, \`quickstart.md\` |
-| \`tasks\`     | \`tasks.md\` markings beyond the initial generation, or any task marked done |
-| \`analyze\`   | nothing (analyze is a read-only gate; treat as one-shot unless \`--continue\`) |
-| \`implement\` | a merged PR, a \`review.md\`, or task completion past 50% |
-| \`review\`    | nothing past review (chain-tail is just \`merge\`); treat as one-shot unless \`--continue\` |
-
-If any listed artefact is present, infer one-shot intent. If all are
-absent, chain.
-
-### Explicit overrides
-
-The router-level flags \`--continue\` and \`--once\` override the
-artefact-detection default. They are mutually exclusive with each other
-and with \`--manual\`:
-
-- \`--continue\` — force the chain regardless of artefact state. Useful
-  when you want to regenerate a phase AND cascade downstream work
-  afterwards (e.g. tweak \`plan.md\`, then re-run \`tasks → analyze →
-  implement → review\` from scratch).
-- \`--once\` — force one-shot regardless. Useful when downstream
-  artefacts haven't been generated yet but you only want to run this
-  single phase right now (e.g. inspect the spec before authorising
-  the rest of the chain).
+| \`plan\` | \`tasks.md\` |
+| \`tasks\` | any task in \`tasks.md\` marked done |
+| \`implement\` | a merged PR, or task completion past 50% |
+| \`review\` | nothing past review (the chain tail is just \`merge\`) — treat as one-shot |
 
 ## Failure handling
 
-- Hard failure in a silent gate (plan/tasks/analyze/implement/review): stop,
-  surface the error, ask the user how to proceed. Do not silently retry.
-- Task-level blockers reported by the developer agent during \`implement\`: the
-  implement workflow has its own fix loop; do not intercept.
-- \`clarify\` producing more than 5 questions: present the top 3 per the
-  \`/specnaut clarify\` quota; the rest can be asked later.
+- Hard failure in a silent gate: stop, surface the error, ask how to proceed. Do not silently retry.
+- Task-level blockers reported during \`implement\`: that phase has its own fix loop; do not
+  intercept.
+- **Genuinely blocked is not the same as stopped.** If something truly blocks part of the work, say
+  what is blocked in one or two sentences, implement everything that is not blocked, and name the
+  remainder. Stopping with nothing built is reserved for the case where proceeding under any
+  assumption would be unsafe or would make the work useless if wrong.
 
 ## Context budget
 
-Long features (≥13 story points or ≥30 tasks) may exhaust context during
-\`/specnaut implement\`. If compaction occurs mid-chain, inform the user and
-let them resume from a fresh session — the artefact-detection default
-above will pick up where the previous run stopped, or they can pass
-\`--continue\` explicitly.
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "phase",
-    name: "list-skills",
-    suffix: "list-skills.md",
-    content: `
-# /specnaut list-skills
-
-A one-shot inspection phase. List every skill installed for this project,
-flag which ones are aliases of upstream skills, and surface their pre/post
-hook overlays. The point is to make the *shadowing* relationships visible —
-without this, you have to read each script to know that a local
-\`tag-version/\` actually delegates to \`specnaut.tag-version\`.
-
-This phase is **read-only** — it never mutates files, never invokes other
-phases, and never auto-chains.
-
-## What this phase does
-
-1. **Locate the harness skills directory.** Try, in order:
-   - \`.claude/skills/\` (Claude Code)
-   - \`.cursor/skills/\` (Cursor)
-   - \`.windsurf/skills/\`, \`.opencode/skills/\`, \`.agent/skills/\` (other
-     supported harnesses)
-   - Use whichever directory exists in the current working tree. If
-     none exist, report \`no skills installed\` and stop.
-
-2. **Enumerate skill folders.** Each immediate sub-directory containing
-   a \`SKILL.md\` file is one skill. Sub-directories without a \`SKILL.md\`
-   are ignored (they may be phase-doc folders, scripts, etc.).
-
-3. **Read each \`SKILL.md\` frontmatter.** The frontmatter is the
-   block between the first two \`---\` lines. Extract:
-   - \`name:\` — the skill's invocation name (required).
-   - \`description:\` — short blurb (required).
-   - \`alias_of:\` — when present, the skill is an alias that delegates
-     to the named upstream skill. Convention is dotted notation, e.g.
-     \`alias_of: specnaut.tag-version\`.
-   - \`overlays:\` — when present, a list of pre/post hooks. Each item
-     carries \`when: before | after\` and \`path: <relative-script>\`.
-
-4. **Render a markdown table** with five columns in this order:
-
-   | Column | Source | Empty value |
-   |---|---|---|
-   | \`NAME\` | \`name:\` field, fallback to folder name | n/a (always present) |
-   | \`KIND\` | \`alias\` if \`alias_of\` is present, else \`skill\` | n/a |
-   | \`ALIAS OF\` | \`alias_of:\` value | \`—\` |
-   | \`OVERLAYS\` | comma-joined \`<path> (<when>)\` per overlay entry | \`—\` |
-   | \`DESCRIPTION\` | \`description:\` field, truncated to 60 chars + \`…\` | n/a |
-
-5. **Sort the rows** by NAME ascending. Render aliases and skills in the
-   same alphabetical list — the \`KIND\` column already disambiguates.
-
-6. **Stop after the table.** Do not chain into another phase. Do not
-   propose follow-up actions unless the user asks. This is an inspect
-   command.
-
-## Example output
-
-\`\`\`
-SKILLS — 4 installed (.claude/skills/)
-
-| NAME           | KIND   | ALIAS OF              | OVERLAYS                 | DESCRIPTION                                     |
-|----------------|--------|-----------------------|--------------------------|-------------------------------------------------|
-| backlog        | skill  | —                     | —                        | GitHub Project #4 backed backlog with classific…|
-| release-version| alias  | specnaut.release-vers…| poll-cloud-build.sh (befo| Monorepo wrapper: poll Cloud Build then delegat…|
-| specnaut       | skill  | —                     | —                        | Specnaut workflow router — entry point for the …|
-| tag-version    | alias  | specnaut.tag-version  | quality-gate.sh (before) | Monorepo wrapper: cd into inner repo then deleg…|
-\`\`\`
-
-## Failure modes
-
-- \`SKILL.md\` missing → skip the folder silently (it's not a skill).
-- Frontmatter unparseable → render the row with \`KIND = error\` and
-  leave the other columns blank; surface the file path in a
-  \`## Parse errors\` footnote so the user can fix it.
-- \`alias_of\` points at a skill not present in the table → keep the row
-  as-is; cycle detection and unresolved-target warnings are the
-  harness's job at *invocation* time, not at *listing* time (per #265
-  out-of-scope).
-
-## When NOT to use this phase
-
-- To **invoke** a skill — that's the skill's own slash command.
-- To **modify** the alias/overlay relationship — edit the SKILL.md
-  frontmatter directly.
-- To **detect cycles** in alias chains — that requires the harness to
-  resolve at dispatch time, which is out of scope for this phase.
+Long features (≥13 story points or ≥30 tasks) may exhaust context during \`implement\`. If compaction
+occurs mid-chain, say so and let the user resume from a fresh session — the re-entry detection above
+picks up where the previous run stopped.
 `,
     executable: false,
     backend: null,
@@ -3663,7 +2569,7 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 ## When NOT to use this phase
 
 - For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the architecture-auditor in PR mode, not audit mode).
-- For codebase-wide refactor planning → out of scope; this phase surfaces drift, it doesn't propose the refactor strategy. Pair with \`/specnaut specify\` to capture the refactor as a spec.
+- For codebase-wide refactor planning → out of scope; this phase surfaces drift, it doesn't propose the refactor strategy. Pair with \`/specnaut plan\` to capture the refactor as a plan.
 - For a single-file architecture check → invoke \`architecture-auditor\` directly with the file paths.
 
 ---
@@ -3830,130 +2736,6 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 Inspired by the discipline of \`obra/superpowers\` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
 \`dependency-auditor\` agent itself is Specnaut-native (no upstream sibling).
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "phase",
-    name: "lite-heuristic",
-    suffix: "lite-heuristic.md",
-    content: `# Lite-chain heuristic
-
-The lite chain (\`specify → plan → analyze → implement → review\`, skipping
-\`clarify\` and \`tasks\`) is calibrated for **small, single-file features**:
-markdown documentation, agent definitions, README tweaks, AGENTS.md edits,
-CLAUDE.md updates, changelog notes. For these, the full chain's spec /
-clarify / tasks / analyze / implement / review ceremony produces a
-doc/code ratio that's wildly off (concrete prior signal: ~1500 lines of
-spec+plan+research+data-model+contracts+quickstart+tasks for ~155 lines
-of agent markdown — roughly 10:1).
-
-This file is the **pattern bag** consulted by \`phases/specify.md\` when
-\`CHAIN_SHAPE == auto\`. Edit the signal lists below to tune detection
-without touching \`specify.md\` logic.
-
-## Scoring
-
-The heuristic runs against the user's feature brief — the text typed
-after \`/specnaut specify\` (after flag-stripping by the router). It
-produces a score:
-
-\`\`\`
-score = (signal hits) − (suppressor hits × 2)
-\`\`\`
-
-- **score ≥ 2** → propose the lite chain to the user via the prompt
-  below. The user's answer (Y/n) decides.
-- **score < 2** → silently keep the full chain.
-
-Suppressors weigh **double** because a single private/system keyword is
-strong evidence the work is non-trivial regardless of how the brief is
-worded.
-
-## User prompt (when heuristic fires)
-
-\`\`\`
-This brief looks small — run the lite chain?
-  Lite chain = specify → plan → analyze → implement → review
-               (skips clarify and tasks)
-  Full chain = specify → clarify → plan → tasks → analyze → implement → review
-
-Proceed in lite mode? [Y/n]
-\`\`\`
-
-Default to **full** chain on an empty or unclear answer. The prompt
-appears exactly **once** per \`/specnaut specify\` invocation — there is
-no re-prompting mid-chain.
-
-## Signal lists
-
-Each match (substring, case-insensitive) contributes **+1** to the
-score.
-
-### File-path hints (strongest individual signal — single match = score 1)
-
-- \`AGENTS.md\`, \`README.md\`, \`CLAUDE.md\`, \`CHANGELOG.md\`
-- Any \`.md\` path token
-- \`docs/...\`, \`docs/\`
-- \`.specnaut/...\` (the workspace docs surface)
-
-### Verb hints
-
-- \`write\`, \`document\`, \`draft\`, \`note down\`, \`add a note\`
-- \`rephrase\`, \`tweak\`, \`polish\`, \`clarify wording\`
-- \`rename\`, \`update wording\`, \`fix wording\`
-- \`clean up\`, \`tidy\`, \`format\`
-
-### Subject hints
-
-- \`doc\`, \`documentation\`, \`docs\`, \`guide\`
-- \`section\`, \`paragraph\`, \`wording\`, \`phrasing\`
-- \`comment\`, \`comments\` (when the brief is about comment text, not
-  code-level comment cleanup)
-- \`agent definition\`, \`agent markdown\`, \`agent file\`
-- \`prompt\`, \`system prompt\`, \`instruction\`
-
-### Length hint
-
-- Brief length ≤ 150 characters → **+1** (weak signal — small briefs
-  often describe small work).
-
-## Suppressors (each hit subtracts 2)
-
-These keywords reliably indicate non-trivial scope. A single suppressor
-is usually enough to keep the full chain.
-
-- \`system\`, \`service\`, \`subsystem\`
-- \`API\`, \`endpoint\`, \`HTTP\`, \`webhook\`, \`RPC\`
-- \`schema\`, \`migration\`, \`database\`, \`data model\`
-- \`test suite\`, \`test harness\`, \`integration test\`
-- \`feature flag\`, \`feature toggle\`, \`experiment\`
-- \`auth\`, \`authentication\`, \`authorization\`, \`OAuth\`, \`OIDC\`, \`SSO\`
-- \`pipeline\`, \`CI\`, \`release pipeline\`, \`Homebrew\`, \`binary\`
-- \`agent\` *(when paired with \`pipeline\` / \`orchestrator\` / \`multi-agent\`
-  — a single "agent definition" mention is a subject hint, not a
-  suppressor)*
-
-## Canonical smoke inputs
-
-Used by \`tests/plugin/plugin_sync_test.ts\` and any future smoke
-validation. The expected routing for each:
-
-| Brief | Expected | Why |
-|---|---|---|
-| \`document the OSS/proprio boundary in AGENTS.md\` | **lite** | path hint (\`AGENTS.md\`), verb (\`document\`), subject (\`boundary\` neutral); score ≥ 2 |
-| \`write a new agent definition for orchestrating backlog routing\` | **lite** | verb (\`write\`), subject (\`agent definition\`); score ≥ 2, "orchestrating" is not a suppressor in isolation |
-| \`add OAuth2 login with GitHub and Google providers\` | **full** | suppressor \`OAuth\` (×2) overwhelms any positive signal; score < 2 |
-
-## Explicit overrides
-
-The router's \`--lite\` and \`--full\` flags force the shape directly and
-**skip this heuristic entirely**. See \`SKILL.md\` step 1 "Chain shape
-parsing". When forced, no prompt is emitted; the chosen shape is
-persisted to \`.specnaut/feature.json\` (\`workflow_shape\`) and the
-spec.md frontmatter (\`workflow:\`).
 `,
     executable: false,
     backend: null,
@@ -4623,7 +3405,7 @@ Do **not** use when:
 
 - The change is genuinely trivial (one-line typo, single-config bump) —
   just do it
-- The user explicitly asked for the spec-kit flow (\`/specnaut specify\` →
+- The user explicitly asked for the spec-kit flow (\`/specnaut plan\` →
   \`/specnaut plan\` produces design artefacts: research.md, data-model.md,
   contracts/, quickstart.md — that's a different beast for greenfield
   features with formal specs)
@@ -4862,7 +3644,7 @@ ad-hoc work where the spec-kit ceremony would be overkill.
 
 A user can use both:
 
-- \`/specnaut specify\` → \`/specnaut plan\` for a new multi-month feature
+- \`/specnaut plan\` → \`/specnaut tasks\` for a new multi-month feature
   with formal contracts
 - \`writing-plans\` (auto-invoked) for "plan how to fix this backlog issue"
 
@@ -5206,7 +3988,7 @@ not re-read the file with \`Read\`.
 
 | Skill | When to invoke |
 |---|---|
-| \`specnaut\` (router) | User typed \`/specnaut <phase>\` or asked for the spec-kit pipeline (\`/specnaut specify → plan → tasks → analyze → implement → review → merge\`). Greenfield features with formal specs. |
+| \`specnaut\` (router) | User typed \`/specnaut <phase>\` or asked for the spec-kit pipeline (\`/specnaut plan → tasks → implement → review → merge\`). Greenfield features with formal specs. |
 | \`writing-plans\` | User wants to plan an issue or a feature without the spec-kit ceremony. Trigger phrases: "plan this", "write a plan for X", "give me an implementation plan". |
 | \`requesting-code-review\` | Work is complete enough to need an independent eye. Dispatch the bundled \`code-reviewer\` agent with the canonical prompt template. |
 | \`subagent-driven-development\` | Execute a plan task-by-task with mandatory two-stage review (spec compliance + code quality) per task. Consumes plans produced by \`writing-plans\`. |
@@ -6087,7 +4869,7 @@ approval. Then hand off to \`writing-plans\`.
 > Inspired by [obra/superpowers v5.1.0](https://github.com/obra/superpowers)
 > (MIT) — \`skills/brainstorming/SKILL.md\`. Re-implemented for Specnaut
 > with explicit handoff to the bundled \`writing-plans\` skill and
-> coexistence with the spec-kit \`/specnaut specify\` flow.
+> coexistence with the spec-kit \`/specnaut plan\` flow.
 
 ## When to use this skill
 
@@ -6107,8 +4889,8 @@ Do **not** use when:
   go straight to \`writing-plans\`
 - The work is a one-line fix — just do it
 - The user explicitly asked for the spec-kit greenfield flow (use
-  \`/specnaut specify\` instead — that's a heavier ceremony that
-  produces \`.specnaut/specs/<feature>/spec.md\` for multi-month
+  \`/specnaut plan\` instead — that's a heavier ceremony that
+  produces \`.specnaut/specs/<feature>/plan.md\` for multi-month
   features)
 
 ## Announce at start
@@ -6225,7 +5007,7 @@ Save the validated design (spec) to a location appropriate for the
 project:
 
 - **Greenfield spec-kit features** — \`.specnaut/specs/<feature-id>/spec.md\`
-  (this is the spec-kit convention; \`/specnaut specify\` lives in this
+  (this is the spec-kit convention; \`/specnaut plan\` lives in this
   same space)
 - **Issue-driven brownfield work** — \`docs/specnaut/specs/YYYY-MM-DD-<topic>.md\`
   (mirror of the \`docs/specnaut/plans/\` convention used by \`writing-plans\`)
@@ -6283,18 +5065,18 @@ implementation code). \`writing-plans\` is the next step.
 - **Incremental validation** — present, get approval, move on
 - **Be flexible** — go back when something doesn't make sense
 
-## Coexistence with \`/specnaut specify\`
+## Coexistence with \`/specnaut plan\`
 
 Specnaut has TWO entry points for design work:
 
 | Entry | Use when |
 |---|---|
 | \`brainstorming\` skill (this) | Issue is vague, idea is fresh, design needs discovery via clarifying questions. Produces a markdown spec doc and hands off to \`writing-plans\`. |
-| \`/specnaut specify\` (spec-kit) | Greenfield multi-week feature with formal contracts. Produces \`.specnaut/specs/<feature>/spec.md\` + auto-chains to \`/specnaut plan\` (research, data-model, contracts, quickstart artefacts). |
+| \`/specnaut plan\` (spec-kit) | Greenfield multi-week feature with formal contracts. Produces one \`.specnaut/specs/<feature>/plan.md\`, audits it for architecture and security before any code, then auto-chains to \`/specnaut tasks\`. |
 
 If you're not sure which to use: start with \`brainstorming\`. If the
 discussion reveals the design needs spec-kit ceremony (formal contracts,
-data model, quickstart), hand off to \`/specnaut specify\` instead of
+data model, a binding decision table), hand off to \`/specnaut plan\` instead of
 \`writing-plans\` at Step 10.
 
 ## Out of scope
@@ -7747,7 +6529,7 @@ description: >
   Trigger me when the user asks "how does specnaut", "what is /specnaut X",
   "explain specnaut", "quoi de neuf specnaut", "what's new in specnaut",
   or any question about the tool. Do NOT trigger on plain command
-  invocations (\`specnaut init\`, \`specnaut upgrade\`, \`/specnaut specify\`,
+  invocations (\`specnaut init\`, \`specnaut upgrade\`, \`/specnaut plan\`,
   \`/backlog ...\`) — those are command runs, not questions.
 model: sonnet
 effort: medium
@@ -7929,7 +6711,7 @@ Enhanced fork of [\`specify\` CLI](https://github.com/github/spec-kit), distribu
 
 **Harnesses:** claude, cursor, codex, windsurf, copilot, opencode, antigravity — all share \`templates/core/\` content, mapped per-harness by an adapter.
 
-**Different from upstream Spec Kit:** auto-chained pipeline (\`/specnaut specify\` chains all phases); dedicated \`review\` phase after implement; backlog as product source of truth via \`product-owner\` agent (backends: local, github, gitlab); Claude Code plugin distribution (\`specnaut-plugin\` marketplace).
+**Different from upstream Spec Kit:** auto-chained pipeline (\`/specnaut plan\` chains all phases); dedicated \`review\` phase after implement; backlog as product source of truth via \`product-owner\` agent (backends: local, github, gitlab); Claude Code plugin distribution (\`specnaut-plugin\` marketplace).
 
 **Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-auditor, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-expert.
 
@@ -9661,7 +8443,7 @@ epic") and either auto-decomposes or proposes a concrete sub-task list
 
 This project has \`spec_autogen: true\` in \`.specnaut/installed.lock\` and stores its specs on
 SpecNaut Cloud. So, immediately **after** creating a task, ALSO generate its spec: run the
-cloud \`specify\` flow for the new task (branch-free — no git branch, no local
+cloud \`plan\` flow for the new task (branch-free — no git branch, no local
 \`.specnaut/specs/\` files), so the spec is already written when the task is later picked for
 implementation. No waiting, no blocking pre-step.
 
@@ -9669,8 +8451,8 @@ implementation. No waiting, no blocking pre-step.
   \`add.sh\` or for every task in a batch.
 - **Never fatal to task creation** — if spec generation fails (offline, auth, model error),
   report it and continue; the task stays created and the spec-gen is retryable later by
-  running the cloud \`specify\` for that task by hand.
-- **Prepare many at once** — because cloud \`specify\` is branch-free, specs for several freshly
+  running the cloud \`plan\` for that task by hand.
+- **Prepare many at once** — because cloud \`plan\` is branch-free, plans for several freshly
   created tasks can be generated concurrently with no git-branch collision.
 
 When \`spec_autogen\` is absent/false, or the spec backend is not cloud, this step does not
@@ -16122,7 +14904,7 @@ above so projects that later migrate to a remote backend keep continuity.
 ## Domain Model *(mandatory)*
 
 <!--
-  ACTION REQUIRED: Populated by the Product Owner during /specnaut clarify.
+  ACTION REQUIRED: Populated during /specnaut plan, before the stop.
   The developer refuses to proceed without this section.
   Format mirrors the PO's /backlog brief output — same shape everywhere.
 -->
@@ -16586,55 +15368,6 @@ With multiple developers:
   {
     category: "spec-root",
     name: "specify",
-    suffix: "templates/checklist-template.md",
-    content: `# [CHECKLIST TYPE] Checklist: [FEATURE NAME]
-
-**Purpose**: [Brief description of what this checklist covers]
-**Created**: [DATE]
-**Feature**: [Link to spec.md or relevant documentation]
-
-**Note**: This checklist is generated by the \`__SPECNAUT_COMMAND_CHECKLIST__\` command based on feature context and requirements.
-
-<!-- 
-  ============================================================================
-  IMPORTANT: The checklist items below are SAMPLE ITEMS for illustration only.
-  
-  The __SPECNAUT_COMMAND_CHECKLIST__ command MUST replace these with actual items based on:
-  - User's specific checklist request
-  - Feature requirements from spec.md
-  - Technical context from plan.md
-  - Implementation details from tasks.md
-  
-  DO NOT keep these sample items in the generated checklist file.
-  ============================================================================
--->
-
-## [Category 1]
-
-- [ ] CHK001 First checklist item with clear action
-- [ ] CHK002 Second checklist item
-- [ ] CHK003 Third checklist item
-
-## [Category 2]
-
-- [ ] CHK004 Another category item
-- [ ] CHK005 Item with specific criteria
-- [ ] CHK006 Final item in this category
-
-## Notes
-
-- Check items off as completed: \`[x]\`
-- Add comments or findings inline
-- Link to relevant resources or documentation
-- Items are numbered sequentially for easy reference
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "spec-root",
-    name: "specify",
     suffix: "templates/constitution-template.md",
     content: `# [PROJECT_NAME] Constitution
 <!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
@@ -16936,7 +15669,7 @@ fi
 # Validate required directories and files
 if [[ ! -d "\$FEATURE_DIR" ]]; then
     echo "ERROR: Feature directory not found: \$FEATURE_DIR" >&2
-    echo "Run /specnaut specify first to create the feature structure." >&2
+    echo "Run /specnaut plan first to create the feature structure." >&2
     exit 1
 fi
 
@@ -17229,7 +15962,7 @@ get_feature_paths() {
 
     # Resolve feature directory.  Priority:
     #   1. SPECIFY_FEATURE_DIRECTORY env var (explicit override)
-    #   2. .specnaut/feature.json "feature_directory" key (persisted by /specnaut specify)
+    #   2. .specnaut/feature.json "feature_directory" key (persisted by /specnaut plan)
     #   3. Branch-name-based prefix lookup (legacy fallback)
     local feature_dir
     if [[ -n "\${SPECIFY_FEATURE_DIRECTORY:-}" ]]; then
@@ -19491,7 +18224,7 @@ team's needs.
   picker automatically — start one with the agent name as the first
   word, e.g. \`developer fix the lint errors in src/cli/\`, \`@qa-tester
   run a sandbox smoke pass\`, or \`@product-owner groom the backlog\`.
-  Skills are dispatchable too: \`/specnaut specify "<feature>"\` launches
+  Skills are dispatchable too: \`/specnaut plan "<feature>"\` launches
   a session running the full spec-plan-tasks chain. File edits are
   isolated under \`.claude/worktrees/\` (git worktrees), so several
   Specnaut agents can work in parallel without stepping on each
@@ -19538,7 +18271,7 @@ Invoke the **specnaut** skill (at \`.claude/skills/specnaut/SKILL.md\`) using th
 
 Empty \`\$ARGUMENTS\` → the skill prints the workflow overview and stops.
 
-This command is a thin slash-command shim so users can type \`/specnaut specify "..."\` directly. The router auto-chains the rest of the workflow by default; pass \`--manual\` to opt out, or \`--once\` / \`--continue\` to override the mid-chain artefact-detection heuristic.
+This command is a thin slash-command shim so users can type \`/specnaut plan "..."\` directly. The router auto-chains the rest of the workflow by default; pass \`--manual\` to run a single phase and stop. Re-entry needs no flag — a phase whose downstream artefacts already exist runs one-shot.
 `,
       executable: false,
     },
@@ -20583,11 +19316,8 @@ clarifications needed) STOP #2 (pre-merge validation)
 
 ## Skills available
 
-- \`/specnaut specify\` — scaffold a new feature spec from a description
-- \`/specnaut clarify\` — resolve outstanding questions in \`spec.md\`
-- \`/specnaut plan\` — produce the implementation plan
-- \`/specnaut tasks\` — break the plan into tasks
-- \`/specnaut analyze\` — cross-artefact consistency check
+- \`/specnaut plan\` — the feature's one planning document, then the architecture + security audits, then the stop
+- \`/specnaut tasks\` — break the approved plan into tasks
 - \`/specnaut implement\` — run the developer → review-coordinator → qa-tester pipeline
 - \`/specnaut review\` — architecture + quality gates
 - \`/specnaut merge\` — merge the feature branch to main
