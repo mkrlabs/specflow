@@ -71,8 +71,19 @@ async function assertAllSourcesPresent(m: Manifest): Promise<void> {
  */
 async function assertManagedSectionsFenced(m: Manifest): Promise<void> {
   const broken: string[] = [];
+  const wrongFormat: string[] = [];
   for (const e of m.core) {
     if (e.managedSection === undefined) continue;
+    // The fence is an HTML comment, which is invisible in Markdown and literal
+    // visible text anywhere else. The mechanism reads as format-agnostic and is
+    // not: a second entry pointing at a non-Markdown destination would render
+    // its own markers into the file. Fail here rather than let that ship — the
+    // fix is to derive the fence style from the destination, not to add an HTML
+    // comment to a file that has no such thing.
+    if (!e.source.endsWith(".md")) {
+      wrongFormat.push(`${e.source} (label "${e.managedSection}")`);
+      continue;
+    }
     const content = await Deno.readTextFile(new URL(e.source, TEMPLATES_DIR));
     const start = `<!-- --- Specnaut: ${e.managedSection} --- -->`;
     const end = `<!-- --- End Specnaut: ${e.managedSection} --- -->`;
@@ -81,6 +92,12 @@ async function assertManagedSectionsFenced(m: Manifest): Promise<void> {
     if (s === -1 || t === -1 || t <= s) {
       broken.push(`${e.source} (label "${e.managedSection}")`);
     }
+  }
+  if (wrongFormat.length > 0) {
+    throw new Error(
+      "managedSection is only supported on Markdown sources — the fence is an " +
+        `HTML comment:\n  - ${wrongFormat.join("\n  - ")}`,
+    );
   }
   if (broken.length > 0) {
     throw new Error(
