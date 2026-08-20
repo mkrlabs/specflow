@@ -53,7 +53,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     // Codex team-shared skills (v1.0.0 consolidated layout)
     assertEquals(await exists(join(root, ".agents/skills/specnaut/SKILL.md")), true);
     assertEquals(
-      await exists(join(root, ".agents/skills/specnaut/phases/specify.md")),
+      await exists(join(root, ".agents/skills/specnaut/phases/plan.md")),
       true,
     );
     assertEquals(await exists(join(root, ".agents/skills/specnaut-backlog/SKILL.md")), true);
@@ -61,7 +61,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     assertEquals(await exists(join(root, ".agents/skills/specnaut-auto/SKILL.md")), false);
     // Old per-phase folders are gone post-consolidation.
     assertEquals(
-      await exists(join(root, ".agents/skills/specnaut-specify/SKILL.md")),
+      await exists(join(root, ".agents/skills/specnaut-plan/SKILL.md")),
       false,
     );
 

@@ -56,7 +56,7 @@ Deno.test("specnaut init --ai antigravity scaffolds an Antigravity layout", asyn
     );
     // Per-phase command workflows are gone post-consolidation.
     assertEquals(
-      await exists(join(root, ".agent/workflows/specnaut-specify.md")),
+      await exists(join(root, ".agent/workflows/specnaut-plan.md")),
       false,
     );
 
@@ -66,7 +66,7 @@ Deno.test("specnaut init --ai antigravity scaffolds an Antigravity layout", asyn
       true,
     );
     assertEquals(
-      await exists(join(root, ".agent/skills/specnaut/phases/specify.md")),
+      await exists(join(root, ".agent/skills/specnaut/phases/plan.md")),
       true,
     );
     // #409: the deprecated specnaut-auto alias no longer scaffolds.

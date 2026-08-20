@@ -55,7 +55,7 @@ Deno.test("specnaut init --ai opencode scaffolds a complete OpenCode project lay
       true,
     );
     assertEquals(
-      await exists(join(root, ".opencode/skills/specnaut/phases/specify.md")),
+      await exists(join(root, ".opencode/skills/specnaut/phases/plan.md")),
       true,
     );
     // /backlog command stays as a flat command file.
@@ -65,7 +65,7 @@ Deno.test("specnaut init --ai opencode scaffolds a complete OpenCode project lay
     );
     // Old per-phase command files are gone post-consolidation.
     assertEquals(
-      await exists(join(root, ".opencode/commands/specnaut-specify.md")),
+      await exists(join(root, ".opencode/commands/specnaut-plan.md")),
       false,
     );
 

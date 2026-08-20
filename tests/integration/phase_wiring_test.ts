@@ -15,7 +15,7 @@ function bundle(opts: BundleOptions): Record<string, string> {
   return Object.fromEntries(Object.entries(b).map(([k, v]) => [k, v.content]));
 }
 
-const CONSUMING = ["implement", "review", "analyze", "tasks"] as const;
+const CONSUMING = ["implement", "review", "tasks"] as const;
 const phaseDest = (name: string) => `.claude/skills/specnaut/phases/${name}.md`;
 const BACKLOG_SKILL = ".claude/skills/backlog/SKILL.md";
 const AUTOGEN_HEADING = "## Auto-generate a task's spec at creation";

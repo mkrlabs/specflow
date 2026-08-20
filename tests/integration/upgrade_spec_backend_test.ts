@@ -8,7 +8,7 @@ import { parseLock } from "../../src/domain/installed_lock.ts";
 // project sees zero behaviour change. Driven through the real compiled CLI.
 
 const MAIN = fromFileUrl(new URL("../../src/main.ts", import.meta.url));
-const GOLDEN = fromFileUrl(new URL("../fixtures/specify_local_golden.md", import.meta.url));
+const GOLDEN = fromFileUrl(new URL("../fixtures/plan_local_golden.md", import.meta.url));
 
 async function runSpecnaut(
   args: string[],
@@ -23,7 +23,7 @@ async function runSpecnaut(
   return { code, stderr: new TextDecoder().decode(stderr) };
 }
 
-Deno.test("pre-feature lock → upgrade → spec_backend: local, specify.md unchanged", async () => {
+Deno.test("pre-feature lock → upgrade → spec_backend: local, plan.md unchanged", async () => {
   const dir = await Deno.makeTempDir({ prefix: "specnaut-upgrade-spec-" });
   try {
     // 1. Init a real claude project on the local backend.
@@ -60,12 +60,12 @@ Deno.test("pre-feature lock → upgrade → spec_backend: local, specify.md unch
     const after = parseLock(await Deno.readTextFile(lockPath));
     assertEquals(after.specBackend, "local");
 
-    // 5. ...and the rendered specify.md is byte-identical to the pre-feature output.
+    // 5. ...and the rendered plan.md is byte-identical to the golden local render.
     // EOL-agnostic: content parity is the FR-003 guarantee (Windows writes CRLF
     // natively; released binaries embed LF from the committed bundle).
     const lf = (s: string) => s.replaceAll("\r\n", "\n");
     const onDisk = lf(
-      await Deno.readTextFile(join(dir, ".claude/skills/specnaut/phases/specify.md")),
+      await Deno.readTextFile(join(dir, ".claude/skills/specnaut/phases/plan.md")),
     );
     assertEquals(onDisk, lf(await Deno.readTextFile(GOLDEN)));
   } finally {

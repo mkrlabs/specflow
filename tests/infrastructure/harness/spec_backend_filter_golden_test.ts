@@ -6,14 +6,14 @@ import { applySpecBackend } from "../../../src/infrastructure/harness/spec_backe
 import type { CoreEntry } from "../../../src/domain/core_bundle.ts";
 
 // Spec 020 + 021 / SC-002 / FR-003 — LOCAL PARITY. The golden fixtures under
-// tests/fixtures/*_local_golden.md are byte-for-byte copies of the phase docs as
-// they shipped BEFORE `spec-backend=` marker blocks were added: specify.md /
-// implement.md (spec 020) and review.md / analyze.md / tasks.md (spec 021, the
-// cloud pull-on-entry blocks). This test proves the `local`-rendered phase docs
-// are byte-identical to that pre-feature output — the mechanical guarantee that a
-// `local` project sees zero behaviour change. If a future edit legitimately
-// changes the local content, re-capture the fixture in the same commit; an
-// accidental drift fails here.
+// tests/fixtures/*_local_golden.md pin the `local` render of every phase doc that
+// carries `spec-backend=` marker blocks: plan.md / implement.md (spec 020) and
+// review.md / tasks.md (spec 021, the cloud pull-on-entry blocks). A `local`
+// project must see exactly this content — the cloud branches are stripped and
+// nothing else moves. The `specify` and `analyze` fixtures went with their phases
+// in #455; `plan`'s was re-captured in the same change, since #456 rewrote it.
+// If a future edit legitimately changes the local content, re-capture the fixture
+// in the same commit; an accidental drift fails here.
 
 function abs(rel: string): string {
   return fromFileUrl(new URL(`../../${rel}`, import.meta.url));
@@ -25,7 +25,7 @@ function phaseEntry(name: string): CoreEntry {
   return e;
 }
 
-for (const name of ["specify", "implement", "review", "analyze", "tasks"]) {
+for (const name of ["plan", "implement", "review", "tasks"]) {
   Deno.test(`${name}.md rendered for spec-backend=local is byte-identical to the pre-feature bundle`, async () => {
     // EOL-agnostic: a released binary always embeds LF (the bundle is compiled
     // from committed LF source), but Windows CI regenerates the bundle from a
@@ -52,16 +52,16 @@ for (const name of ["specify", "implement", "review", "analyze", "tasks"]) {
 }
 
 Deno.test("cloud render diverges from local for every marked phase doc (markers are consumed)", () => {
-  for (const name of ["specify", "implement", "review", "analyze", "tasks"]) {
+  for (const name of ["plan", "implement", "review", "tasks"]) {
     const entry = phaseEntry(name);
     assertNotEquals(
       renderSpecBackend(entry.content, "cloud"),
       renderSpecBackend(entry.content, "local"),
     );
   }
-  // The cloud specify block instructs pushing steps instead of writing files.
+  // The cloud plan block instructs pushing steps instead of writing files.
   assertEquals(
-    renderSpecBackend(phaseEntry("specify").content, "cloud").includes("spec push"),
+    renderSpecBackend(phaseEntry("plan").content, "cloud").includes("spec push"),
     true,
   );
   // The cloud implement block runs the branch-only decoupling point.

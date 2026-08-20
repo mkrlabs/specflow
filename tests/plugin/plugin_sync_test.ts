@@ -17,36 +17,31 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     plugin: "plugin/skills/specnaut/SKILL.md",
     source: "templates/core/skills/specnaut/SKILL.md",
   },
-  // 21 phase reference docs, loaded by the router on demand. The
+  // 15 phase reference docs, loaded by the router on demand. The
   // phase-1 audit trio (`audit-security` #303, `audit-performance` #304,
   // `audit-accessibility` #305) shipped in v1.9.0; the phase-2 pair
   // (`audit-architecture` #321 + `audit-dependencies` #322) closes
-  // Epic #320. `lite-heuristic` (#346) is a contract doc consulted by
-  // `phases/specify.md` when CHAIN_SHAPE == auto — not a phase itself,
-  // but synced through the same byte-identical channel. `brainstorm`
-  // (#351) is the optional step-0 spec-discovery front-end.
+  // Epic #320. `brainstorm`, `specify`, `clarify`, `analyze`, `checklist`,
+  // `list-skills` and the `lite-heuristic` contract doc were removed in
+  // #455 / #456 — the chain is `plan → tasks → implement → review → merge`
+  // and `plan` absorbed the first four. `plan-audits` is a contract doc
+  // `plan` loads at step 6 — not routable, synced through the same channel.
   ...[
-    "brainstorm",
-    "specify",
-    "clarify",
     "plan",
+    "plan-audits",
     "tasks",
-    "analyze",
     "implement",
     "review",
     "merge",
     "constitution",
-    "checklist",
     "groom",
     "tag-version",
     "release-version",
-    "list-skills",
     "audit-security",
     "audit-performance",
     "audit-accessibility",
     "audit-architecture",
     "audit-dependencies",
-    "lite-heuristic",
   ].map((name) => ({
     plugin: `plugin/skills/specnaut/phases/${name}.md`,
     source: `templates/core/skills/specnaut/phases/${name}.md`,
