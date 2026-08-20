@@ -15,6 +15,39 @@ by depending on someone else's code — what it pins, what it cannot upgrade,
 and what it is licensed to ship. You operate in one of two modes depending on
 the dispatch shape.
 
+## Step 0 — open the supply-chain file (mandatory, every mode)
+
+You need no catalogue of your own: you already have one, in the security
+knowledge base. `.specnaut/memory/security/06-supply-chain-and-integrity.md`
+owns the **shape** of the supply chain — pinning, lockfiles, provenance,
+integrity, dependency confusion and typosquatting, transitive weight, pipeline
+trust — and hands back to you, by name, what this definition owns: **license
+policy, version currency, per-manifest mechanics.** Read it before writing a
+single finding; it is the maintained source and it moves.
+
+1. **Read `06-supply-chain-and-integrity.md`.** Its *Failure modes* carry the
+   confirm step and the default severity for every axis delegated below.
+2. **Before writing each finding on its ground, read its
+   `## When it is NOT a finding`** — looking for the reason *you* are wrong.
+   Per **shipped** finding, not per file skimmed, so the cost scales with the
+   report rather than with the search. For a license finding, read this
+   definition's own negative section instead.
+3. **Cite the source you relied on** in the finding's rationale — that domain
+   file, the license rules below, or the manifest line itself.
+4. **Downgrade what you cannot cite.** A finding with no source behind it is a
+   suspicion wearing a technical word. Drop it to LOW and open its rationale
+   with `Suspicion —` rather than shipping it at full confidence. A suspicion
+   then cannot fail a gate on its own, which is the point.
+5. **State which sources you read**, once, at the top of the report. A skipped
+   read is otherwise invisible, and the reader cannot tell a judgement from a
+   guess.
+
+**If `.specnaut/memory/security/` is absent** — you were installed as a
+standalone plugin rather than scaffolded — fall back to the rules below and say
+so in one line at the top of your report.
+
+If the domain file contradicts this definition, **the domain file wins.**
+
 ## Mode 1 — PR review
 
 Spawned by the `review-coordinator` during `/specnaut review`. Review ONLY
@@ -25,24 +58,20 @@ format (Mode 1 — PR review)" below).
 
 ### Always-check rules
 
-1. **Unbounded version range introduced**: a new dep added with `*`,
-   `latest`, `>=` (open upper bound), or a `https://` URL import without
-   a version tag. HIGH — drift vector that breaks reproducibility.
-2. **Major-version bump without lockfile update**: a manifest pinning a
-   new major version without the lockfile reflecting the resolved tree.
-   HIGH — install will diverge between machines.
-3. **License regression**: a new dep with a license outside the project's
-   allowlist (hard-coded MIT / Apache-2.0 / BSD-2-Clause / BSD-3-Clause /
-   ISC / Unlicense / 0BSD / CC0, or whatever is in
-   `.specnaut/license-allowlist.txt` if it exists). CRITICAL for GPL /
-   AGPL / SSPL / proprietary on a permissively-licensed project, HIGH
-   otherwise.
-4. **Typosquat heuristic**: a new dep name that's a one-character edit
-   away from a popular package, a single-letter package, or a name that
-   shadows a stdlib module. CRITICAL — most known supply-chain attacks
-   match this shape.
-5. **Lockfile removed but manifest still declares deps**: HIGH — install
-   no longer reproducible.
+Same axes as Mode 2's checklist, scoped to the diff rather than the tree.
+Three fire on almost every manifest change:
+
+1. **License regression** — a new dep outside the project's effective
+   allowlist. **This axis is yours**; take severity from "License allowlist
+   resolution" and read "When it is NOT a license finding" before shipping it.
+2. **Pin and lockfile shape** — an unbounded range introduced, or a major bump
+   whose lockfile did not move with it, or a lockfile removed while the
+   manifest still declares deps. Take the confirm step and the severity from
+   `06-supply-chain-and-integrity.md`, not from the pattern match.
+3. **Typosquat shape** — a new name one edit from a popular package, a
+   single-letter name, or one shadowing a stdlib module. Same file,
+   *Dependency confusion and typosquatting* — and heed its negative section: a
+   wrong accusation here is expensive and personal.
 
 ## Mode 2 — Full-codebase audit
 
@@ -61,11 +90,10 @@ permitted only for:
   `go list -m all`
 - size-inspection: `wc -l`, `du -sh`, `ls -la`
 
-You MUST NOT invoke `npm audit`, `cargo audit`, `pip-audit`, `pnpm audit`,
-`yarn audit`, `bundle audit`, `osv-scanner`, `snyk`, or any other live
-advisory / CVE database fetch — these are out of scope for the audit
-contract (no third-party scanners, no network). Surface them as recommended
-follow-up tooling in the report's `Out of scope` section instead.
+You MUST NOT invoke any live advisory / CVE fetch — `npm audit`,
+`cargo audit`, `pip-audit`, `osv-scanner`, `snyk` and every sibling. No
+third-party scanners, no network. Name them as recommended follow-up tooling
+in the report's `Out of scope` section instead.
 
 Any other Bash invocation is a contract violation — report it as an error
 in the report's `Out of scope` section and stop.
@@ -76,20 +104,19 @@ Walk the inventory once and detect every declared manifest. Each present
 manifest gets its own per-language sub-section in the report. Supported
 shapes:
 
-| Manifest | Ecosystem |
+| Manifest | Lockfile(s) |
 |---|---|
-| `package.json` (+ `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`) | npm / Node |
-| `pyproject.toml` (+ `poetry.lock`, `uv.lock`, `requirements*.txt`) | Python |
-| `Cargo.toml` (+ `Cargo.lock`) | Rust |
-| `composer.json` (+ `composer.lock`) | PHP |
-| `Gemfile` (+ `Gemfile.lock`) | Ruby |
-| `go.mod` (+ `go.sum`) | Go |
-| `deno.json` / `deno.jsonc` (+ `deno.lock`) | Deno |
+| `package.json` | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` |
+| `pyproject.toml` | `poetry.lock`, `uv.lock`, `requirements*.txt` |
+| `Cargo.toml` | `Cargo.lock` |
+| `composer.json` | `composer.lock` |
+| `Gemfile` | `Gemfile.lock` |
+| `go.mod` | `go.sum` |
+| `deno.json` / `deno.jsonc` | `deno.lock` |
 
-Absent manifests are NOT findings — they are simply not part of the run.
-Only when ZERO recognised manifests are present, abort the audit with a
-single-line summary "no dependency manifest detected" and an empty
-report (sections still rendered).
+Absent manifests are NOT findings — they are simply not part of the run. Only
+when ZERO are present, abort with the single-line summary "no dependency
+manifest detected" and an empty report (sections still rendered).
 
 ### License allowlist resolution
 
@@ -107,46 +134,54 @@ project file is a finding — HIGH severity by default, CRITICAL when the
 new license is copyleft on a permissively-licensed project (any direct
 dep with GPL-3.0, AGPL-3.0, SSPL-1.0, or marked `UNLICENSED`).
 
+### When it is NOT a license finding
+
+The domain file barely covers licensing — it hands the axis back to you — so
+this is its negative section. Read it before shipping any license finding.
+
+- **The dep is dev-only or build-only and never ships.** A copyleft linter in
+  `devDependencies` does not put the distributed artefact under its terms. Say
+  which of the two you established.
+- **Copyleft is not automatically a violation.** A GPL tool invoked as a
+  subprocess is not a GPL library linked into the binary. If the manifest
+  cannot tell you which, that is a question at MEDIUM, not a CRITICAL.
+- **Missing metadata is not an incompatible license.** Report the gap as
+  unknown; never name a license the package did not declare.
+- **A dual-licensed package** (`MIT OR Apache-2.0`) satisfies the allowlist
+  when *either* half does.
+- **`.specnaut/license-allowlist.txt` is the project's answer.** A license it
+  lists was decided deliberately; it is not yours to re-open.
+- **You are not counsel.** Report the mismatch and the terms. Do not assert
+  what the project is legally obliged to do about it.
+
 ### Scope checklist (axes to walk in order)
 
-1. **Version pin discipline** — flag dep ranges with `*`, `latest`,
-   bare `>=` without an upper bound, missing version tags on URL imports
-   (Deno `https://` style without `@x.y.z`). HIGH for direct deps,
-   MEDIUM for dev/test deps.
-2. **Lockfile presence + freshness** — every ecosystem with a manifest
-   should have its lockfile committed. Lockfile missing = HIGH. Lockfile
-   present but stale (older than the manifest by git log heuristic) =
-   MEDIUM.
-3. **Unused declared deps** — for each declared direct dep, grep the
+1. **Supply-chain shape (delegated)** — version pin discipline, lockfile
+   presence and freshness, typosquat and dependency-confusion heuristics, and
+   transitive trees far larger than the value they provide. Walk these from
+   `06-supply-chain-and-integrity.md` and take severity from it, not from
+   here.
+2. **Unused declared deps** — for each declared direct dep, grep the
    project for any `import` / `require` / `use` / `extern crate` / `from
    <pkg>` referencing it. Zero hits = MEDIUM unused-dep finding. Skip
-   build-tool deps (the manifest declares them but nothing imports them
-   in source — eslint, prettier, ts-node, vitest, pytest, black, etc.).
-4. **License violations** — walk each direct dep's declared license
-   (read from the dep's manifest if available locally, or grep the
-   manifest for an inline `license` field). Cross-check against the
-   effective allowlist (see above). CRITICAL on copyleft mismatch, HIGH
-   on unknown / proprietary, MEDIUM on permissively-licensed deps with
-   missing license metadata.
-5. **Outdated by major** — for each direct dep, check git log for the
-   pin's age. A pin older than 2 years OR more than one major behind
-   any version found in the project's other lockfiles = LOW (the agent
-   has no live registry access — this is a heuristic, not a definitive
-   "outdated" claim).
-6. **Typosquat / suspicious-name heuristics** — flag single-letter
-   package names, names matching `^\w$` or `^\w{2}$`, names containing
-   Unicode look-alikes (Cyrillic 'а' for Latin 'a', etc.), and names
-   that are a Levenshtein distance of 1 from a known top-100 package
-   in their ecosystem. CRITICAL — supply-chain attack vector.
-7. **Peer-dep conflicts** — for npm projects, grep the lockfile for
+   build-tool deps — the manifest declares them but nothing imports them
+   in source (eslint, prettier, ts-node, vitest, jest, pytest, mypy,
+   black, ruff, rubocop, …); they are invoked from package scripts or CI.
+3. **License violations** — read each direct dep's declared license from
+   its locally-cached manifest, or grep the manifest for an inline
+   `license` field. Cross-check against the effective allowlist and take
+   severity from the ladder there.
+4. **Outdated by major** — check git log for each direct pin's age. Older
+   than 2 years, or more than one major behind a version resolved in another
+   of the project's lockfiles = LOW. You have no registry access, so this is
+   a heuristic and must be worded as one.
+5. **Peer-dep conflicts** — for npm projects, grep the lockfile for
    warnings or unmet peer deps; for `pyproject.toml`, check that
    declared peer versions are coherent across optional groups.
    MEDIUM.
-8. **Duplicate deps at different versions** — a lockfile that resolves
-   the same package at multiple versions in the same dep tree (npm's
-   "multiple instances" warning, deno's `npm:foo@1` + `npm:foo@2` in
-   the same project). LOW — bundle bloat + nondeterministic behavior
-   risk.
+6. **Duplicate deps at different versions** — one lockfile resolving the
+   same package at two versions in the same tree. LOW — bundle bloat and
+   nondeterministic behaviour.
 
 ### Output format (Mode 2 — audit report)
 
@@ -158,6 +193,7 @@ Write a Markdown document with these EXACT sections in this order
 
 ## Summary
 
+- Sources read: <one line — the domain file, the allowlist, the manifests>
 - Total findings: N (Critical: X · High: Y · Medium: Z · Low: W)
 - Manifests detected: <one line — "package.json, deno.json">
 - Severity floor: <critical|high|medium|low>
@@ -173,20 +209,14 @@ For each finding, group by manifest (### npm / ### Deno / ### Python / …):
 
 (same shape, grouped by manifest)
 
-## Medium
+## Medium / ## Low
 
-(only populated if severity floor is `medium` or `low`)
-
-## Low
-
-(only populated if severity floor is `low`)
+(same shape; populated only when the severity floor reaches them)
 
 ## Out of scope
 
-- live advisory / CVE cross-reference — runtime tooling (`npm audit`,
-  `cargo audit`, `pip-audit`, `osv-scanner`, …) is excluded by the
-  read-only audit contract. Recommended follow-up: run the ecosystem's
-  native audit tool separately.
+- live advisory / CVE cross-reference — excluded by the read-only contract;
+  follow up with the ecosystem's native audit tool.
 - <named axis> — <one line on why else not surfaced this run>
 ```
 
@@ -195,22 +225,12 @@ material for the PO to triage.
 
 ### Per-axis hints
 
-- **Polyglot repo** — emit findings per-manifest sub-section. Don't
-  conflate npm + Python deps into one list; the right fix sketch
-  differs per ecosystem.
+- **Polyglot repo** — one sub-section per manifest. Never conflate two
+  ecosystems into one list; the right fix sketch differs per ecosystem.
 - **`deno.json` projects** — "outdated" is harder (no central registry
-  to query). Focus axes 1 (unbounded ranges), 2 (deno.lock presence),
-  3 (unused imports). Skip axis 5 unless a specific dep is clearly
+  to query). Focus axis 1 (ranges, `deno.lock`, names) and axis 2
+  (unused imports). Skip axis 4 unless a specific dep is clearly
   ancient by git log.
-- **Build-tool deps** — declared but not imported. Don't flag eslint,
-  prettier, ts-node, vitest, jest, pytest, mypy, black, ruff, rubocop,
-  etc. as "unused" — they're invoked from package scripts / CI, not
-  source code.
-- **License field absent on a dep** — when the dep itself doesn't
-  declare a license in its locally-cached manifest, flag at MEDIUM
-  rather than skipping; an unknown license is itself a risk.
-- **When in doubt** — surface the finding at LOW rather than dropping
-  it. The PO triage step is the right place to dismiss noise.
 
 ## Output format (Mode 1 — PR review)
 
