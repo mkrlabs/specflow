@@ -65,9 +65,19 @@ export function isPluginCoveredPath(
  * (either re-install the plugin or run `specnaut upgrade` to restore
  * the bundled snapshot).
  *
- * Kept in sync with `isPluginCoveredPath` above. Total: 37 paths
- * (15 agents excluding architect + 1 router skill + 20 phase docs +
- * specnaut-review alias).
+ * Kept in sync with `isPluginCoveredPath` above. Total: 33 paths
+ * (15 agents + 1 router skill + 16 phase docs + specnaut-review alias).
+ *
+ * This array is hand-written, and it drifted: #455 removed six phases and
+ * added two, and only the *other* hand-written mirror (`SYNC_PAIRS` in the
+ * plugin sync test) was updated. `specnaut check --project` reads this list,
+ * so every correctly-migrated project was told six files were "missing —
+ * restore via `specnaut upgrade`" — advice that cannot be followed, because
+ * `upgrade` is what removes them.
+ *
+ * `tests/domain/plugin_coverage_parity_test.ts` now pins this array against
+ * `CORE_BUNDLE`. Editing the manifest without editing this list turns that
+ * test red, which is the only reason a third mirror is tolerable at all.
  *
  * Phase docs include hyphenated names — the regex was widened in #303
  * after silently dropping `tag-version`, `release-version`, and
@@ -102,26 +112,22 @@ export const PLUGIN_COVERED_PATHS_CLAUDE: ReadonlyArray<string> = [
   ].map((name) => `.claude/agents/${name}.md`),
   ".claude/skills/specnaut/SKILL.md",
   ...[
-    "specify",
-    "clarify",
     "plan",
+    "plan-audits",
     "tasks",
-    "analyze",
     "implement",
     "review",
     "merge",
+    "auto-chain",
     "constitution",
-    "checklist",
     "groom",
     "tag-version",
     "release-version",
-    "list-skills",
     "audit-security",
     "audit-performance",
     "audit-accessibility",
     "audit-architecture",
     "audit-dependencies",
-    "lite-heuristic",
   ].map((name) => `.claude/skills/specnaut/phases/${name}.md`),
   ".claude/skills/specnaut-review/SKILL.md",
 ];
