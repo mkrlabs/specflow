@@ -304,6 +304,25 @@ export class UpgradeProjectUseCase {
       });
     }
 
+    // Staged copies exist so `reconcile` can offer the upstream version of a
+    // file this run refused to touch. A file the run actually WROTE has nothing
+    // left to reconcile — its destination IS the upstream now — so its staged
+    // copy is stale the moment `--force` overwrites it.
+    //
+    // Left behind, it inflated `reconcile --status` permanently: on this
+    // workspace a forced upgrade reported 46 pending paths, of which 23 were
+    // byte-identical to their staged copy. Half the queue was noise, and the
+    // failure mode is an over-long list rather than an error, so nothing failed.
+    //
+    // Staging during a dry run stays exactly as it was — that is what lets an
+    // agent preview the reconciliation plan, and dry runs return before this.
+    const stagedForWritten = Object.keys(toWrite).map((dest) =>
+      `.specnaut/upgrade-staging/${dest}`
+    );
+    if (stagedForWritten.length > 0) {
+      await writer.deletePaths(stagedForWritten, input.projectDir, { backupExisting: false });
+    }
+
     // Applied *after* the plan's writes: an `auto-update` may just have
     // rewritten the whole file from the bundle, in which case the section is
     // already there and the merge is a no-op. Re-reading is what keeps the
