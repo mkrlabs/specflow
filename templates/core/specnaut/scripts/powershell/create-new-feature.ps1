@@ -300,7 +300,7 @@ if ($branchName.Length -gt $maxBranchLength) {
 }
 
 $featureDir = Join-Path $specsDir $branchName
-$specFile = Join-Path $featureDir 'spec.md'
+$specFile = Join-Path $featureDir 'plan.md'
 
 if (-not $DryRun) {
     if ($hasGit) {
@@ -360,7 +360,7 @@ if (-not $DryRun) {
     New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 
     if (-not (Test-Path -PathType Leaf $specFile)) {
-        $template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
+        $template = Resolve-Template -TemplateName 'plan-template' -RepoRoot $repoRoot
         if ($template -and (Test-Path $template)) {
             Copy-Item $template $specFile -Force
         } else {
