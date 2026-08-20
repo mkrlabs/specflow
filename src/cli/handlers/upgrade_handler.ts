@@ -1,6 +1,11 @@
 import { resolve } from "@std/path";
 import { bold, cyan, dim, green, red, yellow } from "@std/fmt/colors";
 import { FsUpgradeMarkerStore } from "../../infrastructure/fs_upgrade_marker_store.ts";
+import {
+  crossesMajorBoundary,
+  MIGRATION_GUIDE_PATH,
+  MIGRATION_GUIDE_URL,
+} from "../../domain/major_boundary.ts";
 import { mergeMarker } from "../../domain/upgrade_marker.ts";
 import { UpgradeProjectUseCase } from "../../application/upgrade_project.ts";
 import { findHarness } from "../harnesses.ts";
@@ -434,6 +439,19 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
   }
   console.log();
   console.log(green(`✓ upgraded to templates ${result.fromVersion} → ${result.toVersion}`));
+
+  // A breaking upgrade is the one moment `UPGRADING.md` exists for, and until
+  // now the binary never named it — the only inbound links were the README and
+  // one published release body, neither of which somebody mid-upgrade is
+  // reading (#481). Printed only when the major actually changes, so it stays
+  // meaningful instead of becoming a line people learn to skip.
+  if (crossesMajorBoundary(result.fromVersion, result.toVersion)) {
+    console.log();
+    console.log(
+      yellow(`⚠ this crossed a major version — read the migration guide before you continue:`),
+    );
+    console.log(`  ${MIGRATION_GUIDE_PATH}  ·  ${MIGRATION_GUIDE_URL}`);
+  }
 
   // Write the upgrade-pending marker (preserves original `from` if a
   // marker already exists from a previous unreconciled upgrade).
