@@ -118,9 +118,9 @@ makes the rule below enforceable rather than aspirational.
 
 ### Organizing data
 
-- [Change Bidirectional Association to Unidirectional](refactorings/change-bidirectional-association-to-unidirectional.md)
+- [Change Bidirectional Association to Unidirectional](refactorings/change-association-to-unidirectional.md)
 - [Change Reference to Value](refactorings/change-reference-to-value.md)
-- [Change Unidirectional Association to Bidirectional](refactorings/change-unidirectional-association-to-bidirectional.md)
+- [Change Unidirectional Association to Bidirectional](refactorings/change-association-to-bidirectional.md)
 - [Change Value to Reference](refactorings/change-value-to-reference.md)
 - [Duplicate Observed Data](refactorings/duplicate-observed-data.md)
 - [Encapsulate Collection](refactorings/encapsulate-collection.md)

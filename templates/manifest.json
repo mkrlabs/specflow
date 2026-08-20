@@ -889,8 +889,8 @@
     {
       "category": "spec-root",
       "name": "specify",
-      "suffix": "memory/architecture/refactorings/change-bidirectional-association-to-unidirectional.md",
-      "source": "core/specnaut/memory/architecture/refactorings/change-bidirectional-association-to-unidirectional.md"
+      "suffix": "memory/architecture/refactorings/change-association-to-unidirectional.md",
+      "source": "core/specnaut/memory/architecture/refactorings/change-association-to-unidirectional.md"
     },
     {
       "category": "spec-root",
@@ -901,8 +901,8 @@
     {
       "category": "spec-root",
       "name": "specify",
-      "suffix": "memory/architecture/refactorings/change-unidirectional-association-to-bidirectional.md",
-      "source": "core/specnaut/memory/architecture/refactorings/change-unidirectional-association-to-bidirectional.md"
+      "suffix": "memory/architecture/refactorings/change-association-to-bidirectional.md",
+      "source": "core/specnaut/memory/architecture/refactorings/change-association-to-bidirectional.md"
     },
     {
       "category": "spec-root",

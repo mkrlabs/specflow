@@ -15023,9 +15023,9 @@ makes the rule below enforceable rather than aspirational.
 
 ### Organizing data
 
-- [Change Bidirectional Association to Unidirectional](refactorings/change-bidirectional-association-to-unidirectional.md)
+- [Change Bidirectional Association to Unidirectional](refactorings/change-association-to-unidirectional.md)
 - [Change Reference to Value](refactorings/change-reference-to-value.md)
-- [Change Unidirectional Association to Bidirectional](refactorings/change-unidirectional-association-to-bidirectional.md)
+- [Change Unidirectional Association to Bidirectional](refactorings/change-association-to-bidirectional.md)
 - [Change Value to Reference](refactorings/change-value-to-reference.md)
 - [Duplicate Observed Data](refactorings/duplicate-observed-data.md)
 - [Encapsulate Collection](refactorings/encapsulate-collection.md)
@@ -16145,7 +16145,7 @@ The obvious move, and often the wrong one. Ask whether the callee could obtain t
   {
     category: "spec-root",
     name: "specify",
-    suffix: "memory/architecture/refactorings/change-bidirectional-association-to-unidirectional.md",
+    suffix: "memory/architecture/refactorings/change-association-to-unidirectional.md",
     content: `> **Agents depend on this file.** The architect is required to open it before
 > prescribing this technique. Moving or renaming it breaks that link in silence.
 
@@ -16199,7 +16199,7 @@ Requires immutability. Doing this to something still mutated produces defects th
   {
     category: "spec-root",
     name: "specify",
-    suffix: "memory/architecture/refactorings/change-unidirectional-association-to-bidirectional.md",
+    suffix: "memory/architecture/refactorings/change-association-to-bidirectional.md",
     content: `> **Agents depend on this file.** The architect is required to open it before
 > prescribing this technique. Moving or renaming it breaks that link in silence.
 
@@ -18514,7 +18514,7 @@ one out.
 [Move Method](../refactorings/move-method.md) and
 [Move Field](../refactorings/move-field.md) to put things where they are used,
 [Hide Delegate](../refactorings/hide-delegate.md) to stop the reaching, and
-[Change Bidirectional Association to Unidirectional](../refactorings/change-bidirectional-association-to-unidirectional.md)
+[Change Bidirectional Association to Unidirectional](../refactorings/change-association-to-unidirectional.md)
 where only one direction is needed.
 
 ## When it is NOT a smell

@@ -23,7 +23,7 @@ one out.
 [Move Method](../refactorings/move-method.md) and
 [Move Field](../refactorings/move-field.md) to put things where they are used,
 [Hide Delegate](../refactorings/hide-delegate.md) to stop the reaching, and
-[Change Bidirectional Association to Unidirectional](../refactorings/change-bidirectional-association-to-unidirectional.md)
+[Change Bidirectional Association to Unidirectional](../refactorings/change-association-to-unidirectional.md)
 where only one direction is needed.
 
 ## When it is NOT a smell
