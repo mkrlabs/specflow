@@ -91,8 +91,28 @@ defect each get their own commit — the last one carrying **its own** backlog i
 If your default branch is protected, the local fast-forward path will not work; the phase does not
 implement a forge-side path.
 
-### Known gap
+### `AGENTS.md` on upgrade
 
-`AGENTS.md` is scaffolded with `skipIfExists`, so **`specnaut upgrade` will not add the two-stop
-section to a project that already has one** — only a fresh `specnaut init` gets it. Overwriting a
-file you own would be worse than the gap. Copy the section from a fresh scaffold if you want it.
+`AGENTS.md` is yours. `specnaut upgrade` does not rewrite it, and does not reorder it. But the
+two-stop rule above only works from a file that is always in context, so the one section Specnaut
+owns is delivered as a fenced block:
+
+```markdown
+<!-- --- Specnaut: chain-stops --- -->
+
+## The Specnaut chain has exactly two stops
+
+...
+
+<!-- --- End Specnaut: chain-stops --- -->
+```
+
+Appended to the end if your file has no such block; replaced in place if it does. Everything around
+it stays byte-identical, the fences are Markdown comments so nothing renders, and the run prints one
+line naming what it did. Re-running changes nothing. Delete the block and the next upgrade restores
+it — that is the only section on the file Specnaut claims.
+
+One related fix: an upgrade no longer records a pre-existing `AGENTS.md` in
+`.specnaut/installed.lock`. It used to adopt the file it had just decided not to write, which made
+every later run report your own document as "customized locally" — and let `--force` replace it with
+the template.
