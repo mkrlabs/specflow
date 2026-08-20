@@ -174,6 +174,7 @@ export class UpgradeProjectUseCase {
       newShas.set(dest, await sha256Hex(shaInput));
     }
 
+    const isDeclaredPreserved = input.isDeclaredPreserved ?? (() => false);
     const pluginInstalled = this.deps.pluginDetector !== undefined &&
       await this.deps.pluginDetector.isPluginInstalled(PLUGIN_NAME);
     const plan = computeUpgradePlan(
@@ -185,7 +186,7 @@ export class UpgradeProjectUseCase {
         isPluginCovered: (dest) => isPluginCoveredPath(lock.harness, dest),
         isSkipIfExists: (dest) => bundle[dest]?.skipIfExists === true,
         resetBaseline: input.resetBaseline ?? false,
-        isDeclaredPreserved: input.isDeclaredPreserved ?? (() => false),
+        isDeclaredPreserved,
       },
     );
 
@@ -202,7 +203,11 @@ export class UpgradeProjectUseCase {
     // section that has to reach a project that upgrades rather than inits.
     // Merged in under their own fence, they never overwrite or reorder a line
     // the user wrote.
-    const plannedSections = await this.surveyManagedSections(bundle, input.projectDir);
+    const plannedSections = await this.surveyManagedSections(
+      bundle,
+      input.projectDir,
+      isDeclaredPreserved,
+    );
 
     const hasActualWork = plan.some((a) =>
       a.kind === "auto-update" ||
@@ -303,7 +308,11 @@ export class UpgradeProjectUseCase {
     // rewritten the whole file from the bundle, in which case the section is
     // already there and the merge is a no-op. Re-reading is what keeps the
     // reported outcome honest instead of echoing back what we predicted.
-    const appliedSections = await this.applyManagedSections(bundle, input.projectDir);
+    const appliedSections = await this.applyManagedSections(
+      bundle,
+      input.projectDir,
+      isDeclaredPreserved,
+    );
 
     const cleanRemovals = plan
       .filter((a): a is Extract<typeof a, { kind: "remove" }> =>
@@ -410,9 +419,11 @@ export class UpgradeProjectUseCase {
   private async surveyManagedSections(
     bundle: Bundle,
     projectDir: string,
+    isDeclaredPreserved: (dest: string) => boolean,
   ): Promise<ManagedSectionOutcome[]> {
     const out: ManagedSectionOutcome[] = [];
     for (const [dest, label, body] of managedSectionEntries(bundle)) {
+      if (isDeclaredPreserved(dest)) continue;
       const existing = await this.deps.reader.readText(projectDir, dest);
       if (existing === null) continue;
       const current = extractBlock(existing, label, "html");
@@ -426,9 +437,17 @@ export class UpgradeProjectUseCase {
   private async applyManagedSections(
     bundle: Bundle,
     projectDir: string,
+    isDeclaredPreserved: (dest: string) => boolean,
   ): Promise<ManagedSectionOutcome[]> {
     const out: ManagedSectionOutcome[] = [];
     for (const [dest, label, body] of managedSectionEntries(bundle)) {
+      // A declared preserve wins over everything, `--force` included (spec 011
+      // / #367, FR-009). #466 grafted its section straight off the bundle and
+      // never consulted the predicate, so a file the maintainer had frozen was
+      // written anyway — and the same run printed both "preserved … declared"
+      // and "added the … section" for it. Only `--reset-preserved` lifts this,
+      // and it does so by flipping the predicate in the handler.
+      if (isDeclaredPreserved(dest)) continue;
       const existing = await this.deps.reader.readText(projectDir, dest);
       if (existing === null) continue;
       const current = extractBlock(existing, label, "html");

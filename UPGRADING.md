@@ -112,6 +112,9 @@ it stays byte-identical, the fences are Markdown comments so nothing renders, an
 line naming what it did. Re-running changes nothing. Delete the block and the next upgrade restores
 it — that is the only section on the file Specnaut claims.
 
+Declaring `AGENTS.md` in `.specnaut/preserve.yml` freezes it completely: the section is not
+delivered either, and `--force` does not change that. `--reset-preserved` is the only way through.
+
 One related fix: an upgrade no longer records a pre-existing `AGENTS.md` in
 `.specnaut/installed.lock`. It used to adopt the file it had just decided not to write, which made
 every later run report your own document as "customized locally" — and let `--force` replace it with

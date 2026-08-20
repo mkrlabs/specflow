@@ -375,7 +375,15 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
     }
   }
 
-  const preserves = result.plan.filter((a) => a.kind === "preserve");
+  // `customized` only. A declared preserve already got its own line above, and
+  // the advice below does not apply to it: `--force` will NOT overwrite a
+  // declared path (only `--reset-preserved` lifts it), and `--reset-baseline`
+  // is irrelevant to a file nobody is claiming was edited. Printing a diff for
+  // it under that banner told the maintainer two different things about the
+  // same path in one run (#474).
+  const preserves = result.plan.filter(
+    (a) => a.kind === "preserve" && a.reason === "customized",
+  );
   if (preserves.length > 0 && !intent.force) {
     console.log(
       dim(
