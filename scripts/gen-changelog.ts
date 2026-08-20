@@ -6,7 +6,7 @@
 //
 // Pure helpers (`classifyCommit`, `formatChangelog`) are exported for tests.
 
-export type Category = "feat" | "fix" | "chore" | "skip";
+export type Category = "breaking" | "feat" | "fix" | "chore" | "skip";
 
 export type Commit = {
   hash: string;
@@ -31,7 +31,7 @@ const CHORE_PREFIXES = new Set([
   "build",
 ]);
 const RELEASE_BUMP_RE = /^chore:\s*release\s+v\d+\.\d+\.\d+/;
-const PREFIX_RE = /^(\w+)(\([^)]+\))?!?:\s*(.+)$/;
+const PREFIX_RE = /^(\w+)(\([^)]+\))?(!)?:\s*(.+)$/;
 
 export function classifyCommit(commit: Commit): Classified {
   const subject = commit.subject.trim();
@@ -43,8 +43,15 @@ export function classifyCommit(commit: Commit): Classified {
     return { ...commit, category: "chore", cleanedSubject: capitalize(subject) };
   }
   const type = m[1].toLowerCase();
-  const rest = collapseTrailingIssueRefs(m[3]);
+  const rest = collapseTrailingIssueRefs(m[4]);
   const cleanedSubject = capitalize(rest);
+  // Conventional Commits marks a breaking change with `!` before the colon.
+  // The `!` used to be swallowed by the prefix pattern, so a major release
+  // listed its breaking changes as ordinary features — the one thing a reader
+  // upgrading across a major MUST not have to infer.
+  if (m[3] === "!") {
+    return { ...commit, category: "breaking", cleanedSubject };
+  }
   if (FEATURE_PREFIXES.has(type)) {
     return { ...commit, category: "feat", cleanedSubject };
   }
@@ -296,6 +303,14 @@ export function formatChangelog(commits: Classified[], opts: FormatOpts): string
 
   const sections: string[] = [];
   sections.push(`## What's changed in ${opts.toTag}`);
+  const breaking = commits.filter((c) => c.category === "breaking");
+  if (breaking.length > 0) {
+    // First, and never inside a <details>. Someone skimming a major release
+    // must hit this before anything else.
+    sections.push(
+      "### ⚠ Breaking changes\n\n" + breaking.map(formatBullet).join("\n"),
+    );
+  }
 
   if (commits.length === 0) {
     sections.push("_No user-facing changes since the previous release._");

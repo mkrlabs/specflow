@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   type Classified,
   classifyCommit,
@@ -30,9 +30,13 @@ Deno.test("classifyCommit categorises fix(scope):", () => {
   assertEquals(r.cleanedSubject, "Handle missing tty");
 });
 
+// #460 — this test previously asserted `category === "feat"`, pinning the very
+// behaviour that made a major release unreadable: the `!` was swallowed and the
+// breaking change appeared among ordinary features. The marker now decides the
+// category, which is what Conventional Commits means by it.
 Deno.test("classifyCommit handles breaking-change marker (feat!:)", () => {
   const r = classifyCommit({ hash: "abc", subject: "feat!: rewire ports" });
-  assertEquals(r.category, "feat");
+  assertEquals(r.category, "breaking");
   assertEquals(r.cleanedSubject, "Rewire ports");
 });
 
@@ -641,4 +645,53 @@ Deno.test("C5: a single failed outcome amid legitimate absences is the only thin
   assertEquals(failures.length, 1);
   assertEquals(failures[0].prNum, 603);
   assertStringIncludes(failures[0].reason, "ECONNRESET");
+});
+
+// #460 — a major release must not make the reader infer what broke.
+// The `!` marker was previously swallowed by the prefix pattern, so a breaking
+// change was listed as an ordinary feature.
+Deno.test("a `!` before the colon classifies the commit as breaking", () => {
+  for (
+    const subject of [
+      "feat(455)!: remove four phases",
+      "feat!: remove four phases",
+      "refactor(457)!: cut the artefacts",
+    ]
+  ) {
+    assertEquals(classifyCommit({ hash: "h", subject }).category, "breaking", subject);
+  }
+});
+
+Deno.test("a `!`-marked commit keeps its subject intact, without the marker", () => {
+  const c = classifyCommit({ hash: "h", subject: "feat(455)!: remove four phases" });
+  assertEquals(c.cleanedSubject, "Remove four phases");
+});
+
+Deno.test("breaking changes lead the notes and are never hidden in a <details>", () => {
+  const commits = [
+    { hash: "a1", subject: "chore: housekeeping" },
+    { hash: "a2", subject: "feat(456): fold specify into plan" },
+    { hash: "a3", subject: "feat(455)!: remove four phases" },
+  ].map(classifyCommit);
+  const out = formatChangelog(commits, { fromTag: "v1.21.0", toTag: "v2.0.0" });
+
+  assertStringIncludes(out, "### ⚠ Breaking changes");
+  // Ahead of every other section, so a skim cannot miss it.
+  assert(
+    out.indexOf("### ⚠ Breaking changes") < out.indexOf("### Features"),
+    "breaking changes must come before features",
+  );
+  // The chore section is collapsed; this one must not be.
+  const breakingIdx = out.indexOf("### ⚠ Breaking changes");
+  const detailsIdx = out.indexOf("<details>");
+  assert(
+    detailsIdx === -1 || detailsIdx > breakingIdx,
+    "breaking changes must not be inside a <details>",
+  );
+});
+
+Deno.test("no breaking commits means no breaking section at all", () => {
+  const commits = [{ hash: "a1", subject: "feat: something ordinary" }].map(classifyCommit);
+  const out = formatChangelog(commits, { fromTag: "v1.0.0", toTag: "v1.1.0" });
+  assertEquals(out.includes("Breaking changes"), false);
 });
