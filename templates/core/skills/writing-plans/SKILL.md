@@ -31,8 +31,8 @@ Do **not** use when:
 - The change is genuinely trivial (one-line typo, single-config bump) —
   just do it
 - The user explicitly asked for the spec-kit flow (`/specnaut plan` →
-  `/specnaut plan` produces design artefacts: research.md, data-model.md,
-  contracts/, quickstart.md — that's a different beast for greenfield
+  `/specnaut plan` produces the feature's one planning document plus its
+  task breakdown — that's a different beast for greenfield
   features with formal specs)
 
 ## Announce at start
@@ -262,8 +262,8 @@ they prefer to drive manually). It does not:
 
 This skill is **distinct from** the `/specnaut plan` phase of the
 spec-kit pipeline. The spec-kit `/specnaut plan` produces design
-artefacts (research.md, data-model.md, contracts/, quickstart.md) for
-greenfield features starting from a `spec.md`. This `writing-plans`
+one planning document (`plan.md`) plus `tasks.md` for greenfield
+features, starting from a backlog item. This `writing-plans`
 skill produces a **single executable plan file** for issue-driven or
 ad-hoc work where the spec-kit ceremony would be overkill.
 
