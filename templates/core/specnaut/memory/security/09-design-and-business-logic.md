@@ -155,6 +155,27 @@ into user stories.
 
 *Severity* — MEDIUM as a process finding.
 
+## When it is NOT a finding
+
+This file has the highest false-positive rate in the base, because "this feels
+abusable" is a hypothesis, not evidence. Be stricter here than anywhere else.
+
+- **The limit is enforced elsewhere** — at the edge, in a queue, by a quota
+  service, by the payment provider. Business-logic abuse is very often bounded
+  outside the code path you are reading.
+- **The race you found needs a window you have not shown exists.** A
+  check-then-act pattern under a database transaction, a unique constraint, or
+  an idempotency key is not a race. Name the mechanism that would have to be
+  absent.
+- **The "free" path costs the attacker more than it costs you.** Abuse findings
+  need an economic argument, not just a possible sequence of calls.
+- **The workflow skip is caught by reconciliation.** A state machine that can be
+  entered out of order but is corrected by a downstream check is a robustness
+  issue, not a vulnerability.
+- **You are describing a product decision.** Generous refunds, permissive trials
+  and lenient quotas are choices. Report the mechanism, and let the owner judge
+  the policy — do not report the policy as a defect.
+
 ## Secure patterns
 
 **Rate limit, validate, and answer uniformly.**

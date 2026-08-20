@@ -123,6 +123,32 @@ Web root serves `.git/`, `.env`, `*.bak`, source maps, or an index listing.
 
 *Severity* — CRITICAL if it exposes source or credentials, MEDIUM otherwise.
 
+## When it is NOT a finding
+
+Read this before writing an access-control finding. These are the shapes that
+look exactly like a hole and are not.
+
+- **Enforcement is centralised and you grepped per-route.** Middleware, a base
+  controller, a policy layer, a route decorator, a framework guard applied at
+  mount. Enforcement is centralised far more often than it is per-handler, so a
+  per-route search reports every route in the codebase. Find where the project
+  enforces before claiming a route does not.
+- **The identifier is unguessable *and* unenumerable, and that is the design.**
+  A capability URL — a signed share link, a one-time token — is an intentional
+  access model, not a missing check. Say so; the finding, if any, is about
+  expiry or revocation, not about the absence of a lookup.
+- **The "missing" check is downstream.** A handler that passes a subject to a
+  query which itself scopes by owner has an ownership check; it is just not in
+  the function you read. Follow the call before flagging.
+- **The route is deliberately public.** Health checks, static assets, sign-up,
+  a public profile. Confirm the data it returns is public too — that is the
+  real question — but do not report the absence of auth as the defect.
+- **The actor cannot exist.** A role-gated path where the role is never granted
+  in this deployment is a latent issue at most. Say which it is.
+
+If you cannot show the path is reachable by someone who should not reach it,
+you have a **suspicion**. Label it as one.
+
 ## Secure patterns
 
 **Enforce ownership in the query, not after it.**

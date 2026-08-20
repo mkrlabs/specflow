@@ -158,6 +158,24 @@ guidance is explicit: test error paths as thoroughly as the happy path.
 
 *Severity* — MEDIUM to HIGH.
 
+## When it is NOT a finding
+
+- **The catch fully handles the case and says so.** An optional lookup where
+  absence is a legitimate answer, a documented fallback, a cleanup path
+  deliberately not masking the original error. The test is whether the author
+  *decided what the error means* — not whether the handler is short.
+- **The verbose error is behind a development-only flag.** Confirm the
+  production path returns the redacted form.
+- **Logging an identifier is not logging the subject.** An opaque user id in a
+  log line is normal and often required for support; a name, an email or a
+  token is not.
+- **Absence of an alert is not absence of monitoring.** Alerting frequently
+  lives outside the repository. Say that you could not see it rather than that
+  it does not exist.
+- **A retry that swallows an error it will re-raise after N attempts** is not a
+  silent catch — provided the final failure propagates. Check the exhaustion
+  path before flagging.
+
 ## Secure patterns
 
 **Fail closed.**

@@ -6225,6 +6225,20 @@ Before writing a single finding:
    severity, and the secure pattern to cite in the remediation.
 4. If the stack is known, also read \`10-language-footguns.md\`.
 
+5. **Before writing each finding, read that domain file's
+   \`## When it is NOT a finding\`.** Read it looking for the reason *you* are
+   wrong — it exists to kill your own finding before a reader has to. This one
+   is per **shipped** finding, not per file you skimmed, so its cost scales
+   with the report rather than with the search.
+6. **Cite the domain file you relied on** in the finding's \`Standard\` field,
+   alongside the OWASP or ASVS reference. A class named without the file behind
+   it is a suspicion wearing a security word — **downgrade it yourself** and
+   label it a suspicion rather than shipping it as a finding.
+7. **State which files you read**, once, at the top of the report. A skipped
+   read is otherwise invisible, and the reader cannot tell a judgement from a
+   guess. A clean verdict is worth exactly what it covered, so say what it
+   covered.
+
 Do not read all of them by reflex — the routing table exists so you load
 two or three, not twelve. But never skip step 1.
 
@@ -6233,10 +6247,8 @@ standalone plugin rather than scaffolded into a Specnaut project — fall back
 to the always-check rules below, and say so in one line at the top of your
 report so the reader knows the review ran without the full catalogue.
 
-Cite the file you relied on in the finding's \`Standard\` field alongside the
-OWASP or ASVS reference. If a domain file contradicts anything below, the
-domain file wins: it is the maintained source and this agent definition is
-a summary.
+If a domain file contradicts anything below, the domain file wins: it is the
+maintained source and this agent definition is a summary.
 
 **Absolute rule — never emit a secret value.** When you find a credential,
 report its location and kind only. Never the value, not truncated, not
@@ -12188,7 +12200,7 @@ severe.
 
 ## How the domain files are shaped
 
-Every domain file uses the same five sections, so you can jump straight to
+Every domain file uses the same six sections, so you can jump straight to
 the one you need:
 
 - **Attack surface** — what an attacker targets here, in one paragraph.
@@ -12197,6 +12209,9 @@ the one you need:
 - **Failure modes** — the catalogue. Each entry gives the defect, how it is
   exploited, **how to confirm it is real**, and a default severity.
 - **Secure patterns** — unsafe/safe pairs to cite in a remediation.
+- **When it is NOT a finding** — the shapes that look exactly like a hole and
+  are not. Read it looking for the reason *you* are wrong, before you write the
+  finding, not after somebody else does.
 - **Review checklist** — the pass/fail list to run before signing off.
 
 ## Standards this base tracks
@@ -12511,6 +12526,32 @@ Web root serves \`.git/\`, \`.env\`, \`*.bak\`, source maps, or an index listing
 
 *Severity* — CRITICAL if it exposes source or credentials, MEDIUM otherwise.
 
+## When it is NOT a finding
+
+Read this before writing an access-control finding. These are the shapes that
+look exactly like a hole and are not.
+
+- **Enforcement is centralised and you grepped per-route.** Middleware, a base
+  controller, a policy layer, a route decorator, a framework guard applied at
+  mount. Enforcement is centralised far more often than it is per-handler, so a
+  per-route search reports every route in the codebase. Find where the project
+  enforces before claiming a route does not.
+- **The identifier is unguessable *and* unenumerable, and that is the design.**
+  A capability URL — a signed share link, a one-time token — is an intentional
+  access model, not a missing check. Say so; the finding, if any, is about
+  expiry or revocation, not about the absence of a lookup.
+- **The "missing" check is downstream.** A handler that passes a subject to a
+  query which itself scopes by owner has an ownership check; it is just not in
+  the function you read. Follow the call before flagging.
+- **The route is deliberately public.** Health checks, static assets, sign-up,
+  a public profile. Confirm the data it returns is public too — that is the
+  real question — but do not report the absence of auth as the defect.
+- **The actor cannot exist.** A role-gated path where the role is never granted
+  in this deployment is a latent issue at most. Say which it is.
+
+If you cannot show the path is reachable by someone who should not reach it,
+you have a **suspicion**. Label it as one.
+
 ## Secure patterns
 
 **Enforce ownership in the query, not after it.**
@@ -12736,6 +12777,25 @@ bypass (\`if env != 'production': login_as_admin()\`) reachable in a deployed
 build.
 
 *Severity* — CRITICAL.
+
+## When it is NOT a finding
+
+- **The framework's session defaults already do it.** Most mature frameworks set
+  secure cookie attributes, rotate on privilege change, and sign or encrypt the
+  payload by default. Read the configuration before reporting the absence of
+  something the defaults supply — a finding against a default that is already
+  correct trains the reader to skim.
+- **Rate limiting lives at the edge.** A proxy, gateway, WAF or platform layer
+  is a normal home for it. Absence in application code is not absence.
+- **The long-lived token is a service credential, not a user session.** Machine
+  identities have different lifetimes by design. The question for those is
+  rotation and scope, not expiry.
+- **Timing differences you did not measure.** Enumeration and timing-oracle
+  findings need evidence that the difference is observable, not an argument that
+  two branches differ in length.
+- **The "plaintext password" is a variable name.** Confirm the value's origin
+  before reporting storage of a credential — a field called \`password\` holding
+  an already-hashed value is common.
 
 ## Secure patterns
 
@@ -13014,6 +13074,23 @@ exhaustion, integer overflow, and downstream truncation bugs.
 
 *Severity* — LOW to MEDIUM alone; often the enabler for something worse.
 
+## When it is NOT a finding
+
+- **The value is not attacker-controlled.** Trace it to a real entry point. A
+  constant, an enum, an internal config key, or a column the user cannot write
+  is not an injection source, however dynamic the string construction looks.
+- **A parameterised query with dynamic *shape*.** Building a \`WHERE\` clause from
+  an allowlisted column name while values stay bound is not SQL injection. Check
+  whether the interpolated part is an identifier from a fixed set.
+- **The framework escapes by default on that path.** Most template and view
+  layers escape output unless explicitly told not to. The finding is the
+  explicit opt-out, not the ordinary render.
+- **The sink is not an interpreter.** String concatenation into a log line, a
+  filename you then validate, or a message body is not injection unless
+  something downstream parses it. Name the interpreter or drop the finding.
+- **Validation happens at the boundary you did not read.** A schema applied by
+  middleware or a typed request object may already bound the value.
+
 ## Secure patterns
 
 **SQL — parameterize.**
@@ -13269,6 +13346,25 @@ Responses containing personal or authenticated data served without
 
 *Severity* — MEDIUM.
 
+## When it is NOT a finding
+
+- **The "hardcoded secret" is a test fixture, an example, or a public key.**
+  Confirm what the value actually is. **Do not quote it either way** — report
+  its location and kind only, whatever your conclusion.
+- **Weak primitives outside a security boundary.** A fast non-cryptographic hash
+  used for cache keys, shard selection, or change detection is the correct tool.
+  The finding requires the value to be protecting something.
+- **The algorithm choice is the platform's.** A managed service, a KMS, or a
+  framework's own token format is not yours to second-guess without a specific
+  advisory.
+- **The key is in the environment, which is where it belongs.** Reading a
+  credential from an environment variable is the recommended pattern, not a
+  leak. The finding would be logging it, committing it, or shipping it to a
+  client.
+- **Deterministic encryption or a fixed nonce may be required** by a searchable
+  or deduplicating scheme. It is still worth reporting, but as a documented
+  trade-off, not as a defect the author overlooked.
+
 ## Secure patterns
 
 **Authenticated encryption, not raw block modes.**
@@ -13473,6 +13569,23 @@ Cheap denial of service, and often the enabler for a memory-exhaustion bug.
 
 *Severity* — MEDIUM.
 
+## When it is NOT a finding
+
+- **Development configuration, in a development-only file.** Debug flags,
+  permissive origins and verbose errors are correct there. Confirm the file is
+  loaded in production before reporting it.
+- **The header is set at the edge.** Security headers are commonly applied by a
+  CDN, proxy or platform. Absence in application code proves nothing about the
+  response a client receives.
+- **A permissive setting that a narrower layer overrides.** Configuration
+  usually composes; the effective value is what matters, and it is rarely the
+  first one you find.
+- **Broad cloud permissions on a resource with nothing sensitive.** Least
+  privilege is right, but a finding needs to name what the excess actually
+  reaches.
+- **The disabled protection is unreachable.** A setting guarding a feature this
+  deployment does not run is latent. Say which it is.
+
 ## Secure patterns
 
 **Deployed configuration is hardened by default.**
@@ -13671,6 +13784,22 @@ transitive trees far larger than the value they provide. Each is attack
 surface with no owner.
 
 *Severity* — LOW to MEDIUM.
+
+## When it is NOT a finding
+
+- **The advisory does not affect the code path in use.** Most advisories are
+  conditional on a function, option or platform. A vulnerable version present is
+  not the same as a vulnerable application — say which one you established.
+- **It is a development or build-time dependency.** Still worth reporting, but
+  the blast radius is the build, not production traffic, and the severity must
+  say so.
+- **The unpinned range is on an internal package** you publish and control.
+  The risk model is different from an unpinned third-party range.
+- **A lockfile exists and pins the transitive tree.** A loose range in a
+  manifest with a committed lockfile is not floating in practice.
+- **An unfamiliar package name is not a typosquat.** Confirm against the
+  registry before implying it. A wrong accusation here is expensive and
+  personal.
 
 ## Secure patterns
 
@@ -13900,6 +14029,21 @@ termination.
 
 *Severity* — MEDIUM.
 
+## When it is NOT a finding
+
+- **The field is public by design.** A display name, an avatar, a public profile.
+  Exposure is only a finding when the data was not meant to leave.
+- **The identifier is opaque and non-enumerable.** Returning a random surrogate
+  key is the mitigation, not the problem.
+- **Redaction happens in the serialiser.** Field-level allowlists, response
+  schemas and view models commonly strip sensitive fields after the query. Read
+  the boundary that actually renders before reporting the query.
+- **Client-side storage of data the client already owns.** Caching a user's own
+  preferences is not a leak; caching another party's data, or a bearer token in
+  a place scripts can read, is.
+- **The retained data is retained deliberately** for a stated legal or
+  accounting reason. Retention findings need to name the rule they violate.
+
 ## Secure patterns
 
 **Allowlist response fields.**
@@ -14125,6 +14269,24 @@ there.
 guidance is explicit: test error paths as thoroughly as the happy path.
 
 *Severity* — MEDIUM to HIGH.
+
+## When it is NOT a finding
+
+- **The catch fully handles the case and says so.** An optional lookup where
+  absence is a legitimate answer, a documented fallback, a cleanup path
+  deliberately not masking the original error. The test is whether the author
+  *decided what the error means* — not whether the handler is short.
+- **The verbose error is behind a development-only flag.** Confirm the
+  production path returns the redacted form.
+- **Logging an identifier is not logging the subject.** An opaque user id in a
+  log line is normal and often required for support; a name, an email or a
+  token is not.
+- **Absence of an alert is not absence of monitoring.** Alerting frequently
+  lives outside the repository. Say that you could not see it rather than that
+  it does not exist.
+- **A retry that swallows an error it will re-raise after N attempts** is not a
+  silent catch — provided the final failure propagates. Check the exhaustion
+  path before flagging.
 
 ## Secure patterns
 
@@ -14376,6 +14538,27 @@ into user stories.
 
 *Severity* — MEDIUM as a process finding.
 
+## When it is NOT a finding
+
+This file has the highest false-positive rate in the base, because "this feels
+abusable" is a hypothesis, not evidence. Be stricter here than anywhere else.
+
+- **The limit is enforced elsewhere** — at the edge, in a queue, by a quota
+  service, by the payment provider. Business-logic abuse is very often bounded
+  outside the code path you are reading.
+- **The race you found needs a window you have not shown exists.** A
+  check-then-act pattern under a database transaction, a unique constraint, or
+  an idempotency key is not a race. Name the mechanism that would have to be
+  absent.
+- **The "free" path costs the attacker more than it costs you.** Abuse findings
+  need an economic argument, not just a possible sequence of calls.
+- **The workflow skip is caught by reconciliation.** A state machine that can be
+  entered out of order but is corrected by a downstream check is a robustness
+  issue, not a vulnerability.
+- **You are describing a product decision.** Generous refunds, permissive trials
+  and lenient quotas are choices. Report the mechanism, and let the owner judge
+  the policy — do not report the policy as a defect.
+
 ## Secure patterns
 
 **Rate limit, validate, and answer uniformly.**
@@ -14466,6 +14649,26 @@ RETURNING remaining;
 Read the section for the stack, grep the **watch for** list, then check
 each hit against \`00-triage.md\` before writing anything down. A hit is a
 place to look, not a finding.
+
+## When it is NOT a finding
+
+A language footgun is a *default that surprises*, not a construct that can be
+misused. Before reporting one:
+
+- **Confirm the version.** Most entries below were fixed in some release. A
+  footgun the project's version does not have is not a finding.
+- **Confirm the default is in force.** These are defaults, and projects override
+  them — a linter rule, a compiler flag, a framework preset, a wrapper used
+  everywhere.
+- **Confirm the value reaching it is attacker-controlled.** A dangerous parser
+  fed a constant is not a vulnerability. This is the reachability gate from
+  \`00-triage.md\`, and it applies here unchanged.
+- **Do not report a language for being a language.** Manual memory management,
+  dynamic typing and shell word-splitting are properties, not defects. The
+  finding is a specific site where the property bites.
+
+If the entry is generic advice rather than something you located in this
+codebase, it belongs in a summary line, not in the findings list.
 
 ## The mindset for a language not listed here
 

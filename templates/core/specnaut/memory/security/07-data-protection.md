@@ -145,6 +145,21 @@ termination.
 
 *Severity* — MEDIUM.
 
+## When it is NOT a finding
+
+- **The field is public by design.** A display name, an avatar, a public profile.
+  Exposure is only a finding when the data was not meant to leave.
+- **The identifier is opaque and non-enumerable.** Returning a random surrogate
+  key is the mitigation, not the problem.
+- **Redaction happens in the serialiser.** Field-level allowlists, response
+  schemas and view models commonly strip sensitive fields after the query. Read
+  the boundary that actually renders before reporting the query.
+- **Client-side storage of data the client already owns.** Caching a user's own
+  preferences is not a leak; caching another party's data, or a bearer token in
+  a place scripts can read, is.
+- **The retained data is retained deliberately** for a stated legal or
+  accounting reason. Retention findings need to name the rule they violate.
+
 ## Secure patterns
 
 **Allowlist response fields.**

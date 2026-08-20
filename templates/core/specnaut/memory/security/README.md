@@ -29,7 +29,7 @@ severe.
 
 ## How the domain files are shaped
 
-Every domain file uses the same five sections, so you can jump straight to
+Every domain file uses the same six sections, so you can jump straight to
 the one you need:
 
 - **Attack surface** — what an attacker targets here, in one paragraph.
@@ -38,6 +38,9 @@ the one you need:
 - **Failure modes** — the catalogue. Each entry gives the defect, how it is
   exploited, **how to confirm it is real**, and a default severity.
 - **Secure patterns** — unsafe/safe pairs to cite in a remediation.
+- **When it is NOT a finding** — the shapes that look exactly like a hole and
+  are not. Read it looking for the reason *you* are wrong, before you write the
+  finding, not after somebody else does.
 - **Review checklist** — the pass/fail list to run before signing off.
 
 ## Standards this base tracks

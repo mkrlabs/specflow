@@ -11,6 +11,26 @@ Read the section for the stack, grep the **watch for** list, then check
 each hit against `00-triage.md` before writing anything down. A hit is a
 place to look, not a finding.
 
+## When it is NOT a finding
+
+A language footgun is a *default that surprises*, not a construct that can be
+misused. Before reporting one:
+
+- **Confirm the version.** Most entries below were fixed in some release. A
+  footgun the project's version does not have is not a finding.
+- **Confirm the default is in force.** These are defaults, and projects override
+  them — a linter rule, a compiler flag, a framework preset, a wrapper used
+  everywhere.
+- **Confirm the value reaching it is attacker-controlled.** A dangerous parser
+  fed a constant is not a vulnerability. This is the reachability gate from
+  `00-triage.md`, and it applies here unchanged.
+- **Do not report a language for being a language.** Manual memory management,
+  dynamic typing and shell word-splitting are properties, not defects. The
+  finding is a specific site where the property bites.
+
+If the entry is generic advice rather than something you located in this
+codebase, it belongs in a summary line, not in the findings list.
+
 ## The mindset for a language not listed here
 
 When you meet an unfamiliar stack, work down these ten questions — they

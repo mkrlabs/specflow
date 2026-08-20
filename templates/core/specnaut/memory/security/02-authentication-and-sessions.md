@@ -152,6 +152,25 @@ build.
 
 *Severity* — CRITICAL.
 
+## When it is NOT a finding
+
+- **The framework's session defaults already do it.** Most mature frameworks set
+  secure cookie attributes, rotate on privilege change, and sign or encrypt the
+  payload by default. Read the configuration before reporting the absence of
+  something the defaults supply — a finding against a default that is already
+  correct trains the reader to skim.
+- **Rate limiting lives at the edge.** A proxy, gateway, WAF or platform layer
+  is a normal home for it. Absence in application code is not absence.
+- **The long-lived token is a service credential, not a user session.** Machine
+  identities have different lifetimes by design. The question for those is
+  rotation and scope, not expiry.
+- **Timing differences you did not measure.** Enumeration and timing-oracle
+  findings need evidence that the difference is observable, not an argument that
+  two branches differ in length.
+- **The "plaintext password" is a variable name.** Confirm the value's origin
+  before reporting storage of a credential — a field called `password` holding
+  an already-hashed value is common.
+
 ## Secure patterns
 
 **Password storage.**

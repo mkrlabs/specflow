@@ -134,6 +134,22 @@ surface with no owner.
 
 *Severity* — LOW to MEDIUM.
 
+## When it is NOT a finding
+
+- **The advisory does not affect the code path in use.** Most advisories are
+  conditional on a function, option or platform. A vulnerable version present is
+  not the same as a vulnerable application — say which one you established.
+- **It is a development or build-time dependency.** Still worth reporting, but
+  the blast radius is the build, not production traffic, and the severity must
+  say so.
+- **The unpinned range is on an internal package** you publish and control.
+  The risk model is different from an unpinned third-party range.
+- **A lockfile exists and pins the transitive tree.** A loose range in a
+  manifest with a committed lockfile is not floating in practice.
+- **An unfamiliar package name is not a typosquat.** Confirm against the
+  registry before implying it. A wrong accusation here is expensive and
+  personal.
+
 ## Secure patterns
 
 **Pin exactly, verify integrity, audit.**

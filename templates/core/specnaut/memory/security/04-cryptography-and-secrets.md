@@ -151,6 +151,25 @@ Responses containing personal or authenticated data served without
 
 *Severity* — MEDIUM.
 
+## When it is NOT a finding
+
+- **The "hardcoded secret" is a test fixture, an example, or a public key.**
+  Confirm what the value actually is. **Do not quote it either way** — report
+  its location and kind only, whatever your conclusion.
+- **Weak primitives outside a security boundary.** A fast non-cryptographic hash
+  used for cache keys, shard selection, or change detection is the correct tool.
+  The finding requires the value to be protecting something.
+- **The algorithm choice is the platform's.** A managed service, a KMS, or a
+  framework's own token format is not yours to second-guess without a specific
+  advisory.
+- **The key is in the environment, which is where it belongs.** Reading a
+  credential from an environment variable is the recommended pattern, not a
+  leak. The finding would be logging it, committing it, or shipping it to a
+  client.
+- **Deterministic encryption or a fixed nonce may be required** by a searchable
+  or deduplicating scheme. It is still worth reporting, but as a documented
+  trade-off, not as a defect the author overlooked.
+
 ## Secure patterns
 
 **Authenticated encryption, not raw block modes.**
