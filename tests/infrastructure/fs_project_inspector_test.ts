@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { join } from "@std/path";
+import { PLUGIN_COVERED_PATHS_CLAUDE } from "../../src/domain/plugin_coverage.ts";
 import { FsProjectInspector } from "../../src/infrastructure/fs_project_inspector.ts";
 
 const CONSTITUTION_FILLED = `# Project Constitution
@@ -790,15 +791,15 @@ Deno.test("inspect: plugin gap check warns for each missing covered path when pl
         o.name === ".claude/skills/specnaut-review/SKILL.md") &&
       o.status === "warn"
     );
-    // 15 agents (10 original + ui-ux-designer drift fix #321 +
-    // performance-auditor #304 + a11y-auditor #305 + architecture-auditor
-    // #321 + dependency-auditor #322) + 1 router skill + 20 phase docs
-    // (the 11 original + tag-version + release-version + list-skills +
-    // audit-security #303 + audit-performance #304 + audit-accessibility
-    // #305 + audit-architecture #321 + audit-dependencies #322 +
-    // lite-heuristic #346) + specnaut-review alias = 37 covered paths
-    // (specnaut-auto removed in #409).
-    assertEquals(gapOutcomes.length, 37);
+    // Derived, not hardcoded. This assertion used to read `37` under a comment
+    // enumerating the covered set by hand — so when #455 removed six phases and
+    // added two, the constant drifted and this test agreed with it. A magic
+    // number that has to be re-derived by a human on every change is a copy of
+    // the thing it is meant to check.
+    //
+    // `plugin_coverage_parity_test.ts` pins the constant to CORE_BUNDLE; this
+    // pins the inspector to the constant. Neither can drift alone.
+    assertEquals(gapOutcomes.length, PLUGIN_COVERED_PATHS_CLAUDE.length);
     for (const o of gapOutcomes) {
       assertEquals(o.message.includes("missing"), true);
       assertEquals(o.message.includes("specnaut upgrade"), true);
