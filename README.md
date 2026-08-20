@@ -6,8 +6,9 @@ distributed as a **native binary** (no Python prerequisites).
 Specnaut scaffolds the files your AI harness (Claude Code, Cursor, Copilot, Codex, Windsurf…) uses
 to drive a spec-driven workflow inside your project. It adds three things upstream doesn't:
 
-- **Auto mode** — chains `specify → clarify → plan → tasks → analyze → implement → review → merge`
-  uninterrupted, except for required clarifications and pre-merge validation
+- **Auto mode** — chains `plan → tasks → implement → review → merge` uninterrupted, stopping at
+  exactly two points: the end of `plan`, where you approve the architecture, and the review verdict,
+  which is also the merge request
 - **Structured `review` phase** — architecture checks + quality gates (format/lint/typecheck/tests)
   with an `implement → review → fix → re-review` loop
 - **Product backlog** — Markdown index + one file per task with structured frontmatter, a Product
@@ -84,7 +85,8 @@ see [the docs](https://specnaut.com/llms.txt) for current status. The sync workf
 
 - Plugin: cross-project, always up-to-date, no `specnaut init` needed, auto-activates skills on
   session start via the `using-specnaut` bootstrap.
-- Binary: project-local customization, short slash-commands (`/specify`), backlog + hooks support.
+- Binary: project-local customization, short slash-commands (`/specnaut plan`), backlog + hooks
+  support.
 
 Most teams use both. See [the docs](https://specnaut.com) for the full boundary table and
 per-harness tool-mapping references. The website and documentation source live in their own repo,
@@ -105,9 +107,9 @@ overlays:
 ---
 ```
 
-Run `/specnaut list-skills` to see which aliases and overlays are active in your project. The
-Specnaut binary scaffolds and ships the convention; the harness (Claude Code, Cursor, …) honours it
-at dispatch time. See [the docs](https://specnaut.com/llms.txt) for the full contract and
+The alias and overlay fields are declared in a skill's own frontmatter, where anyone reading it sees
+them. The Specnaut binary scaffolds and ships the convention; the harness (Claude Code, Cursor, …)
+honours it at dispatch time. See [the docs](https://specnaut.com/llms.txt) for the full contract and
 [`templates/core/skills/alias-example/SKILL.md`](templates/core/skills/alias-example/SKILL.md) for a
 copy-pasteable starting point.
 
