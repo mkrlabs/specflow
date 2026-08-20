@@ -352,7 +352,7 @@ if [ ${#BRANCH_NAME} -gt $MAX_BRANCH_LENGTH ]; then
 fi
 
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
-SPEC_FILE="$FEATURE_DIR/spec.md"
+SPEC_FILE="$FEATURE_DIR/plan.md"
 
 if [ "$DRY_RUN" != true ]; then
     if [ "$HAS_GIT" = true ]; then
@@ -401,7 +401,7 @@ if [ "$DRY_RUN" != true ]; then
         mkdir -p "$FEATURE_DIR"
 
         if [ ! -f "$SPEC_FILE" ]; then
-            TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT") || true
+            TEMPLATE=$(resolve_template "plan-template" "$REPO_ROOT") || true
             if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then
                 cp "$TEMPLATE" "$SPEC_FILE"
             else

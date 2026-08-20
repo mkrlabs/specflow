@@ -1,104 +1,188 @@
-# Implementation Plan: [FEATURE]
+# Plan: [FEATURE]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/.specnaut/specs/[###-feature-name]/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Backlog item**: [#N — title, as a link]
 
-**Note**: This template is filled in by the `__SPECNAUT_COMMAND_PLAN__` command. See `.specnaut/templates/plan-template.md` for the execution workflow.
+**This is the feature's one planning document.** Business and technical together, read whole by
+whoever implements it. Filled in by `__SPECNAUT_COMMAND_PLAN__`; the phase doc
+(`phases/plan.md`) is the procedure, this file is the shape.
 
-## Summary
+All twelve sections below are **mandatory**. Remove a section's placeholder text, never the
+section. "Not applicable" is an answer worth writing down; an absent section is not.
 
-[Extract from feature spec: primary requirement + technical approach from research]
+---
 
-## Technical Context
+## 1. Why this exists
+
+[The problem in the user's own terms. Measure it where a measurement is available — a production
+number beats a paragraph. Who is hurting, how often, and what it costs them today.]
+
+## 2. User scenarios
+
+[Prioritised journeys, each independently testable.]
+
+### US1 — [name] (P1)
+
+**Given** [starting state]
+**When** [action]
+**Then** [observable outcome]
+
+### US2 — [name] (P2)
+
+...
+
+### Edge cases
+
+- [What happens when …?]
+- [What happens when …?]
+
+## 3. Requirements
+
+- **FR-001**: [Testable statement. If it quantifies over a set — "every", "all", "none anywhere" —
+  say so plainly, and name the search that enumerates the set where you can.]
+- **FR-002**: …
+
+## 4. Success criteria
+
+[Measurable, technology-agnostic, verifiable without implementation knowledge.]
+
+- **SC-001**: [e.g. "Users complete checkout in under 3 minutes" — not "API response under 200ms",
+  which is a technical detail wearing a criterion's clothes.]
+- **SC-002**: …
+
+## 5. 🔒 Decision table
 
 <!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
+  ACTION REQUIRED — THIS IS THE SECTION THE PLAN PHASE EXISTS FOR.
+  One row per rule the feature introduces. Every requirement that IS a rule gets a row.
+  - The home is a FILE PATH, never a layer. "the service layer" is not a home.
+  - The third column is the one a reviewer greps for. Writing it is what makes you notice
+    that a schema constraint and an application check are two spellings of one rule.
+  - A rule with two genuine enforcement points names the ONE place the DECISION is made,
+    and records that both ASK it. Two askers is fine; two deciders is the defect.
+  BINDING ON THE IMPLEMENTER: a decision may not move out of its home without this table
+  being amended first. A review finding that a decision has two homes is a plan violation.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+| The decision | Its single home | What would duplicate it |
+| :--- | :--- | :--- |
+| [the rule, in the user's words] | [one file path] | [the shapes a second spelling takes] |
 
-## Constitution Check
+## 6. Technical context
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+**Language/Version**: [e.g. Python 3.11, Swift 5.9, Rust 1.75 — or NEEDS CLARIFICATION]
+**Primary Dependencies**: [e.g. FastAPI, UIKit, LLVM — or NEEDS CLARIFICATION]
+**Storage**: [if applicable — or N/A]
+**Testing**: [e.g. pytest, XCTest, cargo test — or NEEDS CLARIFICATION]
+**Target Platform**: [e.g. Linux server, iOS 15+, WASM — or NEEDS CLARIFICATION]
+**Project Type**: [e.g. library / cli / web-service / mobile-app / compiler / desktop-app]
+**Performance Goals**: [domain-specific — or NEEDS CLARIFICATION]
+**Constraints**: [domain-specific, e.g. <200ms p95, offline-capable — or NEEDS CLARIFICATION]
+**Scale/Scope**: [domain-specific, e.g. 10k users, 50 screens — or NEEDS CLARIFICATION]
 
-[Gates determined based on constitution file]
+### Domain model
 
-## Project Structure
+*Include where the feature has entities worth naming; write "no new entities" where it does not.*
+
+- **Bounded context**: [the boundary this feature lives inside]
+- **Vocabulary**: [the ubiquitous language — the words the code must use]
+- **Entities** (have identity): [name — what identifies it, what it owns]
+- **Value objects** (no identity): [name — what it represents]
+- **Invariants**: [what must be true at all times, regardless of path]
+
+## 7. Constitution check
+
+*GATE: every principle gets a verdict before the plan is done.*
+
+| Principle | Verdict | Note |
+| :--- | :--- | :--- |
+| [principle] | pass / violation | [why] |
+
+### Complexity tracking
+
+[Any violation above, with the justification for accepting it. An unjustified violation means the
+plan is not done.]
+
+## 8. Surface impact
+
+[Every client surface this feature touches, and the interface contracts it exposes. "One surface
+only" is a valid answer; an unstated one is not.]
+
+| Surface | Touched? | What changes |
+| :--- | :--- | :--- |
+| [surface] | yes / no | [what] |
 
 ### Documentation (this feature)
 
 ```text
 .specnaut/specs/[###-feature]/
-├── plan.md              # This file (__SPECNAUT_COMMAND_PLAN__ command output)
-├── research.md          # Phase 0 output (__SPECNAUT_COMMAND_PLAN__ command)
-├── data-model.md        # Phase 1 output (__SPECNAUT_COMMAND_PLAN__ command)
-├── quickstart.md        # Phase 1 output (__SPECNAUT_COMMAND_PLAN__ command)
-├── contracts/           # Phase 1 output (__SPECNAUT_COMMAND_PLAN__ command)
-└── tasks.md             # Phase 2 output (__SPECNAUT_COMMAND_TASKS__ command - NOT created by __SPECNAUT_COMMAND_PLAN__)
+├── plan.md    # This file — the whole plan
+└── tasks.md   # __SPECNAUT_COMMAND_TASKS__ output, derived from THIS file once approved
 ```
 
-### Source Code (repository root)
+Two files. There is no `research.md`, `data-model.md`, `quickstart.md` or `contracts/` — where that
+content matters it belongs in section 6 (domain model) or in the table above.
+
+### Visual Prototyping with Claude Artifacts *(optional — front-end / UX-UI features only)*
+
 <!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
+  ACTION REQUIRED — CONDITIONAL SECTION.
+  Keep this ONLY when the project has a front-end / UX-UI surface. Detect that surface with the
+  SAME signal list the accessibility gate uses (see the `a11y-auditor` agent — do NOT invent a new
+  heuristic). Any of:
+    - `.html` / `.htm` files
+    - `.jsx` / `.tsx` files
+    - `.vue` / `.svelte` / `.astro` files
+    - a `public/`, `src/app/`, `src/pages/`, `src/routes/` or `pages/` directory containing markup
+    - a `package.json` listing a front-end framework dep (react, vue, svelte, solid-js, preact,
+      lit, astro, @angular/core, qwik)
+  If NONE of those signals are present, REMOVE this entire section — a back-end / CLI-only plan
+  must not mention artifacts.
+  Docs: https://support.claude.com/en/articles/9487310-what-are-artifacts-and-how-to-use-them
+        https://code.claude.com/docs/en/artifacts
 -->
 
-```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+[Which screens or states are worth prototyping as an artifact before implementation, and what
+question the prototype is meant to answer.]
 
-tests/
-├── contract/
-├── integration/
-└── unit/
+## 9. Risks
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
+| Risk | Mitigation |
+| :--- | :--- |
+| [what could go wrong] | [what makes it not happen, or not matter] |
 
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
+## 10. Architecture audit
 
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
+*Findings from the `architecture-auditor` run against THIS document, before any code existed.*
 
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
-```
+| # | Finding | What was done |
+| :--- | :--- | :--- |
+| A1 | [finding] | [plan changed — how] / [objection accepted — why] |
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Verdict**: [the auditor's conclusion, **with what it covered**. A clean verdict is worth exactly
+what its coverage is worth, so name the coverage.]
 
-## Complexity Tracking
+## 11. Security audit
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+*Findings from the `security-auditor` run against THIS document, in parallel with the architecture
+audit. Kept separate on purpose — the two answer different questions.*
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| # | Finding | What was done |
+| :--- | :--- | :--- |
+| S1 | [finding] | [plan changed — how] / [objection accepted — why] |
+
+**Verdict**: [conclusion, with its coverage.]
+
+## 12. Open questions
+
+*Asked at the stop that ends the plan phase — one at a time — and answered before any code exists.*
+
+| Question | Answer | Date |
+| :--- | :--- | :--- |
+| [question] | [the settled decision] | [YYYY-MM-DD] |
+
+### Decided without asking
+
+[Anything you settled yourself because the code or a standing decision already answered it — one
+line each, so a wrong assumption is visible rather than buried.]
+
+- [assumption — and what made it safe]

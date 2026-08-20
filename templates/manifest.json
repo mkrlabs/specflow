@@ -130,7 +130,6 @@
 
     { "category": "spec-root", "name": "specify", "suffix": "backlog.md", "source": "core/specnaut/backlog.md" },
     { "category": "spec-root", "name": "specify", "suffix": "LABELS.md", "source": "core/specnaut/LABELS.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "templates/spec-template.md", "source": "core/specnaut/templates/spec-template.md" },
     { "category": "spec-root", "name": "specify", "suffix": "templates/plan-template.md", "source": "core/specnaut/templates/plan-template.md" },
     { "category": "spec-root", "name": "specify", "suffix": "templates/tasks-template.md", "source": "core/specnaut/templates/tasks-template.md" },
     { "category": "spec-root", "name": "specify", "suffix": "templates/constitution-template.md", "source": "core/specnaut/templates/constitution-template.md" },
