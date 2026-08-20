@@ -885,3 +885,29 @@ Deno.test("extractAdoption: a trailing section stops at the prompt, not at EOF",
   assert(!got!.includes("Generated with"), "the footer must not reach the release body");
   assert(!got!.includes("example.invalid"), "no session links in published notes");
 });
+
+Deno.test("assembleAdoptionEntries: a PR with two feat commits yields ONE entry", async () => {
+  // The adoption section belongs to the PR, not to each commit inside it.
+  // `review-upgrade` walks entries one at a time, so a duplicate means the user
+  // is asked to run the identical prompt twice in a row.
+  const commits = [
+    rebasedFeatCommit("reduce the router to five phases", "aaa1111"),
+    rebasedFeatCommit("fold specify and clarify into plan", "bbb2222"),
+  ];
+  const bodies = new Map<number, PrBodyOutcome>([
+    [461, { kind: "retrieved", body: adoptionBody("rewrite your phase references") }],
+  ]);
+  const refs = new Map<string, PrRefOutcome>([
+    ["aaa1111", { kind: "resolved", prNum: 461 }],
+    ["bbb2222", { kind: "resolved", prNum: 461 }],
+  ]);
+
+  const { entries, failures } = await assembleAdoptionEntries(
+    commits,
+    fakeFetcher(bodies),
+    fakeResolver(refs),
+  );
+  assertEquals(failures.length, 0);
+  assertEquals(entries.length, 1);
+  assertEquals(entries[0].prNum, 461);
+});

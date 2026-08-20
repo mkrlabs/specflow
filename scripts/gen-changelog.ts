@@ -419,6 +419,12 @@ export async function assembleAdoptionEntries(
       );
       continue;
     }
+    // One entry per PR, not per commit. The adoption section is a property of
+    // the PR, so a PR carrying two `feat:` commits was emitting the same prose
+    // and the same prompt twice — and `specnaut-expert review-upgrade` walks
+    // these entries one at a time, so the user would have been asked to run an
+    // identical prompt twice in a row.
+    if (entries.some((e) => e.prNum === prNum)) continue;
     // Title = the cleaned subject without the trailing PR ref.
     const title = c.cleanedSubject.replace(TRAILING_PR_REF_RE, "");
     entries.push({ prNum, title, body: adoption });
