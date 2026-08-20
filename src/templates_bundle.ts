@@ -288,8 +288,8 @@ One file, read whole by whoever implements. Twelve sections, in order, **none op
 Write for whoever implements: **what** and **why**, and the **how** only where it is a decision the
 implementer must not re-take.
 
-> \`plan-template.md\` still carries the older shape. **This file is the authority on the twelve
-> sections** until the template is realigned.
+Use \`.specnaut/templates/plan-template.md\` — it carries these twelve sections with the decision
+table pre-stubbed.
 
 ### 5. 🔒 The decision table — binding, and mechanically checkable
 
@@ -503,16 +503,20 @@ loading any design document. It writes the spec's tabs to the gitignored
 1. **Setup**: Run \`{SCRIPT}\` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\\''m Groot' (or double-quote if possible: "I'm Groot").
 
 2. **Load design documents**: Read from FEATURE_DIR:
-   - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
-   - **Optional**: data-model.md (entities), contracts/ (interface contracts), research.md (decisions), quickstart.md (test scenarios)
+   - **Required**: \`plan.md\` — the feature's ONE planning document. It carries the user
+     scenarios and their priorities, the requirements, the success criteria, the domain model,
+     the surface impact, and the 🔒 decision table.
+   - There are no other artefacts to load. \`research.md\`, \`data-model.md\`, \`contracts/\` and
+     \`quickstart.md\` no longer exist — that content lives in \`plan.md\`'s sections 6 and 8.
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
 3. **Execute task generation workflow**:
    - Load plan.md and extract tech stack, libraries, project structure
-   - Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)
-   - If data-model.md exists: Extract entities and map to user stories
-   - If contracts/ exists: Map interface contracts to user stories
-   - If research.md exists: Extract decisions for setup tasks
+   - Extract the user stories and their priorities (P1, P2, P3…) from \`plan.md\` section 2
+   - Map the domain model's entities (section 6) to the stories that need them
+   - Map the interface contracts (section 8) to the stories they serve
+   - **Carry the 🔒 decision table forward**: a task may not put a decision anywhere but its
+     named home. Where a task touches a rule in the table, name that home in the task.
    - Generate tasks organized by user story (see Task Generation Rules below)
    - Generate dependency graph showing user story completion order
    - Create parallel execution examples per user story
@@ -522,7 +526,7 @@ loading any design document. It writes the spec's tabs to the gitignored
    - Correct feature name from plan.md
    - Phase 1: Setup tasks (project initialization)
    - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
-   - Phase 3+: One phase per user story (in priority order from spec.md)
+   - Phase 3+: One phase per user story (in priority order from \`plan.md\`)
    - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
    - Final Phase: Polish & cross-cutting concerns
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
@@ -592,7 +596,7 @@ Every task MUST strictly follow this format:
 2. **Task ID**: Sequential number (T001, T002, T003...) in execution order
 3. **[P] marker**: Include ONLY if task is parallelizable (different files, no dependencies on incomplete tasks)
 4. **[Story] label**: REQUIRED for user story phase tasks only
-   - Format: [US1], [US2], [US3], etc. (maps to user stories from spec.md)
+   - Format: [US1], [US2], [US3], etc. (maps to user stories from \`plan.md\`)
    - Setup phase: NO story label
    - Foundational phase: NO story label  
    - User Story phases: MUST have story label
@@ -612,7 +616,7 @@ Every task MUST strictly follow this format:
 
 ### Task Organization
 
-1. **From User Stories (spec.md)** - PRIMARY ORGANIZATION:
+1. **From User Stories (\`plan.md\` section 2)** - PRIMARY ORGANIZATION:
    - Each user story (P1, P2, P3...) gets its own phase
    - Map all related components to their story:
      - Models needed for that story
@@ -712,47 +716,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 <!-- END: spec-backend=cloud -->
 1. Run \`{SCRIPT}\` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
-   - Scan all checklist files in the checklists/ directory
-   - For each checklist, count:
-     - Total items: All lines matching \`- [ ]\` or \`- [X]\` or \`- [x]\`
-     - Completed items: Lines matching \`- [X]\` or \`- [x]\`
-     - Incomplete items: Lines matching \`- [ ]\`
-   - Create a status table:
-
-     \`\`\`text
-     | Checklist | Total | Completed | Incomplete | Status |
-     |-----------|-------|-----------|------------|--------|
-     | ux.md     | 12    | 12        | 0          | ✓ PASS |
-     | test.md   | 8     | 5         | 3          | ✗ FAIL |
-     | security.md | 6   | 6         | 0          | ✓ PASS |
-     \`\`\`
-
-   - Calculate overall status:
-     - **PASS**: All checklists have 0 incomplete items
-     - **FAIL**: One or more checklists have incomplete items
-
-   - **If any checklist is incomplete**:
-     - Display the table with incomplete item counts
-     - **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
-     - Wait for user response before continuing
-     - If user says "no" or "wait" or "stop", halt execution
-     - If user says "yes" or "proceed" or "continue", proceed to step 3
-
-   - **If all checklists are complete**:
-     - Display the table showing all checklists passed
-     - Automatically proceed to step 3
-
-3. Load and analyze the implementation context:
+2. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **REQUIRED**: Read the domain model in the plan's technical-context section. If the section is absent, empty, or still contains \`[NEEDS CLARIFICATION]\` markers / template placeholders → halt and report BLOCKED with reason \`awaiting:product-owner-domain-brief\`. The developer agent refuses to write code without this brief — its "First action" checklist (step 4) reads the block and returns the same BLOCKED reason. Recommend re-running \`/specnaut plan\` to fill it before re-attempting \`/specnaut implement\`.
-   - **IF EXISTS**: Read data-model.md for entities and relationships
-   - **IF EXISTS**: Read contracts/ for API specifications and test requirements
-   - **IF EXISTS**: Read research.md for technical decisions and constraints
-   - **IF EXISTS**: Read quickstart.md for integration scenarios
+   - Read \`plan.md\` section 6 for the domain model — entities, value objects, invariants
+   - Read \`plan.md\` section 8 for the surfaces touched and the interface contracts
+   - **Read \`plan.md\` section 5 — the 🔒 decision table — and treat it as binding.** A decision
+     may not be implemented anywhere but its named home. If the code seems to want a second
+     spelling, the plan is amended first; it is not resolved at the keyboard.
 
-4. **Project Setup Verification**:
+3. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup:
 
    **Detection & Creation Logic**:
@@ -796,27 +770,27 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Terraform**: \`.terraform/\`, \`*.tfstate*\`, \`*.tfvars\`, \`.terraform.lock.hcl\`
    - **Kubernetes/k8s**: \`*.secret.yaml\`, \`secrets/\`, \`.kube/\`, \`kubeconfig*\`, \`*.key\`, \`*.crt\`
 
-5. Parse tasks.md structure and extract:
+4. Parse tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, parallel markers [P]
    - **Execution flow**: Order and dependency requirements
 
-6. Execute implementation following the task plan:
+5. Execute implementation following the task plan:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
 
-7. Implementation execution rules:
+6. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
    - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
-8. Progress tracking and error handling:
+7. Progress tracking and error handling:
    - Report progress after each completed task
    - Halt execution if any non-parallel task fails
    - For parallel tasks [P], continue with successful tasks, report failed ones
@@ -824,7 +798,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-9. Completion validation:
+8. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
@@ -1116,7 +1090,7 @@ Follow this execution flow:
 
 4. Consistency propagation checklist (convert prior checklist into active validations):
    - Read \`.specnaut/templates/plan-template.md\` and ensure any "Constitution Check" or rules align with updated principles.
-   - Read \`.specnaut/templates/spec-template.md\` for scope/requirements alignment—update if constitution adds/removes mandatory sections or constraints.
+   - Read \`.specnaut/templates/plan-template.md\` for scope/requirements alignment—update if constitution adds/removes mandatory sections or constraints.
    - Read \`.specnaut/templates/tasks-template.md\` and ensure task categorization reflects new or removed principle-driven task types (e.g., observability, versioning, testing discipline).
    - Read each command file in \`.specnaut/templates/commands/*.md\` (including this one) to verify no outdated references (agent-specific names like CLAUDE only) remain when generic guidance is required.
    - Read any runtime guidance docs (e.g., \`README.md\`, \`docs/quickstart.md\`, or agent-specific guidance files if present). Update references to principles changed.
@@ -3406,8 +3380,8 @@ Do **not** use when:
 - The change is genuinely trivial (one-line typo, single-config bump) —
   just do it
 - The user explicitly asked for the spec-kit flow (\`/specnaut plan\` →
-  \`/specnaut plan\` produces design artefacts: research.md, data-model.md,
-  contracts/, quickstart.md — that's a different beast for greenfield
+  \`/specnaut plan\` produces the feature's one planning document plus its
+  task breakdown — that's a different beast for greenfield
   features with formal specs)
 
 ## Announce at start
@@ -3637,8 +3611,8 @@ they prefer to drive manually). It does not:
 
 This skill is **distinct from** the \`/specnaut plan\` phase of the
 spec-kit pipeline. The spec-kit \`/specnaut plan\` produces design
-artefacts (research.md, data-model.md, contracts/, quickstart.md) for
-greenfield features starting from a \`spec.md\`. This \`writing-plans\`
+one planning document (\`plan.md\`) plus \`tasks.md\` for greenfield
+features, starting from a backlog item. This \`writing-plans\`
 skill produces a **single executable plan file** for issue-driven or
 ad-hoc work where the spec-kit ceremony would be overkill.
 
@@ -4031,9 +4005,9 @@ harness's equivalent — see the tool reference described below).
 
 1. **\`/specnaut plan\` vs \`writing-plans\`** — both produce plans, but for
    different inputs:
-   - \`/specnaut plan\` follows the spec-kit flow (consumes \`spec.md\`,
-     produces \`research.md\` + \`data-model.md\` + \`contracts/\` +
-     \`quickstart.md\`). Use for greenfield features with formal contracts.
+   - \`/specnaut plan\` follows the spec-kit flow: one \`plan.md\` carrying
+     the decision table and both plan-time audits, then \`tasks.md\`. Use
+     for greenfield features with formal contracts.
    - \`writing-plans\` (skill) takes a free-form issue or requirement and
      produces a single executable plan file with bite-sized TDD tasks.
      Use for issue-driven and ad-hoc work.
@@ -14798,308 +14772,195 @@ above so projects that later migrate to a remote backend keep continuity.
   {
     category: "spec-root",
     name: "specify",
-    suffix: "templates/spec-template.md",
-    content: `# Feature Specification: [FEATURE NAME]
-
-**Feature Branch**: \`[###-feature-name]\`  
-**Created**: [DATE]  
-**Status**: Draft  
-**Input**: User description: "\$ARGUMENTS"
-
-## User Scenarios & Testing *(mandatory)*
-
-<!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
-  Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
-  
-  Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
-  Think of each story as a standalone slice of functionality that can be:
-  - Developed independently
-  - Tested independently
-  - Deployed independently
-  - Demonstrated to users independently
--->
-
-### User Story 1 - [Brief Title] (Priority: P1)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-2. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-### User Story 2 - [Brief Title] (Priority: P2)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-### User Story 3 - [Brief Title] (Priority: P3)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-[Add more user stories as needed, each with an assigned priority]
-
-### Edge Cases
-
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
-
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
-
-## Requirements *(mandatory)*
-
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
--->
-
-### Functional Requirements
-
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
-
-*Example of marking unclear requirements:*
-
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
-
-### Key Entities *(see Domain Model section below for full structure)*
-
-- **[Entity 1]**: [What it represents, business-level attributes only]
-- **[Entity 2]**: [What it represents, relationships]
-
-## Domain Model *(mandatory)*
-
-<!--
-  ACTION REQUIRED: Populated during /specnaut plan, before the stop.
-  The developer refuses to proceed without this section.
-  Format mirrors the PO's /backlog brief output — same shape everywhere.
--->
-
-**Bounded context:** <name of the business context, e.g. Checkout, Auth>
-
-**Vocabulary (Ubiquitous language):**
-
-- **<Term>** — <one-line definition in the project's words>
-
-**Entities (have identity):**
-
-- **<Name>** [aggregate root?] — <responsibility, key relationships>
-
-**Value objects (no identity, immutable):**
-
-- **<Name>(<fields>)** — <invariant rule it enforces>
-
-**Invariants (rules the domain must never break):**
-
-- <rule> — <why>
-
-**Out of scope (other bounded contexts touched but not owned here):**
-
-- **<other context>** — <how this feature interacts with it>
-
-## Success Criteria *(mandatory)*
-
-<!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
--->
-
-### Measurable Outcomes
-
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
-
-## Assumptions
-
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right assumptions based on reasonable defaults
-  chosen when the feature description did not specify certain details.
--->
-
-- [Assumption about target users, e.g., "Users have stable internet connectivity"]
-- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
-- [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
-- [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
-
-## Visual Prototyping with Claude Artifacts *(optional — front-end / UX-UI features only)*
-
-<!--
-  ACTION REQUIRED — CONDITIONAL SECTION.
-  Keep this section ONLY when the project has a front-end / UX-UI surface.
-  Detect that surface with the SAME signal list the accessibility gate uses
-  (see the \`a11y-auditor\` agent — do NOT invent a new heuristic). Any of:
-    - \`.html\` / \`.htm\` files
-    - \`.jsx\` / \`.tsx\` files
-    - \`.vue\` / \`.svelte\` / \`.astro\` files
-    - a \`public/\`, \`src/app/\`, \`src/pages/\`, \`src/routes/\`, or \`pages/\`
-      directory containing markup
-    - a \`package.json\` listing a front-end framework dep (react, vue, svelte,
-      solid-js, preact, lit, astro, @angular/core, qwik)
-  If NONE of those signals are present, REMOVE this entire section — a
-  back-end / CLI-only spec must not mention artifacts (mirror the
-  "remove inapplicable sections entirely" rule for optional sections).
--->
-
-For the user-facing flows above, you can use **Claude Artifacts** to make the
-proposed UX tangible before any code is written — rendered mockups, interactive
-prototypes, state/flow diagrams, and side-by-side layout comparisons a
-stakeholder can react to directly.
-
-- Turn a User Story's acceptance scenarios into an interactive artifact (a
-  clickable mockup or a diagram of the flow) to validate the intended
-  experience early, then fold the feedback back into this spec.
-- What artifacts are and how to use them: <https://support.claude.com/en/articles/9487310-what-are-artifacts-and-how-to-use-them>
-- Artifacts in Claude Code: <https://code.claude.com/docs/en/artifacts>
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "spec-root",
-    name: "specify",
     suffix: "templates/plan-template.md",
-    content: `# Implementation Plan: [FEATURE]
+    content: `# Plan: [FEATURE]
 
-**Branch**: \`[###-feature-name]\` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from \`/.specnaut/specs/[###-feature-name]/spec.md\`
+**Branch**: \`[###-feature-name]\` | **Date**: [DATE] | **Backlog item**: [#N — title, as a link]
 
-**Note**: This template is filled in by the \`__SPECNAUT_COMMAND_PLAN__\` command. See \`.specnaut/templates/plan-template.md\` for the execution workflow.
+**This is the feature's one planning document.** Business and technical together, read whole by
+whoever implements it. Filled in by \`__SPECNAUT_COMMAND_PLAN__\`; the phase doc
+(\`phases/plan.md\`) is the procedure, this file is the shape.
 
-## Summary
+All twelve sections below are **mandatory**. Remove a section's placeholder text, never the
+section. "Not applicable" is an answer worth writing down; an absent section is not.
 
-[Extract from feature spec: primary requirement + technical approach from research]
+---
 
-## Technical Context
+## 1. Why this exists
+
+[The problem in the user's own terms. Measure it where a measurement is available — a production
+number beats a paragraph. Who is hurting, how often, and what it costs them today.]
+
+## 2. User scenarios
+
+[Prioritised journeys, each independently testable.]
+
+### US1 — [name] (P1)
+
+**Given** [starting state]
+**When** [action]
+**Then** [observable outcome]
+
+### US2 — [name] (P2)
+
+...
+
+### Edge cases
+
+- [What happens when …?]
+- [What happens when …?]
+
+## 3. Requirements
+
+- **FR-001**: [Testable statement. If it quantifies over a set — "every", "all", "none anywhere" —
+  say so plainly, and name the search that enumerates the set where you can.]
+- **FR-002**: …
+
+## 4. Success criteria
+
+[Measurable, technology-agnostic, verifiable without implementation knowledge.]
+
+- **SC-001**: [e.g. "Users complete checkout in under 3 minutes" — not "API response under 200ms",
+  which is a technical detail wearing a criterion's clothes.]
+- **SC-002**: …
+
+## 5. 🔒 Decision table
 
 <!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
+  ACTION REQUIRED — THIS IS THE SECTION THE PLAN PHASE EXISTS FOR.
+  One row per rule the feature introduces. Every requirement that IS a rule gets a row.
+  - The home is a FILE PATH, never a layer. "the service layer" is not a home.
+  - The third column is the one a reviewer greps for. Writing it is what makes you notice
+    that a schema constraint and an application check are two spellings of one rule.
+  - A rule with two genuine enforcement points names the ONE place the DECISION is made,
+    and records that both ASK it. Two askers is fine; two deciders is the defect.
+  BINDING ON THE IMPLEMENTER: a decision may not move out of its home without this table
+  being amended first. A review finding that a decision has two homes is a plan violation.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+| The decision | Its single home | What would duplicate it |
+| :--- | :--- | :--- |
+| [the rule, in the user's words] | [one file path] | [the shapes a second spelling takes] |
 
-## Constitution Check
+## 6. Technical context
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+**Language/Version**: [e.g. Python 3.11, Swift 5.9, Rust 1.75 — or NEEDS CLARIFICATION]
+**Primary Dependencies**: [e.g. FastAPI, UIKit, LLVM — or NEEDS CLARIFICATION]
+**Storage**: [if applicable — or N/A]
+**Testing**: [e.g. pytest, XCTest, cargo test — or NEEDS CLARIFICATION]
+**Target Platform**: [e.g. Linux server, iOS 15+, WASM — or NEEDS CLARIFICATION]
+**Project Type**: [e.g. library / cli / web-service / mobile-app / compiler / desktop-app]
+**Performance Goals**: [domain-specific — or NEEDS CLARIFICATION]
+**Constraints**: [domain-specific, e.g. <200ms p95, offline-capable — or NEEDS CLARIFICATION]
+**Scale/Scope**: [domain-specific, e.g. 10k users, 50 screens — or NEEDS CLARIFICATION]
 
-[Gates determined based on constitution file]
+### Domain model
 
-## Project Structure
+*Include where the feature has entities worth naming; write "no new entities" where it does not.*
+
+- **Bounded context**: [the boundary this feature lives inside]
+- **Vocabulary**: [the ubiquitous language — the words the code must use]
+- **Entities** (have identity): [name — what identifies it, what it owns]
+- **Value objects** (no identity): [name — what it represents]
+- **Invariants**: [what must be true at all times, regardless of path]
+
+## 7. Constitution check
+
+*GATE: every principle gets a verdict before the plan is done.*
+
+| Principle | Verdict | Note |
+| :--- | :--- | :--- |
+| [principle] | pass / violation | [why] |
+
+### Complexity tracking
+
+[Any violation above, with the justification for accepting it. An unjustified violation means the
+plan is not done.]
+
+## 8. Surface impact
+
+[Every client surface this feature touches, and the interface contracts it exposes. "One surface
+only" is a valid answer; an unstated one is not.]
+
+| Surface | Touched? | What changes |
+| :--- | :--- | :--- |
+| [surface] | yes / no | [what] |
 
 ### Documentation (this feature)
 
 \`\`\`text
 .specnaut/specs/[###-feature]/
-├── plan.md              # This file (__SPECNAUT_COMMAND_PLAN__ command output)
-├── research.md          # Phase 0 output (__SPECNAUT_COMMAND_PLAN__ command)
-├── data-model.md        # Phase 1 output (__SPECNAUT_COMMAND_PLAN__ command)
-├── quickstart.md        # Phase 1 output (__SPECNAUT_COMMAND_PLAN__ command)
-├── contracts/           # Phase 1 output (__SPECNAUT_COMMAND_PLAN__ command)
-└── tasks.md             # Phase 2 output (__SPECNAUT_COMMAND_TASKS__ command - NOT created by __SPECNAUT_COMMAND_PLAN__)
+├── plan.md    # This file — the whole plan
+└── tasks.md   # __SPECNAUT_COMMAND_TASKS__ output, derived from THIS file once approved
 \`\`\`
 
-### Source Code (repository root)
+Two files. There is no \`research.md\`, \`data-model.md\`, \`quickstart.md\` or \`contracts/\` — where that
+content matters it belongs in section 6 (domain model) or in the table above.
+
+### Visual Prototyping with Claude Artifacts *(optional — front-end / UX-UI features only)*
+
 <!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
+  ACTION REQUIRED — CONDITIONAL SECTION.
+  Keep this ONLY when the project has a front-end / UX-UI surface. Detect that surface with the
+  SAME signal list the accessibility gate uses (see the \`a11y-auditor\` agent — do NOT invent a new
+  heuristic). Any of:
+    - \`.html\` / \`.htm\` files
+    - \`.jsx\` / \`.tsx\` files
+    - \`.vue\` / \`.svelte\` / \`.astro\` files
+    - a \`public/\`, \`src/app/\`, \`src/pages/\`, \`src/routes/\` or \`pages/\` directory containing markup
+    - a \`package.json\` listing a front-end framework dep (react, vue, svelte, solid-js, preact,
+      lit, astro, @angular/core, qwik)
+  If NONE of those signals are present, REMOVE this entire section — a back-end / CLI-only plan
+  must not mention artifacts.
+  Docs: https://support.claude.com/en/articles/9487310-what-are-artifacts-and-how-to-use-them
+        https://code.claude.com/docs/en/artifacts
 -->
 
-\`\`\`text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+[Which screens or states are worth prototyping as an artifact before implementation, and what
+question the prototype is meant to answer.]
 
-tests/
-├── contract/
-├── integration/
-└── unit/
+## 9. Risks
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
+| Risk | Mitigation |
+| :--- | :--- |
+| [what could go wrong] | [what makes it not happen, or not matter] |
 
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
+## 10. Architecture audit
 
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
+*Findings from the \`architecture-auditor\` run against THIS document, before any code existed.*
 
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
-\`\`\`
+| # | Finding | What was done |
+| :--- | :--- | :--- |
+| A1 | [finding] | [plan changed — how] / [objection accepted — why] |
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Verdict**: [the auditor's conclusion, **with what it covered**. A clean verdict is worth exactly
+what its coverage is worth, so name the coverage.]
 
-## Complexity Tracking
+## 11. Security audit
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+*Findings from the \`security-auditor\` run against THIS document, in parallel with the architecture
+audit. Kept separate on purpose — the two answer different questions.*
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| # | Finding | What was done |
+| :--- | :--- | :--- |
+| S1 | [finding] | [plan changed — how] / [objection accepted — why] |
+
+**Verdict**: [conclusion, with its coverage.]
+
+## 12. Open questions
+
+*Asked at the stop that ends the plan phase — one at a time — and answered before any code exists.*
+
+| Question | Answer | Date |
+| :--- | :--- | :--- |
+| [question] | [the settled decision] | [YYYY-MM-DD] |
+
+### Decided without asking
+
+[Anything you settled yourself because the code or a standing decision already answered it — one
+line each, so a wrong assumption is visible rather than buried.]
+
+- [assumption — and what made it safe]
 `,
     executable: false,
     backend: null,
@@ -15690,15 +15551,8 @@ fi
 docs=()
 
 # Always check these optional docs
-[[ -f "\$RESEARCH" ]] && docs+=("research.md")
-[[ -f "\$DATA_MODEL" ]] && docs+=("data-model.md")
 
-# Check contracts directory (only if it exists and has files)
-if [[ -d "\$CONTRACTS_DIR" ]] && [[ -n "\$(ls -A "\$CONTRACTS_DIR" 2>/dev/null)" ]]; then
-    docs+=("contracts/")
-fi
 
-[[ -f "\$QUICKSTART" ]] && docs+=("quickstart.md")
 
 # Include tasks.md if requested and it exists
 if \$INCLUDE_TASKS && [[ -f "\$TASKS" ]]; then
@@ -15733,10 +15587,6 @@ else
     echo "AVAILABLE_DOCS:"
     
     # Show status of each potential document
-    check_file "\$RESEARCH" "research.md"
-    check_file "\$DATA_MODEL" "data-model.md"
-    check_dir "\$CONTRACTS_DIR" "contracts/"
-    check_file "\$QUICKSTART" "quickstart.md"
     
     if \$INCLUDE_TASKS; then
         check_file "\$TASKS" "tasks.md"
@@ -15999,13 +15849,9 @@ get_feature_paths() {
     printf 'CURRENT_BRANCH=%q\\n' "\$current_branch"
     printf 'HAS_GIT=%q\\n' "\$has_git_repo"
     printf 'FEATURE_DIR=%q\\n' "\$feature_dir"
-    printf 'FEATURE_SPEC=%q\\n' "\$feature_dir/spec.md"
+    printf 'FEATURE_SPEC=%q\\n' "\$feature_dir/plan.md"
     printf 'IMPL_PLAN=%q\\n' "\$feature_dir/plan.md"
     printf 'TASKS=%q\\n' "\$feature_dir/tasks.md"
-    printf 'RESEARCH=%q\\n' "\$feature_dir/research.md"
-    printf 'DATA_MODEL=%q\\n' "\$feature_dir/data-model.md"
-    printf 'QUICKSTART=%q\\n' "\$feature_dir/quickstart.md"
-    printf 'CONTRACTS_DIR=%q\\n' "\$feature_dir/contracts"
 }
 
 # Check if jq is available for safe JSON construction
@@ -16712,7 +16558,7 @@ if [ \${#BRANCH_NAME} -gt \$MAX_BRANCH_LENGTH ]; then
 fi
 
 FEATURE_DIR="\$SPECS_DIR/\$BRANCH_NAME"
-SPEC_FILE="\$FEATURE_DIR/spec.md"
+SPEC_FILE="\$FEATURE_DIR/plan.md"
 
 if [ "\$DRY_RUN" != true ]; then
     if [ "\$HAS_GIT" = true ]; then
@@ -16761,7 +16607,7 @@ if [ "\$DRY_RUN" != true ]; then
         mkdir -p "\$FEATURE_DIR"
 
         if [ ! -f "\$SPEC_FILE" ]; then
-            TEMPLATE=\$(resolve_template "spec-template" "\$REPO_ROOT") || true
+            TEMPLATE=\$(resolve_template "plan-template" "\$REPO_ROOT") || true
             if [ -n "\$TEMPLATE" ] && [ -f "\$TEMPLATE" ]; then
                 cp "\$TEMPLATE" "\$SPEC_FILE"
             else
@@ -17019,15 +16865,8 @@ if (\$RequireTasks -and -not (Test-Path \$paths.TASKS -PathType Leaf)) {
 \$docs = @()
 
 # Always check these optional docs
-if (Test-Path \$paths.RESEARCH) { \$docs += 'research.md' }
-if (Test-Path \$paths.DATA_MODEL) { \$docs += 'data-model.md' }
 
-# Check contracts directory (only if it exists and has files)
-if ((Test-Path \$paths.CONTRACTS_DIR) -and (Get-ChildItem -Path \$paths.CONTRACTS_DIR -ErrorAction SilentlyContinue | Select-Object -First 1)) { 
-    \$docs += 'contracts/' 
-}
 
-if (Test-Path \$paths.QUICKSTART) { \$docs += 'quickstart.md' }
 
 # Include tasks.md if requested and it exists
 if (\$IncludeTasks -and (Test-Path \$paths.TASKS)) { 
@@ -17047,10 +16886,6 @@ if (\$Json) {
     Write-Output "AVAILABLE_DOCS:"
     
     # Show status of each potential document
-    Test-FileExists -Path \$paths.RESEARCH -Description 'research.md' | Out-Null
-    Test-FileExists -Path \$paths.DATA_MODEL -Description 'data-model.md' | Out-Null
-    Test-DirHasFiles -Path \$paths.CONTRACTS_DIR -Description 'contracts/' | Out-Null
-    Test-FileExists -Path \$paths.QUICKSTART -Description 'quickstart.md' | Out-Null
     
     if (\$IncludeTasks) {
         Test-FileExists -Path \$paths.TASKS -Description 'tasks.md' | Out-Null
@@ -17322,13 +17157,9 @@ function Get-FeaturePathsEnv {
         CURRENT_BRANCH = \$currentBranch
         HAS_GIT       = \$hasGit
         FEATURE_DIR   = \$featureDir
-        FEATURE_SPEC  = Join-Path \$featureDir 'spec.md'
+        FEATURE_SPEC  = Join-Path \$featureDir 'plan.md'
         IMPL_PLAN     = Join-Path \$featureDir 'plan.md'
         TASKS         = Join-Path \$featureDir 'tasks.md'
-        RESEARCH      = Join-Path \$featureDir 'research.md'
-        DATA_MODEL    = Join-Path \$featureDir 'data-model.md'
-        QUICKSTART    = Join-Path \$featureDir 'quickstart.md'
-        CONTRACTS_DIR = Join-Path \$featureDir 'contracts'
     }
 }
 
@@ -17950,7 +17781,7 @@ if (\$branchName.Length -gt \$maxBranchLength) {
 }
 
 \$featureDir = Join-Path \$specsDir \$branchName
-\$specFile = Join-Path \$featureDir 'spec.md'
+\$specFile = Join-Path \$featureDir 'plan.md'
 
 if (-not \$DryRun) {
     if (\$hasGit) {
@@ -18010,7 +17841,7 @@ if (-not \$DryRun) {
     New-Item -ItemType Directory -Path \$featureDir -Force | Out-Null
 
     if (-not (Test-Path -PathType Leaf \$specFile)) {
-        \$template = Resolve-Template -TemplateName 'spec-template' -RepoRoot \$repoRoot
+        \$template = Resolve-Template -TemplateName 'plan-template' -RepoRoot \$repoRoot
         if (\$template -and (Test-Path \$template)) {
             Copy-Item \$template \$specFile -Force
         } else {

@@ -98,8 +98,8 @@ One file, read whole by whoever implements. Twelve sections, in order, **none op
 Write for whoever implements: **what** and **why**, and the **how** only where it is a decision the
 implementer must not re-take.
 
-> `plan-template.md` still carries the older shape. **This file is the authority on the twelve
-> sections** until the template is realigned.
+Use `.specnaut/templates/plan-template.md` — it carries these twelve sections with the decision
+table pre-stubbed.
 
 ### 5. 🔒 The decision table — binding, and mechanically checkable
 
