@@ -190,3 +190,22 @@ Every task MUST strictly follow this format:
   - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
   - Each phase should be a complete, independently testable increment
 - **Final Phase**: Polish & Cross-Cutting Concerns
+
+## Ending this phase — INVOKE `implement`, same turn
+
+Commit the breakdown, then **invoke `implement` yourself, in the same turn**. Your own next action —
+not a suggestion, not a command printed for the user to paste.
+
+```bash
+git add <feature-dir>/tasks.md && git commit -m "tasks(<id>): <what the feature does>"
+```
+
+Commit **before** handing off: a worktree runs off committed HEAD, and an uncommitted breakdown is
+invisible to whoever needs it.
+
+**The boundary between `tasks` and `implement` is not a stop.** The size of the breakdown is not a
+reason to stop — it was known when the chain started, and the user chose the work at the plan stop.
+Neither is "this is where the real code gets written": yes, and that is the point of the chain. The
+chain has exactly two stops and this is neither of them; see `phases/auto-chain.md`.
+
+Pause only when the run was started with `--manual`.
