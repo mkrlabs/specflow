@@ -77,6 +77,7 @@ export class ClaudeHarness implements Harness {
         executable: entry.executable,
         ...(entry.category === "mergeable-project-root" ? { mergeBlock: "gitignore" } : {}),
         ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
+        ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
       };
     }
     const staticFiles = HARNESS_STATIC[this.key] ?? {};

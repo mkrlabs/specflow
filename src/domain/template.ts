@@ -33,6 +33,27 @@ export type TemplateFile = {
    */
   mergeJson?: "claude-settings";
   /**
+   * When set, the destination file is **user-owned** but carries exactly one
+   * Specnaut-managed section, fenced inside the bundled `content` by Markdown
+   * comment markers bearing this label.
+   *
+   * Unlike `mergeBlock`, the bundled `content` here is a whole document, not
+   * a block body: on a greenfield destination the entire file is written
+   * (fences and all). It is only on a destination that already exists that
+   * the fenced section alone is merged in — replaced in place if a block with
+   * the same label is there, appended to the end otherwise. Every surrounding
+   * line stays byte-identical.
+   *
+   * This is the `AGENTS.md` case (#466): the file accumulates project-specific
+   * working agreements no template can reconstruct, so `upgrade` must never
+   * rewrite it — but the chain rules only work from the always-in-context
+   * carrier, so the one section Specnaut owns still has to reach a project
+   * that upgrades rather than one that inits fresh.
+   *
+   * Always paired with `skipIfExists`.
+   */
+  managedSection?: string;
+  /**
    * When `true`, the file is treated as a placeholder: the bundled `content`
    * is only written when no file already exists at the destination. If a
    * file is already there (e.g. brownfield project with an existing

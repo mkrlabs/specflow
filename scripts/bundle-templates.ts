@@ -17,6 +17,8 @@ type CoreManifestEntry = {
   backend?: "local" | "github" | "gitlab";
   /** When true, the file is only written if absent (placeholder semantics). */
   skipIfExists?: boolean;
+  /** Label of the one Specnaut-owned section fenced inside the source (#466). */
+  managedSection?: string;
 };
 
 type HarnessStaticManifestEntry = {
@@ -61,6 +63,32 @@ async function assertAllSourcesPresent(m: Manifest): Promise<void> {
   }
 }
 
+/**
+ * A manifest entry declaring `managedSection` promises the binary a fenced
+ * region it can graft into a user-owned file. If the fences are not actually
+ * in the source, `upgrade` would silently deliver nothing — the failure mode
+ * #466 exists to fix. Fail the build instead.
+ */
+async function assertManagedSectionsFenced(m: Manifest): Promise<void> {
+  const broken: string[] = [];
+  for (const e of m.core) {
+    if (e.managedSection === undefined) continue;
+    const content = await Deno.readTextFile(new URL(e.source, TEMPLATES_DIR));
+    const start = `<!-- --- Specnaut: ${e.managedSection} --- -->`;
+    const end = `<!-- --- End Specnaut: ${e.managedSection} --- -->`;
+    const s = content.indexOf(start);
+    const t = content.indexOf(end);
+    if (s === -1 || t === -1 || t <= s) {
+      broken.push(`${e.source} (label "${e.managedSection}")`);
+    }
+  }
+  if (broken.length > 0) {
+    throw new Error(
+      `managedSection declared but not fenced in the source:\n  - ${broken.join("\n  - ")}`,
+    );
+  }
+}
+
 function escapeTemplateLiteral(content: string): string {
   return content.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
 }
@@ -73,6 +101,9 @@ async function buildCoreEntries(m: Manifest): Promise<string[]> {
     const suffix = entry.suffix === undefined ? "null" : JSON.stringify(entry.suffix);
     const backend = entry.backend === undefined ? "null" : JSON.stringify(entry.backend);
     const skipIfExists = entry.skipIfExists === true ? "true" : "false";
+    const managedSection = entry.managedSection === undefined
+      ? ""
+      : `    managedSection: ${JSON.stringify(entry.managedSection)},\n`;
     lines.push(
       `  {\n` +
         `    category: ${JSON.stringify(entry.category)},\n` +
@@ -82,6 +113,7 @@ async function buildCoreEntries(m: Manifest): Promise<string[]> {
         `    executable: ${entry.executable === true},\n` +
         `    backend: ${backend},\n` +
         `    skipIfExists: ${skipIfExists},\n` +
+        managedSection +
         `  }`,
     );
   }
@@ -131,6 +163,7 @@ async function buildHarnessStatic(m: Manifest): Promise<string> {
 async function main() {
   const manifest = await readManifest();
   await assertAllSourcesPresent(manifest);
+  await assertManagedSectionsFenced(manifest);
   const core = await buildCoreEntries(manifest);
   const staticBlock = await buildHarnessStatic(manifest);
 

@@ -18,6 +18,8 @@ _(Naming, testing, commits, branches.)_
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
 
+<!-- --- Specnaut: chain-stops --- -->
+
 ## The Specnaut chain has exactly two stops
 
 *Owned by Specnaut — this section is not a placeholder to fill in. Edit the rest freely.*
@@ -59,6 +61,8 @@ branch ships. Those cycles run inside the second stop — don't ask again betwee
 
 `merge` is never automatic. It is asked for — **unless the user already said to merge**, in which
 case that is their instruction and it is followed without a second confirmation.
+
+<!-- --- End Specnaut: chain-stops --- -->
 
 ## Project-specific gotchas
 

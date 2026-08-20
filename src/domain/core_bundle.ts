@@ -32,6 +32,13 @@ export type CoreEntry = {
    * is always more useful than our empty template — see #119.
    */
   readonly skipIfExists?: boolean;
+  /**
+   * Label of the single Specnaut-owned section fenced inside `content`. The
+   * harness's `mapBundle` propagates it to `TemplateFile.managedSection`, which
+   * is what lets `upgrade` deliver that section into a user-owned file without
+   * rewriting the rest of it (#466).
+   */
+  readonly managedSection?: string;
 };
 
 export type CoreBundle = ReadonlyArray<CoreEntry>;

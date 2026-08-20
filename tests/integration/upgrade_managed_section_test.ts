@@ -1,0 +1,148 @@
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { fromFileUrl, join } from "@std/path";
+
+const MAIN = fromFileUrl(new URL("../../src/main.ts", import.meta.url));
+
+/**
+ * #466 — the two-stop section must reach projects that UPGRADE, not only
+ * projects that init fresh.
+ *
+ * `AGENTS.md` is `skipIfExists`: the user owns it, it accumulates working
+ * agreements no template can reconstruct, and an upgrade must never rewrite it.
+ * That default is correct and is not being flipped here. But it left the rule
+ * arriving only at fresh init — i.e. everywhere except the projects already
+ * running the chain, which are precisely the ones that stall.
+ *
+ * The mechanism: one fenced, Specnaut-owned section grafted into whatever the
+ * user has. These tests pin the two properties that make that safe — every line
+ * the user wrote survives byte-identical, and a second run changes nothing.
+ */
+
+const START = "<!-- --- Specnaut: chain-stops --- -->";
+const END = "<!-- --- End Specnaut: chain-stops --- -->";
+const HEADING = "## The Specnaut chain has exactly two stops";
+
+async function runSpecnaut(args: string[], cwd: string) {
+  const { code, stdout, stderr } = await new Deno.Command("deno", {
+    args: ["run", "--allow-read", "--allow-write", "--allow-run", "--allow-env", MAIN, ...args],
+    cwd,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  return {
+    code,
+    stdout: new TextDecoder().decode(stdout),
+    stderr: new TextDecoder().decode(stderr),
+  };
+}
+
+const INIT = ["init", "--here", "--no-git", "--ai", "claude", "--backlog", "local"];
+
+function occurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
+  const dir = await Deno.makeTempDir({ prefix: "specnaut-managed-section-" });
+  try {
+    await fn(dir);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+}
+
+Deno.test("upgrade delivers the section into an AGENTS.md that predates Specnaut", async () => {
+  await withTempDir(async (dir) => {
+    // The brownfield case: the user already had an AGENTS.md when they ran
+    // init, so init skipped it AND left it out of the lock. Nothing in the
+    // plan has ever had a reason to touch this file.
+    const own = "# AGENTS.md\n\n## House rules\n\nWe rebase, never merge commits.\n";
+    const agents = join(dir, "AGENTS.md");
+    await Deno.writeTextFile(agents, own);
+
+    const init = await runSpecnaut(INIT, dir);
+    assertEquals(init.code, 0, `init failed: ${init.stderr}`);
+    assertEquals(await Deno.readTextFile(agents), own, "init must not touch a pre-existing file");
+
+    const up = await runSpecnaut(["upgrade"], dir);
+    assertEquals(up.code, 0, `upgrade failed: ${up.stderr}`);
+
+    const after = await Deno.readTextFile(agents);
+    assert(
+      after.startsWith(own.trimEnd()),
+      "the user's own content must survive as the exact prefix, unreordered",
+    );
+    assertStringIncludes(after, START);
+    assertStringIncludes(after, END);
+    assertStringIncludes(after, HEADING);
+    assertStringIncludes(after, "no third");
+    // ...and the run says so out loud, so a section appearing in an
+    // always-loaded file is never mistaken for an overwrite.
+    assertStringIncludes(up.stdout, "AGENTS.md");
+    assertStringIncludes(up.stdout, "chain-stops");
+  });
+});
+
+Deno.test("a second upgrade does not duplicate the section", async () => {
+  await withTempDir(async (dir) => {
+    await Deno.writeTextFile(join(dir, "AGENTS.md"), "# AGENTS.md\n\nOurs.\n");
+    assertEquals((await runSpecnaut(INIT, dir)).code, 0);
+    assertEquals((await runSpecnaut(["upgrade"], dir)).code, 0);
+    const once = await Deno.readTextFile(join(dir, "AGENTS.md"));
+
+    const second = await runSpecnaut(["upgrade"], dir);
+    assertEquals(second.code, 0, `second upgrade failed: ${second.stderr}`);
+    const twice = await Deno.readTextFile(join(dir, "AGENTS.md"));
+
+    assertEquals(twice, once, "a no-op upgrade must leave the file byte-identical");
+    assertEquals(occurrences(twice, START), 1);
+    assertEquals(occurrences(twice, HEADING), 1);
+    // Nothing changed, so nothing is announced.
+    assert(
+      !second.stdout.includes("chain-stops"),
+      "an unchanged section must not be reported as delivered",
+    );
+  });
+});
+
+Deno.test("upgrade restores a gutted section without disturbing the user's edits", async () => {
+  await withTempDir(async (dir) => {
+    assertEquals((await runSpecnaut(INIT, dir)).code, 0);
+    const agents = join(dir, "AGENTS.md");
+    const scaffolded = await Deno.readTextFile(agents);
+
+    // The user trims the managed section down to nothing and adds a section of
+    // their own after it. Both edits are honest uses of a file they own.
+    const startIdx = scaffolded.indexOf(START);
+    const endIdx = scaffolded.indexOf(END) + END.length;
+    assert(startIdx !== -1 && endIdx > startIdx, "the scaffolded file must carry the fences");
+    const gutted = scaffolded.slice(0, startIdx) +
+      `${START}\n\ngutted by hand\n\n${END}` +
+      scaffolded.slice(endIdx) +
+      "\n## Our own rules\n\nDeploy on Fridays.\n";
+    await Deno.writeTextFile(agents, gutted);
+
+    const up = await runSpecnaut(["upgrade"], dir);
+    assertEquals(up.code, 0, `upgrade failed: ${up.stderr}`);
+
+    const after = await Deno.readTextFile(agents);
+    assertStringIncludes(after, HEADING);
+    assert(!after.includes("gutted by hand"), "the managed body must be replaced, not stacked");
+    assertStringIncludes(after, "Deploy on Fridays.");
+    assertEquals(occurrences(after, START), 1);
+  });
+});
+
+Deno.test("a dry-run reports the section without writing it", async () => {
+  await withTempDir(async (dir) => {
+    const own = "# AGENTS.md\n\nOurs.\n";
+    const agents = join(dir, "AGENTS.md");
+    await Deno.writeTextFile(agents, own);
+    assertEquals((await runSpecnaut(INIT, dir)).code, 0);
+
+    const dry = await runSpecnaut(["upgrade", "--dry-run"], dir);
+    assertEquals(dry.code, 0, `dry-run failed: ${dry.stderr}`);
+    assertStringIncludes(dry.stdout, "chain-stops");
+    assertEquals(await Deno.readTextFile(agents), own, "--dry-run must write nothing");
+  });
+});
