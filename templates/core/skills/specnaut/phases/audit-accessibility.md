@@ -97,6 +97,15 @@ axis walk.
 
 If FE surface is detected, proceed:
 
+Step 0 first: read `.specnaut/memory/a11y/00-triage.md`, then route by
+surface through `.specnaut/memory/a11y/README.md` to the leaves this
+inventory actually touches. Take failure modes, confirm steps, severities
+and criteria from the leaves. Read a leaf's `## When it is NOT a finding`
+before shipping each finding on its surface — accessibility has the highest
+false-positive rate of any axis, and that section is where they die. If
+`.specnaut/memory/a11y/` does not exist, say so in one line at the top of the
+report and fall back to your own rules.
+
 Read-only contract: see your agent doc. Bash limited to read-only
 inspection commands. Any mutating tool call is a contract violation.
 
@@ -107,12 +116,11 @@ Inventory:
 
 $INVENTORY
 
-Walk the axis checklist from your agent doc in order (semantic HTML,
-heading hierarchy, alt text, form labels, keyboard navigation, ARIA
-correctness, color contrast, lang attribute, skip links, live
-regions). For each axis, record findings at or above the severity
-floor; document axes that produced no findings under "Out of scope"
-when the underlying surface exists.
+Walk the surfaces your agent doc routes to, in catalogue order. For each,
+record findings at or above the severity floor; document surfaces that
+produced no findings under "Out of scope" when the underlying surface
+exists. Anything `00-triage.md` lists as not establishable from source is
+capped at LOW and must say what would settle it.
 
 Output: the Markdown report shape from your agent doc.
 ```
@@ -145,6 +153,7 @@ specnaut-audit-accessibility report
 Codebase: <root>
 FE surface: <one-line summary>
 Severity floor: <high|medium|low|critical>
+Sources read: <one line — the catalogue files opened>
 Findings: N (Critical: X · High: Y · Medium: Z · Low: W)
 Report:   docs/specnaut/audits/YYYY-MM-DD-accessibility.md
 Read-only: ✓ (git status clean except for the report file)

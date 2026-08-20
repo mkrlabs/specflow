@@ -2495,6 +2495,15 @@ axis walk.
 
 If FE surface is detected, proceed:
 
+Step 0 first: read \`.specnaut/memory/a11y/00-triage.md\`, then route by
+surface through \`.specnaut/memory/a11y/README.md\` to the leaves this
+inventory actually touches. Take failure modes, confirm steps, severities
+and criteria from the leaves. Read a leaf's \`## When it is NOT a finding\`
+before shipping each finding on its surface — accessibility has the highest
+false-positive rate of any axis, and that section is where they die. If
+\`.specnaut/memory/a11y/\` does not exist, say so in one line at the top of the
+report and fall back to your own rules.
+
 Read-only contract: see your agent doc. Bash limited to read-only
 inspection commands. Any mutating tool call is a contract violation.
 
@@ -2505,12 +2514,11 @@ Inventory:
 
 \$INVENTORY
 
-Walk the axis checklist from your agent doc in order (semantic HTML,
-heading hierarchy, alt text, form labels, keyboard navigation, ARIA
-correctness, color contrast, lang attribute, skip links, live
-regions). For each axis, record findings at or above the severity
-floor; document axes that produced no findings under "Out of scope"
-when the underlying surface exists.
+Walk the surfaces your agent doc routes to, in catalogue order. For each,
+record findings at or above the severity floor; document surfaces that
+produced no findings under "Out of scope" when the underlying surface
+exists. Anything \`00-triage.md\` lists as not establishable from source is
+capped at LOW and must say what would settle it.
 
 Output: the Markdown report shape from your agent doc.
 \`\`\`
@@ -2543,6 +2551,7 @@ specnaut-audit-accessibility report
 Codebase: <root>
 FE surface: <one-line summary>
 Severity floor: <high|medium|low|critical>
+Sources read: <one line — the catalogue files opened>
 Findings: N (Critical: X · High: Y · Medium: Z · Low: W)
 Report:   docs/specnaut/audits/YYYY-MM-DD-accessibility.md
 Read-only: ✓ (git status clean except for the report file)
@@ -7365,9 +7374,48 @@ following one-line response and stop:
 no FE surface detected — accessibility audit skipped (this project ships no front-end source the expert can read).
 \`\`\`
 
-Do NOT continue with axes 1–10. Do NOT emit an empty report. The
+Do NOT continue to Step 0 or to any surface. Do NOT emit an empty report. The
 gating signal is the contract — \`/specnaut audit accessibility\` on a
 CLI-only project is a no-op by design.
+
+## Step 0 — open the catalogue (mandatory, once the gate passes)
+
+This project carries a complete offline accessibility catalogue at
+\`.specnaut/memory/a11y/\` — one file per review surface, every failure mode
+keyed to its WCAG 2.1 success criterion. **You have no reason to judge from
+memory and none to fetch anything from the network.**
+
+The gate above comes first: on a project with no front-end there is nothing to
+read the catalogue about.
+
+1. **Read \`.specnaut/memory/a11y/00-triage.md\`.** It sets the scope (Level A
+   and AA only), the severity rubric, the finding format, and — the part that
+   matters most on this axis — **the list of things source code cannot
+   establish at all**. Contrast through a design token, focus order after
+   portals, what a screen reader actually announces: these are not findings,
+   they are things to verify.
+2. **Read \`README.md\` in that directory** and route by *surface* to the two or
+   three files the scope actually touches. Not eleven.
+3. **Before shipping each finding, read that file's
+   \`## When it is NOT a finding\`** — looking for the reason *you* are wrong.
+   Per **shipped** finding, not per file skimmed, so the cost scales with the
+   report rather than with the search. Accessibility has the highest
+   false-positive rate of any axis you review; this section is where most of
+   them die.
+4. **Cite the criterion by number and name, and the catalogue file you relied
+   on.** A criterion number with no file behind it is a suspicion wearing a
+   standard — **downgrade it yourself**: drop it to LOW and open its rationale
+   with \`Suspicion —\` rather than shipping it at full confidence.
+5. **State which sources you read**, once, at the top of the report. A skipped
+   read is otherwise invisible, and the reader cannot tell a judgement from a
+   guess.
+
+**If \`.specnaut/memory/a11y/\` is absent** — you were installed as a
+standalone plugin rather than scaffolded — fall back to the surfaces below and
+say so in one line at the top of your report.
+
+If a catalogue file contradicts this definition, **the catalogue wins**: it is
+the maintained source and this definition is a summary.
 
 ## Mode 1 — PR review
 
@@ -7379,37 +7427,22 @@ structure used by code-reviewer, followed by the canonical
 
 ### Always-check rules
 
-1. **Missing alt text**: \`<img>\` without \`alt=\` (and not \`alt=""\` for
-   decorative images), or with \`alt="image.jpg"\`-style filename
-   placeholder, is HIGH.
-2. **Missing form labels**: \`<input>\` / \`<select>\` / \`<textarea>\`
-   without an associated \`<label>\` (matched via \`for\`/\`id\` or nested
-   inside the label) AND without \`aria-label\` / \`aria-labelledby\` is
-   HIGH.
-3. **Non-button click handlers**: \`onClick\` on a \`<div>\` or \`<span>\`
-   without \`role="button"\` + keyboard handler (\`onKeyDown\` for
-   Enter/Space) + \`tabIndex={0}\` is HIGH (keyboard navigation breaks).
-4. **Heading hierarchy skip**: \`<h1>\` followed by \`<h3>\` without an
-   \`<h2>\` in between, or multiple \`<h1>\` on the same page, is MEDIUM.
-5. **Missing \`lang\` attribute**: \`<html>\` without a \`lang=\` attribute
-   (or root layout component missing it) is MEDIUM.
-6. **Inaccessible focus indicators**: CSS \`outline: none\` / \`outline: 0\`
-   without a replacement \`:focus-visible\` style is HIGH.
-7. **Color contrast (source-only signal)**: hex-pair / rgb-pair patterns
-   in CSS that compute to a contrast ratio < 4.5:1 for body text or
-   < 3:1 for large text are MEDIUM. Compute it inline; do not require
-   a runtime tool.
-8. **ARIA misuse**: \`role="button"\` on an actual \`<button>\` (redundant
-   = LOW); \`role="presentation"\` on interactive elements (HIGH);
-   invented ARIA role values (HIGH); \`aria-labelledby\` pointing at a
-   non-existent ID (HIGH if greppable).
-9. **Disabled state without \`aria-disabled\`**: button styled as
-   disabled (\`opacity\`, \`pointer-events: none\`) without
-   \`aria-disabled="true"\` AND without removing from the tab order is
-   MEDIUM.
-10. **\`tabindex\` > 0**: any \`tabindex="2"\` / \`tabindex="3"\` etc. (creates
-    a confusing tab order) is MEDIUM. \`tabindex="-1"\` and \`tabindex="0"\`
-    are fine.
+The surfaces are the same as Mode 2's table, scoped to the diff. Four fire on
+almost every front-end change — open the leaf before naming any of them, and
+take severity from the leaf, not from here:
+
+| If the diff touches… | Open |
+| :--- | :--- |
+| an image, icon, or icon-only control | \`01-images-and-text-alternatives.md\` |
+| an input, label, or validation message | \`03-forms-and-labels.md\` |
+| a click handler, focus style, or modal | \`04-keyboard-and-focus.md\` |
+| a \`role\` or any \`aria-*\` attribute | \`05-aria-and-custom-widgets.md\` |
+
+Two negatives are worth carrying in your head, because they account for most
+wrong accessibility findings and both look like defects in a diff: **\`alt=""\`
+is the fix for a decorative image, not a missing alternative**, and **ARIA
+that merely repeats a native element's own semantics is redundant, not
+broken**. The leaves state the rest.
 
 ## Mode 2 — Full-codebase audit
 
@@ -7429,32 +7462,26 @@ Bash is permitted only for:
 Any other Bash invocation is a contract violation — report it as an
 error in the report's \`Out of scope\` section and stop.
 
-### Scope checklist (axes to walk in order, only after FE surface confirmed)
+### Scope checklist (surfaces to walk, only after the FE gate passes)
 
-1. **Semantic HTML** — \`<div>\` / \`<span>\` with \`onClick\` instead of
-   \`<button>\` / \`<a>\`; presence of landmark elements (\`<header>\`,
-   \`<nav>\`, \`<main>\`, \`<footer>\`); \`<table>\` for layout (CRITICAL when
-   used for non-tabular content).
-2. **Heading hierarchy** — walk each page / layout component for
-   \`<h1>\`–\`<h6>\` ordering. Surface skips and multiple-\`<h1>\`-per-page.
-3. **Alt text** — every \`<img>\` without \`alt=\` or with placeholder
-   text. Decorative images should be \`alt=""\` explicitly.
-4. **Form labels** — every input control without an accessible name.
-5. **Keyboard navigation** — \`outline: none\` without \`:focus-visible\`,
-   \`tabindex > 0\`, non-button click handlers without keyboard
-   equivalents, focus traps in modals (does the modal restore focus
-   on close?).
-6. **ARIA correctness** — invalid role values, \`aria-labelledby\`
-   targets that don't exist in the same component, redundant ARIA on
-   semantic elements.
-7. **Color contrast** — grep CSS / inline styles for color pairs;
-   compute contrast for body-text-sized values. Flag < 4.5:1 (normal)
-   or < 3:1 (large/bold).
-8. **\`lang\` attribute** — root layout / HTML shell.
-9. **Skip links** — landing pages without a "Skip to main content"
-   link before the nav (MEDIUM).
-10. **Live regions** — \`aria-live\` regions used for announcements?
-    Toasts / notifications without \`aria-live\` is MEDIUM.
+Route by surface, open the leaf, judge from it. The leaf carries the failure
+modes, the confirm step, the severity, and the criterion to cite.
+
+| Surface | Leaf |
+| :--- | :--- |
+| Images, icons, charts, text alternatives | \`01-images-and-text-alternatives.md\` |
+| Headings, landmarks, tables, generic elements as controls | \`02-structure-and-semantics.md\` |
+| Inputs, labels, hints, required state, errors | \`03-forms-and-labels.md\` |
+| Tab order, focus visibility, traps, dialogs | \`04-keyboard-and-focus.md\` |
+| Roles, ARIA state, hand-built widgets | \`05-aria-and-custom-widgets.md\` |
+| Contrast, colour as the only signal | \`06-color-and-contrast.md\` |
+| Fixed sizing, zoom, reflow, tooltips | \`07-text-zoom-and-reflow.md\` |
+| Video, audio, animation, time limits | \`08-time-motion-and-media.md\` |
+| \`lang\`, titles, link text, skip links, shared navigation | \`09-navigation-and-language.md\` |
+| Toasts, live regions, async updates, route changes | \`10-dynamic-updates-and-status.md\` |
+
+Walk only the surfaces the project actually has. A surface with no code is
+recorded under \`Out of scope\`, not reported as empty.
 
 ### Output format (Mode 2 — audit report)
 
@@ -7466,6 +7493,7 @@ Write a Markdown document with these EXACT sections in this order
 
 ## Summary
 
+- Sources read: <one line — the catalogue files opened>
 - Total findings: N (Critical: X · High: Y · Medium: Z · Low: W)
 - Codebase scope: <one line — "12 React components, 4 layout files">
 - Severity floor: <critical|high|medium|low>
@@ -7499,16 +7527,14 @@ backlog material for the PO to triage.
 
 ### Per-axis hints
 
-- **Color contrast** is the most likely to false-positive when CSS
-  uses CSS variables / theme tokens. When you cannot resolve the final
-  color values from source, surface the finding at LOW with an
-  explicit note: \`(unresolved CSS variable — confirm in browser)\`.
-- **Live browser-based testing** (axe-core, Lighthouse, screen reader
-  walkthrough) is out of scope — note this in the report's
-  \`Out of scope\` section as "axe-core/Lighthouse runtime checks —
-  install separately for runtime coverage".
-- **Mobile a11y** (iOS VoiceOver, Android TalkBack semantics) is out
-  of scope — note this as "mobile-native a11y — web FE only".
+- **Live browser testing** (axe-core, Lighthouse, a screen-reader walkthrough)
+  is out of scope — record it under \`Out of scope\` as runtime coverage to add
+  separately, not as a finding.
+- **Mobile-native accessibility** (VoiceOver and TalkBack semantics) is out of
+  scope — web front-end only.
+- **Anything \`00-triage.md\` lists as not establishable from source** is capped
+  at LOW and must say what would settle it. That cap is the difference between
+  a report a team acts on and one it learns to skim.
 
 ## Output format (Mode 1 — PR review)
 
@@ -11960,6 +11986,15 @@ accessibility shape of the scoped front-end source (semantic HTML, heading
 hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA
 correctness, color contrast where computable) — not a per-line review.
 
+Include its Step 0 in the dispatch prompt, verbatim: read
+\`.specnaut/memory/a11y/00-triage.md\` first — it sets Level A/AA scope, the
+severity rubric, and the list of things source cannot establish — then route
+by surface through \`.specnaut/memory/a11y/README.md\`, and read the matching
+leaf's \`## When it is NOT a finding\` before shipping each finding. The agent
+must state which sources it read, cite the criterion by number **and** name,
+and downgrade to \`Suspicion —\` at LOW anything it cannot attribute. If
+\`.specnaut/memory/a11y/\` is absent, it says so in one line instead.
+
 ## Step 4 — Return findings inline
 
 Return the agent's findings inline. The \`a11y-expert\` ends with the
@@ -15135,6 +15170,1714 @@ with a plaintext key.
 \`EXECUTE IMMEDIATE\`, \`sp_executesql\` with a built string, broad \`GRANT\`s,
 application accounts holding DDL rights, missing row limits on queries
 that can return the whole table.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/README.md",
+    content: `# Accessibility catalogue — WCAG 2.1 A and AA
+
+An offline, stack-agnostic reference for reviewing an interface against
+WCAG 2.1 at Level A and AA. It exists so an accessibility finding is built
+from a method rather than from vocabulary — and, just as importantly, so a
+*wrong* finding is killed before a reader has to kill it.
+
+## How a finding is built
+
+1. **Read \`00-triage.md\` first.** It sets the scope, the severity rubric, the
+   finding format, and the gate every finding has to pass — including the list
+   of things source code simply cannot establish.
+2. **Route to the surfaces in scope** using the table below. Open two or
+   three, not eleven. The routing key is the *surface you are looking at*,
+   because that is how a review is entered.
+3. **Before shipping each finding, read that file's \`## When it is NOT a
+   finding\`** — looking for the reason *you* are wrong. This is per shipped
+   finding, not per file skimmed, so its cost scales with the report.
+4. **Cite the criterion by number and name, and the file you relied on.** A
+   criterion number with no file behind it is a suspicion wearing a standard.
+
+## Routing table
+
+| Surface | Open it when the code touches… | File |
+| :--- | :--- | :--- |
+| **Images and text alternatives** | an \`<img>\`, \`<svg>\`, icon, chart or icon-only control | \`01-images-and-text-alternatives.md\` |
+| **Structure and semantics** | headings, landmarks, tables, lists, or a \`<div>\` doing a control's job | \`02-structure-and-semantics.md\` |
+| **Forms, labels and errors** | any input, label, hint, required marker or validation error | \`03-forms-and-labels.md\` |
+| **Keyboard and focus** | tab order, focus styles, modals, menus, or any click handler | \`04-keyboard-and-focus.md\` |
+| **ARIA and custom widgets** | a \`role\`, an \`aria-*\` attribute, or a hand-built widget | \`05-aria-and-custom-widgets.md\` |
+| **Colour and contrast** | colours, tokens, themes, or colour used to carry meaning | \`06-color-and-contrast.md\` |
+| **Text sizing, zoom and reflow** | fixed sizes, the viewport meta, overflow, or tooltips | \`07-text-zoom-and-reflow.md\` |
+| **Time, motion and media** | video, audio, carousels, animation, or a time limit | \`08-time-motion-and-media.md\` |
+| **Navigation, page identity and language** | \`lang\`, page titles, link text, skip links, or shared navigation | \`09-navigation-and-language.md\` |
+| **Dynamic updates and status messages** | toasts, live regions, async updates, or a route change | \`10-dynamic-updates-and-status.md\` |
+
+Plus \`00-triage.md\`, which is not optional.
+
+## Criteria index
+
+Every Level A and AA criterion this catalogue covers, by file.
+
+| File | WCAG 2.1 success criteria |
+| :--- | :--- |
+| \`01-images-and-text-alternatives.md\` | 1.1.1 · 1.4.5 |
+| \`02-structure-and-semantics.md\` | 1.3.1 · 1.3.2 · 2.4.6 · 4.1.2 |
+| \`03-forms-and-labels.md\` | 1.3.1 · 1.3.5 · 2.4.6 · 3.3.1 · 3.3.2 · 3.3.3 · 3.3.4 · 4.1.2 |
+| \`04-keyboard-and-focus.md\` | 2.1.1 · 2.1.2 · 2.1.4 · 2.4.3 · 2.4.7 · 3.2.1 |
+| \`05-aria-and-custom-widgets.md\` | 1.3.1 · 2.1.1 · 4.1.2 |
+| \`06-color-and-contrast.md\` | 1.4.1 · 1.4.3 · 1.4.11 |
+| \`07-text-zoom-and-reflow.md\` | 1.4.4 · 1.4.10 · 1.4.12 · 1.4.13 |
+| \`08-time-motion-and-media.md\` | 1.2.1 · 1.2.5 · 1.4.2 · 2.2.1 · 2.2.2 · 2.3.1 · 2.3.3 |
+| \`09-navigation-and-language.md\` | 2.4.1 · 2.4.2 · 2.4.4 · 2.4.5 · 3.1.1 · 3.1.2 · 3.2.3 · 3.2.4 |
+| \`10-dynamic-updates-and-status.md\` | 2.4.3 · 3.2.2 · 3.3.1 · 4.1.3 |
+
+## On the sources
+
+The criteria are defined by the W3C in **Web Content Accessibility Guidelines
+(WCAG) 2.1**, <https://www.w3.org/TR/WCAG21/>, © 2017–2025 World Wide Web
+Consortium. That document is the normative authority; where it and this
+catalogue disagree, it wins and this catalogue is a bug.
+
+**No W3C text is reproduced here.** WCAG 2.1 is published under the
+W3C Document License, which does not grant the right to create derivative
+works for use as a technical specification. What this catalogue carries instead is
+original prose — written for reviewers, organised by the surface a review
+actually starts from — that *references* criteria by their number and name.
+Numbers and titles are used as citations, which is what a normative standard
+is for.
+
+The consequence worth knowing: this catalogue is deliberately **not** a
+conformance checklist. It will not tell you whether a product conforms. It
+tells a reviewer where to look, how to confirm, and — more often than any
+other section earns its space — when to stop.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/00-triage.md",
+    content: `# Triage — what counts, and what source cannot tell you
+
+Read this before anything else. It sets the scope of the review, the gate a
+finding has to pass, the severity rubric, and the finding format.
+
+## Scope
+
+**WCAG 2.1, Level A and AA.** Level AAA criteria are out of scope: they are
+not the conformance target of the vast majority of projects, and reporting
+them as failures makes the report unactionable. If a AAA criterion is worth
+mentioning, mention it in \`Out of scope\`, never as a finding.
+
+Accessibility is not a property of source code. It is a property of what a
+person encounters — rendered, focused, announced, magnified. You are reading
+source. That gap is the single largest source of wrong accessibility findings,
+and the whole of this catalogue is built around it.
+
+## The gate — three questions before any finding
+
+**1. Can this be established from source at all?**
+
+Some criteria are decidable from source (an \`<img>\` has an \`alt\` attribute or
+it does not). Some are decidable only at runtime. If it is the second kind,
+you are not making a finding — you are naming something to verify.
+
+Not decidable from source alone:
+
+| Looks decidable | Why it is not |
+| :--- | :--- |
+| Colour contrast through design tokens | The token's value depends on theme, cascade, and inherited state. |
+| Focus order | The DOM order at runtime, after portals and conditional rendering, is not the source order. |
+| What a screen reader announces | The accessibility tree is computed; it is not the markup. |
+| Reflow at 320px | Depends on the whole cascade at that width. |
+| Whether an image is decorative | Depends on what the image *means* in context, which is an editorial fact. |
+
+**2. Is the accessible outcome actually broken, or merely spelled unusually?**
+
+Native HTML carries semantics you can neither see in a diff nor improve by
+adding ARIA. \`<button>\` already has \`role="button"\`, keyboard activation, and
+focusability. A great deal of correct markup looks bare because it *is* using
+the platform.
+
+**3. Who is blocked, and how badly?**
+
+Name the user and the failure. "Fails 1.1.1" is not a finding. "A screen
+reader user hears the filename instead of the product name" is a finding that
+happens to be 1.1.1.
+
+## Severity rubric
+
+- **CRITICAL** — a user of an assistive technology or the keyboard alone
+  cannot complete the task at all. A keyboard trap, a control unreachable
+  without a mouse, a form that cannot be submitted.
+- **HIGH** — the task is completable but the experience is materially
+  degraded or the information is unavailable. An unlabelled control, an
+  informative image with no text alternative, focus lost after a dialog
+  closes.
+- **MEDIUM** — real, confirmed, but the user can recover. A heading skip, a
+  missing skip link, a redundant announcement.
+- **LOW** — correct but improvable, or a confirmed defect on a surface almost
+  nobody reaches. Also the ceiling for anything you could not fully establish
+  from source.
+- **INFO** — worth the reader's attention, not a defect.
+
+**A finding you could not establish from source is capped at LOW** and must
+say what would settle it. This is not hedging: it is the difference between a
+report a team can act on and one it learns to skim.
+
+## Finding format
+
+\`\`\`
+FINDING <severity>: <one-line summary — the user and the failure>
+  Path: <file:line>
+  Criterion: <e.g. 1.3.1 Info and Relationships (A)>
+  Source: <which catalogue file you relied on>
+  Rationale: <2-3 sentences — what breaks, for whom>
+  Suggested fix: <sketch or pointer>
+\`\`\`
+
+Cite the criterion by **number and name**, not by number alone. A reader who
+does not have the numbering memorised — which is most readers — otherwise
+cannot tell what you are claiming without a second tab.
+
+## Normative source
+
+The criteria are defined at <https://www.w3.org/TR/WCAG21/>. That document is
+the authority; the prose in this catalogue is not. Where this catalogue and
+the specification disagree, the specification wins and this catalogue is a
+bug.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/01-images-and-text-alternatives.md",
+    content: `# Images and text alternatives
+
+> **Surface** — every non-text thing that carries meaning: \`<img>\`, inline
+> \`<svg>\`, icon fonts, CSS background images that are not decoration, canvas,
+> charts, and the image half of a link or button. It breaks for anyone who
+> does not see the image: screen-reader users, people on a slow connection,
+> people whose images failed to load.
+>
+> **WCAG 2.1** — 1.1.1 Non-text Content (A) · 1.4.5 Images of Text (AA)
+
+## Where to look
+
+- \`<img>\`, \`<svg>\`, \`<picture>\`, \`<object>\`, \`<canvas>\`, \`<video poster>\`.
+- Icon components — the wrapper usually decides the alternative, not the call
+  site.
+- Buttons and links whose entire content is an icon.
+- CSS \`background-image\` on an element with no text content.
+- Charts and data visualisations, which almost never have an alternative.
+
+**Search signatures.** \`<img\` without \`alt\`; \`alt=""\`; \`alt="image"\`,
+\`alt="photo"\`, \`alt="icon"\`, or an alt ending in \`.png\` / \`.jpg\` / \`.svg\`;
+\`<svg\` without \`aria-hidden\` and without \`<title>\`; \`role="img"\`.
+
+## Failure modes
+
+### An informative image with no text alternative
+
+An \`<img>\` with no \`alt\` attribute at all. Assistive technology falls back to
+announcing the filename, which is noise at best and misleading at worst.
+
+*Confirm* — the attribute is absent, not empty. \`alt=""\` is a deliberate
+declaration and a different case entirely.
+
+*Severity* — HIGH. *Criterion* — 1.1.1.
+
+### A placeholder alternative
+
+\`alt="image"\`, \`alt="photo"\`, \`alt="logo"\`, or the filename. The attribute is
+present, so automated checkers pass it, and the user gets nothing.
+
+*Confirm* — read it as a replacement for the image. If removing the image and
+leaving only that text loses the meaning, it is a placeholder.
+
+*Severity* — HIGH. *Criterion* — 1.1.1.
+
+### An icon-only control with no accessible name
+
+A button or link whose only content is an icon, with no \`aria-label\`, no
+visually-hidden text, and an \`aria-hidden\` icon. The control is announced as
+"button" with nothing else.
+
+*Confirm* — trace what text the control would expose. An \`aria-hidden\` icon
+inside an unlabelled button leaves the control genuinely nameless.
+
+*Severity* — HIGH. *Criterion* — 1.1.1 and 4.1.2.
+
+### Text rendered as an image
+
+A heading, quote, or price shipped as a raster image. It cannot be resized,
+recoloured, translated, or selected.
+
+*Confirm* — logotypes are explicitly excepted. So is text that is part of a
+photograph rather than presented as text.
+
+*Severity* — MEDIUM. *Criterion* — 1.4.5.
+
+### A chart or diagram with a name but no content
+
+\`alt="Sales chart"\` names the image and conveys none of it. The alternative
+has to carry the information, which for a complex graphic usually means a
+nearby table or description rather than an attribute.
+
+*Severity* — MEDIUM. *Criterion* — 1.1.1.
+
+## When it is NOT a finding
+
+- **\`alt=""\` on a decorative image is correct — it is the fix, not the bug.**
+  An empty alt removes the image from the accessibility tree, which is exactly
+  what should happen to a spacer, a flourish, or an icon sitting beside a text
+  label that already says the same thing. Flagging \`alt=""\` as "missing alt
+  text" is the single most common wrong accessibility finding.
+- **You usually cannot tell whether an image is decorative from source.**
+  Whether a photograph beside an article is illustrative or informative is an
+  editorial judgement about meaning. If the code does not settle it, the
+  finding is a question at LOW, not a defect.
+- **An icon beside a text label should be hidden.** \`<span aria-hidden="true">\`
+  on the icon plus the visible text is correct. Announcing both is the defect.
+- **\`<svg aria-hidden="true">\` inside a labelled button is correct.** The
+  button carries the name; the graphic is presentational.
+- **The alternative does not have to describe the image.** It has to replace
+  it. For a link whose image *is* the link, the right alternative is the link's
+  destination, not a description of the artwork.
+- **A logo's alternative is the organisation's name**, not "logo". Neither is
+  a finding if the name is there.
+- **A CSS background image is presentational by default.** Only flag one when
+  it demonstrably carries information no text nearby carries.
+
+## Accessible patterns
+
+\`\`\`html
+<!-- Informative: the alternative replaces the image -->
+<img src="chart.png" alt="Revenue grew from 2.1M to 3.4M between Q1 and Q4.">
+
+<!-- Decorative: explicitly empty, removed from the accessibility tree -->
+<img src="divider.svg" alt="">
+
+<!-- Icon-only control: the control is named, the graphic is hidden -->
+<button aria-label="Close dialog">
+  <svg aria-hidden="true" focusable="false"><!-- … --></svg>
+</button>
+
+<!-- Icon beside text: only the text is announced -->
+<button>
+  <svg aria-hidden="true" focusable="false"><!-- … --></svg>
+  Delete
+</button>
+\`\`\`
+
+## Review checklist
+
+- [ ] Every \`<img>\` has an \`alt\` attribute — present, even when empty
+- [ ] No alternative is a filename or a generic placeholder
+- [ ] Icon-only controls carry an accessible name
+- [ ] Decorative graphics are \`alt=""\` or \`aria-hidden="true"\`, not both named
+      and hidden
+- [ ] Informative graphics have an alternative that replaces them
+- [ ] Complex graphics have a description beyond a name
+- [ ] Text is text, not a picture of text
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/02-structure-and-semantics.md",
+    content: `# Structure and semantics
+
+> **Surface** — the markup that tells assistive technology what a thing *is*:
+> headings, landmarks, lists, tables, and the choice between a native element
+> and a \`<div>\`. It breaks for screen-reader users, who navigate by structure
+> rather than by looking, and for anyone using a reader mode, a translation
+> tool, or a browser extension that relies on the document outline.
+>
+> **WCAG 2.1** — 1.3.1 Info and Relationships (A) · 1.3.2 Meaningful Sequence
+> (A) · 2.4.6 Headings and Labels (AA) · 4.1.2 Name, Role, Value (A)
+
+## Where to look
+
+- Page shells and layout components — where landmarks are or are not.
+- Every \`<h1>\`–\`<h6>\`, and any element styled to look like a heading.
+- \`<div>\` and \`<span>\` carrying \`onClick\`, \`onKeyDown\`, or a \`role\`.
+- \`<table>\`: is it tabular data, or layout?
+- Lists built from \`<div>\`s.
+- Component libraries that render a wrapper element you did not choose.
+
+**Search signatures.** \`<div onClick\`, \`<span onClick\`, \`role="button"\`,
+\`role="presentation"\`, \`className=".*heading"\`, \`<table\`, \`<h[1-6]\`,
+absence of \`<main\`, \`<nav\`, \`<header\`, \`<footer\`.
+
+## Failure modes
+
+### A control built from a generic element
+
+\`<div onClick={…}>\` styled to look like a button. It is not focusable, not
+activated by Enter or Space, and announced as nothing.
+
+*Confirm* — a \`<div>\` with a click handler and no \`role\`, no \`tabIndex\`, and
+no keyboard handler fails on all three counts at once. A \`<div>\` with all
+three is verbose but functional.
+
+*Severity* — HIGH; CRITICAL when it is on the only path through a task.
+*Criterion* — 4.1.2, and 2.1.1 for the keyboard half.
+
+### No landmarks
+
+No \`<main>\`, \`<nav>\`, or \`<header>\` anywhere in the shell. Screen-reader users
+navigate by landmark before they navigate by anything else; without them the
+only way through the page is linearly, from the top, every time.
+
+*Severity* — MEDIUM. *Criterion* — 1.3.1.
+
+### Heading levels used for size
+
+\`<h4>\` chosen because it looked right, or a \`<div class="title">\` that is
+visually a heading and structurally nothing. The outline stops matching the
+page.
+
+*Confirm* — read only the headings in source order. If that list does not
+describe the page, the outline is wrong.
+
+*Severity* — MEDIUM. *Criterion* — 1.3.1 and 2.4.6.
+
+### A layout table
+
+\`<table>\` used to position content. Announced as a data table, with row and
+column relationships that mean nothing.
+
+*Severity* — HIGH. *Criterion* — 1.3.1.
+
+### A data table without header association
+
+\`<table>\` with data but no \`<th>\`, or \`<th>\` without \`scope\`. Cells are
+announced without the header that gives them meaning.
+
+*Severity* — MEDIUM. *Criterion* — 1.3.1.
+
+### DOM order that contradicts visual order
+
+CSS \`order\`, \`flex-direction: row-reverse\`, \`grid-area\`, or absolute
+positioning that presents content in an order the DOM does not have. Keyboard
+and screen-reader users get the DOM order.
+
+*Confirm* — this needs the rendered layout to establish. From source you can
+identify the risk, rarely the failure.
+
+*Severity* — MEDIUM, capped at LOW when established from source alone.
+*Criterion* — 1.3.2.
+
+## When it is NOT a finding
+
+- **Native semantics need no ARIA.** \`<button>\`, \`<nav>\`, \`<main>\`, \`<ul>\`
+  already expose their role. Adding \`role="button"\` to a \`<button>\` is
+  redundant, not broken — report it as LOW cleanup at most, never as a defect.
+- **More than one \`<h1>\` is not automatically wrong.** It is a smell in a
+  document, and it is normal in a page composed of independent sectioning
+  content. Establish which one you are looking at before flagging.
+- **A skipped heading level is a MEDIUM, not a HIGH.** The outline is
+  imperfect; nothing is unreachable. Reports that open with heading skips at
+  HIGH train readers to skim the rest.
+- **A \`<div>\` with \`role\`, \`tabIndex\` and a keyboard handler works.** It is
+  more code than a \`<button>\` and it is not a conformance failure. Recommend
+  the native element; do not report a violation.
+- **A component library's wrapper element is usually not the reviewed team's
+  choice.** Check whether the semantics are configurable before making it
+  their finding.
+- **Visual order versus DOM order cannot be settled from a diff.** Name it as
+  something to verify at the rendered width, at LOW.
+- **\`role="presentation"\` on a genuinely presentational wrapper is correct.**
+  It is only a defect on an element that is interactive or that carries
+  meaning.
+
+## Accessible patterns
+
+\`\`\`html
+<!-- Landmarks give a screen-reader user a table of contents -->
+<header>…</header>
+<nav aria-label="Primary">…</nav>
+<main>
+  <h1>Invoices</h1>
+  <section>
+    <h2>Unpaid</h2>
+  </section>
+</main>
+<footer>…</footer>
+
+<!-- Use the element that already has the behaviour -->
+<button type="button" onclick="remove()">Remove</button>
+
+<!-- A data table associates cells with headers -->
+<table>
+  <caption>Invoices by quarter</caption>
+  <thead>
+    <tr><th scope="col">Quarter</th><th scope="col">Total</th></tr>
+  </thead>
+  <tbody>
+    <tr><th scope="row">Q1</th><td>2.1M</td></tr>
+  </tbody>
+</table>
+\`\`\`
+
+## Review checklist
+
+- [ ] The page shell exposes \`<main>\`, and navigation is in a \`<nav>\`
+- [ ] Headings describe the outline; levels are not chosen for size
+- [ ] Anything styled as a heading is a heading
+- [ ] Interactive things are native elements, or fully rebuilt if not
+- [ ] Tables hold data; data tables associate \`<th>\` with \`scope\`
+- [ ] Lists are lists
+- [ ] No ARIA duplicates a role the element already has
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/03-forms-and-labels.md",
+    content: `# Forms, labels and errors
+
+> **Surface** — every control a user has to fill in, and everything the
+> interface says back to them: labels, hints, required markers, validation
+> errors, and the relationship between them. Forms are where accessibility
+> failures cost the most, because a form is usually the task itself.
+>
+> **WCAG 2.1** — 1.3.1 Info and Relationships (A) · 1.3.5 Identify Input
+> Purpose (AA) · 2.4.6 Headings and Labels (AA) · 3.3.1 Error Identification
+> (A) · 3.3.2 Labels or Instructions (A) · 3.3.3 Error Suggestion (AA) ·
+> 3.3.4 Error Prevention (AA) · 4.1.2 Name, Role, Value (A)
+
+## Where to look
+
+- Every \`<input>\`, \`<select>\`, \`<textarea>\`, and custom control with a \`role\`
+  of \`combobox\`, \`listbox\`, \`checkbox\`, \`radio\`, \`switch\`, or \`slider\`.
+- Form component wrappers — the label is usually the wrapper's job.
+- Validation and error rendering.
+- Required-field markers.
+- Login, checkout, and address forms, where autocomplete matters most.
+
+**Search signatures.** \`<input\` without a nearby \`<label\`; \`placeholder=\`
+with no label; \`htmlFor\` / \`for=\` mismatches; \`aria-label\` on a control that
+has a visible label; \`aria-describedby\`; \`aria-invalid\`; \`required\`;
+\`autocomplete=\`.
+
+## Failure modes
+
+### A control with no accessible name
+
+No \`<label for>\`, not wrapped in a \`<label>\`, no \`aria-label\`, no
+\`aria-labelledby\`. Announced as "edit text, blank".
+
+*Confirm* — trace all four naming routes before flagging. A wrapping
+\`<label>\` is easy to miss in JSX.
+
+*Severity* — HIGH. *Criterion* — 4.1.2, 3.3.2.
+
+### A placeholder used as the label
+
+\`placeholder="Email"\` with no label. The name disappears as soon as the user
+types, it is often too low-contrast to read, and support is inconsistent.
+
+*Severity* — HIGH. *Criterion* — 3.3.2.
+
+### \`for\` pointing at nothing
+
+\`<label for="email">\` with no element whose \`id\` is \`email\` — a rename that
+touched one side. Silently no label at all.
+
+*Confirm* — greppable when both sides are in the same file, which is the
+usual case.
+
+*Severity* — HIGH. *Criterion* — 1.3.1.
+
+### An error shown only in colour or only visually
+
+The field turns red; nothing is announced and nothing is associated. A
+screen-reader user learns the form failed but not which field or why.
+
+*Confirm* — look for \`aria-invalid\` on the control and \`aria-describedby\`
+pointing at the message.
+
+*Severity* — HIGH. *Criterion* — 3.3.1.
+
+### An error message that does not say how to fix it
+
+"Invalid input." Correct and useless. Where a fix is known — a format, a
+range, a required value — it has to be offered.
+
+*Severity* — MEDIUM. *Criterion* — 3.3.3.
+
+### Required conveyed only by an asterisk
+
+A red \`*\` with no legend and no \`required\` attribute. Neither the meaning nor
+the state reaches assistive technology.
+
+*Severity* — MEDIUM. *Criterion* — 3.3.2.
+
+### Missing autocomplete on personal data
+
+Name, email, address, and payment fields without \`autocomplete\`. This is a
+real barrier for people with motor or cognitive disabilities, for whom
+retyping is the expensive part.
+
+*Severity* — MEDIUM. *Criterion* — 1.3.5.
+
+### A grouped control with no group label
+
+Radios or checkboxes without \`<fieldset>\` and \`<legend>\`. Each option is
+announced without the question it answers.
+
+*Severity* — MEDIUM. *Criterion* — 1.3.1.
+
+## When it is NOT a finding
+
+- **A wrapping \`<label>\` needs no \`for\`.** \`<label>Email <input></label>\` is
+  correct and complete. Flagging it for a missing \`for\` is a false positive.
+- **\`aria-label\` on a control with no visible label is correct.** A search
+  input with only a magnifier icon beside it is the canonical case. It is only
+  a problem when it *contradicts* visible text, because then speech-input
+  users cannot say what they see.
+- **A placeholder alongside a real label is fine.** The failure is the
+  placeholder *replacing* the label, not its existence.
+- **Native \`required\` needs no \`aria-required\`.** The attribute already
+  exposes the state; adding both is redundant, not broken.
+- **You often cannot confirm the error path from source.** Whether the message
+  is announced depends on when it is inserted and whether focus moves. If the
+  code does not settle it, say what would.
+- **A visually-hidden label is a real label**, provided the class actually
+  clips rather than using \`display: none\` — that distinction is worth
+  checking, and it is the only part of this that is a defect.
+- **Not every field takes autocomplete.** The criterion covers a defined list
+  of personal-data purposes. A quantity field or a search box is not on it.
+
+## Accessible patterns
+
+\`\`\`html
+<!-- Explicit association -->
+<label for="email">Email address</label>
+<input id="email" name="email" type="email" autocomplete="email"
+       required aria-describedby="email-hint">
+<p id="email-hint">We only use this for receipts.</p>
+
+<!-- Error: associated, announced, and actionable -->
+<label for="card">Card number</label>
+<input id="card" inputmode="numeric" autocomplete="cc-number"
+       aria-invalid="true" aria-describedby="card-error">
+<p id="card-error">Card number must be 16 digits. You entered 15.</p>
+
+<!-- Grouped controls carry the question -->
+<fieldset>
+  <legend>Delivery speed</legend>
+  <label><input type="radio" name="speed" value="std"> Standard</label>
+  <label><input type="radio" name="speed" value="exp"> Express</label>
+</fieldset>
+\`\`\`
+
+## Review checklist
+
+- [ ] Every control has an accessible name by one of the four routes
+- [ ] No placeholder stands in for a label
+- [ ] Every \`for\` resolves to an \`id\` that exists
+- [ ] Errors are associated with their control and identify the field
+- [ ] Errors say how to fix the problem where a fix is known
+- [ ] Required state is programmatic, not only an asterisk
+- [ ] Personal-data fields carry \`autocomplete\`
+- [ ] Radio and checkbox groups have a \`<legend>\`
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/04-keyboard-and-focus.md",
+    content: `# Keyboard and focus
+
+> **Surface** — everything reachable without a pointer, and the visible
+> indication of where you are. This is the highest-stakes area in the
+> catalogue: a keyboard failure does not degrade the experience, it ends it.
+> It breaks for screen-reader users, switch and voice users, people with
+> tremor or RSI, and anyone whose trackpad died.
+>
+> **WCAG 2.1** — 2.1.1 Keyboard (A) · 2.1.2 No Keyboard Trap (A) ·
+> 2.1.4 Character Key Shortcuts (A) · 2.4.3 Focus Order (A) ·
+> 2.4.7 Focus Visible (AA) · 3.2.1 On Focus (A)
+
+## Where to look
+
+- Any element with a click handler that is not a \`<button>\` or \`<a href>\`.
+- Modals, drawers, menus, comboboxes, tooltips, carousels — anything that
+  opens, closes, or traps.
+- CSS touching \`outline\`, \`:focus\`, \`:focus-visible\`.
+- \`tabindex\` anywhere.
+- Global key listeners.
+- Custom scroll containers and virtualised lists.
+
+**Search signatures.** \`outline: none\`, \`outline: 0\`, \`outline:none\`;
+\`tabindex="1"\` or higher; \`onClick\` on \`div\` / \`span\` / \`li\`;
+\`addEventListener("keydown"\` at document level; \`.focus()\`;
+\`onMouseOver\` with no focus equivalent.
+
+## Failure modes
+
+### A control unreachable by keyboard
+
+A click handler on a non-focusable element with no \`tabIndex\`. It cannot be
+reached at all.
+
+*Confirm* — no \`tabIndex\`, no native focusability, no \`href\`. All three
+absent is unambiguous from source.
+
+*Severity* — CRITICAL when it is on the task path, HIGH otherwise.
+*Criterion* — 2.1.1.
+
+### Focusable but not operable
+
+\`tabIndex={0}\` and a click handler, but no \`onKeyDown\`. It receives focus and
+then does nothing when activated. Worse than unreachable, because the user
+cannot tell it is broken.
+
+*Severity* — HIGH. *Criterion* — 2.1.1.
+
+### The focus indicator removed
+
+\`outline: none\` with no \`:focus-visible\` replacement. Sighted keyboard users
+lose all sense of position. This is one of the few defects that is both
+extremely common and fully decidable from source.
+
+*Confirm* — look for a replacement anywhere in the cascade: a custom
+\`box-shadow\`, a border, an \`:focus-visible\` rule. Absence of the replacement
+is the finding, not the presence of \`outline: none\`.
+
+*Severity* — HIGH. *Criterion* — 2.4.7.
+
+### A keyboard trap
+
+Focus enters a region and cannot leave — a modal that loops focus with no
+Escape handler, an embedded editor that swallows Tab.
+
+*Severity* — CRITICAL. *Criterion* — 2.1.2.
+
+### Focus lost after a dialog closes
+
+Focus returns to \`<body>\`, so the next Tab starts from the top of the
+document. The user's place is gone.
+
+*Confirm* — look for the opener being stored and restored. Its absence beside
+a dialog implementation is a strong source-level signal.
+
+*Severity* — HIGH. *Criterion* — 2.4.3.
+
+### Positive \`tabindex\`
+
+\`tabindex="2"\` and up. Creates a tab order that follows neither the DOM nor
+the layout, and it applies across the whole page, not just the component.
+
+*Severity* — MEDIUM. *Criterion* — 2.4.3.
+
+### Single-character shortcuts with no escape
+
+A global listener binding a bare letter. Voice-input users trigger these by
+speaking.
+
+*Confirm* — the criterion is satisfied by any one of: the shortcut can be
+turned off, it can be remapped, or it is active only while a component has
+focus.
+
+*Severity* — MEDIUM. *Criterion* — 2.1.4.
+
+### Focus causing an unexpected change of context
+
+Focusing a control navigates, submits, or opens something. The user cannot
+explore without committing.
+
+*Severity* — HIGH. *Criterion* — 3.2.1.
+
+## When it is NOT a finding
+
+- **\`outline: none\` with a replacement is correct.** Removing the browser
+  outline in favour of a designed, sufficiently visible indicator is a normal
+  and good practice. The defect is the *absence* of a replacement — check the
+  whole stylesheet before flagging.
+- **\`tabindex="-1"\` is not positive tabindex.** It removes an element from the
+  tab order while keeping it programmatically focusable, which is how a dialog
+  or a skip target is supposed to work. It is a tool, not a smell.
+- **\`tabindex="0"\` on a native interactive element is redundant, not broken.**
+- **Native elements need no keyboard handler.** \`<button onClick>\` responds to
+  Enter and Space already. \`<a href onClick>\` responds to Enter. Asking for an
+  explicit \`onKeyDown\` on either is a false positive.
+- **Focus order cannot be established from source** when portals, conditional
+  rendering, or CSS reordering are involved. Name the risk; do not assert the
+  failure.
+- **A focus trap inside an open modal is the correct behaviour.** The defect
+  is a trap with no exit — no Escape, no close control. Do not report
+  intentional containment as 2.1.2.
+- **A library component may already handle keyboard interaction.** Read the
+  component before attributing the gap to the call site.
+- **\`onMouseOver\` without \`onFocus\` is only a finding if it reveals content.**
+  A purely cosmetic hover is not a conformance failure.
+
+## Accessible patterns
+
+\`\`\`css
+/* Remove the default, but never the affordance */
+:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 2px;
+}
+\`\`\`
+
+\`\`\`js
+// A dialog returns focus to whatever opened it
+function openDialog(dialog) {
+  const opener = document.activeElement;
+  dialog.showModal();
+  dialog.addEventListener("close", () => opener?.focus(), { once: true });
+}
+\`\`\`
+
+\`\`\`html
+<!-- The skip link is the first focusable thing on the page -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<main id="main" tabindex="-1">…</main>
+\`\`\`
+
+## Review checklist
+
+- [ ] Every interactive element is reachable by Tab
+- [ ] Every reachable element is operable by Enter or Space
+- [ ] A visible focus indicator survives \`outline: none\`
+- [ ] Dialogs can be closed with Escape and restore focus to the opener
+- [ ] No \`tabindex\` greater than zero
+- [ ] Single-key shortcuts can be disabled, remapped, or are focus-scoped
+- [ ] Focus alone never navigates or submits
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/05-aria-and-custom-widgets.md",
+    content: `# ARIA and custom widgets
+
+> **Surface** — roles, states and properties added by hand, and the composite
+> widgets built out of them: tabs, menus, comboboxes, trees, dialogs,
+> accordions. ARIA changes what assistive technology reports without changing
+> what the browser does, which is why it is the only part of accessibility
+> where adding code routinely makes things worse.
+>
+> **WCAG 2.1** — 4.1.2 Name, Role, Value (A) · 1.3.1 Info and Relationships
+> (A) · 2.1.1 Keyboard (A)
+
+## The rule that decides most findings here
+
+**No ARIA is better than bad ARIA.** A \`<div role="button">\` with no keyboard
+handling is worse than a bare \`<div>\`, because it promises a button and
+delivers nothing. Before reporting *missing* ARIA, check whether the right
+answer is a native element instead.
+
+## Where to look
+
+- Every \`role=\`, \`aria-*\` attribute.
+- Hand-built tabs, menus, dropdowns, comboboxes, accordions, dialogs.
+- \`aria-labelledby\` / \`aria-describedby\` targets.
+- \`aria-hidden\` on anything that contains a focusable element.
+- Design-system primitives that spread props onto an element.
+
+**Search signatures.** \`role="\`, \`aria-hidden="true"\`, \`aria-expanded\`,
+\`aria-controls\`, \`aria-labelledby\`, \`aria-selected\`, \`aria-current\`,
+\`role="presentation"\`, \`role="none"\`.
+
+## Failure modes
+
+### An invented or misspelled role
+
+\`role="dropdown"\`, \`role="tab-panel"\`, \`role="link "\`. Not in the
+specification, so it is ignored and the element falls back to its native
+role — usually \`generic\`.
+
+*Confirm* — check the value against the ARIA role list. This is fully
+decidable from source.
+
+*Severity* — HIGH. *Criterion* — 4.1.2.
+
+### A role with no state management
+
+\`role="tab"\` without \`aria-selected\`, \`role="checkbox"\` without
+\`aria-checked\`, \`aria-expanded\` that never changes. The role promises a state
+the widget never reports.
+
+*Confirm* — grep for the state attribute being *set*, not merely present in
+the initial markup.
+
+*Severity* — HIGH. *Criterion* — 4.1.2.
+
+### A dangling reference
+
+\`aria-labelledby="x"\` or \`aria-controls="y"\` pointing at an \`id\` that does
+not exist, or that exists in another document fragment.
+
+*Confirm* — greppable within a component. Across components, say so.
+
+*Severity* — HIGH when it is the only naming route, MEDIUM otherwise.
+*Criterion* — 4.1.2.
+
+### \`aria-hidden\` over focusable content
+
+\`aria-hidden="true"\` on a container that still contains a focusable element.
+Keyboard focus lands on something the accessibility tree says is not there.
+
+*Severity* — HIGH. *Criterion* — 4.1.2.
+
+### \`role="presentation"\` on something that matters
+
+Stripping semantics from an interactive element or from content that carries
+meaning.
+
+*Severity* — HIGH. *Criterion* — 1.3.1.
+
+### A composite widget without its keyboard model
+
+Tabs that do not respond to arrow keys, a menu that does not close on Escape,
+a combobox with no \`aria-activedescendant\` or roving focus. The role announces
+a widget the user cannot drive.
+
+*Severity* — HIGH. *Criterion* — 2.1.1, 4.1.2.
+
+## When it is NOT a finding
+
+- **Redundant ARIA on a native element is not a defect.** \`<button
+  role="button">\`, \`<nav role="navigation">\`, \`<input type="checkbox"
+  aria-checked>\` are all noise, and none of them break anything. LOW cleanup
+  at the very most — and on a busy report, leave them out entirely.
+- **Absence of ARIA is usually correct.** Well-formed HTML needs almost none.
+  "This component has no ARIA" is not a finding; "this component's role is
+  wrong" is.
+- **\`aria-hidden="true"\` on a decorative icon is the correct pattern**, not a
+  hidden-content violation. It is only a defect when what it hides is
+  focusable or informative.
+- **\`role="presentation"\` on a genuinely presentational wrapper is correct** —
+  a layout table, a \`<ul>\` used purely for spacing.
+- **You cannot confirm state management from static markup alone.** Whether
+  \`aria-expanded\` is updated on toggle is a runtime fact. If the handler is
+  not in the files you were given, say that rather than asserting it is
+  missing.
+- **A library's widget usually implements its own keyboard model.** Read it
+  before reporting the consumer.
+- **\`aria-label\` overriding visible text is a real issue — but a specific
+  one.** It matters when the two disagree, because voice users say what they
+  see. Identical or extended text is fine.
+
+## Accessible patterns
+
+\`\`\`html
+<!-- Prefer the element that already has the semantics -->
+<button aria-expanded="false" aria-controls="panel-1">Details</button>
+<div id="panel-1" hidden>…</div>
+
+<!-- A dialog names itself through content that exists -->
+<div role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+  <h2 id="dlg-title">Confirm deletion</h2>
+</div>
+
+<!-- Hide decoration, never a focusable thing -->
+<svg aria-hidden="true" focusable="false"><!-- … --></svg>
+\`\`\`
+
+## Review checklist
+
+- [ ] Every \`role\` value exists in the ARIA specification
+- [ ] Every role that implies state has that state, and it is updated
+- [ ] Every \`aria-labelledby\` / \`aria-describedby\` / \`aria-controls\` target
+      exists
+- [ ] No \`aria-hidden\` container holds a focusable element
+- [ ] \`role="presentation"\` is only on presentational things
+- [ ] Composite widgets implement their expected keyboard model
+- [ ] Nothing adds ARIA that a native element would have supplied
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/06-color-and-contrast.md",
+    content: `# Colour and contrast
+
+> **Surface** — the legibility of text against its background, the visibility
+> of interface boundaries, and every place colour is the only thing carrying
+> information. It breaks for people with low vision, for the very large
+> population with colour-vision deficiency, and for everyone reading outdoors.
+>
+> **WCAG 2.1** — 1.4.1 Use of Color (A) · 1.4.3 Contrast (Minimum) (AA) ·
+> 1.4.11 Non-text Contrast (AA)
+
+## The honest limit of a source review
+
+**Contrast is a rendered property.** A ratio depends on the final computed
+colours: the token, the theme, the cascade, the state, any opacity in the
+stack, and whatever sits behind a translucent surface. Source gives you a
+ratio only when both colours are literal and adjacent.
+
+This is the single largest generator of wrong accessibility findings. Treat
+it accordingly: compute only what you can compute, and name the rest.
+
+| Situation | What you may claim |
+| :--- | :--- |
+| Two literal hex values on the same rule | The ratio. This is a finding. |
+| Colours from variables resolvable in the same file | The ratio, saying you resolved them. |
+| Variables defined elsewhere, or theme-dependent | Nothing. Name it to verify. |
+| Any opacity, gradient, blend mode, or image behind | Nothing. |
+| A disabled or placeholder state | Check the exemption first. |
+
+## Where to look
+
+- Stylesheets, theme files, design-token definitions.
+- Inline \`style\` attributes and CSS-in-JS objects.
+- Placeholder, disabled, and hint text — the usual offenders.
+- Status messages: error red, success green, and nothing else.
+- Charts, badges, and legends.
+- Focus indicators and control borders.
+
+**Search signatures.** \`color:\`, \`background\`, \`#\` followed by 3/6 hex
+digits, \`rgb(\`, \`rgba(\`, \`hsl(\`, \`opacity:\`, \`--color-\`, \`placeholder\`,
+\`:disabled\`.
+
+## Failure modes
+
+### Body text below 4.5:1
+
+Normal-size text against its background at less than 4.5:1.
+
+*Confirm* — both colours literal, no opacity in the stack. Otherwise it is
+not a finding yet.
+
+*Severity* — HIGH. *Criterion* — 1.4.3.
+
+### Large text below 3:1
+
+Text at 24px or larger, or 18.66px and bold, has a lower threshold — but only
+that threshold, not none.
+
+*Severity* — HIGH. *Criterion* — 1.4.3.
+
+### Colour as the only signal
+
+Required fields marked only in red. Errors distinguished only by colour. A
+chart whose series are only distinguishable by hue. A link identified inside
+body text by colour alone.
+
+*Confirm* — this one is often decidable from source: look for an accompanying
+icon, text, underline, or pattern. Its absence is the finding.
+
+*Severity* — HIGH. *Criterion* — 1.4.1.
+
+### Interface boundaries below 3:1
+
+Input borders, toggle tracks, focus rings, icon-only controls against their
+background.
+
+*Severity* — MEDIUM. *Criterion* — 1.4.11.
+
+### Text over an image with no scrim
+
+Any ratio claim is meaningless because the background varies per pixel.
+
+*Confirm* — the finding is the *absence of a guarantee* — a scrim, an overlay,
+a solid panel — not a computed ratio.
+
+*Severity* — MEDIUM. *Criterion* — 1.4.3.
+
+## When it is NOT a finding
+
+- **You cannot compute a ratio through a design token you did not resolve.**
+  Reporting one anyway is the defining wrong finding of this surface. If the
+  variable is defined in another file you were not given, say so and stop.
+- **Disabled controls are exempt from 1.4.3.** Greyed-out text on a disabled
+  button is not a contrast failure. It is worth a design note; it is not a
+  conformance finding.
+- **Pure decoration is exempt.** A background flourish, an inactive slide
+  indicator, a divider that carries no information.
+- **Logotypes are exempt.** Brand marks have no contrast requirement.
+- **Large text has a different threshold, not no threshold.** Applying 4.5:1
+  to a 32px heading is a false positive; applying nothing is the opposite
+  error.
+- **Colour plus another signal satisfies 1.4.1.** Red text *and* an error icon
+  *and* a message is correct. Only colour alone fails.
+- **An underline is not required for every link.** Links in navigation, in
+  cards, and in other clearly-delineated contexts do not need one; links
+  inside a paragraph of body text do.
+- **Contrast in a state you cannot see from source** — hover, active,
+  visited — is a question, not a claim.
+
+## Accessible patterns
+
+\`\`\`css
+/* State the intent where the token is defined, so it survives a theme change */
+:root {
+  --text-body: #1f2933;      /* 14.2:1 on --surface */
+  --surface:   #ffffff;
+  --text-hint: #52606d;      /*  7.1:1 on --surface — still passes AA */
+}
+\`\`\`
+
+\`\`\`html
+<!-- Never colour alone: icon, text, and colour together -->
+<p class="error">
+  <svg aria-hidden="true" focusable="false"><!-- alert glyph --></svg>
+  Error: card number must be 16 digits.
+</p>
+\`\`\`
+
+## Review checklist
+
+- [ ] Every computable body-text pair reaches 4.5:1
+- [ ] Every computable large-text pair reaches 3:1
+- [ ] Nothing is conveyed by colour alone
+- [ ] Control borders and focus indicators reach 3:1
+- [ ] Text over imagery is guaranteed a background
+- [ ] Uncomputable pairs are named to verify, not reported as ratios
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/07-text-zoom-and-reflow.md",
+    content: `# Text sizing, zoom and reflow
+
+> **Surface** — what happens when the page is not viewed at the width and font
+> size it was designed for. It breaks for low-vision users who zoom, for
+> anyone who has raised their browser's default font size, and — because the
+> requirement is expressed as a width — for every mobile user at once.
+>
+> **WCAG 2.1** — 1.4.4 Resize Text (AA) · 1.4.10 Reflow (AA) ·
+> 1.4.12 Text Spacing (AA) · 1.4.13 Content on Hover or Focus (AA)
+
+## Where to look
+
+- Fixed pixel dimensions on anything containing text.
+- \`font-size\` in \`px\` on body copy.
+- \`overflow: hidden\`, \`white-space: nowrap\`, \`text-overflow: ellipsis\`.
+- \`width\` / \`height\` on buttons, badges, cards, table cells.
+- \`<meta name="viewport">\`.
+- Tooltips and popovers.
+- Fixed headers and footers, which eat the viewport when zoomed.
+
+**Search signatures.** \`user-scalable=no\`, \`maximum-scale=1\`,
+\`height: [0-9]+px\` on text containers, \`white-space: nowrap\`,
+\`overflow: hidden\`, \`font-size: [0-9]+px\`, \`!important\` near \`line-height\`.
+
+## Failure modes
+
+### Zoom disabled
+
+\`user-scalable=no\` or \`maximum-scale=1.0\` in the viewport meta. Pinch-zoom is
+suppressed on the platforms that honour it.
+
+*Confirm* — fully decidable from source, and unambiguous.
+
+*Severity* — HIGH. *Criterion* — 1.4.4.
+
+### Text clipped by a fixed height
+
+A container with a fixed pixel height holding text that grows. At larger font
+sizes the text is cut off or hidden.
+
+*Confirm* — a fixed height combined with \`overflow: hidden\` around text is a
+strong source signal. Whether it actually clips depends on the text.
+
+*Severity* — MEDIUM. *Criterion* — 1.4.4.
+
+### No reflow at 320 CSS pixels
+
+Content requires horizontal scrolling at a viewport equivalent to 320px —
+fixed-width layouts, wide tables, minimum widths larger than the target.
+
+*Confirm* — this needs the rendered layout. From source you can identify a
+fixed \`min-width\` above the threshold, which is real evidence; the rest is
+not.
+
+*Severity* — MEDIUM. *Criterion* — 1.4.10.
+
+### Layout that breaks under user text spacing
+
+Line height, letter spacing, word spacing, and paragraph spacing overridden by
+the user must not cause loss of content. Tight fixed heights are the usual
+cause.
+
+*Severity* — MEDIUM. *Criterion* — 1.4.12.
+
+### A tooltip that cannot be dismissed or hovered
+
+Content appearing on hover or focus must be dismissible without moving the
+pointer, hoverable so it can be read by a magnifier user tracking across it,
+and persistent until dismissed.
+
+*Confirm* — look for an Escape handler and for the popover being part of the
+hover target.
+
+*Severity* — MEDIUM. *Criterion* — 1.4.13.
+
+## When it is NOT a finding
+
+- **A pixel font size is not itself a violation.** Browser zoom scales \`px\`.
+  The criterion is about the result, not the unit. Recommend relative units as
+  a practice; do not report \`font-size: 16px\` as a failure.
+- **Reflow cannot be judged from a stylesheet.** Unless a fixed width or
+  \`min-width\` above the threshold is right there in the source, this is a
+  verify-at-320px note, not a finding.
+- **Some content is exempt from reflow** where a two-dimensional layout is
+  essential — data tables, maps, diagrams, code. A wide table is not
+  automatically a defect.
+- **\`overflow: hidden\` is not automatically clipping.** On a container that
+  does not hold text, or where the text is short and bounded, nothing is lost.
+- **A fixed header is not a violation** until it consumes enough of the zoomed
+  viewport to hide content. That is a rendered fact.
+- **\`maximum-scale=5\` is fine.** The criterion asks for 200%; only values that
+  prevent zoom fail.
+- **An ellipsis is not automatically loss of content** if the full text is
+  available another way — a title, an expandable row, a detail view.
+
+## Accessible patterns
+
+\`\`\`html
+<!-- Let people zoom -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+\`\`\`
+
+\`\`\`css
+/* Let text grow: bound by content, not by a magic number */
+.badge {
+  min-height: 2rem;      /* not height: 32px */
+  padding-block: 0.25rem;
+  overflow-wrap: break-word;
+}
+
+/* Survive user text spacing */
+.card { min-height: 0; }
+\`\`\`
+
+## Review checklist
+
+- [ ] The viewport meta does not disable or cap zoom
+- [ ] Text containers are bounded by content, not by fixed pixel heights
+- [ ] No \`min-width\` forces horizontal scrolling below the reflow threshold
+- [ ] Layouts tolerate increased line, letter, word and paragraph spacing
+- [ ] Hover and focus content is dismissible, hoverable and persistent
+- [ ] Anything exempt from reflow is exempt for the right reason
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/08-time-motion-and-media.md",
+    content: `# Time, motion and media
+
+> **Surface** — anything that moves, plays, expires, or flashes. It breaks for
+> people with vestibular disorders, photosensitive epilepsy, cognitive
+> disabilities, deaf and hard-of-hearing users, blind users, and anyone who
+> needs longer than the timeout allows.
+>
+> **WCAG 2.1** — 1.2.1 Audio-only and Video-only (A) · 1.2.2 Captions (A) ·
+> 1.2.3 Audio Description or Media Alternative (A) · 1.2.5 Audio Description
+> (AA) · 1.4.2 Audio Control (A) · 2.2.1 Timing Adjustable (A) ·
+> 2.2.2 Pause, Stop, Hide (A) · 2.3.1 Three Flashes or Below Threshold (A)
+
+## Where to look
+
+- \`<video>\`, \`<audio>\`, embedded players, background video.
+- \`<track>\` elements — captions and descriptions, or their absence.
+- Carousels, marquees, tickers, auto-advancing content.
+- CSS \`animation\`, \`transition\`, \`transform\` with long durations or
+  \`infinite\`.
+- \`@media (prefers-reduced-motion)\` — present or absent.
+- Session timeouts, countdowns, auto-refresh, \`autoplay\`.
+
+**Search signatures.** \`autoplay\`, \`loop\`, \`<track\`, \`animation:\`,
+\`animation-iteration-count: infinite\`, \`prefers-reduced-motion\`, \`setTimeout\`
+with a large delay, \`setInterval\`, \`meta http-equiv="refresh"\`.
+
+## Failure modes
+
+### Video without captions
+
+Prerecorded video with audio and no captions. The dialogue is unavailable to
+deaf and hard-of-hearing users.
+
+*Confirm* — look for \`<track kind="captions">\` or a player-level caption
+source. Note that \`kind="subtitles"\` is translation, not captioning, and does
+not carry non-speech audio.
+
+*Severity* — HIGH. *Criterion* — 1.2.2.
+
+### Video without an audio description or transcript
+
+Visual information not conveyed by the soundtrack has no alternative.
+
+*Severity* — MEDIUM. *Criterion* — 1.2.3, 1.2.5.
+
+### Audio-only content without a transcript
+
+A podcast or recorded call with no text alternative.
+
+*Severity* — HIGH. *Criterion* — 1.2.1.
+
+### Audio that plays automatically
+
+Sound starting on load and continuing for more than three seconds with no
+pause, stop, or independent volume control. It also collides directly with
+screen-reader speech.
+
+*Confirm* — \`autoplay\` without \`muted\`. Fully decidable from source.
+
+*Severity* — HIGH. *Criterion* — 1.4.2.
+
+### Moving content that cannot be paused
+
+A carousel that auto-advances, a ticker, a looping background video — running
+more than five seconds with no pause control.
+
+*Severity* — HIGH. *Criterion* — 2.2.2.
+
+### A time limit the user cannot extend
+
+Session expiry, a countdown, or an auto-refresh with no warning and no way to
+extend.
+
+*Confirm* — exemptions exist for real-time events and where the limit is
+essential. Check before flagging.
+
+*Severity* — HIGH. *Criterion* — 2.2.1.
+
+### Flashing
+
+Content flashing more than three times per second. This one can cause
+seizures.
+
+*Confirm* — rarely establishable from source. Rapid CSS animation on opacity
+or background is a signal to name, not a measurement.
+
+*Severity* — CRITICAL when confirmed. *Criterion* — 2.3.1.
+
+### No reduced-motion path
+
+Large parallax, scroll-driven, or transform-heavy animation with no
+\`prefers-reduced-motion\` branch. This is not a Level AA failure on its own —
+report it as the strong practice it is, at its real severity.
+
+*Severity* — MEDIUM, as a robustness finding rather than an AA violation.
+
+## When it is NOT a finding
+
+- **\`autoplay muted\` does not fail 1.4.2.** The criterion is about audio. A
+  silent looping background video is a motion question, not an audio one.
+- **\`kind="subtitles"\` is not \`kind="captions"\`.** Do not accept one for the
+  other — but equally, do not report missing captions on a video that has no
+  audio track at all.
+- **A media alternative can live outside the player.** A transcript on the
+  page satisfies the requirement; the absence of a \`<track>\` element alone
+  does not establish a failure.
+- **Animation under five seconds that stops on its own is not 2.2.2.** The
+  criterion targets content that moves, blinks or scrolls *and* starts
+  automatically *and* lasts more than five seconds *and* runs in parallel with
+  other content.
+- **A time limit can be exempt.** Real-time events such as an auction, and
+  limits essential to the activity, are explicitly excepted.
+- **Flash rate is not measurable from a stylesheet.** Name it for testing;
+  do not assert a seizure risk you cannot demonstrate.
+- **Missing \`prefers-reduced-motion\` is not a Level AA failure.** Reporting it
+  as one is a conformance claim the specification does not support at AA.
+- **Live captions have a different criterion and a different bar** than
+  prerecorded ones. Do not apply 1.2.2 to a live stream.
+
+## Accessible patterns
+
+\`\`\`html
+<!-- Captions ship with the video, not after it -->
+<video controls>
+  <source src="demo.mp4" type="video/mp4">
+  <track kind="captions" src="demo.en.vtt" srclang="en" label="English" default>
+</video>
+<p><a href="demo-transcript.html">Read the transcript</a></p>
+
+<!-- Decorative background video: silent, and pausable -->
+<video autoplay muted loop playsinline aria-hidden="true"></video>
+<button type="button" data-toggle-motion>Pause background</button>
+\`\`\`
+
+\`\`\`css
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+\`\`\`
+
+## Review checklist
+
+- [ ] Prerecorded video with audio has captions
+- [ ] Audio-only content has a transcript
+- [ ] Visual-only information has a description or transcript
+- [ ] Nothing plays audio automatically without a control
+- [ ] Auto-advancing content can be paused, stopped or hidden
+- [ ] Time limits can be turned off, adjusted, or extended
+- [ ] Nothing flashes more than three times a second
+- [ ] Substantial motion honours \`prefers-reduced-motion\`
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/09-navigation-and-language.md",
+    content: `# Navigation, page identity and language
+
+> **Surface** — how a user finds their way around: page titles, link text,
+> skip links, consistent placement, and the declared language. It breaks for
+> screen-reader users navigating by link list or by title, for people with
+> cognitive disabilities relying on consistency, and for anyone whose screen
+> reader pronounces the page in the wrong language.
+>
+> **WCAG 2.1** — 2.4.1 Bypass Blocks (A) · 2.4.2 Page Titled (A) ·
+> 2.4.4 Link Purpose (A) · 2.4.5 Multiple Ways (AA) ·
+> 3.1.1 Language of Page (A) · 3.1.2 Language of Parts (AA) ·
+> 3.2.3 Consistent Navigation (AA) · 3.2.4 Consistent Identification (AA)
+
+## Where to look
+
+- The document shell: \`<html lang>\`, \`<title>\`, and how the title is set per
+  route.
+- The first focusable element on the page — is it a skip link?
+- Link text, especially in lists, cards, and tables.
+- Navigation components shared across routes.
+- Any text in a second language: quotes, product names, legal text.
+- Route configuration, for whether each route gets a distinct title.
+
+**Search signatures.** \`<html\` without \`lang=\`; \`<title>\`; \`document.title\`;
+\`skip\`; \`>Read more<\`, \`>Click here<\`, \`>Learn more<\`, \`>here<\`;
+\`lang=\` on inline elements.
+
+## Failure modes
+
+### No language declared
+
+\`<html>\` with no \`lang\`. Screen readers fall back to the user's default voice,
+which mispronounces everything.
+
+*Confirm* — decidable from source, and one of the cheapest fixes in
+accessibility.
+
+*Severity* — MEDIUM. *Criterion* — 3.1.1.
+
+### A generic or missing page title
+
+Every route titled with the application name, or no \`<title>\` at all. Titles
+are how users distinguish tabs and how screen readers announce arrival.
+
+*Confirm* — a single static title across routes in a client-rendered
+application is a strong source signal.
+
+*Severity* — MEDIUM. *Criterion* — 2.4.2.
+
+### Link text that does not carry its purpose
+
+"Read more", "Click here", "Learn more" repeated down a page. A screen-reader
+user listing links hears the same phrase many times.
+
+*Confirm* — the criterion allows the purpose to come from the surrounding
+context, so a repeated phrase is not automatically a failure. It is a failure
+when the link's own text plus its programmatically-determined context still
+does not identify the destination.
+
+*Severity* — MEDIUM. *Criterion* — 2.4.4.
+
+### No way to bypass repeated blocks
+
+A large navigation before the content on every page, with no skip link, no
+landmarks, and no heading structure to jump by.
+
+*Confirm* — the criterion is satisfied by *any* bypass mechanism. Landmarks
+alone can satisfy it. Only flag when none of the routes exist.
+
+*Severity* — MEDIUM. *Criterion* — 2.4.1.
+
+### Inconsistent navigation or labelling
+
+The same navigation in a different order on different pages, or the same
+function labelled differently in different places.
+
+*Severity* — MEDIUM. *Criterion* — 3.2.3, 3.2.4.
+
+### Foreign-language passages not marked
+
+A quotation or term in another language with no \`lang\` attribute, read aloud
+in the wrong phonetics.
+
+*Confirm* — proper nouns and words absorbed into the page language are
+exempt.
+
+*Severity* — LOW. *Criterion* — 3.1.2.
+
+## When it is NOT a finding
+
+- **A skip link is not the only way to satisfy 2.4.1.** Landmarks and a proper
+  heading structure do it too. Reporting "no skip link" on a page with
+  \`<main>\` and a sound outline is a false positive.
+- **"Read more" is not automatically a failure.** If it sits inside an article
+  card whose heading is programmatically associated, the purpose is
+  determinable. Establish the context before flagging.
+- **A single-page application usually sets the title in JavaScript.** Absence
+  of a per-route \`<title>\` in the HTML shell is not evidence; look for the
+  route-level mechanism first.
+- **\`lang\` on \`<html>\` covers the whole document.** Per-element \`lang\` is only
+  needed where the language actually changes.
+- **Proper nouns are exempt from 3.1.2.** A French product name in an English
+  sentence needs nothing.
+- **2.4.5 Multiple Ways has an exemption** for a page that is a step in a
+  process. A checkout step needs no site map.
+- **Consistency is judged across a set of pages**, not within one. You cannot
+  establish 3.2.3 from a single component.
+- **A visually-hidden skip link is still a skip link**, provided it becomes
+  visible on focus. Check the focus style before reporting it as hidden.
+
+## Accessible patterns
+
+\`\`\`html
+<html lang="en">
+  <head><title>Invoices — Acme Billing</title></head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <nav aria-label="Primary">…</nav>
+    <main id="main" tabindex="-1">…</main>
+  </body>
+</html>
+\`\`\`
+
+\`\`\`css
+/* Hidden until focused — still reachable, still announced */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+.skip-link:focus {
+  left: 0;
+  top: 0;
+}
+\`\`\`
+
+\`\`\`html
+<!-- The link carries its own purpose -->
+<a href="/invoices/2024-Q1">View the Q1 2024 invoice</a>
+\`\`\`
+
+## Review checklist
+
+- [ ] \`<html lang>\` is present and correct
+- [ ] Every route has a distinct, descriptive title
+- [ ] Link purpose is determinable from the link plus its context
+- [ ] Repeated blocks can be bypassed by some mechanism
+- [ ] Navigation order and control labelling are consistent across pages
+- [ ] Language changes within the page are marked
+- [ ] A visually-hidden skip link becomes visible on focus
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "memory/a11y/10-dynamic-updates-and-status.md",
+    content: `# Dynamic updates and status messages
+
+> **Surface** — everything that changes after the page has loaded without the
+> user asking: toasts, inline validation results, search-as-you-type counts,
+> loading states, optimistic UI, route changes in a single-page application.
+> It breaks for screen-reader users, who are looking at one place in the
+> document while the change happens somewhere else.
+>
+> **WCAG 2.1** — 4.1.3 Status Messages (AA) · 3.2.2 On Input (A) ·
+> 2.4.3 Focus Order (A) · 3.3.1 Error Identification (A)
+
+## The shape of the problem
+
+A sighted user notices a toast because it appeared in their peripheral vision.
+A screen-reader user notices nothing at all unless the change is announced.
+Two mechanisms exist, and choosing between them is most of this surface:
+
+- **Announce it** — a live region, for information that does not require
+  action. The user's focus stays put.
+- **Move focus to it** — for anything the user must act on. Disruptive by
+  design, which is why it is wrong for a passive notification.
+
+Getting this backwards is a defect in both directions: a stolen focus for a
+"Saved" toast, or a silent modal that needs a decision.
+
+## Where to look
+
+- Toast, snackbar, alert and banner components.
+- \`aria-live\`, \`role="status"\`, \`role="alert"\`, \`aria-atomic\`, \`aria-busy\`.
+- Result counts that update as the user types.
+- Loading spinners and skeletons.
+- Route transitions in client-rendered applications.
+- \`onChange\` handlers on \`<select>\`, radios, and checkboxes.
+- Anything calling \`.focus()\` after an async operation.
+
+**Search signatures.** \`aria-live\`, \`role="alert"\`, \`role="status"\`,
+\`toast\`, \`snackbar\`, \`notification\`, \`onChange={.*submit\`,
+\`onChange={.*navigate\`, \`.focus()\`, \`aria-busy\`.
+
+## Failure modes
+
+### A status message that is never announced
+
+A toast rendered into a container with no live region. Sighted users see it;
+nobody else learns it happened.
+
+*Confirm* — look for \`aria-live\`, \`role="status"\` or \`role="alert"\` on the
+container. Their absence around a notification component is the finding.
+
+*Severity* — MEDIUM. *Criterion* — 4.1.3.
+
+### The live region created at the same moment as its content
+
+The region is inserted into the DOM already containing the message. Many
+screen readers only announce changes to a region that was already present, so
+nothing is spoken.
+
+*Confirm* — a component that renders both the region and the text
+conditionally, in one go, has this shape. This is the most common way a
+correct-looking live region does nothing.
+
+*Severity* — MEDIUM. *Criterion* — 4.1.3.
+
+### \`role="alert"\` used for routine confirmations
+
+\`alert\` is assertive: it interrupts. Using it for "Saved" interrupts whatever
+the user was reading, every time.
+
+*Severity* — LOW. *Criterion* — 4.1.3.
+
+### An error announced only visually
+
+Validation renders a message and nothing associates it with the field or
+announces it.
+
+*Severity* — HIGH. *Criterion* — 3.3.1, 4.1.3.
+
+### A change of context on input
+
+Selecting an option navigates, submits, or reloads. The user changing a value
+to read it did not ask to leave.
+
+*Confirm* — an \`onChange\` that navigates or submits is decidable from source.
+
+*Severity* — HIGH. *Criterion* — 3.2.2.
+
+### Focus lost after an async update
+
+A list re-renders, a row is deleted, a step advances — and the focused element
+no longer exists, so focus falls back to \`<body>\`.
+
+*Severity* — HIGH. *Criterion* — 2.4.3.
+
+### A route change with no announcement and no focus move
+
+In a single-page application, the URL and content change while focus and the
+virtual cursor stay where they were. The user has no idea the page changed.
+
+*Severity* — MEDIUM. *Criterion* — 4.1.3, 2.4.3.
+
+## When it is NOT a finding
+
+- **Not every change needs a live region.** The criterion covers *status
+  messages* — information about the outcome of an action, progress, or an
+  error. Content the user explicitly navigated to is not a status message.
+- **\`role="status"\` already implies \`aria-live="polite"\`.** Setting both is
+  redundant, not broken.
+- **You usually cannot confirm announcement from source.** Whether a region
+  fires depends on insertion timing at runtime. Where the markup is right and
+  the timing is unknowable, say what would settle it rather than asserting a
+  failure.
+- **Moving focus is correct for anything requiring action.** A dialog taking
+  focus is the pattern, not a violation. Only a *passive* notification
+  stealing focus is a defect.
+- **A change of context is not the same as a change of content.** Filtering a
+  list on input changes content and is fine. Navigating away is a change of
+  context and is not.
+- **Focus loss on re-render is a framework-shaped risk, not an automatic
+  defect.** Many libraries preserve focus by key. Check before attributing it.
+- **A loading spinner does not need \`role="alert"\`.** \`aria-busy\` on the
+  region, or a polite status, is enough — an assertive interruption for every
+  fetch is worse than silence.
+
+## Accessible patterns
+
+\`\`\`html
+<!-- The region exists before it has anything to say -->
+<div id="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
+\`\`\`
+
+\`\`\`js
+// Announce: the region is already in the DOM, only its text changes
+function announce(message) {
+  document.getElementById("toast-region").textContent = message;
+}
+
+// Act: anything needing a decision takes focus instead
+function confirmDeletion(dialog) {
+  const opener = document.activeElement;
+  dialog.showModal();
+  dialog.querySelector("h2").focus();
+  dialog.addEventListener("close", () => opener?.focus(), { once: true });
+}
+\`\`\`
+
+\`\`\`html
+<!-- Changing a value must not navigate on its own -->
+<label for="sort">Sort by</label>
+<select id="sort" name="sort">…</select>
+<button type="submit">Apply</button>
+\`\`\`
+
+## Review checklist
+
+- [ ] Status messages reach a live region that already existed
+- [ ] \`role="alert"\` is reserved for things that justify interrupting
+- [ ] Validation errors are both associated and announced
+- [ ] Changing a value never navigates or submits on its own
+- [ ] Focus survives re-render, deletion and step transitions
+- [ ] Route changes in a single-page application are announced or take focus
+- [ ] Nothing passive steals focus
 `,
     executable: false,
     backend: null,

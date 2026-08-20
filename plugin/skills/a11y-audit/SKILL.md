@@ -55,6 +55,15 @@ accessibility shape of the scoped front-end source (semantic HTML, heading
 hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA
 correctness, color contrast where computable) — not a per-line review.
 
+Include its Step 0 in the dispatch prompt, verbatim: read
+`.specnaut/memory/a11y/00-triage.md` first — it sets Level A/AA scope, the
+severity rubric, and the list of things source cannot establish — then route
+by surface through `.specnaut/memory/a11y/README.md`, and read the matching
+leaf's `## When it is NOT a finding` before shipping each finding. The agent
+must state which sources it read, cite the criterion by number **and** name,
+and downgrade to `Suspicion —` at LOW anything it cannot attribute. If
+`.specnaut/memory/a11y/` is absent, it says so in one line instead.
+
 ## Step 4 — Return findings inline
 
 Return the agent's findings inline. The `a11y-expert` ends with the

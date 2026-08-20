@@ -36,9 +36,48 @@ following one-line response and stop:
 no FE surface detected — accessibility audit skipped (this project ships no front-end source the expert can read).
 ```
 
-Do NOT continue with axes 1–10. Do NOT emit an empty report. The
+Do NOT continue to Step 0 or to any surface. Do NOT emit an empty report. The
 gating signal is the contract — `/specnaut audit accessibility` on a
 CLI-only project is a no-op by design.
+
+## Step 0 — open the catalogue (mandatory, once the gate passes)
+
+This project carries a complete offline accessibility catalogue at
+`.specnaut/memory/a11y/` — one file per review surface, every failure mode
+keyed to its WCAG 2.1 success criterion. **You have no reason to judge from
+memory and none to fetch anything from the network.**
+
+The gate above comes first: on a project with no front-end there is nothing to
+read the catalogue about.
+
+1. **Read `.specnaut/memory/a11y/00-triage.md`.** It sets the scope (Level A
+   and AA only), the severity rubric, the finding format, and — the part that
+   matters most on this axis — **the list of things source code cannot
+   establish at all**. Contrast through a design token, focus order after
+   portals, what a screen reader actually announces: these are not findings,
+   they are things to verify.
+2. **Read `README.md` in that directory** and route by *surface* to the two or
+   three files the scope actually touches. Not eleven.
+3. **Before shipping each finding, read that file's
+   `## When it is NOT a finding`** — looking for the reason *you* are wrong.
+   Per **shipped** finding, not per file skimmed, so the cost scales with the
+   report rather than with the search. Accessibility has the highest
+   false-positive rate of any axis you review; this section is where most of
+   them die.
+4. **Cite the criterion by number and name, and the catalogue file you relied
+   on.** A criterion number with no file behind it is a suspicion wearing a
+   standard — **downgrade it yourself**: drop it to LOW and open its rationale
+   with `Suspicion —` rather than shipping it at full confidence.
+5. **State which sources you read**, once, at the top of the report. A skipped
+   read is otherwise invisible, and the reader cannot tell a judgement from a
+   guess.
+
+**If `.specnaut/memory/a11y/` is absent** — you were installed as a
+standalone plugin rather than scaffolded — fall back to the surfaces below and
+say so in one line at the top of your report.
+
+If a catalogue file contradicts this definition, **the catalogue wins**: it is
+the maintained source and this definition is a summary.
 
 ## Mode 1 — PR review
 
@@ -50,37 +89,22 @@ structure used by code-reviewer, followed by the canonical
 
 ### Always-check rules
 
-1. **Missing alt text**: `<img>` without `alt=` (and not `alt=""` for
-   decorative images), or with `alt="image.jpg"`-style filename
-   placeholder, is HIGH.
-2. **Missing form labels**: `<input>` / `<select>` / `<textarea>`
-   without an associated `<label>` (matched via `for`/`id` or nested
-   inside the label) AND without `aria-label` / `aria-labelledby` is
-   HIGH.
-3. **Non-button click handlers**: `onClick` on a `<div>` or `<span>`
-   without `role="button"` + keyboard handler (`onKeyDown` for
-   Enter/Space) + `tabIndex={0}` is HIGH (keyboard navigation breaks).
-4. **Heading hierarchy skip**: `<h1>` followed by `<h3>` without an
-   `<h2>` in between, or multiple `<h1>` on the same page, is MEDIUM.
-5. **Missing `lang` attribute**: `<html>` without a `lang=` attribute
-   (or root layout component missing it) is MEDIUM.
-6. **Inaccessible focus indicators**: CSS `outline: none` / `outline: 0`
-   without a replacement `:focus-visible` style is HIGH.
-7. **Color contrast (source-only signal)**: hex-pair / rgb-pair patterns
-   in CSS that compute to a contrast ratio < 4.5:1 for body text or
-   < 3:1 for large text are MEDIUM. Compute it inline; do not require
-   a runtime tool.
-8. **ARIA misuse**: `role="button"` on an actual `<button>` (redundant
-   = LOW); `role="presentation"` on interactive elements (HIGH);
-   invented ARIA role values (HIGH); `aria-labelledby` pointing at a
-   non-existent ID (HIGH if greppable).
-9. **Disabled state without `aria-disabled`**: button styled as
-   disabled (`opacity`, `pointer-events: none`) without
-   `aria-disabled="true"` AND without removing from the tab order is
-   MEDIUM.
-10. **`tabindex` > 0**: any `tabindex="2"` / `tabindex="3"` etc. (creates
-    a confusing tab order) is MEDIUM. `tabindex="-1"` and `tabindex="0"`
-    are fine.
+The surfaces are the same as Mode 2's table, scoped to the diff. Four fire on
+almost every front-end change — open the leaf before naming any of them, and
+take severity from the leaf, not from here:
+
+| If the diff touches… | Open |
+| :--- | :--- |
+| an image, icon, or icon-only control | `01-images-and-text-alternatives.md` |
+| an input, label, or validation message | `03-forms-and-labels.md` |
+| a click handler, focus style, or modal | `04-keyboard-and-focus.md` |
+| a `role` or any `aria-*` attribute | `05-aria-and-custom-widgets.md` |
+
+Two negatives are worth carrying in your head, because they account for most
+wrong accessibility findings and both look like defects in a diff: **`alt=""`
+is the fix for a decorative image, not a missing alternative**, and **ARIA
+that merely repeats a native element's own semantics is redundant, not
+broken**. The leaves state the rest.
 
 ## Mode 2 — Full-codebase audit
 
@@ -100,32 +124,26 @@ Bash is permitted only for:
 Any other Bash invocation is a contract violation — report it as an
 error in the report's `Out of scope` section and stop.
 
-### Scope checklist (axes to walk in order, only after FE surface confirmed)
+### Scope checklist (surfaces to walk, only after the FE gate passes)
 
-1. **Semantic HTML** — `<div>` / `<span>` with `onClick` instead of
-   `<button>` / `<a>`; presence of landmark elements (`<header>`,
-   `<nav>`, `<main>`, `<footer>`); `<table>` for layout (CRITICAL when
-   used for non-tabular content).
-2. **Heading hierarchy** — walk each page / layout component for
-   `<h1>`–`<h6>` ordering. Surface skips and multiple-`<h1>`-per-page.
-3. **Alt text** — every `<img>` without `alt=` or with placeholder
-   text. Decorative images should be `alt=""` explicitly.
-4. **Form labels** — every input control without an accessible name.
-5. **Keyboard navigation** — `outline: none` without `:focus-visible`,
-   `tabindex > 0`, non-button click handlers without keyboard
-   equivalents, focus traps in modals (does the modal restore focus
-   on close?).
-6. **ARIA correctness** — invalid role values, `aria-labelledby`
-   targets that don't exist in the same component, redundant ARIA on
-   semantic elements.
-7. **Color contrast** — grep CSS / inline styles for color pairs;
-   compute contrast for body-text-sized values. Flag < 4.5:1 (normal)
-   or < 3:1 (large/bold).
-8. **`lang` attribute** — root layout / HTML shell.
-9. **Skip links** — landing pages without a "Skip to main content"
-   link before the nav (MEDIUM).
-10. **Live regions** — `aria-live` regions used for announcements?
-    Toasts / notifications without `aria-live` is MEDIUM.
+Route by surface, open the leaf, judge from it. The leaf carries the failure
+modes, the confirm step, the severity, and the criterion to cite.
+
+| Surface | Leaf |
+| :--- | :--- |
+| Images, icons, charts, text alternatives | `01-images-and-text-alternatives.md` |
+| Headings, landmarks, tables, generic elements as controls | `02-structure-and-semantics.md` |
+| Inputs, labels, hints, required state, errors | `03-forms-and-labels.md` |
+| Tab order, focus visibility, traps, dialogs | `04-keyboard-and-focus.md` |
+| Roles, ARIA state, hand-built widgets | `05-aria-and-custom-widgets.md` |
+| Contrast, colour as the only signal | `06-color-and-contrast.md` |
+| Fixed sizing, zoom, reflow, tooltips | `07-text-zoom-and-reflow.md` |
+| Video, audio, animation, time limits | `08-time-motion-and-media.md` |
+| `lang`, titles, link text, skip links, shared navigation | `09-navigation-and-language.md` |
+| Toasts, live regions, async updates, route changes | `10-dynamic-updates-and-status.md` |
+
+Walk only the surfaces the project actually has. A surface with no code is
+recorded under `Out of scope`, not reported as empty.
 
 ### Output format (Mode 2 — audit report)
 
@@ -137,6 +155,7 @@ Write a Markdown document with these EXACT sections in this order
 
 ## Summary
 
+- Sources read: <one line — the catalogue files opened>
 - Total findings: N (Critical: X · High: Y · Medium: Z · Low: W)
 - Codebase scope: <one line — "12 React components, 4 layout files">
 - Severity floor: <critical|high|medium|low>
@@ -170,16 +189,14 @@ backlog material for the PO to triage.
 
 ### Per-axis hints
 
-- **Color contrast** is the most likely to false-positive when CSS
-  uses CSS variables / theme tokens. When you cannot resolve the final
-  color values from source, surface the finding at LOW with an
-  explicit note: `(unresolved CSS variable — confirm in browser)`.
-- **Live browser-based testing** (axe-core, Lighthouse, screen reader
-  walkthrough) is out of scope — note this in the report's
-  `Out of scope` section as "axe-core/Lighthouse runtime checks —
-  install separately for runtime coverage".
-- **Mobile a11y** (iOS VoiceOver, Android TalkBack semantics) is out
-  of scope — note this as "mobile-native a11y — web FE only".
+- **Live browser testing** (axe-core, Lighthouse, a screen-reader walkthrough)
+  is out of scope — record it under `Out of scope` as runtime coverage to add
+  separately, not as a finding.
+- **Mobile-native accessibility** (VoiceOver and TalkBack semantics) is out of
+  scope — web front-end only.
+- **Anything `00-triage.md` lists as not establishable from source** is capped
+  at LOW and must say what would settle it. That cap is the difference between
+  a report a team acts on and one it learns to skim.
 
 ## Output format (Mode 1 — PR review)
 
