@@ -18,14 +18,26 @@ $ARGUMENTS
 2. Run `git status --porcelain` — abort if the working tree is dirty.
 3. Run `git fetch origin <base>` and verify the current branch is up-to-date with `origin/<base>`
    (fast-forward or rebase first if behind).
-4. Run `git checkout <base>`.
-5. Run `git merge --ff-only <feature-branch>`. If fast-forward is not possible, stop and ask the
+4. **Squash by scope** — see the section below. This phase performs the squash; it does not check
+   that somebody else did it, and it does not ask permission to do its own job.
+5. Run `git checkout <base>`.
+6. Run `git merge --ff-only <feature-branch>`. If fast-forward is not possible, stop and ask the
    user whether to rebase.
-6. Print the merge summary (files changed, commits merged).
-7. Ask the user: "Push to origin <base>? (yes/no)". Do NOT auto-push.
-8. **Close the linked backlog issue** (only if push happened and `feature.json.linked_issue` is set):
+7. Print the merge summary (files changed, commits merged).
+8. Ask the user: "Push to origin <base>? (yes/no)" — **unless they already told you to merge**, in
+   which case pushing is part of the instruction they gave and asking re-collects permission
+   already granted at the most expensive moment: the very end of the chain.
+9. **End on the base branch.** A merge is not finished while `HEAD` is still on the feature branch —
+   landing the commits is half of it; the other half is that the person who asked is back where they
+   work. Delete the merged branch (`git branch -d`, never `-D`: a refusal means the merge did not
+   actually land, which is a finding, not an obstacle), then **verify with
+   `git rev-parse --abbrev-ref HEAD` and quote the result in the report.** This failure is invisible
+   from your side — the commits ARE on the base branch, everything looks right, and only the human
+   sees the wrong branch name in their prompt.
+
+10. **Close the linked backlog issue** (only if push happened and `feature.json.linked_issue` is set):
    1. Read `.specnaut/feature.json`. Extract `linked_issue` (`jq -r '.linked_issue // empty'`).
-      If absent / null / empty, skip the rest of step 8 silently — no backlog backend wiring
+      If absent / null / empty, skip the rest of step 10 silently — no backlog backend wiring
       to act on.
    2. Detect the backend by checking `.specnaut/installed.lock` (`backlog_backend: <local|github|gitlab>`)
       or, equivalently, the presence of `.specnaut/backlog-config.yml` (github/gitlab) vs
@@ -45,7 +57,7 @@ $ARGUMENTS
       "PR for issue #<linked_issue> just merged on `main`. The mechanical move to Done has
       already been done via `move.sh`. Please run the second half of the two-step close: post
       a close comment on the issue referencing the merged commit range `<first-sha>..<last-sha>`
-      (from step 6's summary), then `gh issue close <linked_issue> --reason completed`. Confirm
+      (from step 7's summary), then `gh issue close <linked_issue> --reason completed`. Confirm
       with a one-line report." This keeps the audit comment under PO ownership and surfaces the
       `docs audit` line from the PO's close-step contract.
    7. **local backend only** — `move.sh <id> Done` already flipped the frontmatter; no second
@@ -53,10 +65,64 @@ $ARGUMENTS
 
    Backward-compat: feature trees without `linked_issue` (created before this field existed)
    skip step 8 silently. Multi-PR features (final PR not yet merged) — the user answers `no`
-   in step 8.4 and re-runs `/specnaut merge` on the last PR.
+   in step 10.4 and re-runs `/specnaut merge` on the last PR.
+
+## Squash by scope — one commit per scope, never "exactly one commit"
+
+A branch usually carries more than one kind of change, and collapsing them into a single commit
+destroys the thing squashing exists to produce: **a history a human can read.**
+
+| What is on the branch | Where it goes |
+| :--- | :--- |
+| The feature itself — rules, domain, service, UI, its tests | **One** commit, `<type>(<id>): <what it does>` |
+| Generated artefacts the feature invalidated — bundles, codegen output, lockfiles | Its own `chore(codegen):` commit |
+| Configuration, tooling, CI unrelated to the feature | Its own `chore(...)` / `ci(...)` commit |
+| Documentation or agent memory written alongside | Its own `docs(...)` commit |
+| A fix to a **pre-existing** defect the branch happened to expose | Its own commit, with **its own** backlog id — never the feature's |
+
+**Every commit subject carries the backlog id of the thing it is about**, in the scope position:
+`feat(412): …`, `fix(389): …`, and `chore(codegen):` where the commit belongs to no item. That id is
+what makes `git log --oneline` readable against the board, and it is why a pre-existing fix must not
+inherit the feature's id — that would attribute work to an item which never asked for it. The id
+comes from whichever backlog backend the project uses; no backend-specific syntax is required.
+
+### Procedure
+
+1. `git log <base>..HEAD --oneline` — read what is actually there.
+2. Group the commits by scope using the table above, and **show the grouping**.
+3. `git reset --soft <base>`, then re-commit **one group at a time**, staging paths **by name**.
+   Never `git add -A` — a sweep is the fastest way to pull in something the branch never had.
+4. `git log <base>..HEAD --oneline` again. The result is one commit per scope, in an order that
+   reads forwards: the feature first, its codegen after it, unrelated changes last.
+
+**Do not stop between steps 2 and 3.** The grouping is shown so the user can see what happened, not
+so they can approve it mid-run. Asking for the merge *is* asking for the squash. The one thing that
+legitimately halts here is a file you cannot classify — name those files, say why, and ask about
+**those files only**.
+
+### Verification, which is not optional
+
+- **`git diff <base>..HEAD` must be byte-identical to what it was before the squash.** A squash that
+  changes the tree is not a squash, it is a rewrite. Capture the diff before step 3 and compare
+  after step 4.
+- **`git status --short` must then be empty.** If anything appears:
+  - **Untracked (`??`)** — usually generated output. Decide per file: it belongs either to the
+    codegen commit or to `.gitignore`. Never leave it dangling and never report success over it.
+  - **Modified** — something wrote to the tree during the squash. Find out what before going
+    further; an agent still holding the worktree is the usual answer, and it must be stopped first.
+
+### Where this does not apply
+
+The merge path is **local fast-forward**: squash on the branch, `checkout <base>`, `merge --ff-only`,
+push. A repository whose default branch is **protected** cannot use it — the push will be rejected —
+and this phase does not implement a forge-side path. Where a pull request is open, the scope commits
+land through it; do **not** use the forge's "Squash and merge" button, which collapses the scopes
+back into the single commit this whole procedure exists to avoid.
 
 ## Output
 
 A structured report with: files merged, commits merged, whether the user chose to push, and — when
-step 8 ran — whether the linked issue was closed (and via which backend), or skipped (and why:
-no `linked_issue`, user declined, or `cascade-check` blocked the close).
+step 10 ran — whether the linked issue was closed (and via which backend), or skipped (and why:
+no `linked_issue`, user declined, or `cascade-check` blocked the close). It must also quote
+the branch `HEAD` is on after the merge, from `git rev-parse --abbrev-ref HEAD` — a merge report
+that claims success without naming the branch is unverifiable.
