@@ -113,6 +113,7 @@ export class CodexHarness implements Harness {
             content: entry.content,
             executable: entry.executable,
             ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
+            ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
           };
           break;
         case "project-root":
@@ -121,6 +122,7 @@ export class CodexHarness implements Harness {
             content: entry.content,
             executable: entry.executable,
             ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
+            ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
           };
           break;
         case "mergeable-project-root":

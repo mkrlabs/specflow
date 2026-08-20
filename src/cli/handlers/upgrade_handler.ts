@@ -346,6 +346,21 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
 
   renderSummary(result.plan, result.fromVersion, result.toVersion);
 
+  // Sections Specnaut owns inside files the user owns (#466). `AGENTS.md` is
+  // never rewritten by an upgrade, so the one section that has to reach an
+  // existing project is grafted in under its own fence — and said out loud,
+  // because a paragraph that appears in an always-loaded file without a word
+  // of explanation is indistinguishable from an overwrite.
+  for (const section of result.managedSections) {
+    const verb = result.status === "planned"
+      ? (section.kind === "added" ? "would add" : "would refresh")
+      : (section.kind === "added" ? "added" : "refreshed");
+    console.log(cyan(
+      `${verb} the Specnaut-managed "${section.label}" section in ${section.dest}` +
+        " — everything you wrote is untouched",
+    ));
+  }
+
   // Declared-preserve notices (FR-004) — one line per declared file kept.
   const declaredPreserves = result.plan.filter(
     (a) => a.kind === "preserve" && a.reason === "declared",

@@ -1,42 +1,78 @@
 /**
- * Append-block helpers for `mergeable-project-root` files (e.g. `.gitignore`).
+ * Append-block helpers for files Specnaut writes into without owning them.
  *
  * A merge block is a labeled section in an otherwise user-owned file that
  * Specnaut can write, replace, or read back without touching surrounding
  * lines. The fence markers are stable so future runs (init re-run, upgrade)
  * can find and replace the block in place.
  *
+ * Two fence styles, because the comment syntax has to be invisible in the
+ * host file:
+ *
+ *   - `"hash"` (default) — `# --- Specnaut: <label> ---`, for `.gitignore`
+ *     and anything else where `#` starts a comment.
+ *   - `"html"` — `<!-- --- Specnaut: <label> --- -->`, for Markdown. A `#`
+ *     fence there is not a comment, it is an H1: it would render as a stray
+ *     heading in the middle of the user's document (#466).
+ *
+ * Known limitation, deliberately not handled: a file where exactly one of the
+ * two markers was deleted is not a block any more, so the next merge appends a
+ * complete one and leaves the orphan marker in place. Both repair strategies
+ * (delete to end-of-file, or strip the marker) can destroy or duplicate content
+ * the user wrote, so neither is a safe guess. Deleting the whole section, or
+ * neither marker, both behave correctly.
+ *
  * Pure — no IO, no Deno globals. Safe to import from domain or application.
  */
 
-const FENCE_PREFIX = "# --- Specnaut: ";
-const FENCE_SUFFIX = " ---";
-const END_PREFIX = "# --- End Specnaut: ";
-const END_SUFFIX = " ---";
+export type FenceStyle = "hash" | "html";
 
-// Back-compat: blocks written by pre-rebrand (Specflow) versions are still
-// recognised so an upgrade REPLACES the legacy block in place — migrating its
-// fence to the Specnaut label — rather than appending a duplicate.
-const LEGACY_FENCE_PREFIX = "# --- Specflow: ";
-const LEGACY_END_PREFIX = "# --- End Specflow: ";
+type FenceSpec = {
+  readonly start: (label: string) => string;
+  readonly end: (label: string) => string;
+  /**
+   * Fences written by older versions that must still be *found* (so an
+   * upgrade replaces the block in place instead of appending a duplicate).
+   * Never written — a rewritten block always carries the current fence.
+   */
+  readonly legacy: ReadonlyArray<{
+    readonly start: (label: string) => string;
+    readonly end: (label: string) => string;
+  }>;
+};
+
+const FENCES: Record<FenceStyle, FenceSpec> = {
+  hash: {
+    start: (l) => `# --- Specnaut: ${l} ---`,
+    end: (l) => `# --- End Specnaut: ${l} ---`,
+    // Pre-rebrand (Specflow) blocks.
+    legacy: [{
+      start: (l) => `# --- Specflow: ${l} ---`,
+      end: (l) => `# --- End Specflow: ${l} ---`,
+    }],
+  },
+  html: {
+    start: (l) => `<!-- --- Specnaut: ${l} --- -->`,
+    end: (l) => `<!-- --- End Specnaut: ${l} --- -->`,
+    // Introduced after the rebrand — no legacy spelling exists.
+    legacy: [],
+  },
+};
 
 /**
- * Locate a previously-written block for `label`, matching the current
- * (Specnaut) fence first and the legacy (Specflow) fence second. Returns the
- * fence offsets, or `null` if no complete block is present.
+ * Locate a previously-written block for `label`, matching the current fence
+ * first and any legacy fence second. Returns the fence offsets, or `null` if
+ * no complete block is present.
  */
 function locateBlock(
   content: string,
   label: string,
+  style: FenceStyle,
 ): { startIdx: number; afterStart: number; endIdx: number; afterEnd: number } | null {
-  for (
-    const [sp, ep] of [
-      [FENCE_PREFIX, END_PREFIX],
-      [LEGACY_FENCE_PREFIX, LEGACY_END_PREFIX],
-    ] as const
-  ) {
-    const start = `${sp}${label}${FENCE_SUFFIX}`;
-    const end = `${ep}${label}${END_SUFFIX}`;
+  const spec = FENCES[style];
+  for (const pair of [{ start: spec.start, end: spec.end }, ...spec.legacy]) {
+    const start = pair.start(label);
+    const end = pair.end(label);
     const startIdx = content.indexOf(start);
     if (startIdx === -1) continue;
     const afterStart = startIdx + start.length;
@@ -57,18 +93,18 @@ export function canonicalBlockBody(body: string): string {
   return body.replace(/^\n+/, "").replace(/\n+$/, "");
 }
 
-export function startFence(label: string): string {
-  return `${FENCE_PREFIX}${label}${FENCE_SUFFIX}`;
+export function startFence(label: string, style: FenceStyle = "hash"): string {
+  return FENCES[style].start(label);
 }
 
-export function endFence(label: string): string {
-  return `${END_PREFIX}${label}${END_SUFFIX}`;
+export function endFence(label: string, style: FenceStyle = "hash"): string {
+  return FENCES[style].end(label);
 }
 
 /** Wraps `body` in fence markers so the result is a self-delimited block. */
-export function wrapInBlock(body: string, label: string): string {
+export function wrapInBlock(body: string, label: string, style: FenceStyle = "hash"): string {
   const trimmed = body.replace(/\n+$/, "");
-  return `${startFence(label)}\n${trimmed}\n${endFence(label)}`;
+  return `${startFence(label, style)}\n${trimmed}\n${endFence(label, style)}`;
 }
 
 /**
@@ -76,8 +112,12 @@ export function wrapInBlock(body: string, label: string): string {
  * with the given label is present in `content`. The body is returned without
  * the fence markers and without trailing newlines.
  */
-export function extractBlock(content: string, label: string): string | null {
-  const loc = locateBlock(content, label);
+export function extractBlock(
+  content: string,
+  label: string,
+  style: FenceStyle = "hash",
+): string | null {
+  const loc = locateBlock(content, label, style);
   if (!loc) return null;
   const between = content.slice(loc.afterStart, loc.endIdx);
   return between.replace(/^\n+/, "").replace(/\n+$/, "");
@@ -94,13 +134,14 @@ export function mergeIntoFile(
   existing: string | null,
   body: string,
   label: string,
+  style: FenceStyle = "hash",
 ): string {
-  const block = wrapInBlock(body, label);
+  const block = wrapInBlock(body, label, style);
   if (existing === null || existing.length === 0) return `${block}\n`;
 
   // Replace an existing block in place (current OR legacy fence) — the
   // rewritten block always carries the current Specnaut fence.
-  const loc = locateBlock(existing, label);
+  const loc = locateBlock(existing, label, style);
   if (loc) {
     const before = existing.slice(0, loc.startIdx).replace(/\n+$/, "");
     const afterBlockEnd = loc.afterEnd;

@@ -103,6 +103,7 @@ export class AntigravityHarness implements Harness {
         executable: entry.executable,
         ...(entry.category === "mergeable-project-root" ? { mergeBlock: "gitignore" } : {}),
         ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
+        ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
       };
     }
     // Layer the harness's own static files last, so a harness-specific file

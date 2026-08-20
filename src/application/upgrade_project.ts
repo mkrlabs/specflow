@@ -8,7 +8,7 @@ import {
   type UpgradeAction,
   type UpgradePlan,
 } from "../domain/upgrade_plan.ts";
-import { canonicalBlockBody, extractBlock } from "../domain/merge_block.ts";
+import { canonicalBlockBody, extractBlock, mergeIntoFile } from "../domain/merge_block.ts";
 import { isPluginCoveredPath } from "../domain/plugin_coverage.ts";
 import { isAgenticPath } from "../domain/parent_managed.ts";
 
@@ -49,6 +49,18 @@ export type UpgradeProjectInput = {
   isDeclaredPreserved?: (dest: string) => boolean;
 };
 
+/**
+ * What `upgrade` did to a Specnaut-owned section inside a user-owned file
+ * (#466). Reported so the run ends with the user either having the section or
+ * being told, in the same output, that they do not.
+ */
+export type ManagedSectionOutcome = {
+  readonly dest: string;
+  readonly label: string;
+  /** `added` — the file had no such block. `refreshed` — it did, and it moved. */
+  readonly kind: "added" | "refreshed";
+};
+
 export type UpgradeProjectResult =
   | { status: "up-to-date"; currentVersion: string }
   | {
@@ -56,6 +68,7 @@ export type UpgradeProjectResult =
     plan: UpgradePlan;
     fromVersion: string;
     toVersion: string;
+    managedSections: ReadonlyArray<ManagedSectionOutcome>;
   }
   | {
     status: "applied";
@@ -63,6 +76,7 @@ export type UpgradeProjectResult =
     fromVersion: string;
     toVersion: string;
     backups: ReadonlyArray<string>;
+    managedSections: ReadonlyArray<ManagedSectionOutcome>;
   };
 
 export type UpgradeProjectDeps = {
@@ -182,6 +196,14 @@ export class UpgradeProjectUseCase {
     const isForceWritablePreserve = (a: UpgradeAction): boolean =>
       a.kind === "preserve" && a.reason === "customized" && input.force;
 
+    // Sections Specnaut owns inside files the user owns (#466). These live
+    // outside the plan on purpose: `AGENTS.md` is `skipIfExists`, so an upgrade
+    // never writes it — which is correct for the file and wrong for the one
+    // section that has to reach a project that upgrades rather than inits.
+    // Merged in under their own fence, they never overwrite or reorder a line
+    // the user wrote.
+    const plannedSections = await this.surveyManagedSections(bundle, input.projectDir);
+
     const hasActualWork = plan.some((a) =>
       a.kind === "auto-update" ||
       a.kind === "add-new" ||
@@ -190,7 +212,10 @@ export class UpgradeProjectUseCase {
       isForceWritablePreserve(a) ||
       (a.kind === "remove" && (!a.wasCustomized || input.force))
     );
-    if (!hasActualWork && plan.every((a) => a.kind === "unchanged")) {
+    if (
+      !hasActualWork && plannedSections.length === 0 &&
+      plan.every((a) => a.kind === "unchanged")
+    ) {
       // No file work to do. But a legacy lock (or any lock whose recorded
       // `parent_managed` differs from the decision we just computed) still
       // needs the corrected field persisted — otherwise a handler-derived
@@ -241,6 +266,7 @@ export class UpgradeProjectUseCase {
         plan,
         fromVersion: lock.templatesVersion,
         toVersion: templatesVersion,
+        managedSections: plannedSections,
       };
     }
 
@@ -272,6 +298,12 @@ export class UpgradeProjectUseCase {
         backupExisting: false,
       });
     }
+
+    // Applied *after* the plan's writes: an `auto-update` may just have
+    // rewritten the whole file from the bundle, in which case the section is
+    // already there and the merge is a no-op. Re-reading is what keeps the
+    // reported outcome honest instead of echoing back what we predicted.
+    const appliedSections = await this.applyManagedSections(bundle, input.projectDir);
 
     const cleanRemovals = plan
       .filter((a): a is Extract<typeof a, { kind: "remove" }> =>
@@ -366,8 +398,70 @@ export class UpgradeProjectUseCase {
       fromVersion: lock.templatesVersion,
       toVersion: templatesVersion,
       backups: [...backupReport.backups, ...extraBackups].map((b) => b.dest),
+      managedSections: appliedSections,
     };
   }
+
+  /**
+   * What the managed sections would need, without writing anything. A
+   * destination that does not exist yet is not listed: the plan writes that
+   * file whole, fences included.
+   */
+  private async surveyManagedSections(
+    bundle: Bundle,
+    projectDir: string,
+  ): Promise<ManagedSectionOutcome[]> {
+    const out: ManagedSectionOutcome[] = [];
+    for (const [dest, label, body] of managedSectionEntries(bundle)) {
+      const existing = await this.deps.reader.readText(projectDir, dest);
+      if (existing === null) continue;
+      const current = extractBlock(existing, label, "html");
+      if (current === body) continue;
+      out.push({ dest, label, kind: current === null ? "added" : "refreshed" });
+    }
+    return out;
+  }
+
+  /** Merges each managed section in, and reports only what actually changed. */
+  private async applyManagedSections(
+    bundle: Bundle,
+    projectDir: string,
+  ): Promise<ManagedSectionOutcome[]> {
+    const out: ManagedSectionOutcome[] = [];
+    for (const [dest, label, body] of managedSectionEntries(bundle)) {
+      const existing = await this.deps.reader.readText(projectDir, dest);
+      if (existing === null) continue;
+      const current = extractBlock(existing, label, "html");
+      if (current === body) continue;
+      const merged = mergeIntoFile(existing, body, label, "html");
+      if (merged === existing) continue;
+      await this.deps.writer.writeBundle(
+        { [dest]: { content: merged, executable: false } },
+        projectDir,
+        { overwrite: true, backupExisting: false },
+      );
+      out.push({ dest, label, kind: current === null ? "added" : "refreshed" });
+    }
+    return out;
+  }
+}
+
+/**
+ * Bundle entries declaring a managed section, as `[dest, label, body]`. The
+ * body is the fenced region of the *bundled* template — an entry whose fences
+ * are missing is dropped here, but it cannot reach a released binary:
+ * `scripts/bundle-templates.ts` fails the build on that exact mismatch.
+ */
+function managedSectionEntries(bundle: Bundle): Array<[string, string, string]> {
+  const out: Array<[string, string, string]> = [];
+  for (const [dest, file] of Object.entries(bundle)) {
+    const label = file.managedSection;
+    if (label === undefined) continue;
+    const body = extractBlock(file.content, label, "html");
+    if (body === null || body.length === 0) continue;
+    out.push([dest, label, body]);
+  }
+  return out;
 }
 
 async function shaOfBundle(file: TemplateFile | undefined): Promise<string> {
