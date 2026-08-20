@@ -49,7 +49,9 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
 
 4. **Dispatch the `dependency-expert` agent** with the dispatch prompt
    below. The agent operates in audit mode (full codebase scan, NOT
-   per-PR review mode). It has `Read`, `Grep`, `Glob`, and constrained
+   per-PR review mode). Its Step 0 is mandatory: it reads
+   `.specnaut/memory/security/06-supply-chain-and-integrity.md` — the domain
+   file that owns supply-chain *shape* — before writing any finding. It has `Read`, `Grep`, `Glob`, and constrained
    `Bash` access; it MUST NOT call `Edit`, `Write`, `NotebookEdit`, or
    any mutating tool. The Bash allow-list explicitly EXCLUDES `npm
    audit`, `cargo audit`, `pip-audit`, `osv-scanner`, etc. — live
@@ -84,6 +86,13 @@ the resolved severity threshold):
 You are running in **audit mode** (Mode 2 per your agent spec) — full
 codebase sweep, not per-PR review.
 
+Step 0 first: read `.specnaut/memory/security/06-supply-chain-and-integrity.md`
+and use it for pin discipline, lockfiles, typosquats, dependency confusion and
+transitive weight — including its severity defaults and its
+`## When it is NOT a finding`. License policy, version currency and
+per-manifest mechanics are yours. If that path does not exist, say so in one
+line at the top of the report and fall back to your own rules.
+
 Read-only contract: see your agent doc. Bash limited to read-only
 inspection commands. You MUST NOT invoke `npm audit`, `cargo audit`,
 `pip-audit`, `osv-scanner`, or any live advisory / CVE database fetch —
@@ -96,10 +105,9 @@ Inventory:
 
 $INVENTORY
 
-Walk the axis checklist from your agent doc in order (version pin
-discipline, lockfile presence/freshness, unused declared deps, license
-violations, outdated by major, typosquat heuristics, peer-dep conflicts,
-duplicate deps). Detect every present manifest and report per-manifest
+Walk the axis checklist from your agent doc in order (supply-chain shape
+delegated to the domain file, unused declared deps, license violations,
+outdated by major, peer-dep conflicts, duplicate deps). Detect every present manifest and report per-manifest
 sub-sections in each severity section. When a manifest's ecosystem
 doesn't have the relevant axis surface, record it under "Out of scope"
 rather than emitting empty findings.
@@ -128,6 +136,7 @@ specnaut-audit-dependencies report
 ──────────────────────────────────
 Codebase: <root>
 Severity floor: <high|medium|low|critical>
+Sources read: <one line — domain file, allowlist, manifests>
 Findings: N (Critical: X · High: Y · Medium: Z · Low: W)
 Manifests: <one line — "package.json, deno.json">
 License allowlist: <"default (8 SPDX ids)" | "default + .specnaut/license-allowlist.txt (N more)">

@@ -55,6 +55,15 @@ the dependency hygiene of the scoped manifests (outdated pins, unbounded
 ranges, unused declared deps, license violations, advisory-shape signals,
 peer-dep conflicts, typosquatting heuristics) — not a per-line review.
 
+Include its Step 0 in the dispatch prompt, verbatim: read
+`.specnaut/memory/security/06-supply-chain-and-integrity.md`
+before writing a finding — it owns the *shape* of the supply chain (pinning,
+lockfiles, provenance, dependency confusion, transitive weight) and the agent
+owns what that file hands back (license policy, version currency, per-manifest
+mechanics). The agent must state which sources it read at the top of its
+findings, and downgrade to `Suspicion —` at LOW anything it cannot cite. If
+`.specnaut/memory/security/` is absent, it says so in one line instead.
+
 ## Step 4 — Return findings inline
 
 Return the agent's findings inline. The `dependency-expert` ends with the
