@@ -12,7 +12,7 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
  *
  * These locks live on the bundled template content so the guidance can't drift
  * out of the shipped binary. Two load-bearing surfaces carry it:
- *   - the `spec-template.md` skeleton (the optional, conditional section), and
+ *   - the `plan-template.md` skeleton (the optional, conditional subsection), and
  *   - the `plan` phase doc (the reuse-the-a11y-gate instruction).
  *
  * The gate MUST reuse the accessibility auditor's front-end-surface signal
@@ -23,11 +23,11 @@ const DOCS_HELP =
   "https://support.claude.com/en/articles/9487310-what-are-artifacts-and-how-to-use-them";
 const DOCS_CODE = "https://code.claude.com/docs/en/artifacts";
 
-function specTemplate(): CoreEntry | undefined {
+function planTemplate(): CoreEntry | undefined {
   return CORE_BUNDLE.find(
     (e) =>
       e.category === "spec-root" &&
-      e.suffix === "templates/spec-template.md",
+      e.suffix === "templates/plan-template.md",
   );
 }
 
@@ -35,9 +35,9 @@ function planPhase(): CoreEntry | undefined {
   return CORE_BUNDLE.find((e) => e.category === "phase" && e.name === "plan");
 }
 
-Deno.test("spec-template ships the Claude Artifacts section with public docs links", () => {
-  const entry = specTemplate();
-  assert(entry, "expected the spec-template.md spec-root entry in CORE_BUNDLE");
+Deno.test("plan-template ships the Claude Artifacts section with public docs links", () => {
+  const entry = planTemplate();
+  assert(entry, "expected the plan-template.md spec-root entry in CORE_BUNDLE");
   const { content } = entry;
   assertStringIncludes(content, "Visual Prototyping with Claude Artifacts");
   assertStringIncludes(
@@ -52,8 +52,8 @@ Deno.test("spec-template ships the Claude Artifacts section with public docs lin
   );
 });
 
-Deno.test("spec-template gates the Artifacts section on a front-end surface (a11y signal reuse)", () => {
-  const { content } = specTemplate()!;
+Deno.test("plan-template gates the Artifacts section on a front-end surface (a11y signal reuse)", () => {
+  const { content } = planTemplate()!;
   // Marked optional + conditional so a non-FE spec drops it entirely.
   assertStringIncludes(content, "optional — front-end / UX-UI features only");
   assertStringIncludes(content, "CONDITIONAL SECTION");
@@ -68,7 +68,7 @@ Deno.test("spec-template gates the Artifacts section on a front-end surface (a11
   assert(
     lower.includes("remove this entire section") ||
       lower.includes("remove this section"),
-    "spec-template must instruct removing the section when no FE surface exists",
+    "plan-template must instruct removing the section when no FE surface exists",
   );
 });
 

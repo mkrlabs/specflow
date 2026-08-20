@@ -51,7 +51,10 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
     assertEquals(await exists(join(root, "tasks/backlog.md")), false);
     assertEquals(await exists(join(root, ".specnaut/backlog.md")), true);
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);
-    assertEquals(await exists(join(root, ".specnaut/templates/spec-template.md")), true);
+    assertEquals(await exists(join(root, ".specnaut/templates/plan-template.md")), true);
+    // #457: the per-feature artefact templates are down to plan + tasks.
+    assertEquals(await exists(join(root, ".specnaut/templates/spec-template.md")), false);
+    assertEquals(await exists(join(root, ".specnaut/templates/checklist-template.md")), false);
     // The phase chain lives in the specnaut router skill (#455 / #456).
     assertEquals(
       await exists(join(root, ".claude/skills/specnaut/SKILL.md")),
