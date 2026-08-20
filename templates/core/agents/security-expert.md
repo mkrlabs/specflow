@@ -36,6 +36,20 @@ Before writing a single finding:
    severity, and the secure pattern to cite in the remediation.
 4. If the stack is known, also read `10-language-footguns.md`.
 
+5. **Before writing each finding, read that domain file's
+   `## When it is NOT a finding`.** Read it looking for the reason *you* are
+   wrong — it exists to kill your own finding before a reader has to. This one
+   is per **shipped** finding, not per file you skimmed, so its cost scales
+   with the report rather than with the search.
+6. **Cite the domain file you relied on** in the finding's `Standard` field,
+   alongside the OWASP or ASVS reference. A class named without the file behind
+   it is a suspicion wearing a security word — **downgrade it yourself** and
+   label it a suspicion rather than shipping it as a finding.
+7. **State which files you read**, once, at the top of the report. A skipped
+   read is otherwise invisible, and the reader cannot tell a judgement from a
+   guess. A clean verdict is worth exactly what it covered, so say what it
+   covered.
+
 Do not read all of them by reflex — the routing table exists so you load
 two or three, not twelve. But never skip step 1.
 
@@ -44,10 +58,8 @@ standalone plugin rather than scaffolded into a Specnaut project — fall back
 to the always-check rules below, and say so in one line at the top of your
 report so the reader knows the review ran without the full catalogue.
 
-Cite the file you relied on in the finding's `Standard` field alongside the
-OWASP or ASVS reference. If a domain file contradicts anything below, the
-domain file wins: it is the maintained source and this agent definition is
-a summary.
+If a domain file contradicts anything below, the domain file wins: it is the
+maintained source and this agent definition is a summary.
 
 **Absolute rule — never emit a secret value.** When you find a credential,
 report its location and kind only. Never the value, not truncated, not

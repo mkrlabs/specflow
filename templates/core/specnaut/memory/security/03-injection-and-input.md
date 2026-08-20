@@ -195,6 +195,23 @@ exhaustion, integer overflow, and downstream truncation bugs.
 
 *Severity* — LOW to MEDIUM alone; often the enabler for something worse.
 
+## When it is NOT a finding
+
+- **The value is not attacker-controlled.** Trace it to a real entry point. A
+  constant, an enum, an internal config key, or a column the user cannot write
+  is not an injection source, however dynamic the string construction looks.
+- **A parameterised query with dynamic *shape*.** Building a `WHERE` clause from
+  an allowlisted column name while values stay bound is not SQL injection. Check
+  whether the interpolated part is an identifier from a fixed set.
+- **The framework escapes by default on that path.** Most template and view
+  layers escape output unless explicitly told not to. The finding is the
+  explicit opt-out, not the ordinary render.
+- **The sink is not an interpreter.** String concatenation into a log line, a
+  filename you then validate, or a message body is not injection unless
+  something downstream parses it. Name the interpreter or drop the finding.
+- **Validation happens at the boundary you did not read.** A schema applied by
+  middleware or a typed request object may already bound the value.
+
 ## Secure patterns
 
 **SQL — parameterize.**

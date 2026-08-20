@@ -141,6 +141,23 @@ Cheap denial of service, and often the enabler for a memory-exhaustion bug.
 
 *Severity* — MEDIUM.
 
+## When it is NOT a finding
+
+- **Development configuration, in a development-only file.** Debug flags,
+  permissive origins and verbose errors are correct there. Confirm the file is
+  loaded in production before reporting it.
+- **The header is set at the edge.** Security headers are commonly applied by a
+  CDN, proxy or platform. Absence in application code proves nothing about the
+  response a client receives.
+- **A permissive setting that a narrower layer overrides.** Configuration
+  usually composes; the effective value is what matters, and it is rarely the
+  first one you find.
+- **Broad cloud permissions on a resource with nothing sensitive.** Least
+  privilege is right, but a finding needs to name what the excess actually
+  reaches.
+- **The disabled protection is unreachable.** A setting guarding a feature this
+  deployment does not run is latent. Say which it is.
+
 ## Secure patterns
 
 **Deployed configuration is hardened by default.**

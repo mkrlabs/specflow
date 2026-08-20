@@ -108,7 +108,7 @@ Deno.test("triage gate defines the severity rubric and finding format", () => {
   assertStringIncludes(triage, "Never include a real secret value");
 });
 
-Deno.test("every domain file carries the five-section shape", () => {
+Deno.test("every domain file carries the six-section shape", () => {
   for (const name of DOMAIN_FILES) {
     if (name === "00-triage.md" || name === "10-language-footguns.md") continue;
     const body = entryFor(name).content;
@@ -118,6 +118,55 @@ Deno.test("every domain file carries the five-section shape", () => {
     assertStringIncludes(body, "## Secure patterns", `${name} must show secure patterns`);
     assertStringIncludes(body, "## Review checklist", `${name} must end with a checklist`);
   }
+});
+
+/**
+ * The section that kills a wrong finding.
+ *
+ * The domain files told the reviewer how to confirm a defect is real, and never
+ * what the same evidence looks like when it is not. That asymmetry is how a
+ * report fills with plausible findings: every check points toward reporting,
+ * and nothing points away.
+ *
+ * `00-triage.md` is deliberately excluded — it *is* the generic version of this
+ * gate, and a per-file copy of it would be the duplication this section exists
+ * to avoid. Each domain file's entry must be specific to its own domain.
+ */
+Deno.test("every domain file carries the section that kills a wrong finding", () => {
+  for (const name of DOMAIN_FILES) {
+    if (name === "00-triage.md") continue;
+    assertStringIncludes(
+      entryFor(name).content,
+      "## When it is NOT a finding",
+      `${name} has no negative section — security-expert is told to read one before each finding`,
+    );
+  }
+  assert(
+    !entryFor("00-triage.md").content.includes("## When it is NOT a finding"),
+    "00-triage.md is the generic gate; a per-file copy of it there is the duplication this avoids",
+  );
+});
+
+Deno.test("security-expert carries the four grounding mechanisms", () => {
+  const agent = CORE_BUNDLE.find((e) => e.category === "agent" && e.name === "security-expert");
+  assert(agent, "security-expert agent is missing from the bundle");
+  const c = agent.content;
+  // 1. Read the negative section, per SHIPPED finding rather than per file skimmed.
+  assertStringIncludes(c, "## When it is NOT a finding");
+  assertStringIncludes(c, "shipped");
+  // 2. Cite the file, and 3. downgrade your own finding when you cannot.
+  assertStringIncludes(c, "downgrade it yourself");
+  // 4. Declare the coverage, so a skipped read is visible to the reader.
+  assertStringIncludes(c, "State which files you read");
+  // The standalone-plugin fallback is what keeps a plugin install from reading
+  // as a silent skip — plugin/ ships no memory tree, so this is its real case.
+  assertStringIncludes(c, "standalone plugin");
+});
+
+Deno.test("the knowledge base README documents the section it now ships", () => {
+  const readme = entryFor("README.md").content;
+  assertStringIncludes(readme, "six sections");
+  assertStringIncludes(readme, "When it is NOT a finding");
 });
 
 Deno.test("security-expert is required to load the knowledge base first", () => {
