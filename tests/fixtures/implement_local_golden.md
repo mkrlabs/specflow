@@ -164,3 +164,21 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
         EXECUTE_COMMAND: {command}
         ```
     - If no hooks are registered or `.specnaut/extensions.yml` does not exist, skip silently
+
+## Ending this phase — freeze, then INVOKE `review`, same turn
+
+**An implementation that has not been through review is not finished.** `review` is this phase's
+mandatory last act, not a separate thing the user has to ask for.
+
+1. **Freeze the tree.** Reviewers and suites read the working tree live, and only you know whether
+   it is still moving. Name the commit, stop every implementer agent still holding the tree, then
+   gate. A lingering agent row is a live teammate, not a leftover — it can write into a tree
+   somebody is about to freeze.
+2. **Invoke `review` yourself, in the same turn.** Your own next action.
+
+**This boundary is not a stop.** "The audits found a lot, should I re-confirm scope?" is not a
+reason — the findings were folded into the plan and the plan was approved, and that approval covers
+what the plan now says. Neither is "the user has been checkpointing each step": answering a question
+is not a request to be asked another one.
+
+Pause only when the run was started with `--manual`.

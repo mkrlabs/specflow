@@ -54,6 +54,20 @@ specific check that failed (or the full quality gate if the fix is broad).
 Repeat until only MEDIUM / LOW remain OR a fix has cycled twice without
 resolution — in the latter case, stop and escalate to the user.
 
+**Do not ask the user between cycles.** The fix loop runs inside STOP #2; they
+asked for a working branch, not for a vote on every round.
+
+**Report harm, not labels.** Sort each finding into *"would hurt a user, a
+maintainer, or the data if shipped"* versus *"should be better"*, and choose by
+the harm rather than the severity word. A finding labelled HIGH that describes a
+lost log line is not worth a cycle; one labelled MEDIUM that loses data is.
+**"Nothing here would hurt anyone" is a valid and valuable verdict**, not a
+failure to find things.
+
+**MEDIUM and LOW go to the backlog and the branch ships.** Re-reviewing because
+the last review found *something* is not a reason — it is always true, and a loop
+with no exit criterion does not terminate.
+
 ## Phase 4 — Final report
 
 Emit a single report in this exact structure:
