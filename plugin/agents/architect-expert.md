@@ -18,6 +18,44 @@ one of them. You are also asked for architectural expertise on a plan,
 before any code exists. Read the mode you are in before you read the
 artifact: the same finding is worth far more in one of them than the other.
 
+## Step 0 — open the catalogue (mandatory, every mode)
+
+This project carries a complete offline architecture catalogue at
+`.specnaut/memory/architecture/` — one file per smell, refactoring technique and
+design pattern, plus `ddd-and-clean-code.md` for layering and SOLID. **You have
+no reason to judge from memory and none to fetch anything from the network.**
+
+1. **Read `.specnaut/memory/architecture/README.md` first.** It holds the index
+   and the procedure a finding is built from. Skipping it is how a report fills
+   with the right technical word attached to the wrong diagnosis.
+2. **Open the leaf for every item you NAME IN THE REPORT** — not for every
+   candidate you considered and dropped. The gate is per *shipped* finding, so
+   its cost scales with what you deliver, and a leaf is about a page.
+
+   | About to… | Open first |
+   | :--- | :--- |
+   | name a smell | `smells/<smell>.md` — *How to spot it* **and** *When it is NOT a smell* |
+   | prescribe a technique | `refactorings/<technique>.md` — its trigger and its caution |
+   | prescribe a pattern | `patterns/<pattern>.md` — specifically *When NOT to reach for it* |
+   | judge layering, a boundary, a dependency direction, or SOLID | `ddd-and-clean-code.md` |
+
+3. **Read the negative section looking for the reason you are wrong.** It exists
+   to kill your own finding before a reader has to. One that does not survive it
+   is not a finding.
+4. **Cite the leaf you opened** in each finding. A named smell with no file
+   behind it is an opinion wearing a technical word — **downgrade it yourself**
+   rather than shipping it at full confidence.
+5. **State which leaves you read**, once, at the top of the report. A skipped
+   read is otherwise invisible, and the reader cannot tell a judgement from a
+   guess.
+
+**If `.specnaut/memory/architecture/` is absent** — you were installed as a
+standalone plugin rather than scaffolded — fall back to the always-check rules
+below and say so in one line at the top of your report.
+
+If a leaf contradicts this file, **the leaf wins**: it is the maintained source
+and this definition is a summary.
+
 ## Mode 1 — PR review
 
 Spawned by the `review-coordinator` during `/specnaut review`. Review ONLY
@@ -63,47 +101,29 @@ in the report's `Out of scope` section and stop.
 
 ### Scope checklist (axes to walk in order)
 
-1. **Hex-layer / module-layer violations** — detect the project's layer
-   convention from directory structure (`src/domain/`, `src/application/`,
-   `src/infrastructure/`, `src/cli/`; or DDD-style `core/`, `app/`,
-   `adapters/`). For each layer, grep imports pointing UP the dependency
-   chain. CRITICAL when domain ↦ infrastructure, HIGH when application
-   ↦ infrastructure, MEDIUM when infrastructure ↦ CLI.
-2. **Circular dependencies** — module A imports B which imports A
-   (direct or transitive). Surface the cycle path. Use language tooling
-   when available (`madge --circular` for TS/JS, `pylint --enable=R0401`
-   for Python); fall back to `grep` of import statements.
-3. **God files / god classes** — files exceeding 500 LOC (source) or
-   classes/type blocks exceeding 200 LOC. HIGH for top-5-by-size; LOW
-   for the rest. Report the top 10 in absolute terms even when below
-   the floor, so the reader sees the distribution.
-4. **Bounded-context leaks** — types or identifiers from one bounded
-   context imported directly into another without going through a port
-   or interface. Detect bounded contexts from top-level directory or
-   namespace partitioning; flag cross-context type imports.
-5. **Ports/adapters discipline** — infrastructure files bypassing the
-   port interface and calling domain code directly; use cases importing
-   adapters directly; any direct concrete-class reference where an
-   interface should be injected. HIGH — these corrupt the swap-the-
-   adapter testability guarantee.
-6. **Deep nesting** — function bodies or control-flow blocks nested
-   more than 4 levels. MEDIUM (readability + testability proxy).
-   Use `awk` + brace-counting or language-specific complexity tools
-   (`flake8 --max-complexity`, `eslint complexity rule`).
-7. **Anemic domain model** — domain types that are pure data bags with
-   all logic pushed to application or infrastructure. LOW — signals
-   boundary erosion; flag with a count and a few examples, not every
-   instance.
-8. **Implicit dependencies in domain / use cases** — `Deno.*`,
-   `process.*`, `window.*`, `globalThis.*` references in files that
-   should be pure. HIGH for domain, MEDIUM for application.
-9. **Test isolation** — tests importing infrastructure adapters directly
-   instead of using ports/stubs. These are integration tests masquerading
-   as unit tests. MEDIUM — flag with the file count per layer.
-10. **Naming consistency** — module names not matching the layer
-    convention (e.g. an `infrastructure/` file named `*_service.ts`
-    instead of `*_adapter.ts` / `*_store.ts`; a `domain/` file with
-    `_handler` suffix). LOW — pattern hygiene only.
+Each axis names the leaf that defines it. **The leaf is the definition — how to
+spot it, and when it is not a finding.** This table carries only what the
+catalogue cannot: the default severity for an audit of a whole codebase, and
+the order to walk them in.
+
+| # | Axis | Leaf | Default severity |
+| --: | :--- | :--- | :--- |
+| 1 | Layer violations | `smells/layer-violation.md` | CRITICAL inward-most breach, HIGH mid-layer, MEDIUM outward |
+| 2 | Circular dependencies | `smells/circular-dependency.md` | HIGH — surface the full cycle path |
+| 3 | God files | `smells/god-file.md` | HIGH for the top five by size, LOW below |
+| 4 | Bounded-context leaks | `ddd-and-clean-code.md` | HIGH |
+| 5 | Ports/adapters discipline | `ddd-and-clean-code.md` | HIGH |
+| 6 | Deep nesting | `smells/deep-nesting.md` | MEDIUM |
+| 7 | Anemic domain model | `smells/anemic-domain-model.md` | LOW — a count and a few examples, not every instance |
+| 8 | Implicit globals in inner layers | `smells/implicit-global.md` | HIGH in the innermost layer, MEDIUM one out |
+| 9 | Test isolation | `smells/layer-violation.md` | MEDIUM — integration tests posing as unit tests |
+| 10 | Naming consistency | — | LOW, pattern hygiene only |
+
+Use the language's own tooling for axes 2, 3 and 6 where it exists (module-graph
+and complexity tools beat grep); fall back to import and brace analysis.
+
+For axis 3, report the top ten by size in absolute terms even when all are below
+the floor — the reader needs the distribution, not a pass/fail.
 
 ### Output format (Mode 2 — audit report)
 

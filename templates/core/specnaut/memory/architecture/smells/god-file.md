@@ -1,0 +1,33 @@
+> **Agents depend on this file.** The architect is required to open it before
+> naming this smell in a report. Moving or renaming it breaks that link in
+> silence — repoint `.claude/agents/architect-expert.md` and the catalogue
+> README in the same change.
+
+# God File
+
+**Family:** Structural
+
+## How to spot it
+
+A single file far larger than its neighbours, usually accumulating unrelated
+responsibilities. Report the **distribution** rather than a fixed threshold: a
+file three times the size of the next-largest is the signal, not a round number.
+
+## What it costs
+
+It becomes the file everyone edits, so it collides, resists review, and cannot
+be reasoned about in one sitting. It is usually
+[Divergent Change](divergent-change.md) with a size symptom attached.
+
+## Cure
+
+[Extract Class](../refactorings/extract-class.md) along the reasons to change,
+not along line count. Splitting by size alone produces arbitrary parts that
+still change together.
+
+## When it is NOT a smell
+
+Generated code, a vendored bundle, a lockfile, a data table, or a
+deliberately-single-file module whose content is one long flat list. Judge by
+responsibilities, and check whether the file is authored at all before
+flagging it.

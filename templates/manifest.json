@@ -1,169 +1,1659 @@
 {
   "version": "2.0.1",
   "core": [
-    { "category": "skill", "name": "specnaut", "source": "core/skills/specnaut/SKILL.md" },
-    { "category": "phase", "name": "plan", "suffix": "plan.md", "source": "core/skills/specnaut/phases/plan.md" },
-    { "category": "phase", "name": "plan-audits", "suffix": "plan-audits.md", "source": "core/skills/specnaut/phases/plan-audits.md" },
-    { "category": "phase", "name": "tasks", "suffix": "tasks.md", "source": "core/skills/specnaut/phases/tasks.md" },
-    { "category": "phase", "name": "implement", "suffix": "implement.md", "source": "core/skills/specnaut/phases/implement.md" },
-    { "category": "phase", "name": "review", "suffix": "review.md", "source": "core/skills/specnaut/phases/review.md" },
-    { "category": "phase", "name": "merge", "suffix": "merge.md", "source": "core/skills/specnaut/phases/merge.md" },
-    { "category": "phase", "name": "constitution", "suffix": "constitution.md", "source": "core/skills/specnaut/phases/constitution.md" },
-    { "category": "phase", "name": "groom", "suffix": "groom.md", "source": "core/skills/specnaut/phases/groom.md" },
-    { "category": "phase", "name": "tag-version", "suffix": "tag-version.md", "source": "core/skills/specnaut/phases/tag-version.md" },
-    { "category": "phase", "name": "release-version", "suffix": "release-version.md", "source": "core/skills/specnaut/phases/release-version.md" },
-    { "category": "phase", "name": "auto-chain", "suffix": "auto-chain.md", "source": "core/skills/specnaut/phases/auto-chain.md" },
-    { "category": "phase", "name": "audit-security", "suffix": "audit-security.md", "source": "core/skills/specnaut/phases/audit-security.md" },
-    { "category": "phase", "name": "audit-performance", "suffix": "audit-performance.md", "source": "core/skills/specnaut/phases/audit-performance.md" },
-    { "category": "phase", "name": "audit-accessibility", "suffix": "audit-accessibility.md", "source": "core/skills/specnaut/phases/audit-accessibility.md" },
-    { "category": "phase", "name": "audit-architecture", "suffix": "audit-architecture.md", "source": "core/skills/specnaut/phases/audit-architecture.md" },
-    { "category": "phase", "name": "audit-dependencies", "suffix": "audit-dependencies.md", "source": "core/skills/specnaut/phases/audit-dependencies.md" },
-    { "category": "phase-script", "name": "tag", "suffix": "tag.sh", "source": "core/skills/specnaut/scripts/tag.sh", "executable": true },
-    { "category": "phase-script", "name": "release", "suffix": "release.sh", "source": "core/skills/specnaut/scripts/release.sh", "executable": true },
-    { "category": "phase-script", "name": "release-github", "suffix": "release-github.sh", "source": "core/skills/specnaut/scripts/release-github.sh", "executable": true },
-    { "category": "phase-script", "name": "release-gitlab", "suffix": "release-gitlab.sh", "source": "core/skills/specnaut/scripts/release-gitlab.sh", "executable": true },
-    { "category": "phase-script", "name": "release-local", "suffix": "release-local.sh", "source": "core/skills/specnaut/scripts/release-local.sh", "executable": true },
-    { "category": "skill", "name": "specnaut-review", "source": "core/skills/specnaut-review/SKILL.md" },
-    { "category": "skill", "name": "writing-plans", "source": "core/skills/writing-plans/SKILL.md" },
-    { "category": "skill", "name": "requesting-code-review", "source": "core/skills/requesting-code-review/SKILL.md" },
-    { "category": "skill", "name": "using-specnaut", "source": "core/skills/using-specnaut/SKILL.md" },
-    { "category": "skill", "name": "subagent-driven-development", "source": "core/skills/subagent-driven-development/SKILL.md" },
-    { "category": "skill", "name": "executing-plans", "source": "core/skills/executing-plans/SKILL.md" },
-    { "category": "skill", "name": "verification-before-completion", "source": "core/skills/verification-before-completion/SKILL.md" },
-    { "category": "skill", "name": "brainstorming", "source": "core/skills/brainstorming/SKILL.md" },
-    { "category": "skill", "name": "workflow-contract", "source": "core/skills/workflow-contract/SKILL.md" },
-    { "category": "skill", "name": "backlog-reference-contract", "source": "core/skills/backlog-reference-contract/SKILL.md" },
-    { "category": "skill", "name": "handoff-protocol", "source": "core/skills/handoff-protocol/SKILL.md" },
-    { "category": "skill", "name": "review-findings-contract", "source": "core/skills/review-findings-contract/SKILL.md" },
-    { "category": "skill", "name": "qa-report-contract", "source": "core/skills/qa-report-contract/SKILL.md" },
-    { "category": "backlog-cmd", "name": "backlog", "source": "core/commands/backlog.md" },
-
-    { "category": "agent", "name": "product-owner", "source": "core/agents/product-owner.md" },
-    { "category": "agent", "name": "developer", "source": "core/agents/developer.md" },
-    { "category": "agent", "name": "review-coordinator", "source": "core/agents/review-coordinator.md" },
-    { "category": "agent", "name": "code-reviewer", "source": "core/agents/code-reviewer.md" },
-    { "category": "agent", "name": "security-expert", "source": "core/agents/security-expert.md" },
-    { "category": "agent", "name": "test-reviewer", "source": "core/agents/test-reviewer.md" },
-    { "category": "agent", "name": "qa-tester", "source": "core/agents/qa-tester.md" },
-    { "category": "agent", "name": "workflow-manager", "source": "core/agents/workflow-manager.md" },
-    { "category": "agent", "name": "devops-sre", "source": "core/agents/devops-sre.md" },
-    { "category": "agent", "name": "specnaut-expert", "source": "core/agents/specnaut-expert.md" },
-    { "category": "agent", "name": "ui-ux-designer", "source": "core/agents/ui-ux-designer.md" },
-    { "category": "agent", "name": "performance-expert", "source": "core/agents/performance-expert.md" },
-    { "category": "agent", "name": "a11y-expert", "source": "core/agents/a11y-expert.md" },
-    { "category": "agent", "name": "architect-expert", "source": "core/agents/architect-expert.md" },
-    { "category": "agent", "name": "dependency-expert", "source": "core/agents/dependency-expert.md" },
-
-    { "category": "agent-doc", "name": "agents-readme", "suffix": "README.md", "source": "core/agents/README.md" },
-
-    { "category": "agent-memory", "name": "product-owner", "suffix": "MEMORY.md", "source": "core/agents/product-owner/memory/MEMORY.md" },
-    { "category": "agent-memory", "name": "developer", "suffix": "MEMORY.md", "source": "core/agents/developer/memory/MEMORY.md" },
-    { "category": "agent-memory", "name": "qa-tester", "suffix": "MEMORY.md", "source": "core/agents/qa-tester/memory/MEMORY.md" },
-    { "category": "agent-memory", "name": "devops-sre", "suffix": "MEMORY.md", "source": "core/agents/devops-sre/memory/MEMORY.md" },
-    { "category": "agent-memory", "name": "security-expert", "suffix": "MEMORY.md", "source": "core/agents/security-expert/memory/MEMORY.md" },
-
-
-    { "category": "backlog-skill", "name": "backlog", "source": "core/skills/backlog/SKILL.md" },
-    { "category": "backlog-script", "name": "_config", "suffix": "_config.sh", "source": "core/skills/backlog/scripts/local/_config.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "list", "suffix": "list.sh", "source": "core/skills/backlog/scripts/local/list.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "view", "suffix": "view.sh", "source": "core/skills/backlog/scripts/local/view.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "add", "suffix": "add.sh", "source": "core/skills/backlog/scripts/local/add.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "move", "suffix": "move.sh", "source": "core/skills/backlog/scripts/local/move.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "clarify-comment", "suffix": "clarify-comment.sh", "source": "core/skills/backlog/scripts/local/clarify-comment.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "render-index", "suffix": "render-index.sh", "source": "core/skills/backlog/scripts/local/render-index.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "propagate-parent-status", "suffix": "propagate-parent-status.sh", "source": "core/skills/backlog/scripts/local/propagate-parent-status.sh", "executable": true, "backend": "local" },
-    { "category": "backlog-script", "name": "_config", "suffix": "_config.sh", "source": "core/skills/backlog/scripts/github/_config.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "list", "suffix": "list.sh", "source": "core/skills/backlog/scripts/github/list.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "view", "suffix": "view.sh", "source": "core/skills/backlog/scripts/github/view.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "add", "suffix": "add.sh", "source": "core/skills/backlog/scripts/github/add.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "move", "suffix": "move.sh", "source": "core/skills/backlog/scripts/github/move.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "clarify-comment", "suffix": "clarify-comment.sh", "source": "core/skills/backlog/scripts/github/clarify-comment.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "detect-fields", "suffix": "detect-fields.sh", "source": "core/skills/backlog/scripts/github/detect-fields.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "set-field", "suffix": "set-field.sh", "source": "core/skills/backlog/scripts/github/set-field.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "ensure-labels", "suffix": "ensure-labels.sh", "source": "core/skills/backlog/scripts/github/ensure-labels.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "cascade-check", "suffix": "cascade-check.sh", "source": "core/skills/backlog/scripts/github/cascade-check.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "propagate-parent-status", "suffix": "propagate-parent-status.sh", "source": "core/skills/backlog/scripts/github/propagate-parent-status.sh", "executable": true, "backend": "github" },
-    { "category": "backlog-script", "name": "_config", "suffix": "_config.sh", "source": "core/skills/backlog/scripts/gitlab/_config.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "list", "suffix": "list.sh", "source": "core/skills/backlog/scripts/gitlab/list.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "view", "suffix": "view.sh", "source": "core/skills/backlog/scripts/gitlab/view.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "add", "suffix": "add.sh", "source": "core/skills/backlog/scripts/gitlab/add.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "move", "suffix": "move.sh", "source": "core/skills/backlog/scripts/gitlab/move.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "clarify-comment", "suffix": "clarify-comment.sh", "source": "core/skills/backlog/scripts/gitlab/clarify-comment.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "ensure-labels", "suffix": "ensure-labels.sh", "source": "core/skills/backlog/scripts/gitlab/ensure-labels.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "cascade-check", "suffix": "cascade-check.sh", "source": "core/skills/backlog/scripts/gitlab/cascade-check.sh", "executable": true, "backend": "gitlab" },
-    { "category": "backlog-script", "name": "_config", "suffix": "_config.sh", "source": "core/skills/backlog/scripts/cloud/_config.sh", "executable": true, "backend": "cloud" },
-    { "category": "backlog-script", "name": "list", "suffix": "list.sh", "source": "core/skills/backlog/scripts/cloud/list.sh", "executable": true, "backend": "cloud" },
-    { "category": "backlog-script", "name": "view", "suffix": "view.sh", "source": "core/skills/backlog/scripts/cloud/view.sh", "executable": true, "backend": "cloud" },
-    { "category": "backlog-script", "name": "add", "suffix": "add.sh", "source": "core/skills/backlog/scripts/cloud/add.sh", "executable": true, "backend": "cloud" },
-    { "category": "backlog-script", "name": "move", "suffix": "move.sh", "source": "core/skills/backlog/scripts/cloud/move.sh", "executable": true, "backend": "cloud" },
-    { "category": "backlog-script", "name": "clarify-comment", "suffix": "clarify-comment.sh", "source": "core/skills/backlog/scripts/cloud/clarify-comment.sh", "executable": true, "backend": "cloud" },
-    { "category": "backlog-script", "name": "columns", "suffix": "columns.sh", "source": "core/skills/backlog/scripts/cloud/columns.sh", "executable": true, "backend": "cloud" },
-    { "category": "backlog-script", "name": "reconcile", "suffix": "reconcile.sh", "source": "core/skills/backlog/scripts/cloud/reconcile.sh", "executable": true, "backend": "cloud" },
-
-    { "category": "skill", "name": "code-audit", "source": "core/skills/code-audit/SKILL.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/code-audit/collect-audit-scope.sh", "source": "core/skills/code-audit/scripts/collect-audit-scope.sh", "executable": true },
-
-    { "category": "skill", "name": "arch-audit", "source": "core/skills/arch-audit/SKILL.md" },
-    { "category": "skill", "name": "sec-audit", "source": "core/skills/sec-audit/SKILL.md" },
-    { "category": "skill", "name": "perf-audit", "source": "core/skills/perf-audit/SKILL.md" },
-    { "category": "skill", "name": "dep-audit", "source": "core/skills/dep-audit/SKILL.md" },
-    { "category": "skill", "name": "a11y-audit", "source": "core/skills/a11y-audit/SKILL.md" },
-
-    { "category": "skill", "name": "status-audit", "source": "core/skills/status-audit/SKILL.md" },
-
-    { "category": "spec-root", "name": "specify", "suffix": "logs/README.md", "source": "core/specnaut/logs/README.md" },
-
-    { "category": "spec-root", "name": "specify", "suffix": "memory/constitution.md", "source": "core/specnaut/memory/constitution.md", "skipIfExists": true },
-
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/README.md", "source": "core/specnaut/memory/security/README.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/00-triage.md", "source": "core/specnaut/memory/security/00-triage.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/01-access-control.md", "source": "core/specnaut/memory/security/01-access-control.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/02-authentication-and-sessions.md", "source": "core/specnaut/memory/security/02-authentication-and-sessions.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/03-injection-and-input.md", "source": "core/specnaut/memory/security/03-injection-and-input.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/04-cryptography-and-secrets.md", "source": "core/specnaut/memory/security/04-cryptography-and-secrets.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/05-configuration-and-hardening.md", "source": "core/specnaut/memory/security/05-configuration-and-hardening.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/06-supply-chain-and-integrity.md", "source": "core/specnaut/memory/security/06-supply-chain-and-integrity.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/07-data-protection.md", "source": "core/specnaut/memory/security/07-data-protection.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/08-logging-and-error-handling.md", "source": "core/specnaut/memory/security/08-logging-and-error-handling.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/09-design-and-business-logic.md", "source": "core/specnaut/memory/security/09-design-and-business-logic.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "memory/security/10-language-footguns.md", "source": "core/specnaut/memory/security/10-language-footguns.md" },
-
-    { "category": "spec-root", "name": "specify", "suffix": "backlog.md", "source": "core/specnaut/backlog.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "LABELS.md", "source": "core/specnaut/LABELS.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "templates/plan-template.md", "source": "core/specnaut/templates/plan-template.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "templates/tasks-template.md", "source": "core/specnaut/templates/tasks-template.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "templates/constitution-template.md", "source": "core/specnaut/templates/constitution-template.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "templates/agent-file-template.md", "source": "core/specnaut/templates/agent-file-template.md" },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/bash/check-prerequisites.sh", "source": "core/specnaut/scripts/bash/check-prerequisites.sh", "executable": true },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/bash/common.sh", "source": "core/specnaut/scripts/bash/common.sh", "executable": true },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/bash/create-new-feature.sh", "source": "core/specnaut/scripts/bash/create-new-feature.sh", "executable": true },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/bash/setup-plan.sh", "source": "core/specnaut/scripts/bash/setup-plan.sh", "executable": true },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/powershell/check-prerequisites.ps1", "source": "core/specnaut/scripts/powershell/check-prerequisites.ps1" },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/powershell/common.ps1", "source": "core/specnaut/scripts/powershell/common.ps1" },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/powershell/create-new-feature.ps1", "source": "core/specnaut/scripts/powershell/create-new-feature.ps1" },
-    { "category": "spec-root", "name": "specify", "suffix": "scripts/powershell/setup-plan.ps1", "source": "core/specnaut/scripts/powershell/setup-plan.ps1" },
-
-    { "category": "project-root", "name": "root", "suffix": "AGENTS.md", "source": "core/root/AGENTS.md", "skipIfExists": true, "managedSection": "chain-stops" },
-    { "category": "mergeable-project-root", "name": "root", "suffix": ".gitignore", "source": "core/root/.gitignore" }
+    {
+      "category": "skill",
+      "name": "specnaut",
+      "source": "core/skills/specnaut/SKILL.md"
+    },
+    {
+      "category": "phase",
+      "name": "plan",
+      "suffix": "plan.md",
+      "source": "core/skills/specnaut/phases/plan.md"
+    },
+    {
+      "category": "phase",
+      "name": "plan-audits",
+      "suffix": "plan-audits.md",
+      "source": "core/skills/specnaut/phases/plan-audits.md"
+    },
+    {
+      "category": "phase",
+      "name": "tasks",
+      "suffix": "tasks.md",
+      "source": "core/skills/specnaut/phases/tasks.md"
+    },
+    {
+      "category": "phase",
+      "name": "implement",
+      "suffix": "implement.md",
+      "source": "core/skills/specnaut/phases/implement.md"
+    },
+    {
+      "category": "phase",
+      "name": "review",
+      "suffix": "review.md",
+      "source": "core/skills/specnaut/phases/review.md"
+    },
+    {
+      "category": "phase",
+      "name": "merge",
+      "suffix": "merge.md",
+      "source": "core/skills/specnaut/phases/merge.md"
+    },
+    {
+      "category": "phase",
+      "name": "constitution",
+      "suffix": "constitution.md",
+      "source": "core/skills/specnaut/phases/constitution.md"
+    },
+    {
+      "category": "phase",
+      "name": "groom",
+      "suffix": "groom.md",
+      "source": "core/skills/specnaut/phases/groom.md"
+    },
+    {
+      "category": "phase",
+      "name": "tag-version",
+      "suffix": "tag-version.md",
+      "source": "core/skills/specnaut/phases/tag-version.md"
+    },
+    {
+      "category": "phase",
+      "name": "release-version",
+      "suffix": "release-version.md",
+      "source": "core/skills/specnaut/phases/release-version.md"
+    },
+    {
+      "category": "phase",
+      "name": "auto-chain",
+      "suffix": "auto-chain.md",
+      "source": "core/skills/specnaut/phases/auto-chain.md"
+    },
+    {
+      "category": "phase",
+      "name": "audit-security",
+      "suffix": "audit-security.md",
+      "source": "core/skills/specnaut/phases/audit-security.md"
+    },
+    {
+      "category": "phase",
+      "name": "audit-performance",
+      "suffix": "audit-performance.md",
+      "source": "core/skills/specnaut/phases/audit-performance.md"
+    },
+    {
+      "category": "phase",
+      "name": "audit-accessibility",
+      "suffix": "audit-accessibility.md",
+      "source": "core/skills/specnaut/phases/audit-accessibility.md"
+    },
+    {
+      "category": "phase",
+      "name": "audit-architecture",
+      "suffix": "audit-architecture.md",
+      "source": "core/skills/specnaut/phases/audit-architecture.md"
+    },
+    {
+      "category": "phase",
+      "name": "audit-dependencies",
+      "suffix": "audit-dependencies.md",
+      "source": "core/skills/specnaut/phases/audit-dependencies.md"
+    },
+    {
+      "category": "phase-script",
+      "name": "tag",
+      "suffix": "tag.sh",
+      "source": "core/skills/specnaut/scripts/tag.sh",
+      "executable": true
+    },
+    {
+      "category": "phase-script",
+      "name": "release",
+      "suffix": "release.sh",
+      "source": "core/skills/specnaut/scripts/release.sh",
+      "executable": true
+    },
+    {
+      "category": "phase-script",
+      "name": "release-github",
+      "suffix": "release-github.sh",
+      "source": "core/skills/specnaut/scripts/release-github.sh",
+      "executable": true
+    },
+    {
+      "category": "phase-script",
+      "name": "release-gitlab",
+      "suffix": "release-gitlab.sh",
+      "source": "core/skills/specnaut/scripts/release-gitlab.sh",
+      "executable": true
+    },
+    {
+      "category": "phase-script",
+      "name": "release-local",
+      "suffix": "release-local.sh",
+      "source": "core/skills/specnaut/scripts/release-local.sh",
+      "executable": true
+    },
+    {
+      "category": "skill",
+      "name": "specnaut-review",
+      "source": "core/skills/specnaut-review/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "writing-plans",
+      "source": "core/skills/writing-plans/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "requesting-code-review",
+      "source": "core/skills/requesting-code-review/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "using-specnaut",
+      "source": "core/skills/using-specnaut/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "subagent-driven-development",
+      "source": "core/skills/subagent-driven-development/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "executing-plans",
+      "source": "core/skills/executing-plans/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "verification-before-completion",
+      "source": "core/skills/verification-before-completion/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "brainstorming",
+      "source": "core/skills/brainstorming/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "workflow-contract",
+      "source": "core/skills/workflow-contract/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "backlog-reference-contract",
+      "source": "core/skills/backlog-reference-contract/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "handoff-protocol",
+      "source": "core/skills/handoff-protocol/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "review-findings-contract",
+      "source": "core/skills/review-findings-contract/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "qa-report-contract",
+      "source": "core/skills/qa-report-contract/SKILL.md"
+    },
+    {
+      "category": "backlog-cmd",
+      "name": "backlog",
+      "source": "core/commands/backlog.md"
+    },
+    {
+      "category": "agent",
+      "name": "product-owner",
+      "source": "core/agents/product-owner.md"
+    },
+    {
+      "category": "agent",
+      "name": "developer",
+      "source": "core/agents/developer.md"
+    },
+    {
+      "category": "agent",
+      "name": "review-coordinator",
+      "source": "core/agents/review-coordinator.md"
+    },
+    {
+      "category": "agent",
+      "name": "code-reviewer",
+      "source": "core/agents/code-reviewer.md"
+    },
+    {
+      "category": "agent",
+      "name": "security-expert",
+      "source": "core/agents/security-expert.md"
+    },
+    {
+      "category": "agent",
+      "name": "test-reviewer",
+      "source": "core/agents/test-reviewer.md"
+    },
+    {
+      "category": "agent",
+      "name": "qa-tester",
+      "source": "core/agents/qa-tester.md"
+    },
+    {
+      "category": "agent",
+      "name": "workflow-manager",
+      "source": "core/agents/workflow-manager.md"
+    },
+    {
+      "category": "agent",
+      "name": "devops-sre",
+      "source": "core/agents/devops-sre.md"
+    },
+    {
+      "category": "agent",
+      "name": "specnaut-expert",
+      "source": "core/agents/specnaut-expert.md"
+    },
+    {
+      "category": "agent",
+      "name": "ui-ux-designer",
+      "source": "core/agents/ui-ux-designer.md"
+    },
+    {
+      "category": "agent",
+      "name": "performance-expert",
+      "source": "core/agents/performance-expert.md"
+    },
+    {
+      "category": "agent",
+      "name": "a11y-expert",
+      "source": "core/agents/a11y-expert.md"
+    },
+    {
+      "category": "agent",
+      "name": "architect-expert",
+      "source": "core/agents/architect-expert.md"
+    },
+    {
+      "category": "agent",
+      "name": "dependency-expert",
+      "source": "core/agents/dependency-expert.md"
+    },
+    {
+      "category": "agent-doc",
+      "name": "agents-readme",
+      "suffix": "README.md",
+      "source": "core/agents/README.md"
+    },
+    {
+      "category": "agent-memory",
+      "name": "product-owner",
+      "suffix": "MEMORY.md",
+      "source": "core/agents/product-owner/memory/MEMORY.md"
+    },
+    {
+      "category": "agent-memory",
+      "name": "developer",
+      "suffix": "MEMORY.md",
+      "source": "core/agents/developer/memory/MEMORY.md"
+    },
+    {
+      "category": "agent-memory",
+      "name": "qa-tester",
+      "suffix": "MEMORY.md",
+      "source": "core/agents/qa-tester/memory/MEMORY.md"
+    },
+    {
+      "category": "agent-memory",
+      "name": "devops-sre",
+      "suffix": "MEMORY.md",
+      "source": "core/agents/devops-sre/memory/MEMORY.md"
+    },
+    {
+      "category": "agent-memory",
+      "name": "security-expert",
+      "suffix": "MEMORY.md",
+      "source": "core/agents/security-expert/memory/MEMORY.md"
+    },
+    {
+      "category": "backlog-skill",
+      "name": "backlog",
+      "source": "core/skills/backlog/SKILL.md"
+    },
+    {
+      "category": "backlog-script",
+      "name": "_config",
+      "suffix": "_config.sh",
+      "source": "core/skills/backlog/scripts/local/_config.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "list",
+      "suffix": "list.sh",
+      "source": "core/skills/backlog/scripts/local/list.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "view",
+      "suffix": "view.sh",
+      "source": "core/skills/backlog/scripts/local/view.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "add",
+      "suffix": "add.sh",
+      "source": "core/skills/backlog/scripts/local/add.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "move",
+      "suffix": "move.sh",
+      "source": "core/skills/backlog/scripts/local/move.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "clarify-comment",
+      "suffix": "clarify-comment.sh",
+      "source": "core/skills/backlog/scripts/local/clarify-comment.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "render-index",
+      "suffix": "render-index.sh",
+      "source": "core/skills/backlog/scripts/local/render-index.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "propagate-parent-status",
+      "suffix": "propagate-parent-status.sh",
+      "source": "core/skills/backlog/scripts/local/propagate-parent-status.sh",
+      "executable": true,
+      "backend": "local"
+    },
+    {
+      "category": "backlog-script",
+      "name": "_config",
+      "suffix": "_config.sh",
+      "source": "core/skills/backlog/scripts/github/_config.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "list",
+      "suffix": "list.sh",
+      "source": "core/skills/backlog/scripts/github/list.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "view",
+      "suffix": "view.sh",
+      "source": "core/skills/backlog/scripts/github/view.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "add",
+      "suffix": "add.sh",
+      "source": "core/skills/backlog/scripts/github/add.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "move",
+      "suffix": "move.sh",
+      "source": "core/skills/backlog/scripts/github/move.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "clarify-comment",
+      "suffix": "clarify-comment.sh",
+      "source": "core/skills/backlog/scripts/github/clarify-comment.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "detect-fields",
+      "suffix": "detect-fields.sh",
+      "source": "core/skills/backlog/scripts/github/detect-fields.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "set-field",
+      "suffix": "set-field.sh",
+      "source": "core/skills/backlog/scripts/github/set-field.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "ensure-labels",
+      "suffix": "ensure-labels.sh",
+      "source": "core/skills/backlog/scripts/github/ensure-labels.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "cascade-check",
+      "suffix": "cascade-check.sh",
+      "source": "core/skills/backlog/scripts/github/cascade-check.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "propagate-parent-status",
+      "suffix": "propagate-parent-status.sh",
+      "source": "core/skills/backlog/scripts/github/propagate-parent-status.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
+      "name": "_config",
+      "suffix": "_config.sh",
+      "source": "core/skills/backlog/scripts/gitlab/_config.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "list",
+      "suffix": "list.sh",
+      "source": "core/skills/backlog/scripts/gitlab/list.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "view",
+      "suffix": "view.sh",
+      "source": "core/skills/backlog/scripts/gitlab/view.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "add",
+      "suffix": "add.sh",
+      "source": "core/skills/backlog/scripts/gitlab/add.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "move",
+      "suffix": "move.sh",
+      "source": "core/skills/backlog/scripts/gitlab/move.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "clarify-comment",
+      "suffix": "clarify-comment.sh",
+      "source": "core/skills/backlog/scripts/gitlab/clarify-comment.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "ensure-labels",
+      "suffix": "ensure-labels.sh",
+      "source": "core/skills/backlog/scripts/gitlab/ensure-labels.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "cascade-check",
+      "suffix": "cascade-check.sh",
+      "source": "core/skills/backlog/scripts/gitlab/cascade-check.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "_config",
+      "suffix": "_config.sh",
+      "source": "core/skills/backlog/scripts/cloud/_config.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "list",
+      "suffix": "list.sh",
+      "source": "core/skills/backlog/scripts/cloud/list.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "view",
+      "suffix": "view.sh",
+      "source": "core/skills/backlog/scripts/cloud/view.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "add",
+      "suffix": "add.sh",
+      "source": "core/skills/backlog/scripts/cloud/add.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "move",
+      "suffix": "move.sh",
+      "source": "core/skills/backlog/scripts/cloud/move.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "clarify-comment",
+      "suffix": "clarify-comment.sh",
+      "source": "core/skills/backlog/scripts/cloud/clarify-comment.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "columns",
+      "suffix": "columns.sh",
+      "source": "core/skills/backlog/scripts/cloud/columns.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "reconcile",
+      "suffix": "reconcile.sh",
+      "source": "core/skills/backlog/scripts/cloud/reconcile.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "skill",
+      "name": "code-audit",
+      "source": "core/skills/code-audit/SKILL.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/code-audit/collect-audit-scope.sh",
+      "source": "core/skills/code-audit/scripts/collect-audit-scope.sh",
+      "executable": true
+    },
+    {
+      "category": "skill",
+      "name": "arch-audit",
+      "source": "core/skills/arch-audit/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "sec-audit",
+      "source": "core/skills/sec-audit/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "perf-audit",
+      "source": "core/skills/perf-audit/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "dep-audit",
+      "source": "core/skills/dep-audit/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "a11y-audit",
+      "source": "core/skills/a11y-audit/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "status-audit",
+      "source": "core/skills/status-audit/SKILL.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "logs/README.md",
+      "source": "core/specnaut/logs/README.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/constitution.md",
+      "source": "core/specnaut/memory/constitution.md",
+      "skipIfExists": true
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/README.md",
+      "source": "core/specnaut/memory/security/README.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/00-triage.md",
+      "source": "core/specnaut/memory/security/00-triage.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/01-access-control.md",
+      "source": "core/specnaut/memory/security/01-access-control.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/02-authentication-and-sessions.md",
+      "source": "core/specnaut/memory/security/02-authentication-and-sessions.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/03-injection-and-input.md",
+      "source": "core/specnaut/memory/security/03-injection-and-input.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/04-cryptography-and-secrets.md",
+      "source": "core/specnaut/memory/security/04-cryptography-and-secrets.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/05-configuration-and-hardening.md",
+      "source": "core/specnaut/memory/security/05-configuration-and-hardening.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/06-supply-chain-and-integrity.md",
+      "source": "core/specnaut/memory/security/06-supply-chain-and-integrity.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/07-data-protection.md",
+      "source": "core/specnaut/memory/security/07-data-protection.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/08-logging-and-error-handling.md",
+      "source": "core/specnaut/memory/security/08-logging-and-error-handling.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/09-design-and-business-logic.md",
+      "source": "core/specnaut/memory/security/09-design-and-business-logic.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/security/10-language-footguns.md",
+      "source": "core/specnaut/memory/security/10-language-footguns.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/README.md",
+      "source": "core/specnaut/memory/architecture/README.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/ddd-and-clean-code.md",
+      "source": "core/specnaut/memory/architecture/ddd-and-clean-code.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/abstract-factory.md",
+      "source": "core/specnaut/memory/architecture/patterns/abstract-factory.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/adapter.md",
+      "source": "core/specnaut/memory/architecture/patterns/adapter.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/bridge.md",
+      "source": "core/specnaut/memory/architecture/patterns/bridge.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/builder.md",
+      "source": "core/specnaut/memory/architecture/patterns/builder.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/chain-of-responsibility.md",
+      "source": "core/specnaut/memory/architecture/patterns/chain-of-responsibility.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/command.md",
+      "source": "core/specnaut/memory/architecture/patterns/command.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/composite.md",
+      "source": "core/specnaut/memory/architecture/patterns/composite.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/decorator.md",
+      "source": "core/specnaut/memory/architecture/patterns/decorator.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/facade.md",
+      "source": "core/specnaut/memory/architecture/patterns/facade.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/factory-method.md",
+      "source": "core/specnaut/memory/architecture/patterns/factory-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/flyweight.md",
+      "source": "core/specnaut/memory/architecture/patterns/flyweight.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/interpreter.md",
+      "source": "core/specnaut/memory/architecture/patterns/interpreter.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/iterator.md",
+      "source": "core/specnaut/memory/architecture/patterns/iterator.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/mediator.md",
+      "source": "core/specnaut/memory/architecture/patterns/mediator.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/memento.md",
+      "source": "core/specnaut/memory/architecture/patterns/memento.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/observer.md",
+      "source": "core/specnaut/memory/architecture/patterns/observer.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/prototype.md",
+      "source": "core/specnaut/memory/architecture/patterns/prototype.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/proxy.md",
+      "source": "core/specnaut/memory/architecture/patterns/proxy.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/singleton.md",
+      "source": "core/specnaut/memory/architecture/patterns/singleton.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/state.md",
+      "source": "core/specnaut/memory/architecture/patterns/state.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/strategy.md",
+      "source": "core/specnaut/memory/architecture/patterns/strategy.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/template-method.md",
+      "source": "core/specnaut/memory/architecture/patterns/template-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/patterns/visitor.md",
+      "source": "core/specnaut/memory/architecture/patterns/visitor.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/add-parameter.md",
+      "source": "core/specnaut/memory/architecture/refactorings/add-parameter.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/change-bidirectional-association-to-unidirectional.md",
+      "source": "core/specnaut/memory/architecture/refactorings/change-bidirectional-association-to-unidirectional.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/change-reference-to-value.md",
+      "source": "core/specnaut/memory/architecture/refactorings/change-reference-to-value.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/change-unidirectional-association-to-bidirectional.md",
+      "source": "core/specnaut/memory/architecture/refactorings/change-unidirectional-association-to-bidirectional.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/change-value-to-reference.md",
+      "source": "core/specnaut/memory/architecture/refactorings/change-value-to-reference.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/collapse-hierarchy.md",
+      "source": "core/specnaut/memory/architecture/refactorings/collapse-hierarchy.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/consolidate-conditional-expression.md",
+      "source": "core/specnaut/memory/architecture/refactorings/consolidate-conditional-expression.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/consolidate-duplicate-conditional-fragments.md",
+      "source": "core/specnaut/memory/architecture/refactorings/consolidate-duplicate-conditional-fragments.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/decompose-conditional.md",
+      "source": "core/specnaut/memory/architecture/refactorings/decompose-conditional.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/duplicate-observed-data.md",
+      "source": "core/specnaut/memory/architecture/refactorings/duplicate-observed-data.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/encapsulate-collection.md",
+      "source": "core/specnaut/memory/architecture/refactorings/encapsulate-collection.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/encapsulate-field.md",
+      "source": "core/specnaut/memory/architecture/refactorings/encapsulate-field.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/extract-class.md",
+      "source": "core/specnaut/memory/architecture/refactorings/extract-class.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/extract-interface.md",
+      "source": "core/specnaut/memory/architecture/refactorings/extract-interface.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/extract-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/extract-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/extract-subclass.md",
+      "source": "core/specnaut/memory/architecture/refactorings/extract-subclass.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/extract-superclass.md",
+      "source": "core/specnaut/memory/architecture/refactorings/extract-superclass.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/extract-variable.md",
+      "source": "core/specnaut/memory/architecture/refactorings/extract-variable.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/form-template-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/form-template-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/hide-delegate.md",
+      "source": "core/specnaut/memory/architecture/refactorings/hide-delegate.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/hide-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/hide-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/inline-class.md",
+      "source": "core/specnaut/memory/architecture/refactorings/inline-class.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/inline-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/inline-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/inline-temp.md",
+      "source": "core/specnaut/memory/architecture/refactorings/inline-temp.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/introduce-assertion.md",
+      "source": "core/specnaut/memory/architecture/refactorings/introduce-assertion.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/introduce-foreign-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/introduce-foreign-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/introduce-local-extension.md",
+      "source": "core/specnaut/memory/architecture/refactorings/introduce-local-extension.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/introduce-null-object.md",
+      "source": "core/specnaut/memory/architecture/refactorings/introduce-null-object.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/introduce-parameter-object.md",
+      "source": "core/specnaut/memory/architecture/refactorings/introduce-parameter-object.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/introduce-special-case.md",
+      "source": "core/specnaut/memory/architecture/refactorings/introduce-special-case.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/move-field.md",
+      "source": "core/specnaut/memory/architecture/refactorings/move-field.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/move-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/move-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/parameterize-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/parameterize-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/preserve-whole-object.md",
+      "source": "core/specnaut/memory/architecture/refactorings/preserve-whole-object.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/pull-up-constructor-body.md",
+      "source": "core/specnaut/memory/architecture/refactorings/pull-up-constructor-body.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/pull-up-field.md",
+      "source": "core/specnaut/memory/architecture/refactorings/pull-up-field.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/pull-up-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/pull-up-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/push-down-field.md",
+      "source": "core/specnaut/memory/architecture/refactorings/push-down-field.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/push-down-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/push-down-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/remove-assignments-to-parameters.md",
+      "source": "core/specnaut/memory/architecture/refactorings/remove-assignments-to-parameters.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/remove-control-flag.md",
+      "source": "core/specnaut/memory/architecture/refactorings/remove-control-flag.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/remove-middle-man.md",
+      "source": "core/specnaut/memory/architecture/refactorings/remove-middle-man.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/remove-parameter.md",
+      "source": "core/specnaut/memory/architecture/refactorings/remove-parameter.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/remove-setting-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/remove-setting-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/rename-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/rename-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-array-with-object.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-array-with-object.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-conditional-with-polymorphism.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-conditional-with-polymorphism.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-constructor-with-factory-method.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-constructor-with-factory-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-data-value-with-object.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-data-value-with-object.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-delegation-with-inheritance.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-delegation-with-inheritance.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-error-code-with-exception.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-error-code-with-exception.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-exception-with-test.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-exception-with-test.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-inheritance-with-delegation.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-inheritance-with-delegation.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-magic-number-with-symbolic-constant.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-magic-number-with-symbolic-constant.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-method-with-method-object.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-method-with-method-object.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-nested-conditional-with-guard-clauses.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-nested-conditional-with-guard-clauses.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-parameter-with-explicit-methods.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-parameter-with-explicit-methods.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-parameter-with-method-call.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-parameter-with-method-call.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-subclass-with-fields.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-subclass-with-fields.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-temp-with-query.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-temp-with-query.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-type-code-with-class.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-type-code-with-class.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-type-code-with-state-strategy.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-type-code-with-state-strategy.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/replace-type-code-with-subclasses.md",
+      "source": "core/specnaut/memory/architecture/refactorings/replace-type-code-with-subclasses.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/self-encapsulate-field.md",
+      "source": "core/specnaut/memory/architecture/refactorings/self-encapsulate-field.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/separate-query-from-modifier.md",
+      "source": "core/specnaut/memory/architecture/refactorings/separate-query-from-modifier.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/split-temporary-variable.md",
+      "source": "core/specnaut/memory/architecture/refactorings/split-temporary-variable.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/refactorings/substitute-algorithm.md",
+      "source": "core/specnaut/memory/architecture/refactorings/substitute-algorithm.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/alternative-classes.md",
+      "source": "core/specnaut/memory/architecture/smells/alternative-classes.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/anemic-domain-model.md",
+      "source": "core/specnaut/memory/architecture/smells/anemic-domain-model.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/circular-dependency.md",
+      "source": "core/specnaut/memory/architecture/smells/circular-dependency.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/comments.md",
+      "source": "core/specnaut/memory/architecture/smells/comments.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/data-class.md",
+      "source": "core/specnaut/memory/architecture/smells/data-class.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/data-clumps.md",
+      "source": "core/specnaut/memory/architecture/smells/data-clumps.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/dead-code.md",
+      "source": "core/specnaut/memory/architecture/smells/dead-code.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/deep-nesting.md",
+      "source": "core/specnaut/memory/architecture/smells/deep-nesting.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/divergent-change.md",
+      "source": "core/specnaut/memory/architecture/smells/divergent-change.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/duplicate-code.md",
+      "source": "core/specnaut/memory/architecture/smells/duplicate-code.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/feature-envy.md",
+      "source": "core/specnaut/memory/architecture/smells/feature-envy.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/god-file.md",
+      "source": "core/specnaut/memory/architecture/smells/god-file.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/implicit-global.md",
+      "source": "core/specnaut/memory/architecture/smells/implicit-global.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/inappropriate-intimacy.md",
+      "source": "core/specnaut/memory/architecture/smells/inappropriate-intimacy.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/large-class.md",
+      "source": "core/specnaut/memory/architecture/smells/large-class.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/layer-violation.md",
+      "source": "core/specnaut/memory/architecture/smells/layer-violation.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/lazy-class.md",
+      "source": "core/specnaut/memory/architecture/smells/lazy-class.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/long-method.md",
+      "source": "core/specnaut/memory/architecture/smells/long-method.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/long-parameter-list.md",
+      "source": "core/specnaut/memory/architecture/smells/long-parameter-list.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/message-chains.md",
+      "source": "core/specnaut/memory/architecture/smells/message-chains.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/middle-man.md",
+      "source": "core/specnaut/memory/architecture/smells/middle-man.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/parallel-inheritance-hierarchies.md",
+      "source": "core/specnaut/memory/architecture/smells/parallel-inheritance-hierarchies.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/primitive-obsession.md",
+      "source": "core/specnaut/memory/architecture/smells/primitive-obsession.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/refused-bequest.md",
+      "source": "core/specnaut/memory/architecture/smells/refused-bequest.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/shotgun-surgery.md",
+      "source": "core/specnaut/memory/architecture/smells/shotgun-surgery.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/silent-catch.md",
+      "source": "core/specnaut/memory/architecture/smells/silent-catch.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/speculative-generality.md",
+      "source": "core/specnaut/memory/architecture/smells/speculative-generality.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/switch-statements.md",
+      "source": "core/specnaut/memory/architecture/smells/switch-statements.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/architecture/smells/temporary-field.md",
+      "source": "core/specnaut/memory/architecture/smells/temporary-field.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "backlog.md",
+      "source": "core/specnaut/backlog.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "LABELS.md",
+      "source": "core/specnaut/LABELS.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "templates/plan-template.md",
+      "source": "core/specnaut/templates/plan-template.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "templates/tasks-template.md",
+      "source": "core/specnaut/templates/tasks-template.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "templates/constitution-template.md",
+      "source": "core/specnaut/templates/constitution-template.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "templates/agent-file-template.md",
+      "source": "core/specnaut/templates/agent-file-template.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/bash/check-prerequisites.sh",
+      "source": "core/specnaut/scripts/bash/check-prerequisites.sh",
+      "executable": true
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/bash/common.sh",
+      "source": "core/specnaut/scripts/bash/common.sh",
+      "executable": true
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/bash/create-new-feature.sh",
+      "source": "core/specnaut/scripts/bash/create-new-feature.sh",
+      "executable": true
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/bash/setup-plan.sh",
+      "source": "core/specnaut/scripts/bash/setup-plan.sh",
+      "executable": true
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/powershell/check-prerequisites.ps1",
+      "source": "core/specnaut/scripts/powershell/check-prerequisites.ps1"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/powershell/common.ps1",
+      "source": "core/specnaut/scripts/powershell/common.ps1"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/powershell/create-new-feature.ps1",
+      "source": "core/specnaut/scripts/powershell/create-new-feature.ps1"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/powershell/setup-plan.ps1",
+      "source": "core/specnaut/scripts/powershell/setup-plan.ps1"
+    },
+    {
+      "category": "project-root",
+      "name": "root",
+      "suffix": "AGENTS.md",
+      "source": "core/root/AGENTS.md",
+      "skipIfExists": true,
+      "managedSection": "chain-stops"
+    },
+    {
+      "category": "mergeable-project-root",
+      "name": "root",
+      "suffix": ".gitignore",
+      "source": "core/root/.gitignore"
+    }
   ],
   "harness_static": [
-    { "harness": "claude", "destination": ".claude/CLAUDE.md", "source": "harness-specific/claude/CLAUDE.md" },
-    { "harness": "claude", "destination": ".claude/commands/specnaut.md", "source": "harness-specific/claude/commands/specnaut.md" },
-    { "harness": "claude", "destination": ".claude/scripts/dispatch-agent.sh", "source": "harness-specific/claude/scripts/dispatch-agent.sh", "executable": true },
-    { "harness": "claude", "destination": ".claude/loop.md", "source": "harness-specific/claude/loop.md" },
-    { "harness": "claude", "destination": ".claude/claude-security-guidance.md", "source": "harness-specific/claude/claude-security-guidance.md" },
-    { "harness": "claude", "destination": ".claude/security-patterns.yaml", "source": "harness-specific/claude/security-patterns.yaml" },
-    { "harness": "claude", "destination": ".claude/settings.json", "source": "harness-specific/claude/settings.json", "mergeJson": "claude-settings" },
-    { "harness": "claude", "destination": ".claude/hooks/protect-generated.sh", "source": "harness-specific/claude/hooks/protect-generated.sh", "executable": true },
-    { "harness": "claude", "destination": ".claude/hooks/log-subagent.sh", "source": "harness-specific/claude/hooks/log-subagent.sh", "executable": true },
-    { "harness": "claude", "destination": ".claude/hooks/check-backlog-prereqs.sh", "source": "harness-specific/claude/hooks/check-backlog-prereqs.sh", "executable": true },
-    { "harness": "codex", "destination": ".codex/AGENTS.md", "source": "harness-specific/codex/AGENTS.md" },
-    { "harness": "codex", "destination": ".codex/goal.md", "source": "harness-specific/codex/goal.md" },
-    { "harness": "cursor", "destination": ".cursor/rules/specify-rules.mdc", "source": "harness-specific/cursor/specify-rules.mdc" },
-    { "harness": "claude", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/claude-tools.md" },
-    { "harness": "codex", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/codex-tools.md" },
-    { "harness": "copilot", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/copilot-tools.md" },
-    { "harness": "cursor", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/cursor-tools.md" },
-    { "harness": "opencode", "destination": ".specnaut/harness-tools.md", "source": "core/skills/using-specnaut/references/opencode-tools.md" }
+    {
+      "harness": "claude",
+      "destination": ".claude/CLAUDE.md",
+      "source": "harness-specific/claude/CLAUDE.md"
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/commands/specnaut.md",
+      "source": "harness-specific/claude/commands/specnaut.md"
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/scripts/dispatch-agent.sh",
+      "source": "harness-specific/claude/scripts/dispatch-agent.sh",
+      "executable": true
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/loop.md",
+      "source": "harness-specific/claude/loop.md"
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/claude-security-guidance.md",
+      "source": "harness-specific/claude/claude-security-guidance.md"
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/security-patterns.yaml",
+      "source": "harness-specific/claude/security-patterns.yaml"
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/settings.json",
+      "source": "harness-specific/claude/settings.json",
+      "mergeJson": "claude-settings"
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/hooks/protect-generated.sh",
+      "source": "harness-specific/claude/hooks/protect-generated.sh",
+      "executable": true
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/hooks/log-subagent.sh",
+      "source": "harness-specific/claude/hooks/log-subagent.sh",
+      "executable": true
+    },
+    {
+      "harness": "claude",
+      "destination": ".claude/hooks/check-backlog-prereqs.sh",
+      "source": "harness-specific/claude/hooks/check-backlog-prereqs.sh",
+      "executable": true
+    },
+    {
+      "harness": "codex",
+      "destination": ".codex/AGENTS.md",
+      "source": "harness-specific/codex/AGENTS.md"
+    },
+    {
+      "harness": "codex",
+      "destination": ".codex/goal.md",
+      "source": "harness-specific/codex/goal.md"
+    },
+    {
+      "harness": "cursor",
+      "destination": ".cursor/rules/specify-rules.mdc",
+      "source": "harness-specific/cursor/specify-rules.mdc"
+    },
+    {
+      "harness": "claude",
+      "destination": ".specnaut/harness-tools.md",
+      "source": "core/skills/using-specnaut/references/claude-tools.md"
+    },
+    {
+      "harness": "codex",
+      "destination": ".specnaut/harness-tools.md",
+      "source": "core/skills/using-specnaut/references/codex-tools.md"
+    },
+    {
+      "harness": "copilot",
+      "destination": ".specnaut/harness-tools.md",
+      "source": "core/skills/using-specnaut/references/copilot-tools.md"
+    },
+    {
+      "harness": "cursor",
+      "destination": ".specnaut/harness-tools.md",
+      "source": "core/skills/using-specnaut/references/cursor-tools.md"
+    },
+    {
+      "harness": "opencode",
+      "destination": ".specnaut/harness-tools.md",
+      "source": "core/skills/using-specnaut/references/opencode-tools.md"
+    }
   ]
 }
