@@ -1,9 +1,11 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
+  breakingGuardWarning,
   type Classified,
   classifyCommit,
   collapseTrailingIssueRefs,
   formatChangelog,
+  isMajorTag,
 } from "../../scripts/gen-changelog.ts";
 
 Deno.test("classifyCommit categorises feat:", () => {
@@ -694,4 +696,33 @@ Deno.test("no breaking commits means no breaking section at all", () => {
   const commits = [{ hash: "a1", subject: "feat: something ordinary" }].map(classifyCommit);
   const out = formatChangelog(commits, { fromTag: "v1.0.0", toTag: "v1.1.0" });
   assertEquals(out.includes("Breaking changes"), false);
+});
+
+// #467 — the v2.0.0 marker was an EMPTY commit, and `git rebase` drops empty
+// commits silently. The generator fix was verified; its input was not. These
+// pin the guard that turns that silence into a message.
+Deno.test("isMajorTag recognises a major release and nothing else", () => {
+  for (const tag of ["v2.0.0", "2.0.0", "v10.0.0"]) {
+    assertEquals(isMajorTag(tag), true, tag);
+  }
+  for (const tag of ["v2.1.0", "v2.0.1", "v0.0.0", "v1.21.0", "not-a-tag"]) {
+    assertEquals(isMajorTag(tag), false, tag);
+  }
+});
+
+Deno.test("a major with no breaking marker warns, and names the empty-commit trap", () => {
+  const commits = [{ hash: "a1", subject: "feat: something ordinary" }].map(classifyCommit);
+  const warning = breakingGuardWarning(commits, "v2.0.0");
+  assert(warning !== null, "a major with no breaking commit must warn");
+  assertStringIncludes(warning, "major release");
+  // The actionable half: without it the warning says what, not what to do.
+  assertStringIncludes(warning, "git rebase");
+});
+
+Deno.test("the guard stays silent when it should", () => {
+  const breaking = [{ hash: "a1", subject: "feat!: removes a phase" }].map(classifyCommit);
+  assertEquals(breakingGuardWarning(breaking, "v2.0.0"), null, "major WITH a marker is fine");
+
+  const ordinary = [{ hash: "a1", subject: "feat: adds a phase" }].map(classifyCommit);
+  assertEquals(breakingGuardWarning(ordinary, "v2.1.0"), null, "a minor needs no marker");
 });

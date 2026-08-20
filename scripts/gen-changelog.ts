@@ -296,6 +296,36 @@ export type FormatOpts = {
   adoptionEntries?: AdoptionEntry[];
 };
 
+/**
+ * True when `tag` is a major release — `vX.0.0` with X >= 1.
+ *
+ * A major with no breaking commit in range is almost always a lost marker
+ * rather than a genuinely non-breaking major. That is not hypothetical: the
+ * v2.0.0 marker was an EMPTY commit, and `git rebase` drops empty commits
+ * silently, so a verified generator fix said nothing about whether its input
+ * survived the merge. Hence {@link breakingGuardWarning}.
+ */
+export function isMajorTag(tag: string): boolean {
+  const m = tag.match(/^v?(\d+)\.0\.0$/);
+  return m !== null && Number(m[1]) >= 1;
+}
+
+/**
+ * Returns the warning a major release with no breaking marker must emit, or
+ * `null` when there is nothing to warn about.
+ */
+export function breakingGuardWarning(
+  commits: Classified[],
+  toTag: string,
+): string | null {
+  if (!isMajorTag(toTag)) return null;
+  if (commits.some((c) => c.category === "breaking")) return null;
+  return `${toTag} is a major release but no commit in range carries the ` +
+    `Conventional Commits breaking marker (\`type(scope)!:\`). Either the ` +
+    `bump is wrong, or the marker was lost — note that an empty marker commit ` +
+    `is dropped by \`git rebase\`, so carry it on a commit with real content.`;
+}
+
 export function formatChangelog(commits: Classified[], opts: FormatOpts): string {
   const features = commits.filter((c) => c.category === "feat");
   const fixes = commits.filter((c) => c.category === "fix");
@@ -441,6 +471,15 @@ async function main() {
       console.error(
         `gen-changelog: ${failures.length} PR-body retrieval failure(s) under --strict — refusing to write a partial Adoption guide.`,
       );
+      Deno.exit(1);
+    }
+  }
+
+  const guard = breakingGuardWarning(classified, to);
+  if (guard) {
+    console.error(`gen-changelog: ${guard}`);
+    if (strict) {
+      console.error("gen-changelog: refusing to write notes for a major with no breaking marker.");
       Deno.exit(1);
     }
   }
