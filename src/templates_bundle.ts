@@ -647,6 +647,25 @@ Every task MUST strictly follow this format:
   - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
   - Each phase should be a complete, independently testable increment
 - **Final Phase**: Polish & Cross-Cutting Concerns
+
+## Ending this phase — INVOKE \`implement\`, same turn
+
+Commit the breakdown, then **invoke \`implement\` yourself, in the same turn**. Your own next action —
+not a suggestion, not a command printed for the user to paste.
+
+\`\`\`bash
+git add <feature-dir>/tasks.md && git commit -m "tasks(<id>): <what the feature does>"
+\`\`\`
+
+Commit **before** handing off: a worktree runs off committed HEAD, and an uncommitted breakdown is
+invisible to whoever needs it.
+
+**The boundary between \`tasks\` and \`implement\` is not a stop.** The size of the breakdown is not a
+reason to stop — it was known when the chain started, and the user chose the work at the plan stop.
+Neither is "this is where the real code gets written": yes, and that is the point of the chain. The
+chain has exactly two stops and this is neither of them; see \`phases/auto-chain.md\`.
+
+Pause only when the run was started with \`--manual\`.
 `,
     executable: false,
     backend: null,
@@ -835,6 +854,24 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
         EXECUTE_COMMAND: {command}
         \`\`\`
     - If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
+
+## Ending this phase — freeze, then INVOKE \`review\`, same turn
+
+**An implementation that has not been through review is not finished.** \`review\` is this phase's
+mandatory last act, not a separate thing the user has to ask for.
+
+1. **Freeze the tree.** Reviewers and suites read the working tree live, and only you know whether
+   it is still moving. Name the commit, stop every implementer agent still holding the tree, then
+   gate. A lingering agent row is a live teammate, not a leftover — it can write into a tree
+   somebody is about to freeze.
+2. **Invoke \`review\` yourself, in the same turn.** Your own next action.
+
+**This boundary is not a stop.** "The audits found a lot, should I re-confirm scope?" is not a
+reason — the findings were folded into the plan and the plan was approved, and that approval covers
+what the plan now says. Neither is "the user has been checkpointing each step": answering a question
+is not a request to be asked another one.
+
+Pause only when the run was started with \`--manual\`.
 `,
     executable: false,
     backend: null,
@@ -906,6 +943,20 @@ specific check that failed (or the full quality gate if the fix is broad).
 
 Repeat until only MEDIUM / LOW remain OR a fix has cycled twice without
 resolution — in the latter case, stop and escalate to the user.
+
+**Do not ask the user between cycles.** The fix loop runs inside STOP #2; they
+asked for a working branch, not for a vote on every round.
+
+**Report harm, not labels.** Sort each finding into *"would hurt a user, a
+maintainer, or the data if shipped"* versus *"should be better"*, and choose by
+the harm rather than the severity word. A finding labelled HIGH that describes a
+lost log line is not worth a cycle; one labelled MEDIUM that loses data is.
+**"Nothing here would hurt anyone" is a valid and valuable verdict**, not a
+failure to find things.
+
+**MEDIUM and LOW go to the backlog and the branch ships.** Re-reviewing because
+the last review found *something* is not a reason — it is always true, and a loop
+with no exit criterion does not terminate.
 
 ## Phase 4 — Final report
 
@@ -1789,6 +1840,34 @@ plan → tasks → implement → review → merge
 \`merge\` is never automatic. It is asked for — **unless the user already said to merge**, in which
 case that is their instruction and it is followed without a second confirmation.
 
+## ⛔ NEVER stop at a boundary that is not one of the two
+
+It applies to **every** hand-off in the chain, not just one:
+
+| Boundary | What happens |
+| :--- | :--- |
+| user answers the last question at STOP 1 → \`tasks\` | invoked in the same turn |
+| \`tasks\` commits the breakdown → \`implement\` | invoked in the same turn |
+| gates green, tree frozen → \`review\` | invoked in the same turn |
+| \`review\` returns findings | **STOP 2** — triage, then the merge request |
+
+No question, no proposal, no menu, at any of those arrows.
+
+None of these is a reason to stop, and each one gets used as one:
+
+| The excuse | Why it is not a reason |
+| :--- | :--- |
+| "That's a lot of tasks — confirm first?" | The size was known when the chain started. The user chose the work at STOP 1. |
+| "MVP only, or the whole thing?" | The plan states both. Build the full path; the MVP is a checkpoint inside it, not a fork to offer. |
+| "This is where the real code gets written." | Yes. That is the point of the chain. |
+| "The audits found a lot — re-confirm scope?" | The findings were folded into the plan and the plan was approved. That approval covers what the plan now says. |
+| "The user has been checkpointing each step." | Answering a question is not a request to be asked another one. |
+
+Asking again after STOP 1 **re-litigates a decision the user already made**, and it costs them the
+thing the chain exists to give: they approve an architecture once, and get an implemented, reviewed
+branch back. A chain that halts at every phase boundary is a slower manual workflow wearing a
+skill's name.
+
 ## Per-phase behavior
 
 After each phase completes successfully, **invoke the next phase yourself, in the same turn**, via
@@ -1849,6 +1928,24 @@ Then resolve the approval:
   **Never merge without an explicit approval.**
 - **Local mode** (default) — ask once: "Ready to merge? (yes to run \`/specnaut merge\`, no to stay on
   the branch)". On "yes", invoke \`merge\`.
+
+### Triage, and the rule that ends the loop
+
+**Only a CRITICAL or HIGH finding buys another fix cycle.** MEDIUM and LOW go to the backlog and the
+branch ships.
+
+Those fix cycles run **inside** this stop. Do not ask again between each one — the user asked for a
+working branch, not for a vote on every round.
+
+A reviewer reports **harm, not labels**: sort each finding into *"would hurt a user, a maintainer,
+or the data if shipped"* versus *"should be better"*, and choose by the harm rather than the
+severity word. **"Nothing here would hurt anyone" is a valid and valuable verdict**, not a failure
+to find things.
+
+Justifying another round with "the last one found something" is not a reason — it is always true,
+and **a loop with no exit criterion does not terminate**. Two habits produce the runaway: treating a
+severity as a label to be cleared rather than asking what harm it describes, and re-reviewing
+because the previous review was not empty.
 
 After merge, the chain ends.
 
@@ -17982,6 +18079,48 @@ _(List your non-negotiable rules — layering, DI, error handling, security.)_
 _(Naming, testing, commits, branches.)_
 
 **Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
+
+## The Specnaut chain has exactly two stops
+
+*Owned by Specnaut — this section is not a placeholder to fill in. Edit the rest freely.*
+
+\`plan → tasks → implement → review → merge\`. It stops at exactly two points, and no third:
+
+1. **The end of \`plan\`** — the architecture is presented with the alternatives that were rejected,
+   both audits' findings are presented separately, and the open questions are asked one at a time.
+2. **The review verdict** — which *is* the merge request. There is no separate pre-merge stop.
+
+Every other boundary is crossed by **invoking the next phase yourself, in the same turn** — your own
+next action, never a command printed for someone to paste:
+
+| Boundary | What happens |
+| :--- | :--- |
+| last question answered → \`tasks\` | invoked in the same turn |
+| breakdown committed → \`implement\` | invoked in the same turn |
+| gates green, tree frozen → \`review\` | invoked in the same turn |
+| \`review\` returns findings | **STOP** — triage, then the merge request |
+
+None of these is a reason to stop, and each one gets used as one:
+
+| The excuse | Why it is not a reason |
+| :--- | :--- |
+| "That's a lot of tasks — confirm first?" | The size was known when the chain started. |
+| "MVP only, or the whole thing?" | The plan states both. The MVP is a checkpoint inside the full path, not a fork to offer. |
+| "This is where the real code gets written." | Yes. That is the point of the chain. |
+| "The audits found a lot — re-confirm scope?" | They were folded into the plan, and the plan was approved. |
+| "They've been checkpointing each step." | Answering a question is not a request to be asked another one. |
+
+**Genuinely blocked is not the same as stopped.** If something truly blocks part of the work, say
+what is blocked in one or two sentences, implement everything that is not blocked, and name the
+remainder. Stopping with nothing built is reserved for the case where proceeding under any
+assumption would be unsafe or would make the work useless if wrong. "I would like confirmation" is
+not that case.
+
+**Only a CRITICAL or HIGH finding buys another fix cycle**; MEDIUM and LOW go to the backlog and the
+branch ships. Those cycles run inside the second stop — don't ask again between each one.
+
+\`merge\` is never automatic. It is asked for — **unless the user already said to merge**, in which
+case that is their instruction and it is followed without a second confirmation.
 
 ## Project-specific gotchas
 
