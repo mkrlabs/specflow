@@ -18,6 +18,48 @@ _(Naming, testing, commits, branches.)_
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
 
+## The Specnaut chain has exactly two stops
+
+*Owned by Specnaut — this section is not a placeholder to fill in. Edit the rest freely.*
+
+`plan → tasks → implement → review → merge`. It stops at exactly two points, and no third:
+
+1. **The end of `plan`** — the architecture is presented with the alternatives that were rejected,
+   both audits' findings are presented separately, and the open questions are asked one at a time.
+2. **The review verdict** — which *is* the merge request. There is no separate pre-merge stop.
+
+Every other boundary is crossed by **invoking the next phase yourself, in the same turn** — your own
+next action, never a command printed for someone to paste:
+
+| Boundary | What happens |
+| :--- | :--- |
+| last question answered → `tasks` | invoked in the same turn |
+| breakdown committed → `implement` | invoked in the same turn |
+| gates green, tree frozen → `review` | invoked in the same turn |
+| `review` returns findings | **STOP** — triage, then the merge request |
+
+None of these is a reason to stop, and each one gets used as one:
+
+| The excuse | Why it is not a reason |
+| :--- | :--- |
+| "That's a lot of tasks — confirm first?" | The size was known when the chain started. |
+| "MVP only, or the whole thing?" | The plan states both. The MVP is a checkpoint inside the full path, not a fork to offer. |
+| "This is where the real code gets written." | Yes. That is the point of the chain. |
+| "The audits found a lot — re-confirm scope?" | They were folded into the plan, and the plan was approved. |
+| "They've been checkpointing each step." | Answering a question is not a request to be asked another one. |
+
+**Genuinely blocked is not the same as stopped.** If something truly blocks part of the work, say
+what is blocked in one or two sentences, implement everything that is not blocked, and name the
+remainder. Stopping with nothing built is reserved for the case where proceeding under any
+assumption would be unsafe or would make the work useless if wrong. "I would like confirmation" is
+not that case.
+
+**Only a CRITICAL or HIGH finding buys another fix cycle**; MEDIUM and LOW go to the backlog and the
+branch ships. Those cycles run inside the second stop — don't ask again between each one.
+
+`merge` is never automatic. It is asked for — **unless the user already said to merge**, in which
+case that is their instruction and it is followed without a second confirmation.
+
 ## Project-specific gotchas
 
 _(Sharp edges new contributors must know.)_
