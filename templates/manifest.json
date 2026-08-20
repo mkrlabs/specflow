@@ -733,6 +733,78 @@
     {
       "category": "spec-root",
       "name": "specify",
+      "suffix": "memory/a11y/README.md",
+      "source": "core/specnaut/memory/a11y/README.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/00-triage.md",
+      "source": "core/specnaut/memory/a11y/00-triage.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/01-images-and-text-alternatives.md",
+      "source": "core/specnaut/memory/a11y/01-images-and-text-alternatives.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/02-structure-and-semantics.md",
+      "source": "core/specnaut/memory/a11y/02-structure-and-semantics.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/03-forms-and-labels.md",
+      "source": "core/specnaut/memory/a11y/03-forms-and-labels.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/04-keyboard-and-focus.md",
+      "source": "core/specnaut/memory/a11y/04-keyboard-and-focus.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/05-aria-and-custom-widgets.md",
+      "source": "core/specnaut/memory/a11y/05-aria-and-custom-widgets.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/06-color-and-contrast.md",
+      "source": "core/specnaut/memory/a11y/06-color-and-contrast.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/07-text-zoom-and-reflow.md",
+      "source": "core/specnaut/memory/a11y/07-text-zoom-and-reflow.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/08-time-motion-and-media.md",
+      "source": "core/specnaut/memory/a11y/08-time-motion-and-media.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/09-navigation-and-language.md",
+      "source": "core/specnaut/memory/a11y/09-navigation-and-language.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "memory/a11y/10-dynamic-updates-and-status.md",
+      "source": "core/specnaut/memory/a11y/10-dynamic-updates-and-status.md"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
       "suffix": "memory/architecture/README.md",
       "source": "core/specnaut/memory/architecture/README.md"
     },
