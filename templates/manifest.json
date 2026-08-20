@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.1",
   "core": [
     { "category": "skill", "name": "specnaut", "source": "core/skills/specnaut/SKILL.md" },
     { "category": "phase", "name": "plan", "suffix": "plan.md", "source": "core/skills/specnaut/phases/plan.md" },
