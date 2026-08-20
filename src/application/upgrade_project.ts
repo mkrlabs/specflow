@@ -10,7 +10,7 @@ import {
 } from "../domain/upgrade_plan.ts";
 import { canonicalBlockBody, extractBlock, mergeIntoFile } from "../domain/merge_block.ts";
 import { isPluginCoveredPath } from "../domain/plugin_coverage.ts";
-import { isAgenticPath } from "../domain/parent_managed.ts";
+import { isAgenticPath, pruneAgenticEntries } from "../domain/parent_managed.ts";
 
 /** The plugin name used for both the install probe and the cache directory. */
 export const PLUGIN_NAME = "specnaut-plugin";
@@ -229,7 +229,14 @@ export class UpgradeProjectUseCase {
       // write: no file operations, just the lock. The common case (lock
       // already carries the right value) keeps the no-op fast path.
       const lockParentManaged = lock.parentManaged ?? false;
-      if (parentManaged !== lockParentManaged) {
+      // Rewrite when the decision changed OR when a parent-managed lock still
+      // records agentic rows. The second case is the one that bites: a lock
+      // written before the flip keeps describing files this workspace does not
+      // own, and without it the resurrection only moves from "planned adds" to
+      // phantom rows nobody looks at until they mislead someone (#476).
+      const staleAgentic = parentManaged &&
+        [...lock.entries.keys()].some((dest) => isAgenticPath(dest));
+      if (parentManaged !== lockParentManaged || staleAgentic) {
         const correctedLock: InstalledLock = {
           version: 2,
           harness: lock.harness,
@@ -238,7 +245,7 @@ export class UpgradeProjectUseCase {
           specBackend: lock.specBackend,
           specAutogen: lock.specAutogen,
           templatesVersion: lock.templatesVersion,
-          entries: lock.entries,
+          entries: parentManaged ? pruneAgenticEntries(lock.entries) : lock.entries,
           ...(parentManaged ? { parentManaged: true as const } : {}),
         };
         await lockStore.write(input.projectDir, correctedLock);

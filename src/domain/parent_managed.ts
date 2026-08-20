@@ -57,3 +57,35 @@ export function isAgenticPath(dest: string): boolean {
     dest.startsWith(".claude/agents/") ||
     dest.startsWith(".claude/commands/");
 }
+
+/**
+ * Marker a child writes to declare that its enclosing Specnaut workspace
+ * manages its agentic files.
+ *
+ * Detection originally had exactly one positive signal — membership of the
+ * parent's `deno.json` `workspace[]` — which quietly made "is a Deno workspace
+ * member" the definition of "inherits agentic files from the parent". A
+ * sub-repo on a different toolchain, kept out of that array precisely because
+ * including it breaks its own build, had no way to say so: there was a negative
+ * opt-out marker and no positive opt-in (#476).
+ *
+ * This is the missing counterpart to `standalone.yml`, in the same place and
+ * with the same shape. It does NOT bypass the ancestor check — a providing
+ * ancestor must still exist, or suppressing `.claude/` would leave the child
+ * with no agentic files at all and nothing providing them.
+ */
+export const PARENT_MANAGED_MARKER = "parent-managed.yml";
+
+/**
+ * Prunes agentic rows from a lock's entry map for a parent-managed target.
+ *
+ * Suppressing future writes is not enough. The metadata-only correction path
+ * rewrites `entries` verbatim, so rows recorded before the flip survive it —
+ * and the resurrection simply moves from "planned adds" to phantom rows that
+ * describe files the workspace deliberately does not own.
+ */
+export function pruneAgenticEntries<T>(
+  entries: ReadonlyMap<string, T>,
+): Map<string, T> {
+  return new Map([...entries].filter(([dest]) => !isAgenticPath(dest)));
+}
