@@ -130,7 +130,7 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
   // Five per-axis audit-dispatch skills (#380). Markdown-only thin
   // dispatchers (no scripts/) — unlike the script-backed `code-audit`
   // (#379) which the plugin omits — so they mirror through the same
-  // byte-identical channel. Each binds one axis to its existing auditor
+  // byte-identical channel. Each binds one axis to its existing expert
   // agent and returns findings inline.
   ...[
     "arch-audit",
@@ -155,8 +155,8 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
   // basename in plugin scope; no namespacing needed for invocation
   // (agents are not user-invokable like slash commands).
   // Counts: 10 original + ui-ux-designer (#198, sync-test drift fix in
-  // #321) + performance-auditor (#304) + a11y-auditor (#305) +
-  // architecture-auditor (#321) + dependency-auditor (#322) = 15.
+  // #321) + performance-expert (#304) + a11y-expert (#305) +
+  // architect-expert (#321) + dependency-expert (#322) = 15.
   ...[
     "code-reviewer",
     "developer",
@@ -164,15 +164,15 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     "product-owner",
     "qa-tester",
     "review-coordinator",
-    "security-auditor",
+    "security-expert",
     "specnaut-expert",
     "test-reviewer",
     "workflow-manager",
     "ui-ux-designer",
-    "performance-auditor",
-    "a11y-auditor",
-    "architecture-auditor",
-    "dependency-auditor",
+    "performance-expert",
+    "a11y-expert",
+    "architect-expert",
+    "dependency-expert",
   ].map((name) => ({
     plugin: `plugin/agents/${name}.md`,
     source: `templates/core/agents/${name}.md`,

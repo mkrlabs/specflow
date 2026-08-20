@@ -1,13 +1,13 @@
 ---
 name: perf-audit
-description: Single-axis performance audit of a scope. Use when the user says "perf audit", "performance audit", "audit for performance issues", "check for N+1 queries", or "review the performance of <path>". Dispatches ONLY the performance-auditor over a resolved scope (N+1 / hot paths / re-renders / caching) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis performance audit of a scope. Use when the user says "perf audit", "performance audit", "audit for performance issues", "check for N+1 queries", or "review the performance of <path>". Dispatches ONLY the performance-expert over a resolved scope (N+1 / hot paths / re-renders / caching) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Performance Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: performance. This skill resolves a
-scope, dispatches the **single** `performance-auditor` agent over it, and
+scope, dispatches the **single** `performance-expert` agent over it, and
 returns that agent's findings **inline**. It writes **no file** and mutates
 **no tracked files** — `git status` is unchanged after a run.
 
@@ -47,9 +47,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 ```
 
-## Step 3 — Dispatch ONLY the performance-auditor
+## Step 3 — Dispatch ONLY the performance-expert
 
-Dispatch the **single** `performance-auditor` agent — never a team, never
+Dispatch the **single** `performance-expert` agent — never a team, never
 another axis. Give it the resolved file list and an **audit framing**: judge
 the performance shape of the scoped code (N+1 queries, blocking I/O on hot
 paths, missing indexes, cache misuse, hot-path allocation, sync-in-async,
@@ -57,19 +57,19 @@ large bundles, render-thrash) — not a per-line review.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The `performance-auditor` ends with the
+Return the agent's findings inline. The `performance-expert` ends with the
 canonical `REVIEW SUMMARY` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **`/perf-audit`** (this skill) — dispatches the **one** `performance-auditor`
+- **`/perf-audit`** (this skill) — dispatches the **one** `performance-expert`
   over a scope and returns findings **inline**. No report file.
 - **`/specnaut audit performance`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   `docs/specnaut/audits/`. Use it when you want a durable artifact.
 - **`/code-audit`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.

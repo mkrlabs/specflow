@@ -2,7 +2,7 @@
 # /specnaut audit architecture
 
 **Read-only** project-wide architectural sweep. Walks the entire
-codebase, dispatches the `architecture-auditor` agent in audit mode, and
+codebase, dispatches the `architect-expert` agent in audit mode, and
 emits a structured findings report. **Never mutates project code** —
 running the phase twice in a row leaves `git status --porcelain`
 identical (modulo the new report file).
@@ -38,7 +38,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
      `*.spec.{ts,jsx,tsx}`)
    - Dependency manifests (used to detect language ecosystem only)
 
-3. **Dispatch the `architecture-auditor` agent** with the dispatch prompt
+3. **Dispatch the `architect-expert` agent** with the dispatch prompt
    below. The agent operates in audit mode (full codebase scan, NOT
    per-PR review mode). It has `Read`, `Grep`, `Glob`, and constrained
    `Bash` access; it MUST NOT call `Edit`, `Write`, `NotebookEdit`, or
@@ -62,7 +62,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    single grouped task if `--severity medium` or `--severity low` was
    passed)."
 
-## Dispatch prompt for the `architecture-auditor` agent
+## Dispatch prompt for the `architect-expert` agent
 
 Pass the agent the following prompt verbatim (substituting `$INVENTORY`
 with the grouped file inventory from step 2 and `$SEVERITY_FLOOR` with
@@ -124,12 +124,12 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the architecture-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the architect-expert in PR mode, not audit mode).
 - For codebase-wide refactor planning → out of scope; this phase surfaces drift, it doesn't propose the refactor strategy. Pair with `/specnaut plan` to capture the refactor as a plan.
-- For a single-file architecture check → invoke `architecture-auditor` directly with the file paths.
+- For a single-file architecture check → invoke `architect-expert` directly with the file paths.
 
 ---
 
 Inspired by the discipline of `obra/superpowers` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-`architecture-auditor` agent itself is Specnaut-native (no upstream sibling).
+`architect-expert` agent itself is Specnaut-native (no upstream sibling).

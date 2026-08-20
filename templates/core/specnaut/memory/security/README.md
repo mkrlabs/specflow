@@ -88,7 +88,7 @@ advance on risk.
 ## Deliberate gaps
 
 - **Dependency CVE triage** is only sketched in `06`. The dedicated
-  `dependency-auditor` agent owns manifests, advisories, and licences —
+  `dependency-expert` agent owns manifests, advisories, and licences —
   hand off rather than duplicating its work.
 - **The AI/agentic attack surface** (OWASP LLM Top 10, Agentic Top 10:
   prompt injection, tool misuse, memory poisoning, excessive agency) is

@@ -1,13 +1,13 @@
 ---
 name: sec-audit
-description: Single-axis security audit of a scope. Use when the user says "sec audit", "security audit", "audit for security issues", "check for vulnerabilities", or "review the security of <path>". Dispatches ONLY the security-auditor over a resolved scope (authz / inputs / secrets / injection) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis security audit of a scope. Use when the user says "sec audit", "security audit", "audit for security issues", "check for vulnerabilities", or "review the security of <path>". Dispatches ONLY the security-expert over a resolved scope (authz / inputs / secrets / injection) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Security Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: security. This skill resolves a
-scope, dispatches the **single** `security-auditor` agent over it, and
+scope, dispatches the **single** `security-expert` agent over it, and
 returns that agent's findings **inline**. It writes **no file** and mutates
 **no tracked files** — `git status` is unchanged after a run.
 
@@ -47,9 +47,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 ```
 
-## Step 3 — Dispatch ONLY the security-auditor
+## Step 3 — Dispatch ONLY the security-expert
 
-Dispatch the **single** `security-auditor` agent — never a team, never
+Dispatch the **single** `security-expert` agent — never a team, never
 another axis. Give it the resolved file list and an **audit framing**: judge
 the security shape of the scoped code (input validation, authz, secrets,
 injection, SSRF, path traversal, silent error swallowing) — not a per-line
@@ -72,19 +72,19 @@ the finding format defined in 00-triage.md.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The `security-auditor` ends with the
+Return the agent's findings inline. The `security-expert` ends with the
 canonical `REVIEW SUMMARY` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **`/sec-audit`** (this skill) — dispatches the **one** `security-auditor`
+- **`/sec-audit`** (this skill) — dispatches the **one** `security-expert`
   over a scope and returns findings **inline**. No report file.
 - **`/specnaut audit security`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   `docs/specnaut/audits/`. Use it when you want a durable artifact.
 - **`/code-audit`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.

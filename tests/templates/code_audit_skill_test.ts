@@ -4,7 +4,7 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
 
 /**
  * Locks the `/code-audit` orchestration contract into the bundled SKILL.md so it
- * can't drift silently. The skill DISPATCHES the existing auditor agents — it
+ * can't drift silently. The skill DISPATCHES the existing expert agents — it
  * defines none of its own — and the load-bearing instructions (single-message
  * parallel dispatch, seat→signal selection, dominance verdict, read-only) must
  * survive every edit. Also asserts the skill + its scope script ship in the
@@ -52,12 +52,12 @@ Deno.test("code-audit SKILL body encodes the seat→signal selection rules", () 
   assert(SKILL);
   const body = SKILL.content;
   // Always-on seats.
-  assertStringIncludes(body, "architecture-auditor");
-  assertStringIncludes(body, "security-auditor");
-  assertStringIncludes(body, "performance-auditor");
+  assertStringIncludes(body, "architect-expert");
+  assertStringIncludes(body, "security-expert");
+  assertStringIncludes(body, "performance-expert");
   // Signal-gated seats.
-  assertStringIncludes(body, "a11y-auditor");
-  assertStringIncludes(body, "dependency-auditor");
+  assertStringIncludes(body, "a11y-expert");
+  assertStringIncludes(body, "dependency-expert");
   assertStringIncludes(body, "FRONTEND_COUNT > 0");
   assertStringIncludes(body, "DEP_COUNT > 0");
 });

@@ -12,15 +12,15 @@ Deno.test("isPluginCoveredPath: claude + .claude/agents/<name>.md (non-architect
       "product-owner",
       "qa-tester",
       "review-coordinator",
-      "security-auditor",
+      "security-expert",
       "specnaut-expert",
       "test-reviewer",
       "workflow-manager",
       "ui-ux-designer",
-      "performance-auditor",
-      "a11y-auditor",
-      "architecture-auditor",
-      "dependency-auditor",
+      "performance-expert",
+      "a11y-expert",
+      "architect-expert",
+      "dependency-expert",
     ]
   ) {
     assertEquals(

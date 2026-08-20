@@ -102,7 +102,7 @@ Deno.test("REAL SubagentStop payload (agent_type + last_assistant_message + UPPE
   const payload = JSON.stringify({
     session_id: "sess-123",
     agent_id: "abf05f10d169e18fa",
-    agent_type: "security-auditor",
+    agent_type: "security-expert",
     effort: { level: "high" },
     permission_mode: "bypassPermissions",
     hook_event_name: "SubagentStop",
@@ -118,7 +118,7 @@ Deno.test("REAL SubagentStop payload (agent_type + last_assistant_message + UPPE
   assertEquals(line.event, "stop");
   assertEquals(line.session, "sess-123");
   // Name resolved from `agent_type` (not the absent `agent_name`).
-  assertEquals(line.agent, "security-auditor");
+  assertEquals(line.agent, "security-expert");
   // Optional context fields populated from the real payload.
   assertEquals(line.agent_id, "abf05f10d169e18fa");
   assertEquals(line.effort, "high");
@@ -290,14 +290,14 @@ Deno.test("contract block under the legacy `.result` key is still parsed (output
   ].join("\n");
   const payload = JSON.stringify({
     session_id: "sess-result",
-    agent_type: "architecture-auditor",
+    agent_type: "architect-expert",
     result: resultText, // no last_assistant_message / output
   });
 
   const { code, line } = await runHook("stop", payload);
   assertEquals(code, 0);
   assert(line);
-  assertEquals(line.agent, "architecture-auditor");
+  assertEquals(line.agent, "architect-expert");
   assertEquals(line.review_verdict, "needs_followup");
   assertEquals(line.state, "awaiting_qa");
   assertEquals(line.handoff_target, "qa-tester");

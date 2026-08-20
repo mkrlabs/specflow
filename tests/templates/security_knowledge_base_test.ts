@@ -120,11 +120,11 @@ Deno.test("every domain file carries the five-section shape", () => {
   }
 });
 
-Deno.test("security-auditor is required to load the knowledge base first", () => {
+Deno.test("security-expert is required to load the knowledge base first", () => {
   const agent = CORE_BUNDLE.find(
-    (e) => e.category === "agent" && e.name === "security-auditor",
+    (e) => e.category === "agent" && e.name === "security-expert",
   );
-  assert(agent, "security-auditor agent missing from the bundle");
+  assert(agent, "security-expert agent missing from the bundle");
   assertStringIncludes(agent.content, ".specnaut/memory/security/");
   assertStringIncludes(agent.content, "00-triage.md");
   // Degrades cleanly when installed as a standalone plugin, where the

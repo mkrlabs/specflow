@@ -23,11 +23,11 @@ const CONTRACT_SKILLS = [
 
 /** Authoritative wired-agent → contracts mapping (research.md). */
 const AGENT_WIRING: Record<string, readonly string[]> = {
-  "architecture-auditor": ["review-findings-contract", "workflow-contract"],
-  "performance-auditor": ["review-findings-contract", "workflow-contract"],
-  "security-auditor": ["review-findings-contract", "workflow-contract"],
-  "a11y-auditor": ["review-findings-contract", "workflow-contract"],
-  "dependency-auditor": ["review-findings-contract", "workflow-contract"],
+  "architect-expert": ["review-findings-contract", "workflow-contract"],
+  "performance-expert": ["review-findings-contract", "workflow-contract"],
+  "security-expert": ["review-findings-contract", "workflow-contract"],
+  "a11y-expert": ["review-findings-contract", "workflow-contract"],
+  "dependency-expert": ["review-findings-contract", "workflow-contract"],
   "code-reviewer": ["review-findings-contract", "workflow-contract"],
   "test-reviewer": ["review-findings-contract", "workflow-contract"],
   "review-coordinator": ["workflow-contract", "handoff-protocol", "review-findings-contract"],

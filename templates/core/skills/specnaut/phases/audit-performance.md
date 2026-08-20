@@ -2,7 +2,7 @@
 # /specnaut audit performance
 
 **Read-only** project-wide performance sweep. Walks the entire codebase,
-dispatches the `performance-auditor` agent in audit mode, and emits a
+dispatches the `performance-expert` agent in audit mode, and emits a
 structured findings report. **Never mutates project code** — running the
 phase twice in a row leaves `git status --porcelain` identical (modulo
 the new report file).
@@ -36,7 +36,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    - Dependency manifests (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `composer.json`, `Gemfile`, `requirements*.txt`)
    - Front-end source (`.tsx`, `.jsx`, `.vue`, `.svelte`, `.astro`)
 
-3. **Dispatch the `performance-auditor` agent** with the dispatch prompt
+3. **Dispatch the `performance-expert` agent** with the dispatch prompt
    below. The agent operates in audit mode (full codebase scan, NOT
    per-PR review mode). It has `Read`, `Grep`, `Glob`, and constrained
    `Bash` access; it MUST NOT call `Edit`, `Write`, `NotebookEdit`, or
@@ -60,7 +60,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    single grouped task if `--severity medium` or `--severity low` was
    passed)."
 
-## Dispatch prompt for the `performance-auditor` agent
+## Dispatch prompt for the `performance-expert` agent
 
 Pass the agent the following prompt verbatim (substituting `$INVENTORY`
 with the grouped file inventory from step 2 and `$SEVERITY_FLOOR` with
@@ -120,12 +120,12 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the performance-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the performance-expert in PR mode, not audit mode).
 - For benchmark / profiler-backed perf work → out of scope; this phase reads code, not runtime traces.
-- For a single-file performance check → invoke `performance-auditor` directly with the file paths.
+- For a single-file performance check → invoke `performance-expert` directly with the file paths.
 
 ---
 
 Inspired by the discipline of `obra/superpowers` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-`performance-auditor` agent itself is Specnaut-native (no upstream sibling).
+`performance-expert` agent itself is Specnaut-native (no upstream sibling).

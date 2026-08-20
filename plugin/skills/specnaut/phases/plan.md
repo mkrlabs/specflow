@@ -104,7 +104,7 @@ One file, read whole by whoever implements. Twelve sections, in order, **none op
    exposes. "One surface only" is a valid answer; an unstated one is not.
    **Front-end / UX-UI features**: where the project has a front-end surface, add a
    `## Visual Prototyping with Claude Artifacts` subsection. Detect that surface with the SAME
-   signals the accessibility gate uses — the `a11y-auditor` FE-surface list; don't invent a second
+   signals the accessibility gate uses — the `a11y-expert` FE-surface list; don't invent a second
    heuristic. No front-end surface → the plan **must not mention** artifacts at all.
 9. **Risks** — each with its mitigation.
 10. **Architecture audit** — findings, and what was done with each. Step 6.
@@ -141,8 +141,8 @@ opinion**.
 
 ### 6. 🔒 The two audits — MANDATORY, and they audit the PLAN, not the code
 
-Read `phases/plan-audits.md` and follow it. It dispatches `architecture-auditor` and
-`security-auditor` on `plan.md` **in the same message**, before a single line is written, and it
+Read `phases/plan-audits.md` and follow it. It dispatches `architect-expert` and
+`security-expert` on `plan.md` **in the same message**, before a single line is written, and it
 carries the eight questions they are asked and the rule that their findings land **in `plan.md`**.
 
 Not optional, and not deferrable to `review`: architecture found at review time is architecture

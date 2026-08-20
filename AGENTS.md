@@ -138,7 +138,7 @@ specify → clarify → plan → tasks → analyze → implement → review → 
 ### 3. Specialist agent team with interaction contract
 
 Observed agent types: `product-owner`, `developer` (alias `implementer`), `workflow-manager`,
-`review-coordinator`, `qa-tester`, `security-auditor`, `devops-sre`, `accessibility-auditor`,
+`review-coordinator`, `qa-tester`, `security-expert`, `devops-sre`, `a11y-expert`,
 `performance-analyst`, `api-contract-reviewer`, `design-system-enforcer`, `code-reviewer`,
 `test-reviewer`, domain experts (typography, payments…).
 
@@ -153,7 +153,7 @@ frontmatter flag (Claude Code feature):
 
 - **Auto-triggerable** (flag absent or `false`) — Claude may spawn the agent when the user's request
   matches the agent's `description`. Used for cheap, scoped, additive agents: `code-reviewer`,
-  `security-auditor`, `test-reviewer` (sub-agents of `review-coordinator`), plus the orchestrators
+  `security-expert`, `test-reviewer` (sub-agents of `review-coordinator`), plus the orchestrators
   `review-coordinator`, `workflow-manager`, and the backlog gatekeeper `product-owner` (which the
   working contract requires for every backlog mutation anyway).
 - **Manual-only** (`disable-model-invocation: true`) — Claude will NOT auto-spawn the agent; it must

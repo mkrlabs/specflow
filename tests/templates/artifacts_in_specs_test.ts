@@ -15,7 +15,7 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
  *   - the `plan-template.md` skeleton (the optional, conditional subsection), and
  *   - the `plan` phase doc (the reuse-the-a11y-gate instruction).
  *
- * The gate MUST reuse the accessibility auditor's front-end-surface signal
+ * The gate MUST reuse the accessibility expert's front-end-surface signal
  * list (not a second heuristic) — that reuse is the acceptance criterion.
  */
 
@@ -60,8 +60,8 @@ Deno.test("plan-template gates the Artifacts section on a front-end surface (a11
   // Reuses the accessibility gate's mechanism — not a new heuristic.
   assertStringIncludes(
     content,
-    "a11y-auditor",
-    "the gate must defer to the accessibility auditor's FE-surface signal list",
+    "a11y-expert",
+    "the gate must defer to the accessibility expert's FE-surface signal list",
   );
   // The remove-if-none instruction is what keeps back-end/CLI specs artifact-free.
   const lower = content.toLowerCase();
@@ -72,14 +72,14 @@ Deno.test("plan-template gates the Artifacts section on a front-end surface (a11
   );
 });
 
-Deno.test("plan phase reinforces the FE gate by reusing the a11y-auditor signals", () => {
+Deno.test("plan phase reinforces the FE gate by reusing the a11y-expert signals", () => {
   const entry = planPhase();
   assert(entry, "expected the plan phase entry in CORE_BUNDLE");
   const { content } = entry;
   assertStringIncludes(content, "Visual Prototyping with Claude Artifacts");
   assertStringIncludes(
     content,
-    "a11y-auditor",
+    "a11y-expert",
     "plan must point authors at the accessibility gate's signal list",
   );
   // A back-end/CLI-only spec must be told NOT to mention artifacts. (The

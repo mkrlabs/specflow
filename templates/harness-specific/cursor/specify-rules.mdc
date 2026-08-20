@@ -33,7 +33,7 @@ clarifications needed) STOP #2 (pre-merge validation)
 - `/specnaut-agent-developer` — implementation work
 - `/specnaut-agent-review-coordinator` — parallel review orchestration
 - `/specnaut-agent-code-reviewer` — code quality review
-- `/specnaut-agent-security-auditor` — security review
+- `/specnaut-agent-security-expert` — security review
 - `/specnaut-agent-test-reviewer` — test coverage review
 - `/specnaut-agent-qa-tester` — QA + test writing
 - `/specnaut-agent-workflow-manager` — long-running orchestration

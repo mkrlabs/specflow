@@ -42,17 +42,17 @@
     { "category": "agent", "name": "developer", "source": "core/agents/developer.md" },
     { "category": "agent", "name": "review-coordinator", "source": "core/agents/review-coordinator.md" },
     { "category": "agent", "name": "code-reviewer", "source": "core/agents/code-reviewer.md" },
-    { "category": "agent", "name": "security-auditor", "source": "core/agents/security-auditor.md" },
+    { "category": "agent", "name": "security-expert", "source": "core/agents/security-expert.md" },
     { "category": "agent", "name": "test-reviewer", "source": "core/agents/test-reviewer.md" },
     { "category": "agent", "name": "qa-tester", "source": "core/agents/qa-tester.md" },
     { "category": "agent", "name": "workflow-manager", "source": "core/agents/workflow-manager.md" },
     { "category": "agent", "name": "devops-sre", "source": "core/agents/devops-sre.md" },
     { "category": "agent", "name": "specnaut-expert", "source": "core/agents/specnaut-expert.md" },
     { "category": "agent", "name": "ui-ux-designer", "source": "core/agents/ui-ux-designer.md" },
-    { "category": "agent", "name": "performance-auditor", "source": "core/agents/performance-auditor.md" },
-    { "category": "agent", "name": "a11y-auditor", "source": "core/agents/a11y-auditor.md" },
-    { "category": "agent", "name": "architecture-auditor", "source": "core/agents/architecture-auditor.md" },
-    { "category": "agent", "name": "dependency-auditor", "source": "core/agents/dependency-auditor.md" },
+    { "category": "agent", "name": "performance-expert", "source": "core/agents/performance-expert.md" },
+    { "category": "agent", "name": "a11y-expert", "source": "core/agents/a11y-expert.md" },
+    { "category": "agent", "name": "architect-expert", "source": "core/agents/architect-expert.md" },
+    { "category": "agent", "name": "dependency-expert", "source": "core/agents/dependency-expert.md" },
 
     { "category": "agent-doc", "name": "agents-readme", "suffix": "README.md", "source": "core/agents/README.md" },
 
@@ -60,7 +60,7 @@
     { "category": "agent-memory", "name": "developer", "suffix": "MEMORY.md", "source": "core/agents/developer/memory/MEMORY.md" },
     { "category": "agent-memory", "name": "qa-tester", "suffix": "MEMORY.md", "source": "core/agents/qa-tester/memory/MEMORY.md" },
     { "category": "agent-memory", "name": "devops-sre", "suffix": "MEMORY.md", "source": "core/agents/devops-sre/memory/MEMORY.md" },
-    { "category": "agent-memory", "name": "security-auditor", "suffix": "MEMORY.md", "source": "core/agents/security-auditor/memory/MEMORY.md" },
+    { "category": "agent-memory", "name": "security-expert", "suffix": "MEMORY.md", "source": "core/agents/security-expert/memory/MEMORY.md" },
 
 
     { "category": "backlog-skill", "name": "backlog", "source": "core/skills/backlog/SKILL.md" },

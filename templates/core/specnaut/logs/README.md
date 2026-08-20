@@ -24,7 +24,7 @@ breaks a dispatch. A line is never rewritten; an agent's *current* state is its
 
 Captured from the Claude Code event payload when present. `agent_id`
 disambiguates two concurrent agents of the same `agent_type` (e.g. two
-`security-auditor`s); `effort` records the agent's reasoning tier.
+`security-expert`s); `effort` records the agent's reasoning tier.
 
 | Field      | Type   | Source           | Notes                                            |
 | ---------- | ------ | ---------------- | ------------------------------------------------ |
@@ -62,7 +62,7 @@ Base line (no contract block parsed, or a `start` event):
 Enriched `stop` line (contract block parsed from the output):
 
 ```json
-{"ts":"2026-06-13T11:42:00Z","event":"stop","session":"sess-123","agent":"security-auditor","agent_id":"abf05f10d169e18fa","effort":"high","state":"awaiting_review","done_criteria_met":"yes","handoff_target":"review-coordinator","review_verdict":"fail"}
+{"ts":"2026-06-13T11:42:00Z","event":"stop","session":"sess-123","agent":"security-expert","agent_id":"abf05f10d169e18fa","effort":"high","state":"awaiting_review","done_criteria_met":"yes","handoff_target":"review-coordinator","review_verdict":"fail"}
 ```
 
 ## Invariants

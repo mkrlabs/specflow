@@ -90,8 +90,8 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
     // backlog-reference-contract) + code-audit (#379) +
     // 5 per-axis audit skills (#380: arch-audit, sec-audit, perf-audit,
     // dep-audit, a11y-audit) + status-audit (#381) +
-    // backlog + 15 agent workflows (11 original + performance-auditor #304
-    // + a11y-auditor #305 + architecture-auditor #321 + dependency-auditor
+    // backlog + 15 agent workflows (11 original + performance-expert #304
+    // + a11y-expert #305 + architect-expert #321 + dependency-expert
     // #322) = 52 (specnaut-auto removed in #409). code-audit's scope script
     // ships under .specnaut/scripts/code-audit/, not as a flattened workflow file;
     // status-audit's schema doc ships to .specnaut/logs/README.md, also not

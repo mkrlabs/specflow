@@ -11,7 +11,7 @@ down **with its coverage**, because a clean verdict is worth exactly what it cov
 
 ## 🔒 The architecture audit
 
-**Dispatch the `architecture-auditor` agent on `plan.md` before a single line is written** — here,
+**Dispatch the `architect-expert` agent on `plan.md` before a single line is written** — here,
 while changing your mind is still free, because architecture found at review time is architecture
 rebuilt. The defect class it catches: a decision that must agree, spelled in more than one place, or
 asked in a caller instead of at the decision. Ask four questions, in this order:
@@ -28,7 +28,7 @@ asked in a caller instead of at the decision. Ask four questions, in this order:
 
 ## 🛡 The security audit
 
-**Dispatch the `security-auditor` agent on `plan.md` in the same message as the architecture audit**
+**Dispatch the `security-expert` agent on `plan.md` in the same message as the architecture audit**
 so both run concurrently. Neither substitutes for the other: the architect asks whether a rule has
 one home, the security seat asks whether that home is reachable by someone who should not reach it.
 These are the most expensive findings to fix late — a missing authorization gate is one line, but a

@@ -7,12 +7,12 @@ pass `--manual` to opt out.
 
 ## What's in here
 
-| Path                                                                                                                                        | Contents                                                                                                                               |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `.claude-plugin/plugin.json`                                                                                                                | Plugin manifest (`specnaut-plugin`, lockstep with the binary version)                                                                  |
-| `skills/specnaut/phases/*.md`                                                                                                               | The phase reference docs the router loads on demand — `plan`, `tasks`, `implement`, `review`, `merge`, plus the out-of-band utilities. |
-| `agents/{code-reviewer,developer,devops-sre,product-owner,qa-tester,review-coordinator,security-auditor,test-reviewer,workflow-manager}.md` | 9 sub-agents available to invoke in plugin scope                                                                                       |
-| `skills/groom/SKILL.md`                                                                                                                     | Groom skill — `/specnaut-plugin:groom`                                                                                                 |
+| Path                                                                                                                                       | Contents                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude-plugin/plugin.json`                                                                                                               | Plugin manifest (`specnaut-plugin`, lockstep with the binary version)                                                                  |
+| `skills/specnaut/phases/*.md`                                                                                                              | The phase reference docs the router loads on demand — `plan`, `tasks`, `implement`, `review`, `merge`, plus the out-of-band utilities. |
+| `agents/{code-reviewer,developer,devops-sre,product-owner,qa-tester,review-coordinator,security-expert,test-reviewer,workflow-manager}.md` | 9 sub-agents available to invoke in plugin scope                                                                                       |
+| `skills/groom/SKILL.md`                                                                                                                    | Groom skill — `/specnaut-plugin:groom`                                                                                                 |
 
 The full plugin migration shipped in v0.12.x (issue
 [#73](https://github.com/specnaut/specnaut-cli/issues/73)). When the plugin is installed and the

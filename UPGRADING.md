@@ -1,5 +1,44 @@
 # Upgrading Specnaut
 
+## 2.x → 3.0.0
+
+### The five auditor agents are now experts
+
+`auditor` described one dispatch shape out of several. These seats are also asked for their
+expertise on a **plan**, before any code exists — `/specnaut plan` has always done this at step 6,
+mandatorily — so the name described the narrower half of what they do.
+
+| Before                 | After                |
+| :--------------------- | :------------------- |
+| `architecture-auditor` | `architect-expert`   |
+| `security-auditor`     | `security-expert`    |
+| `performance-auditor`  | `performance-expert` |
+| `a11y-auditor`         | `a11y-expert`        |
+| `dependency-auditor`   | `dependency-expert`  |
+
+`specnaut upgrade` moves the agent files for you. **What it cannot move is your own writing**: if
+you reference an agent by name in your `AGENTS.md`, your own skills, a script, or a saved prompt,
+update it. There are no aliases — an unknown agent name fails at dispatch time, not at scaffold
+time, so a stale reference stays silent until the moment you need the seat.
+
+The audit **skills** keep their names — `/arch-audit`, `/sec-audit`, `/perf-audit`, `/dep-audit`,
+`/a11y-audit`. They genuinely run audits; it was only the seats that were misnamed.
+
+If you kept a local copy of one of these agents (a `preserve.yml` entry, or a file `upgrade` reports
+as customized), the rename lands as a **new** path and your copy stays behind under the old one.
+Move your customisation across yourself, and re-point the `preserve.yml` entry — otherwise the old
+path protects a file nothing reads, and the new path is left unprotected.
+
+### The architect and the security expert now declare a plan mode
+
+Both agents gained a third mode describing the plan-time dispatch `/specnaut plan` already
+performed. Previously they were handed a plan document while their own definition offered only
+"review the files provided" or "audit the whole codebase" — neither of which fits a document that
+describes code that does not exist yet.
+
+Nothing changes in how you invoke them. The findings get better because the seat now knows which
+question it is being asked.
+
 ## 1.x → 2.0.0
 
 ### At a glance
@@ -67,8 +106,8 @@ consistency check has nothing to check. Its successor runs _earlier_ and costs l
   (a file path, never a layer), and what would count as a second spelling. The implementer may not
   move a decision out of its home without the plan being amended first.
 - **Two audits of the plan itself**, dispatched concurrently **before a line of code exists** —
-  `architecture-auditor` and `security-auditor`. Their findings are written back into `plan.md`:
-  either the plan changes, or it records why the objection was accepted.
+  `architect-expert` and `security-expert`. Their findings are written back into `plan.md`: either
+  the plan changes, or it records why the objection was accepted.
 
 Architecture found at review time is architecture rebuilt. This moves that discovery to where
 changing your mind is still free.
