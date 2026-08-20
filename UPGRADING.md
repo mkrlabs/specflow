@@ -2,8 +2,17 @@
 
 ## 1.x → 2.0.0
 
-The workflow chain went from **nine chainable phases and five flags** to **five and one**. Run
-`specnaut upgrade` in each scaffolded project; it removes the files this version no longer ships.
+### At a glance
+
+| Before                                                | After                                                 |
+| :---------------------------------------------------- | :---------------------------------------------------- |
+| 9 chainable phases                                    | **5** — `plan → tasks → implement → review → merge`   |
+| 5 chain flags                                         | **1** — `--manual`                                    |
+| up to 8 files per feature                             | **2** — `plan.md` + `tasks.md`                        |
+| stops when clarification is needed, then before merge | **exactly 2** — end of `plan`, and the review verdict |
+
+Run `specnaut upgrade` in each scaffolded project; it removes the files this version no longer
+ships. Nothing migrates your existing spec directories — they are left on disk untouched.
 
 ### Phases that no longer exist
 
