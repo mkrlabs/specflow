@@ -79,9 +79,9 @@ harness's equivalent — see the tool reference described below).
 
 1. **`/specnaut plan` vs `writing-plans`** — both produce plans, but for
    different inputs:
-   - `/specnaut plan` follows the spec-kit flow (consumes `spec.md`,
-     produces `research.md` + `data-model.md` + `contracts/` +
-     `quickstart.md`). Use for greenfield features with formal contracts.
+   - `/specnaut plan` follows the spec-kit flow: one `plan.md` carrying
+     the decision table and both plan-time audits, then `tasks.md`. Use
+     for greenfield features with formal contracts.
    - `writing-plans` (skill) takes a free-form issue or requirement and
      produces a single executable plan file with bite-sized TDD tasks.
      Use for issue-driven and ad-hoc work.
