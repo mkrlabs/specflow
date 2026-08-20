@@ -1,6 +1,6 @@
 {
   "name": "specnaut",
-  "version": "1.21.0",
+  "version": "2.0.0",
   "description": "Spec-driven workflow, slash commands, and sub-agents for AI coding harnesses — Specnaut's bundled skill library, agents, and the SessionStart bootstrap that makes the agent skill-aware on every turn.",
   "author": {
     "name": "MakerLabs",
@@ -23,7 +23,7 @@
   "interface": {
     "displayName": "Specnaut",
     "shortDescription": "Spec-driven planning, TDD, review, and delivery workflows for coding agents",
-    "longDescription": "Specnaut turns vague ideas into shipped features through a disciplined pipeline: brainstorming → writing-plans → subagent-driven-development (or executing-plans inline) → requesting-code-review → verification-before-completion. The bundled router skill (/specnaut) orchestrates the spec-kit greenfield flow (specify → plan → tasks → analyze → implement → review → merge) and 11 specialised sub-agents handle backlog ops, security, QA, DevOps, and more. Inspired by obra/superpowers (MIT) with explicit Specnaut-native integration with backlogs (GitHub/GitLab/local), constitutional governance, and a Claude/Cursor/Codex/Gemini/OpenCode/Copilot multi-harness distribution.",
+    "longDescription": "Specnaut turns vague ideas into shipped features through a disciplined pipeline: brainstorming → writing-plans → subagent-driven-development (or executing-plans inline) → requesting-code-review → verification-before-completion. The bundled router skill (/specnaut) orchestrates the spec-kit greenfield flow (plan → tasks → implement → review → merge, with the plan audited for architecture and security before any code exists) and 11 specialised sub-agents handle backlog ops, security, QA, DevOps, and more. Inspired by obra/superpowers (MIT) with explicit Specnaut-native integration with backlogs (GitHub/GitLab/local), constitutional governance, and a Claude/Cursor/Codex/Gemini/OpenCode/Copilot multi-harness distribution.",
     "developerName": "MakerLabs",
     "category": "Coding",
     "capabilities": ["Interactive", "Read", "Write"],

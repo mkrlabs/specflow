@@ -2,17 +2,17 @@
 
 This is the Claude Code plugin distribution of [Specnaut](https://specnaut.com). It ships the same
 slash-commands and sub-agents that the `specnaut` binary scaffolds into projects — just as a
-user-scope plugin instead. `/specnaut specify "<feature>"` auto-chains the full workflow by default;
+user-scope plugin instead. `/specnaut plan "<feature>"` auto-chains the full workflow by default;
 pass `--manual` to opt out.
 
 ## What's in here
 
-| Path                                                                                                                                        | Contents                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `.claude-plugin/plugin.json`                                                                                                                | Plugin manifest (`specnaut-plugin`, lockstep with the binary version) |
-| `skills/{specify,plan,tasks,implement,analyze,review,merge,constitution,checklist,clarify}/SKILL.md`                                        | The 10 Specnaut slash-commands — `/specnaut-plugin:specify`, etc.     |
-| `agents/{code-reviewer,developer,devops-sre,product-owner,qa-tester,review-coordinator,security-auditor,test-reviewer,workflow-manager}.md` | 9 sub-agents available to invoke in plugin scope                      |
-| `skills/groom/SKILL.md`                                                                                                                     | Groom skill — `/specnaut-plugin:groom`                                |
+| Path                                                                                                                                        | Contents                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude-plugin/plugin.json`                                                                                                                | Plugin manifest (`specnaut-plugin`, lockstep with the binary version)                                                                  |
+| `skills/specnaut/phases/*.md`                                                                                                               | The phase reference docs the router loads on demand — `plan`, `tasks`, `implement`, `review`, `merge`, plus the out-of-band utilities. |
+| `agents/{code-reviewer,developer,devops-sre,product-owner,qa-tester,review-coordinator,security-auditor,test-reviewer,workflow-manager}.md` | 9 sub-agents available to invoke in plugin scope                                                                                       |
+| `skills/groom/SKILL.md`                                                                                                                     | Groom skill — `/specnaut-plugin:groom`                                                                                                 |
 
 The full plugin migration shipped in v0.12.x (issue
 [#73](https://github.com/specnaut/specnaut-cli/issues/73)). When the plugin is installed and the
@@ -25,7 +25,7 @@ uninstalled.
 ### Known caveat: handoff IDs
 
 The 10 command SKILL.md files include `handoffs:` frontmatter that references peer commands by their
-**binary-scaffolded** IDs (`specnaut-plan`, `specnaut-clarify`, …). In plugin scope those IDs are
+**binary-scaffolded** IDs (`specnaut-plan`, `specnaut-review`, …). In plugin scope those IDs are
 `specnaut-plugin:plan` etc., so the clickable handoff buttons may not resolve. For the full handoff
 UX today, use the binary-scaffolded copies (run `specnaut init`) — the plugin versions are the
 discoverability layer, not the polished workflow. Handoff rewriting is a known follow-up task on
@@ -36,8 +36,8 @@ discoverability layer, not the polished workflow. Handoff rewriting is a known f
 - The plugin is **user-scope** and **versioned** — installed once, available across all your
   projects, updates via `/plugin update`.
 - The binary's `specnaut init` scaffolds **project-scope** copies — you can customize them
-  per-project, and they ship with shorter slash-command names (e.g. `/specify` instead of
-  `/specnaut-plugin:specify`).
+  per-project, and they ship with shorter slash-command names (e.g. `/specnaut plan` instead of
+  `/specnaut-plugin:specnaut plan`).
 - Backlog skill, hooks, and `.specnaut/` files stay binary-owned because they read project-state at
   runtime.
 
@@ -55,7 +55,7 @@ To test changes to the plugin without publishing:
 claude --plugin-dir /path/to/specnaut/plugin
 ```
 
-Then invoke any plugin skill: `/specnaut-plugin:specnaut specify "…"`.
+Then invoke any plugin skill: `/specnaut-plugin:specnaut plan "…"`.
 
 ## Versioning
 
