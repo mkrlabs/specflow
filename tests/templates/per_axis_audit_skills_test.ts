@@ -5,7 +5,7 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
 /**
  * Locks the per-axis audit-dispatch family (#380) into the bundle so the five
  * thin skills can't drift apart. Each `/{axis}-audit` skill binds exactly one
- * axis to its existing auditor agent, documents the uniform scope args, carries
+ * axis to its existing expert agent, documents the uniform scope args, carries
  * the 3-way disambiguation note (vs `/specnaut audit <axis>` report-writing, vs
  * `/code-audit` multi-seat team), and states it is read-only / writes no report.
  *
@@ -14,13 +14,13 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
  * data-model.md invariants + contracts/dispatch-contract.md).
  */
 
-/** Skill name → its single bound auditor agent (research.md axis→agent table). */
+/** Skill name → its single bound expert agent (research.md axis→agent table). */
 const AXIS_SKILLS: ReadonlyArray<{ skill: string; agent: string }> = [
-  { skill: "arch-audit", agent: "architecture-auditor" },
-  { skill: "sec-audit", agent: "security-auditor" },
-  { skill: "perf-audit", agent: "performance-auditor" },
-  { skill: "dep-audit", agent: "dependency-auditor" },
-  { skill: "a11y-audit", agent: "a11y-auditor" },
+  { skill: "arch-audit", agent: "architect-expert" },
+  { skill: "sec-audit", agent: "security-expert" },
+  { skill: "perf-audit", agent: "performance-expert" },
+  { skill: "dep-audit", agent: "dependency-expert" },
+  { skill: "a11y-audit", agent: "a11y-expert" },
 ];
 
 function skillEntry(name: string): CoreEntry | undefined {
@@ -35,12 +35,12 @@ for (const { skill, agent } of AXIS_SKILLS) {
     );
   });
 
-  Deno.test(`${skill} names its bound auditor agent (${agent})`, () => {
+  Deno.test(`${skill} names its bound expert agent (${agent})`, () => {
     const entry = skillEntry(skill)!;
     assertStringIncludes(
       entry.content,
       agent,
-      `${skill} must name its single bound auditor ${agent}`,
+      `${skill} must name its single bound expert ${agent}`,
     );
   });
 

@@ -2,7 +2,7 @@
 # /specnaut audit security
 
 **Read-only** project-wide security sweep. Walks the entire codebase, dispatches
-the `security-auditor` agent in audit mode, and emits a structured findings
+the `security-expert` agent in audit mode, and emits a structured findings
 report. **Never mutates project code** — running the phase twice in a row leaves
 `git status --porcelain` identical.
 
@@ -33,7 +33,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    - Dependency manifests (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `composer.json`, `Gemfile`, `requirements*.txt`)
    - CI / GitHub Actions (`.github/workflows/*.yml`)
 
-3. **Dispatch the `security-auditor` agent** with the dispatch prompt below.
+3. **Dispatch the `security-expert` agent** with the dispatch prompt below.
    The agent operates in audit mode (full codebase scan, NOT per-PR review
    mode). It has `Read`, `Grep`, `Glob`, and constrained `Bash` access; it
    MUST NOT call `Edit`, `Write`, `NotebookEdit`, or any mutating tool.
@@ -55,7 +55,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    High finding (batch Medium / Low into a single grouped task if
    `--severity medium` or `--severity low` was passed)."
 
-## Dispatch prompt for the `security-auditor` agent
+## Dispatch prompt for the `security-expert` agent
 
 Pass the agent the following prompt verbatim (substituting `$INVENTORY` with
 the grouped file inventory from step 2 and `$SEVERITY_FLOOR` with the resolved
@@ -178,9 +178,9 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the security-auditor in PR mode, not audit mode).
-- For triaging GitHub security alerts after a release preflight → the `/release` flow already dispatches `security-auditor` in alert-triage mode (Mode 2 in the agent's prompt).
-- For a single-file security check → invoke `security-auditor` directly with the file paths.
+- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the security-expert in PR mode, not audit mode).
+- For triaging GitHub security alerts after a release preflight → the `/release` flow already dispatches `security-expert` in alert-triage mode (Mode 2 in the agent's prompt).
+- For a single-file security check → invoke `security-expert` directly with the file paths.
 
 ---
 

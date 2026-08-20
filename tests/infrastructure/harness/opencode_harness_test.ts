@@ -150,7 +150,7 @@ Deno.test("agent strips Bash(git log *) parenthesized variants to Bash", () => {
 
 Deno.test("agent strips Agent(...) entries (subagent dispatch is native)", () => {
   const bundle = harness.mapBundle([
-    agentEntry("wf", "Read, Bash, Agent(code-reviewer, security-auditor)"),
+    agentEntry("wf", "Read, Bash, Agent(code-reviewer, security-expert)"),
   ], { backlogBackend: "local", versionScheme: "semver", specBackend: "local" });
   const content = bundle[".opencode/agents/specnaut-wf.md"].content;
   assertEquals(content.includes("agent:"), false);

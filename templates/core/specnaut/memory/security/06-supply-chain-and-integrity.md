@@ -12,7 +12,7 @@
 > **ASVS** V15 (Secure Coding and Architecture)
 
 > **Hand-off** — per-dependency CVE triage, licence policy, and version
-> currency belong to the `dependency-auditor`. This file covers the
+> currency belong to the `dependency-expert`. This file covers the
 > *shape* of the supply chain: pinning, provenance, pipeline trust, and
 > integrity verification.
 
@@ -205,4 +205,4 @@ npm audit signatures
 - [ ] A component inventory (SBOM) is produced and retained
 - [ ] Unused dependencies removed
 - [ ] Advisories monitored continuously — hand CVE triage to the
-      `dependency-auditor`
+      `dependency-expert`

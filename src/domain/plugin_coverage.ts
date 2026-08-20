@@ -88,7 +88,7 @@ export function isPluginCoveredPath(
  * heuristic (`lite-heuristic`, #346) ships under the same
  * `phases/` directory because it's bundled and synced through the
  * same channel, even though it's a contract doc rather than a phase.
- * `ui-ux-designer` was added alongside `architecture-auditor` in #321
+ * `ui-ux-designer` was added alongside `architect-expert` in #321
  * to close a long-standing drift bug; this array continues to mirror
  * the bundled Claude scaffold exactly.
  */
@@ -100,15 +100,15 @@ export const PLUGIN_COVERED_PATHS_CLAUDE: ReadonlyArray<string> = [
     "product-owner",
     "qa-tester",
     "review-coordinator",
-    "security-auditor",
+    "security-expert",
     "specnaut-expert",
     "test-reviewer",
     "workflow-manager",
     "ui-ux-designer",
-    "performance-auditor",
-    "a11y-auditor",
-    "architecture-auditor",
-    "dependency-auditor",
+    "performance-expert",
+    "a11y-expert",
+    "architect-expert",
+    "dependency-expert",
   ].map((name) => `.claude/agents/${name}.md`),
   ".claude/skills/specnaut/SKILL.md",
   ...[

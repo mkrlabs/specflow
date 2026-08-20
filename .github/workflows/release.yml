@@ -14,7 +14,7 @@ jobs:
   # before we let the release build proceed. Critical alerts block the
   # release; high/medium surface as a workflow summary the local /release
   # session reads during step 9 of the release skill, then dispatches the
-  # security-auditor agent for triage. Low alerts are logged silently.
+  # security-expert agent for triage. Low alerts are logged silently.
   #
   # The release tag is already pushed at this point; failing here is the
   # safest possible failure mode — no GitHub Release object is created,
@@ -130,7 +130,7 @@ jobs:
           fi
 
           if [ "$dep_high" -gt 0 ] || [ "$code_high" -gt 0 ]; then
-            echo "::warning::High-severity findings open: $dep_high dependabot + $code_high code-scanning. The release proceeds; dispatch the security-auditor agent locally to triage."
+            echo "::warning::High-severity findings open: $dep_high dependabot + $code_high code-scanning. The release proceeds; dispatch the security-expert agent locally to triage."
           fi
 
           if [ "${#missing_perms[@]}" -gt 0 ]; then

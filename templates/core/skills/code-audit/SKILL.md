@@ -1,6 +1,6 @@
 ---
 name: code-audit
-description: High-altitude, multi-seat parallel code audit of a scope on main. Use when the user says "audit the codebase", "code audit", "audit recent changes", "do a full audit", "health-check this code", or "audit the last N commits". Resolves a scope, dispatches the applicable auditor seats (architecture / security / performance / accessibility / dependency) IN PARALLEL, and synthesizes one deduplicated, severity-ranked report. Read-only. Complementary to `/specnaut audit <axis>` (single-axis).
+description: High-altitude, multi-seat parallel code audit of a scope on main. Use when the user says "audit the codebase", "code audit", "audit recent changes", "do a full audit", "health-check this code", or "audit the last N commits". Resolves a scope, dispatches the applicable expert seats (architecture / security / performance / accessibility / dependency) IN PARALLEL, and synthesizes one deduplicated, severity-ranked report. Read-only. Complementary to `/specnaut audit <axis>` (single-axis).
 argument-hint: "[--path <subtree> | --range <a>..<b>] [--last <n>]"
 ---
 
@@ -8,11 +8,11 @@ argument-hint: "[--path <subtree> | --range <a>..<b>] [--last <n>]"
 
 A **high-altitude** audit: judge the *shape* of merged work across several
 expert lenses at once, not a per-line PR review. This skill resolves a scope,
-deploys the applicable auditor seats **in parallel**, and merges their output
+deploys the applicable expert seats **in parallel**, and merges their output
 into one report.
 
 It is **read-only**: running it mutates **no tracked files**. It dispatches the
-same auditor agents `/specnaut audit <axis>` uses; the difference is breadth —
+same expert agents `/specnaut audit <axis>` uses; the difference is breadth —
 `/specnaut audit <axis>` runs one axis, `/code-audit` runs all applicable seats
 in a single parallel batch and synthesizes one verdict. The two are
 **complementary**.
@@ -50,18 +50,18 @@ zero, and record the skip with its reason in the report's `### Scope` line.
 
 | Seat          | Agent                 | Deployed when                          |
 | ------------- | --------------------- | -------------------------------------- |
-| Architecture  | architecture-auditor  | scope non-empty (always)               |
-| Security      | security-auditor      | scope non-empty (always)               |
-| Performance   | performance-auditor   | scope non-empty (always)               |
-| Accessibility | a11y-auditor          | `FRONTEND_COUNT > 0` (gating signal)   |
-| Dependency    | dependency-auditor    | `DEP_COUNT > 0` (gating signal)        |
+| Architecture  | architect-expert  | scope non-empty (always)               |
+| Security      | security-expert      | scope non-empty (always)               |
+| Performance   | performance-expert   | scope non-empty (always)               |
+| Accessibility | a11y-expert          | `FRONTEND_COUNT > 0` (gating signal)   |
+| Dependency    | dependency-expert    | `DEP_COUNT > 0` (gating signal)        |
 
-These are the **existing** auditor agents — this skill defines no new agents.
+These are the **existing** expert agents — this skill defines no new agents.
 
 **Gating vs informational signals.** Only `FRONTEND_COUNT` and `DEP_COUNT`
 **gate** a seat (accessibility and dependency, respectively). `TEST_COUNT` and
 `INFRA_COUNT` are **informational context only** — no seat consumes them, and
-there is intentionally no test/coverage or infra seat (no such auditor agent
+there is intentionally no test/coverage or infra seat (no such expert agent
 exists). All four counts are always emitted (the scope-signals contract requires
 it); the two informational ones simply describe the scope, they do not select
 seats.
@@ -76,7 +76,7 @@ the skill: the seats are independent and must run concurrently. Put all the
 Give each seat the **same scope context** (the `SCOPE_LABEL`, the commit list,
 and the file list from Step 1) and an **audit framing**: judge the shape of the
 merged work — architecture drift, security exposure, performance cliffs,
-accessibility gaps, dependency risk — not line-by-line PR nitpicks. Each auditor
+accessibility gaps, dependency risk — not line-by-line PR nitpicks. Each expert
 already emits the canonical `REVIEW SUMMARY` block (verdict + severity counts)
 after its prose; rely on it for synthesis.
 
@@ -98,7 +98,7 @@ Emit one report:
 ### Seats
 | Seat | Agent | Status | Findings |
 |------|-------|--------|----------|
-| Architecture | architecture-auditor | ✅ / errored / empty | <n> |
+| Architecture | architect-expert | ✅ / errored / empty | <n> |
 | …            | …                    | …                    | … |
 
 ### 🏛 Architecture   ### 🔒 Security   ### ⚡ Performance   ### ♿ Accessibility   ### 📦 Dependency

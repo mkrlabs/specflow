@@ -43,8 +43,8 @@ not re-read the file with `Read`.
 | `executing-plans` | Inline alternative to subagent-driven — execute a plan task-by-task in-session with checkpoint pauses. Faster for trivial plans. |
 | `verification-before-completion` | Discipline checklist that any agent MUST run before reporting DONE. Tests green / pre-commit clean / plan boxes ticked / smoke audit / plugin sync / Windsurf cap / requirements addressed. |
 | `brainstorming` | Spec-discovery entry point when the idea is vague — one question at a time, propose 2-3 approaches, present design, hand off to `writing-plans`. |
-| `code-audit` | User wants a broad, multi-seat health-check ("audit the codebase", "code audit", "audit the last N commits"). Resolves a scope, dispatches the applicable auditor seats (architecture / security / performance / a11y / dependency) in parallel, synthesizes one report. Read-only. Complementary to `/specnaut audit <axis>`, which runs a single axis. |
-| `arch-audit` / `sec-audit` / `perf-audit` / `dep-audit` / `a11y-audit` | Per-axis audit family — user wants **one** lens over a scope ("arch audit", "security audit `--path src/`", "perf audit `--diff`"). Each resolves a uniform scope (`--path` / `--range` / `--diff` / whole) and dispatches its **single** bound auditor (architecture / security / performance / dependency / a11y), returning findings **inline**. Read-only, writes no report. Complements `/specnaut audit <axis>` (which persists a dated report) and `/code-audit` (the multi-seat team). |
+| `code-audit` | User wants a broad, multi-seat health-check ("audit the codebase", "code audit", "audit the last N commits"). Resolves a scope, dispatches the applicable expert seats (architecture / security / performance / a11y / dependency) in parallel, synthesizes one report. Read-only. Complementary to `/specnaut audit <axis>`, which runs a single axis. |
+| `arch-audit` / `sec-audit` / `perf-audit` / `dep-audit` / `a11y-audit` | Per-axis audit family — user wants **one** lens over a scope ("arch audit", "security audit `--path src/`", "perf audit `--diff`"). Each resolves a uniform scope (`--path` / `--range` / `--diff` / whole) and dispatches its **single** bound expert (architecture / security / performance / dependency / a11y), returning findings **inline**. Read-only, writes no report. Complements `/specnaut audit <axis>` (which persists a dated report) and `/code-audit` (the multi-seat team). |
 | `status-audit` | User wants a health check of a running multi-agent session ("status audit", "audit the session", "what's blocked", "session health"). Reads the `.specnaut/logs/agents.jsonl` status ledger and reports seven views (state counts / per-agent latest / blocked / stale ≥15m / done-vs-criteria contradictions / missing handoffs / verdict summary). Read-only. Pair with `/loop 5m /status-audit` to supervise long headless work. |
 | `backlog` | User asked about a backlog item, the board, an issue. Read-only access; mutations go through the `product-owner` agent. |
 | `specnaut-review` | Auto-invoke alias preserved for the `/specnaut review` phase. |
@@ -65,7 +65,7 @@ harness's equivalent — see the tool reference described below).
 |---|---|
 | `developer` | Implementing tasks from a plan (TDD, frequent commits, in-code documentation). |
 | `code-reviewer` | Reviewing diffs against a plan or requirements. Use the prompt template from `requesting-code-review` skill. |
-| `security-auditor` | Security review or alert triage on Specnaut-shipped code. |
+| `security-expert` | Security review or alert triage on Specnaut-shipped code. |
 | `test-reviewer` | Test-quality-only review (no architecture). |
 | `product-owner` | **Every** backlog mutation goes through this agent — no exceptions. Read-only inspection (`list.sh`, `view.sh`) can be done directly. |
 | `qa-tester` | Run the QA scenario catalogue against the released binary. |

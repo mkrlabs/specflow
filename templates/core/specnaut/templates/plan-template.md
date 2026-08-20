@@ -127,7 +127,7 @@ content matters it belongs in section 6 (domain model) or in the table above.
 <!--
   ACTION REQUIRED — CONDITIONAL SECTION.
   Keep this ONLY when the project has a front-end / UX-UI surface. Detect that surface with the
-  SAME signal list the accessibility gate uses (see the `a11y-auditor` agent — do NOT invent a new
+  SAME signal list the accessibility gate uses (see the `a11y-expert` agent — do NOT invent a new
   heuristic). Any of:
     - `.html` / `.htm` files
     - `.jsx` / `.tsx` files
@@ -152,18 +152,18 @@ question the prototype is meant to answer.]
 
 ## 10. Architecture audit
 
-*Findings from the `architecture-auditor` run against THIS document, before any code existed.*
+*Findings from the `architect-expert` run against THIS document, before any code existed.*
 
 | # | Finding | What was done |
 | :--- | :--- | :--- |
 | A1 | [finding] | [plan changed — how] / [objection accepted — why] |
 
-**Verdict**: [the auditor's conclusion, **with what it covered**. A clean verdict is worth exactly
+**Verdict**: [the expert's conclusion, **with what it covered**. A clean verdict is worth exactly
 what its coverage is worth, so name the coverage.]
 
 ## 11. Security audit
 
-*Findings from the `security-auditor` run against THIS document, in parallel with the architecture
+*Findings from the `security-expert` run against THIS document, in parallel with the architecture
 audit. Kept separate on purpose — the two answer different questions.*
 
 | # | Finding | What was done |

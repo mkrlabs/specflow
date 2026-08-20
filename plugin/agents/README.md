@@ -15,7 +15,7 @@ budget, and a code-writer must not be starved of the depth it needs.
 | Tier     | Role class                                                     | Agents |
 | -------- | -------------------------------------------------------------- | ------ |
 | `low`    | Pure orchestrators — route and dispatch only, no deep reasoning | `review-coordinator`, `workflow-manager` |
-| `medium` | Read-only auditors, structured reviewers, the Q&A explainer, and the backlog owner | `a11y-auditor`, `architecture-auditor`, `dependency-auditor`, `performance-auditor`, `security-auditor`, `code-reviewer`, `test-reviewer`, `specnaut-expert`, `product-owner` |
+| `medium` | Read-only experts, structured reviewers, the Q&A explainer, and the backlog owner | `a11y-expert`, `architect-expert`, `dependency-expert`, `performance-expert`, `security-expert`, `code-reviewer`, `test-reviewer`, `specnaut-expert`, `product-owner` |
 | `high`   | Design / higher-order reasoning                                | `ui-ux-designer` |
 | `xhigh`  | Coding / agentic work — writes multi-file changes, runs suites, operates infra | `developer`, `qa-tester`, `devops-sre` |
 
@@ -31,7 +31,7 @@ thinking actually happens:
   `workflow-manager` don't reason about the work — they decide *who* runs and
   aggregate what comes back. Spending deep-reasoning tokens on a dispatcher is
   pure waste, multiplied across every fan-out.
-- **`medium` for auditors, reviewers, the explainer, and the PO.** These read
+- **`medium` for experts, reviewers, the explainer, and the PO.** These read
   code (or backlog) and emit structured findings. They need genuine analysis
   but not the open-ended exploration of writing a feature. `medium` buys
   enough depth to spot real issues without over-provisioning a read-only pass.

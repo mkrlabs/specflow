@@ -43,7 +43,7 @@ backlog-script conventions, …). Use it instead of `general-purpose`
 when reviewing changes inside this repo.
 
 For changes that touch security surfaces, also dispatch
-`security-auditor` in parallel. For test-only diffs, `test-reviewer`
+`security-expert` in parallel. For test-only diffs, `test-reviewer`
 is the right specialist.
 
 ## How to request
@@ -279,5 +279,5 @@ Task({
 - For the final pre-merge check on a feature branch — that's
   `/specnaut review`, which has broader scope (architecture, quality
   gates, fmt/lint/typecheck/tests).
-- For security-specific concerns — dispatch `security-auditor` instead.
+- For security-specific concerns — dispatch `security-expert` instead.
 - For test-quality concerns specifically — dispatch `test-reviewer`.

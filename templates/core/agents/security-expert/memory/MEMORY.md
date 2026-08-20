@@ -1,6 +1,6 @@
-# Security auditor agent memory
+# Security expert agent memory
 
-Index of persistent notes for the `security-auditor` subagent. Each entry
+Index of persistent notes for the `security-expert` subagent. Each entry
 below points to a single-topic Markdown file in this same directory.
 
 **Format:** `- [Title](file.md) — one-line hook describing why this is worth remembering`
@@ -12,11 +12,11 @@ be retired.
 
 ## When to add an entry here
 
-Add a new memory file when the security auditor discovers something that
+Add a new memory file when the security expert discovers something that
 should survive across sessions and isn't captured elsewhere:
 
 - **Project-specific threat model** — assets, attackers, abuse paths the
-  auditor should weigh more heavily here than in a generic review.
+  expert should weigh more heavily here than in a generic review.
 - **Recurring finding patterns** — e.g. "this repo tends to swallow
   errors silently in catch blocks; flag any new occurrence".
 - **False-positive patterns** — patterns that LOOK like findings but
@@ -27,10 +27,10 @@ should survive across sessions and isn't captured elsewhere:
 
 ## When NOT to add an entry
 
-- Generic OWASP / CWE knowledge → that's already in the auditor's base
+- Generic OWASP / CWE knowledge → that's already in the expert's base
   prompt.
 - Specific findings on a single PR → those go in the review report.
 
 ## Entries
 
-<!-- (this stub starts empty — the security auditor populates it as it learns) -->
+<!-- (this stub starts empty — the security expert populates it as it learns) -->

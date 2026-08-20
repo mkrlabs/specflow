@@ -51,7 +51,7 @@ fi
 
 # Extract the `tools:` line from the agent's frontmatter (between the first
 # two `---` delimiters). The raw value can include commas inside parens, e.g.
-# `Read, Bash(git log *), Agent(code-reviewer, security-auditor)` — naive
+# `Read, Bash(git log *), Agent(code-reviewer, security-expert)` — naive
 # comma-splitting would break those compound entries. We do a depth-aware
 # split, trim each token, and rejoin with commas (no spaces) so the value
 # is unambiguous to claude's --allowedTools parser regardless of how it

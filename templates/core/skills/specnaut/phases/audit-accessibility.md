@@ -2,7 +2,7 @@
 # /specnaut audit accessibility
 
 **Read-only** project-wide WCAG 2.1 AA accessibility sweep. Walks the
-front-end surface of the codebase, dispatches the `a11y-auditor` agent
+front-end surface of the codebase, dispatches the `a11y-expert` agent
 in audit mode, and emits a structured findings report. **Never mutates
 project code** — running the phase twice in a row leaves
 `git status --porcelain` identical (modulo the new report file).
@@ -16,12 +16,12 @@ produces backlog material, not a pass/fail verdict.
 
 ## FE-surface gate
 
-Before any work, the `a11y-auditor` agent checks for a front-end
+Before any work, the `a11y-expert` agent checks for a front-end
 surface (see its agent doc for the full signal list — `.html`, `.jsx`,
 `.tsx`, `.vue`, `.svelte`, `.astro` files, or a `package.json` listing
 a FE framework dep). If none present, the agent emits:
 
-> no FE surface detected — accessibility audit skipped (this project ships no front-end source the auditor can read).
+> no FE surface detected — accessibility audit skipped (this project ships no front-end source the expert can read).
 
 …and stops. This is by design — `/specnaut audit accessibility` on a
 CLI-only project is a no-op. The audit reports nothing; do not invent
@@ -53,7 +53,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    - Component directories: `src/components/`, `components/`
    - Dependency manifests: `package.json`
 
-3. **Dispatch the `a11y-auditor` agent** with the dispatch prompt
+3. **Dispatch the `a11y-expert` agent** with the dispatch prompt
    below. The agent first runs the FE-surface gate; if no FE surface
    exists, it returns the skip-line and the phase exits without
    writing a report.
@@ -81,7 +81,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    into a single grouped task if `--severity medium` or
    `--severity low` was passed)."
 
-## Dispatch prompt for the `a11y-auditor` agent
+## Dispatch prompt for the `a11y-expert` agent
 
 Pass the agent the following prompt verbatim (substituting `$INVENTORY`
 with the grouped file inventory from step 2 and `$SEVERITY_FLOOR` with
@@ -157,18 +157,18 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 ```
 specnaut-audit-accessibility — skipped
 ──────────────────────────────────────
-no FE surface detected — accessibility audit skipped (this project ships no front-end source the auditor can read).
+no FE surface detected — accessibility audit skipped (this project ships no front-end source the expert can read).
 ```
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the a11y-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the a11y-expert in PR mode, not audit mode).
 - For runtime browser-based accessibility testing (axe-core, Lighthouse, screen reader walkthroughs) → out of scope; this phase reads source, not runtime traces.
 - For mobile-native accessibility (iOS VoiceOver, Android TalkBack) → out of scope; web FE only.
-- For a single-component a11y check → invoke `a11y-auditor` directly with the file paths.
+- For a single-component a11y check → invoke `a11y-expert` directly with the file paths.
 
 ---
 
 Inspired by the discipline of `obra/superpowers` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-`a11y-auditor` agent itself is Specnaut-native (no upstream sibling).
+`a11y-expert` agent itself is Specnaut-native (no upstream sibling).

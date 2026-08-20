@@ -850,15 +850,15 @@ Deno.test("inspect: plugin gap check warns ONLY for the agents the user actually
           "devops-sre",
           "qa-tester",
           "review-coordinator",
-          "security-auditor",
+          "security-expert",
           "specnaut-expert",
           "test-reviewer",
           "workflow-manager",
           "ui-ux-designer",
-          "performance-auditor",
-          "a11y-auditor",
-          "architecture-auditor",
-          "dependency-auditor",
+          "performance-expert",
+          "a11y-expert",
+          "architect-expert",
+          "dependency-expert",
         ]
       ) {
         await Deno.writeTextFile(join(dir, `.claude/agents/${name}.md`), "stub");

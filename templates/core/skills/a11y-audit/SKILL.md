@@ -1,13 +1,13 @@
 ---
 name: a11y-audit
-description: Single-axis accessibility audit of a scope. Use when the user says "a11y audit", "accessibility audit", "audit for accessibility", "check WCAG compliance", or "review the accessibility of <path>". Dispatches ONLY the a11y-auditor over a resolved scope (WCAG 2.1 AA over front-end source) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis accessibility audit of a scope. Use when the user says "a11y audit", "accessibility audit", "audit for accessibility", "check WCAG compliance", or "review the accessibility of <path>". Dispatches ONLY the a11y-expert over a resolved scope (WCAG 2.1 AA over front-end source) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Accessibility Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: accessibility. This skill resolves a
-scope, dispatches the **single** `a11y-auditor` agent over it, and returns
+scope, dispatches the **single** `a11y-expert` agent over it, and returns
 that agent's findings **inline**. It writes **no file** and mutates **no
 tracked files** — `git status` is unchanged after a run.
 
@@ -47,9 +47,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 ```
 
-## Step 3 — Dispatch ONLY the a11y-auditor
+## Step 3 — Dispatch ONLY the a11y-expert
 
-Dispatch the **single** `a11y-auditor` agent — never a team, never another
+Dispatch the **single** `a11y-expert` agent — never a team, never another
 axis. Give it the resolved file list and an **audit framing**: judge the
 accessibility shape of the scoped front-end source (semantic HTML, heading
 hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA
@@ -57,19 +57,19 @@ correctness, color contrast where computable) — not a per-line review.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The `a11y-auditor` ends with the
+Return the agent's findings inline. The `a11y-expert` ends with the
 canonical `REVIEW SUMMARY` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **`/a11y-audit`** (this skill) — dispatches the **one** `a11y-auditor`
+- **`/a11y-audit`** (this skill) — dispatches the **one** `a11y-expert`
   over a scope and returns findings **inline**. No report file.
 - **`/specnaut audit accessibility`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   `docs/specnaut/audits/`. Use it when you want a durable artifact.
 - **`/code-audit`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.

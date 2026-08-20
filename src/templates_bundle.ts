@@ -277,7 +277,7 @@ One file, read whole by whoever implements. Twelve sections, in order, **none op
    exposes. "One surface only" is a valid answer; an unstated one is not.
    **Front-end / UX-UI features**: where the project has a front-end surface, add a
    \`## Visual Prototyping with Claude Artifacts\` subsection. Detect that surface with the SAME
-   signals the accessibility gate uses — the \`a11y-auditor\` FE-surface list; don't invent a second
+   signals the accessibility gate uses — the \`a11y-expert\` FE-surface list; don't invent a second
    heuristic. No front-end surface → the plan **must not mention** artifacts at all.
 9. **Risks** — each with its mitigation.
 10. **Architecture audit** — findings, and what was done with each. Step 6.
@@ -314,8 +314,8 @@ opinion**.
 
 ### 6. 🔒 The two audits — MANDATORY, and they audit the PLAN, not the code
 
-Read \`phases/plan-audits.md\` and follow it. It dispatches \`architecture-auditor\` and
-\`security-auditor\` on \`plan.md\` **in the same message**, before a single line is written, and it
+Read \`phases/plan-audits.md\` and follow it. It dispatches \`architect-expert\` and
+\`security-expert\` on \`plan.md\` **in the same message**, before a single line is written, and it
 carries the eight questions they are asked and the rule that their findings land **in \`plan.md\`**.
 
 Not optional, and not deferrable to \`review\`: architecture found at review time is architecture
@@ -405,7 +405,7 @@ down **with its coverage**, because a clean verdict is worth exactly what it cov
 
 ## 🔒 The architecture audit
 
-**Dispatch the \`architecture-auditor\` agent on \`plan.md\` before a single line is written** — here,
+**Dispatch the \`architect-expert\` agent on \`plan.md\` before a single line is written** — here,
 while changing your mind is still free, because architecture found at review time is architecture
 rebuilt. The defect class it catches: a decision that must agree, spelled in more than one place, or
 asked in a caller instead of at the decision. Ask four questions, in this order:
@@ -422,7 +422,7 @@ asked in a caller instead of at the decision. Ask four questions, in this order:
 
 ## 🛡 The security audit
 
-**Dispatch the \`security-auditor\` agent on \`plan.md\` in the same message as the architecture audit**
+**Dispatch the \`security-expert\` agent on \`plan.md\` in the same message as the architecture audit**
 so both run concurrently. Neither substitutes for the other: the architect asks whether a rule has
 one home, the security seat asks whether that home is reachable by someone who should not reach it.
 These are the most expensive findings to fix late — a missing authorization gate is one line, but a
@@ -911,7 +911,7 @@ spawns:
 
 - \`code-reviewer\` (always) — architecture, DRY, YAGNI, readability, alignment
   with \`.specnaut/memory/constitution.md\`.
-- \`security-auditor\` (always) — input validation, auth/authz, secret handling,
+- \`security-expert\` (always) — input validation, auth/authz, secret handling,
   SQL/command injection, path traversal, silent catches that swallow errors.
 - \`test-reviewer\` (if test files are in the diff) — adequacy of coverage, test
   quality, mocking boundaries.
@@ -967,7 +967,7 @@ Emit a single report in this exact structure:
 
 Structural
   code-reviewer       : PASS | FAIL (N CRITICAL, M HIGH, …)
-  security-auditor    : …
+  security-expert    : …
   test-reviewer       : … (or SKIPPED)
 
 Quality gates
@@ -1528,7 +1528,7 @@ to be a **no-op when the project is healthy**.
 - For a single-item backlog clarification → invoke the \`product-owner\`
   subagent directly with the item number.
 - For PR review on a specific PR → invoke \`code-reviewer\` /
-  \`security-auditor\` directly.
+  \`security-expert\` directly.
 - For implementing a spec → invoke \`/specnaut implement\` directly.
 `,
     executable: false,
@@ -2063,7 +2063,7 @@ picks up where the previous run stopped.
 # /specnaut audit security
 
 **Read-only** project-wide security sweep. Walks the entire codebase, dispatches
-the \`security-auditor\` agent in audit mode, and emits a structured findings
+the \`security-expert\` agent in audit mode, and emits a structured findings
 report. **Never mutates project code** — running the phase twice in a row leaves
 \`git status --porcelain\` identical.
 
@@ -2094,7 +2094,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    - Dependency manifests (\`package.json\`, \`pyproject.toml\`, \`Cargo.toml\`, \`go.mod\`, \`composer.json\`, \`Gemfile\`, \`requirements*.txt\`)
    - CI / GitHub Actions (\`.github/workflows/*.yml\`)
 
-3. **Dispatch the \`security-auditor\` agent** with the dispatch prompt below.
+3. **Dispatch the \`security-expert\` agent** with the dispatch prompt below.
    The agent operates in audit mode (full codebase scan, NOT per-PR review
    mode). It has \`Read\`, \`Grep\`, \`Glob\`, and constrained \`Bash\` access; it
    MUST NOT call \`Edit\`, \`Write\`, \`NotebookEdit\`, or any mutating tool.
@@ -2116,7 +2116,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    High finding (batch Medium / Low into a single grouped task if
    \`--severity medium\` or \`--severity low\` was passed)."
 
-## Dispatch prompt for the \`security-auditor\` agent
+## Dispatch prompt for the \`security-expert\` agent
 
 Pass the agent the following prompt verbatim (substituting \`\$INVENTORY\` with
 the grouped file inventory from step 2 and \`\$SEVERITY_FLOOR\` with the resolved
@@ -2239,9 +2239,9 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the security-auditor in PR mode, not audit mode).
-- For triaging GitHub security alerts after a release preflight → the \`/release\` flow already dispatches \`security-auditor\` in alert-triage mode (Mode 2 in the agent's prompt).
-- For a single-file security check → invoke \`security-auditor\` directly with the file paths.
+- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the security-expert in PR mode, not audit mode).
+- For triaging GitHub security alerts after a release preflight → the \`/release\` flow already dispatches \`security-expert\` in alert-triage mode (Mode 2 in the agent's prompt).
+- For a single-file security check → invoke \`security-expert\` directly with the file paths.
 
 ---
 
@@ -2260,7 +2260,7 @@ adapted to Specnaut's bundled agent + backlog conventions.
 # /specnaut audit performance
 
 **Read-only** project-wide performance sweep. Walks the entire codebase,
-dispatches the \`performance-auditor\` agent in audit mode, and emits a
+dispatches the \`performance-expert\` agent in audit mode, and emits a
 structured findings report. **Never mutates project code** — running the
 phase twice in a row leaves \`git status --porcelain\` identical (modulo
 the new report file).
@@ -2294,7 +2294,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    - Dependency manifests (\`package.json\`, \`pyproject.toml\`, \`Cargo.toml\`, \`go.mod\`, \`composer.json\`, \`Gemfile\`, \`requirements*.txt\`)
    - Front-end source (\`.tsx\`, \`.jsx\`, \`.vue\`, \`.svelte\`, \`.astro\`)
 
-3. **Dispatch the \`performance-auditor\` agent** with the dispatch prompt
+3. **Dispatch the \`performance-expert\` agent** with the dispatch prompt
    below. The agent operates in audit mode (full codebase scan, NOT
    per-PR review mode). It has \`Read\`, \`Grep\`, \`Glob\`, and constrained
    \`Bash\` access; it MUST NOT call \`Edit\`, \`Write\`, \`NotebookEdit\`, or
@@ -2318,7 +2318,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    single grouped task if \`--severity medium\` or \`--severity low\` was
    passed)."
 
-## Dispatch prompt for the \`performance-auditor\` agent
+## Dispatch prompt for the \`performance-expert\` agent
 
 Pass the agent the following prompt verbatim (substituting \`\$INVENTORY\`
 with the grouped file inventory from step 2 and \`\$SEVERITY_FLOOR\` with
@@ -2378,15 +2378,15 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the performance-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the performance-expert in PR mode, not audit mode).
 - For benchmark / profiler-backed perf work → out of scope; this phase reads code, not runtime traces.
-- For a single-file performance check → invoke \`performance-auditor\` directly with the file paths.
+- For a single-file performance check → invoke \`performance-expert\` directly with the file paths.
 
 ---
 
 Inspired by the discipline of \`obra/superpowers\` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-\`performance-auditor\` agent itself is Specnaut-native (no upstream sibling).
+\`performance-expert\` agent itself is Specnaut-native (no upstream sibling).
 `,
     executable: false,
     backend: null,
@@ -2400,7 +2400,7 @@ adapted to Specnaut's bundled agent + backlog conventions. The
 # /specnaut audit accessibility
 
 **Read-only** project-wide WCAG 2.1 AA accessibility sweep. Walks the
-front-end surface of the codebase, dispatches the \`a11y-auditor\` agent
+front-end surface of the codebase, dispatches the \`a11y-expert\` agent
 in audit mode, and emits a structured findings report. **Never mutates
 project code** — running the phase twice in a row leaves
 \`git status --porcelain\` identical (modulo the new report file).
@@ -2414,12 +2414,12 @@ produces backlog material, not a pass/fail verdict.
 
 ## FE-surface gate
 
-Before any work, the \`a11y-auditor\` agent checks for a front-end
+Before any work, the \`a11y-expert\` agent checks for a front-end
 surface (see its agent doc for the full signal list — \`.html\`, \`.jsx\`,
 \`.tsx\`, \`.vue\`, \`.svelte\`, \`.astro\` files, or a \`package.json\` listing
 a FE framework dep). If none present, the agent emits:
 
-> no FE surface detected — accessibility audit skipped (this project ships no front-end source the auditor can read).
+> no FE surface detected — accessibility audit skipped (this project ships no front-end source the expert can read).
 
 …and stops. This is by design — \`/specnaut audit accessibility\` on a
 CLI-only project is a no-op. The audit reports nothing; do not invent
@@ -2451,7 +2451,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    - Component directories: \`src/components/\`, \`components/\`
    - Dependency manifests: \`package.json\`
 
-3. **Dispatch the \`a11y-auditor\` agent** with the dispatch prompt
+3. **Dispatch the \`a11y-expert\` agent** with the dispatch prompt
    below. The agent first runs the FE-surface gate; if no FE surface
    exists, it returns the skip-line and the phase exits without
    writing a report.
@@ -2479,7 +2479,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    into a single grouped task if \`--severity medium\` or
    \`--severity low\` was passed)."
 
-## Dispatch prompt for the \`a11y-auditor\` agent
+## Dispatch prompt for the \`a11y-expert\` agent
 
 Pass the agent the following prompt verbatim (substituting \`\$INVENTORY\`
 with the grouped file inventory from step 2 and \`\$SEVERITY_FLOOR\` with
@@ -2555,21 +2555,21 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 \`\`\`
 specnaut-audit-accessibility — skipped
 ──────────────────────────────────────
-no FE surface detected — accessibility audit skipped (this project ships no front-end source the auditor can read).
+no FE surface detected — accessibility audit skipped (this project ships no front-end source the expert can read).
 \`\`\`
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the a11y-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the a11y-expert in PR mode, not audit mode).
 - For runtime browser-based accessibility testing (axe-core, Lighthouse, screen reader walkthroughs) → out of scope; this phase reads source, not runtime traces.
 - For mobile-native accessibility (iOS VoiceOver, Android TalkBack) → out of scope; web FE only.
-- For a single-component a11y check → invoke \`a11y-auditor\` directly with the file paths.
+- For a single-component a11y check → invoke \`a11y-expert\` directly with the file paths.
 
 ---
 
 Inspired by the discipline of \`obra/superpowers\` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-\`a11y-auditor\` agent itself is Specnaut-native (no upstream sibling).
+\`a11y-expert\` agent itself is Specnaut-native (no upstream sibling).
 `,
     executable: false,
     backend: null,
@@ -2583,7 +2583,7 @@ adapted to Specnaut's bundled agent + backlog conventions. The
 # /specnaut audit architecture
 
 **Read-only** project-wide architectural sweep. Walks the entire
-codebase, dispatches the \`architecture-auditor\` agent in audit mode, and
+codebase, dispatches the \`architect-expert\` agent in audit mode, and
 emits a structured findings report. **Never mutates project code** —
 running the phase twice in a row leaves \`git status --porcelain\`
 identical (modulo the new report file).
@@ -2619,7 +2619,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
      \`*.spec.{ts,jsx,tsx}\`)
    - Dependency manifests (used to detect language ecosystem only)
 
-3. **Dispatch the \`architecture-auditor\` agent** with the dispatch prompt
+3. **Dispatch the \`architect-expert\` agent** with the dispatch prompt
    below. The agent operates in audit mode (full codebase scan, NOT
    per-PR review mode). It has \`Read\`, \`Grep\`, \`Glob\`, and constrained
    \`Bash\` access; it MUST NOT call \`Edit\`, \`Write\`, \`NotebookEdit\`, or
@@ -2643,7 +2643,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    single grouped task if \`--severity medium\` or \`--severity low\` was
    passed)."
 
-## Dispatch prompt for the \`architecture-auditor\` agent
+## Dispatch prompt for the \`architect-expert\` agent
 
 Pass the agent the following prompt verbatim (substituting \`\$INVENTORY\`
 with the grouped file inventory from step 2 and \`\$SEVERITY_FLOOR\` with
@@ -2705,15 +2705,15 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the architecture-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the architect-expert in PR mode, not audit mode).
 - For codebase-wide refactor planning → out of scope; this phase surfaces drift, it doesn't propose the refactor strategy. Pair with \`/specnaut plan\` to capture the refactor as a plan.
-- For a single-file architecture check → invoke \`architecture-auditor\` directly with the file paths.
+- For a single-file architecture check → invoke \`architect-expert\` directly with the file paths.
 
 ---
 
 Inspired by the discipline of \`obra/superpowers\` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-\`architecture-auditor\` agent itself is Specnaut-native (no upstream sibling).
+\`architect-expert\` agent itself is Specnaut-native (no upstream sibling).
 `,
     executable: false,
     backend: null,
@@ -2729,7 +2729,7 @@ adapted to Specnaut's bundled agent + backlog conventions. The
 **Read-only** project-wide dependency-hygiene sweep. Walks every detected
 manifest (\`package.json\`, \`pyproject.toml\`, \`Cargo.toml\`, \`composer.json\`,
 \`Gemfile\`, \`go.mod\`, \`deno.json\` / \`deno.jsonc\`), dispatches the
-\`dependency-auditor\` agent in audit mode, and emits a structured findings
+\`dependency-expert\` agent in audit mode, and emits a structured findings
 report. **Never mutates project code** — running the phase twice in a
 row leaves \`git status --porcelain\` identical (modulo the new report
 file).
@@ -2772,7 +2772,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    a single-line "skipped — no dependency manifest detected" report
    (full section shape still rendered, all findings sections empty).
 
-4. **Dispatch the \`dependency-auditor\` agent** with the dispatch prompt
+4. **Dispatch the \`dependency-expert\` agent** with the dispatch prompt
    below. The agent operates in audit mode (full codebase scan, NOT
    per-PR review mode). It has \`Read\`, \`Grep\`, \`Glob\`, and constrained
    \`Bash\` access; it MUST NOT call \`Edit\`, \`Write\`, \`NotebookEdit\`, or
@@ -2799,7 +2799,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    single grouped task if \`--severity medium\` or \`--severity low\` was
    passed)."
 
-## Dispatch prompt for the \`dependency-auditor\` agent
+## Dispatch prompt for the \`dependency-expert\` agent
 
 Pass the agent the following prompt verbatim (substituting \`\$INVENTORY\`
 with the grouped file inventory from step 2 and \`\$SEVERITY_FLOOR\` with
@@ -2864,15 +2864,15 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the dependency-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the dependency-expert in PR mode, not audit mode).
 - For live CVE / advisory cross-reference → out of scope; run your ecosystem's native audit tool separately (\`npm audit\`, \`cargo audit\`, \`pip-audit\`, \`bundle audit\`, \`osv-scanner\`). The audit-dependencies phase intentionally avoids these because they require network access + cached package databases that drift between runs, breaking reproducibility.
-- For a single-file dependency check → invoke \`dependency-auditor\` directly with the manifest paths.
+- For a single-file dependency check → invoke \`dependency-expert\` directly with the manifest paths.
 
 ---
 
 Inspired by the discipline of \`obra/superpowers\` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-\`dependency-auditor\` agent itself is Specnaut-native (no upstream sibling).
+\`dependency-expert\` agent itself is Specnaut-native (no upstream sibling).
 `,
     executable: false,
     backend: null,
@@ -3840,7 +3840,7 @@ backlog-script conventions, …). Use it instead of \`general-purpose\`
 when reviewing changes inside this repo.
 
 For changes that touch security surfaces, also dispatch
-\`security-auditor\` in parallel. For test-only diffs, \`test-reviewer\`
+\`security-expert\` in parallel. For test-only diffs, \`test-reviewer\`
 is the right specialist.
 
 ## How to request
@@ -4076,7 +4076,7 @@ Task({
 - For the final pre-merge check on a feature branch — that's
   \`/specnaut review\`, which has broader scope (architecture, quality
   gates, fmt/lint/typecheck/tests).
-- For security-specific concerns — dispatch \`security-auditor\` instead.
+- For security-specific concerns — dispatch \`security-expert\` instead.
 - For test-quality concerns specifically — dispatch \`test-reviewer\`.
 `,
     executable: false,
@@ -4132,8 +4132,8 @@ not re-read the file with \`Read\`.
 | \`executing-plans\` | Inline alternative to subagent-driven — execute a plan task-by-task in-session with checkpoint pauses. Faster for trivial plans. |
 | \`verification-before-completion\` | Discipline checklist that any agent MUST run before reporting DONE. Tests green / pre-commit clean / plan boxes ticked / smoke audit / plugin sync / Windsurf cap / requirements addressed. |
 | \`brainstorming\` | Spec-discovery entry point when the idea is vague — one question at a time, propose 2-3 approaches, present design, hand off to \`writing-plans\`. |
-| \`code-audit\` | User wants a broad, multi-seat health-check ("audit the codebase", "code audit", "audit the last N commits"). Resolves a scope, dispatches the applicable auditor seats (architecture / security / performance / a11y / dependency) in parallel, synthesizes one report. Read-only. Complementary to \`/specnaut audit <axis>\`, which runs a single axis. |
-| \`arch-audit\` / \`sec-audit\` / \`perf-audit\` / \`dep-audit\` / \`a11y-audit\` | Per-axis audit family — user wants **one** lens over a scope ("arch audit", "security audit \`--path src/\`", "perf audit \`--diff\`"). Each resolves a uniform scope (\`--path\` / \`--range\` / \`--diff\` / whole) and dispatches its **single** bound auditor (architecture / security / performance / dependency / a11y), returning findings **inline**. Read-only, writes no report. Complements \`/specnaut audit <axis>\` (which persists a dated report) and \`/code-audit\` (the multi-seat team). |
+| \`code-audit\` | User wants a broad, multi-seat health-check ("audit the codebase", "code audit", "audit the last N commits"). Resolves a scope, dispatches the applicable expert seats (architecture / security / performance / a11y / dependency) in parallel, synthesizes one report. Read-only. Complementary to \`/specnaut audit <axis>\`, which runs a single axis. |
+| \`arch-audit\` / \`sec-audit\` / \`perf-audit\` / \`dep-audit\` / \`a11y-audit\` | Per-axis audit family — user wants **one** lens over a scope ("arch audit", "security audit \`--path src/\`", "perf audit \`--diff\`"). Each resolves a uniform scope (\`--path\` / \`--range\` / \`--diff\` / whole) and dispatches its **single** bound expert (architecture / security / performance / dependency / a11y), returning findings **inline**. Read-only, writes no report. Complements \`/specnaut audit <axis>\` (which persists a dated report) and \`/code-audit\` (the multi-seat team). |
 | \`status-audit\` | User wants a health check of a running multi-agent session ("status audit", "audit the session", "what's blocked", "session health"). Reads the \`.specnaut/logs/agents.jsonl\` status ledger and reports seven views (state counts / per-agent latest / blocked / stale ≥15m / done-vs-criteria contradictions / missing handoffs / verdict summary). Read-only. Pair with \`/loop 5m /status-audit\` to supervise long headless work. |
 | \`backlog\` | User asked about a backlog item, the board, an issue. Read-only access; mutations go through the \`product-owner\` agent. |
 | \`specnaut-review\` | Auto-invoke alias preserved for the \`/specnaut review\` phase. |
@@ -4154,7 +4154,7 @@ harness's equivalent — see the tool reference described below).
 |---|---|
 | \`developer\` | Implementing tasks from a plan (TDD, frequent commits, in-code documentation). |
 | \`code-reviewer\` | Reviewing diffs against a plan or requirements. Use the prompt template from \`requesting-code-review\` skill. |
-| \`security-auditor\` | Security review or alert triage on Specnaut-shipped code. |
+| \`security-expert\` | Security review or alert triage on Specnaut-shipped code. |
 | \`test-reviewer\` | Test-quality-only review (no architecture). |
 | \`product-owner\` | **Every** backlog mutation goes through this agent — no exceptions. Read-only inspection (\`list.sh\`, \`view.sh\`) can be done directly. |
 | \`qa-tester\` | Run the QA scenario catalogue against the released binary. |
@@ -5252,7 +5252,7 @@ user-invocable: false
 
 This skill defines the **WORKFLOW STATUS** block. Agents that preload it
 (\`developer\`, \`review-coordinator\`, \`workflow-manager\`, \`qa-tester\`, and all
-five auditors + both reviewers via this contract) emit exactly one such block at
+five experts + both reviewers via this contract) emit exactly one such block at
 the **end of their turn, after the prose**. The block is additive — it never replaces the prose narrative; it
 appends a normalized, fenced, machine-readable summary that downstream tooling
 (audit synthesis, the status ledger, \`/status-audit\`) can parse without
@@ -5278,7 +5278,7 @@ HANDOFF_TARGET: developer | review-coordinator | qa-tester | product-owner | wor
 - Exactly one block per turn; never replaces prose (additive).
 - \`STATE: done\` only when assigned exit criteria are met; otherwise use \`awaiting_review\` /
   \`awaiting_qa\` / \`blocked\`. Never \`done\` with \`DONE_CRITERIA_MET: no\`.
-- \`FILES_CHANGED: none\` for read-only agents (auditors/reviewers).
+- \`FILES_CHANGED: none\` for read-only agents (experts/reviewers).
 - \`VALIDATION\` is explicit, e.g. \`deno task test (pass)\`.
 - \`HANDOFF_TARGET: none\` when work terminates here.
 `,
@@ -5438,15 +5438,15 @@ OPEN_RISKS: <comma list | none>
     suffix: null,
     content: `---
 name: review-findings-contract
-description: Defines the machine-readable REVIEW SUMMARY block every auditor/reviewer emits once after its prose, with severity counts and a verdict. Preloaded, not user-invocable.
+description: Defines the machine-readable REVIEW SUMMARY block every expert/reviewer emits once after its prose, with severity counts and a verdict. Preloaded, not user-invocable.
 user-invocable: false
 ---
 
 # review-findings-contract
 
 This skill defines the **REVIEW SUMMARY** block. Agents that preload it
-(\`architecture-auditor\`, \`performance-auditor\`, \`security-auditor\`,
-\`a11y-auditor\`, \`dependency-auditor\`, \`code-reviewer\`, \`test-reviewer\`, and the
+(\`architect-expert\`, \`performance-expert\`, \`security-expert\`,
+\`a11y-expert\`, \`dependency-expert\`, \`code-reviewer\`, \`test-reviewer\`, and the
 \`review-coordinator\`) emit exactly one such block **after their prose** (and
 before the WORKFLOW STATUS block when the agent also carries \`workflow-contract\`).
 It normalizes the review's severity counts and verdict so a coordinator can
@@ -6035,7 +6035,7 @@ name: review-coordinator
 description: Coordinates parallel structural review agents (code, security, tests) and aggregates their findings. Use when /specnaut review is running Phase 1.
 model: sonnet
 effort: low
-tools: Read, Grep, Glob, Bash, Agent(code-reviewer, security-auditor, test-reviewer)
+tools: Read, Grep, Glob, Bash, Agent(code-reviewer, security-expert, test-reviewer)
 skills: workflow-contract, handoff-protocol, review-findings-contract
 maxTurns: 30
 color: purple
@@ -6051,7 +6051,7 @@ in parallel and aggregate results.
 
 ## Protocol
 
-1. Always spawn \`code-reviewer\` and \`security-auditor\` in parallel, passing them
+1. Always spawn \`code-reviewer\` and \`security-expert\` in parallel, passing them
    the list of changed files.
 2. If any changed file matches \`**/*test*.*\` or \`**/*_test.*\` or \`**/test/**\`
    or \`**/tests/**\`, also spawn \`test-reviewer\`.
@@ -6067,7 +6067,7 @@ in parallel and aggregate results.
 \`\`\`
 PER-SEAT ROLL-UP
   code-reviewer      : <pass | N CRIT, M HIGH, K MED, L LOW>
-  security-auditor   : <…>
+  security-expert   : <…>
   test-reviewer      : <… | SKIPPED>
 
 CRITICAL findings:
@@ -6088,7 +6088,7 @@ Emit exactly one \`REVIEW SUMMARY\` block per the preloaded
 
 \`\`\`
 REVIEW SUMMARY
-REVIEW_SCOPE: review gate (aggregated across code-reviewer, security-auditor, test-reviewer)
+REVIEW_SCOPE: review gate (aggregated across code-reviewer, security-expert, test-reviewer)
 REVIEW_VERDICT: pass | fail | needs_followup
 CRITICAL_COUNT: <integer — summed across seats>
 HIGH_COUNT: <integer — summed across seats>
@@ -6185,10 +6185,10 @@ emit the \`WORKFLOW STATUS\` block per \`workflow-contract\`.
   },
   {
     category: "agent",
-    name: "security-auditor",
+    name: "security-expert",
     suffix: null,
     content: `---
-name: security-auditor
+name: security-expert
 description: Reviews code for security issues — input validation, authz, secrets, injection, SSRF, path traversal, silent error swallowing. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) alert triage (spawned by /release after the security-preflight workflow surfaces open GitHub security alerts).
 model: sonnet
 effort: medium
@@ -6198,10 +6198,16 @@ maxTurns: 20
 color: red
 ---
 
-You are a **security auditor**. You operate in one of two modes depending
-on the dispatch shape.
+You are the **security expert**. You judge who can reach what, and what
+they get when they do.
 
-## Step 0 — load the knowledge base (mandatory, both modes)
+You are dispatched in **three** shapes, and reviewing existing code is only
+one of them. You are also asked for security expertise on a plan, before any
+code exists — which is where the expensive findings are cheap: a missing
+authorization gate is one line, but a data model that made the gate
+impossible is a migration, a backfill, and every caller.
+
+## Step 0 — load the knowledge base (mandatory, every mode)
 
 This project carries a complete, offline security knowledge base at
 \`.specnaut/memory/security/\`. **You have no reason to review from memory
@@ -6351,11 +6357,38 @@ End with a \`VERDICT\` line: \`clean\` (all alerts dismissed or ticketed),
 \`escalation_needed\` (one or more alerts surfaced for the user), or
 \`error\` (a triage step failed).
 
+## Mode 3 — Plan expertise (before any code exists)
+
+Spawned by \`phases/plan-audits.md\` at step 6 of \`/specnaut plan\`, against
+\`plan.md\`, in the same message as the architect — **not** against code,
+because none has been written yet.
+
+Step 0 still binds: read the routing table and load the domain files that
+match the surfaces the plan proposes. What changes is what counts as
+evidence:
+
+- **The artifact is a proposal, not an implementation.** The reachability
+  gate in \`00-triage.md\` cannot be run against code that does not exist, so
+  you apply it to the *design*: which surface the plan adds, what the plan
+  says bounds it, and whether that boundary can hold. A surface the plan
+  describes with no validator named is the finding.
+- **You are advisory. You do not veto** — the user does, at the stop that
+  ends \`plan\`. Your findings go INTO \`plan.md\`: the plan changes, or it
+  records why the objection was accepted.
+- **Name what becomes impossible to fix later.** A missing gate is one line
+  today. A data model that makes the gate impossible is a migration, a
+  backfill, and every caller — that asymmetry is the whole reason you are
+  asked before the code exists, so say which of your findings is which.
+
+The dispatch carries the questions. Answer them in the order given.
+
+Emit the \`FINDING\` shape, then the \`REVIEW SUMMARY\` block.
+
 ## Output format (Mode 1)
 
 Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
-(\`REVIEW_SCOPE: security-auditor\`,
+(\`REVIEW_SCOPE: security-expert\`,
 \`REVIEW_VERDICT: pass | fail | needs_followup\`, the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. (Mode 2 alert triage keeps its own
@@ -6850,7 +6883,7 @@ Enhanced fork of [\`specify\` CLI](https://github.com/github/spec-kit), distribu
 
 **Different from upstream Spec Kit:** auto-chained pipeline (\`/specnaut plan\` chains all phases); dedicated \`review\` phase after implement; backlog as product source of truth via \`product-owner\` agent (backends: local, github, gitlab); Claude Code plugin distribution (\`specnaut-plugin\` marketplace).
 
-**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-auditor, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-expert.
+**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-expert, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-expert.
 
 ### Commands
 
@@ -7108,10 +7141,10 @@ or other agents. Design decisions are not cheap and must be intentional
   },
   {
     category: "agent",
-    name: "performance-auditor",
+    name: "performance-expert",
     suffix: null,
     content: `---
-name: performance-auditor
+name: performance-expert
 description: Reviews code for performance issues — N+1 queries, blocking I/O on hot paths, missing indexes, cache misuse, hot-path allocation, sync-in-async, large bundles, render-thrash. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit performance).
 model: sonnet
 effort: medium
@@ -7122,8 +7155,10 @@ color: yellow
 disable-model-invocation: true
 ---
 
-You are a **performance auditor**. You operate in one of two modes depending
-on the dispatch shape.
+You are the **performance expert**. You judge what a system will cost to
+run — the work it repeats, the work it blocks on, and the work it does not
+need to do at all. You operate in one of two modes depending on the dispatch
+shape.
 
 ## Mode 1 — PR review
 
@@ -7258,7 +7293,7 @@ material for the PO to triage.
 
 Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
-(\`REVIEW_SCOPE: performance-auditor\`,
+(\`REVIEW_SCOPE: performance-expert\`,
 \`REVIEW_VERDICT: pass | fail | needs_followup\`, the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. Audit-mode (Mode 2) emits neither block.
@@ -7269,10 +7304,10 @@ Same \`FINDING\` structure as code-reviewer, followed by exactly one
   },
   {
     category: "agent",
-    name: "a11y-auditor",
+    name: "a11y-expert",
     suffix: null,
     content: `---
-name: a11y-auditor
+name: a11y-expert
 description: Reviews front-end code for WCAG 2.1 AA accessibility issues — semantic HTML, heading hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA correctness, color contrast (where computable from source). Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit accessibility).
 model: sonnet
 effort: medium
@@ -7283,8 +7318,10 @@ color: cyan
 disable-model-invocation: true
 ---
 
-You are an **accessibility auditor** focused on WCAG 2.1 AA conformance.
-You operate in one of two modes depending on the dispatch shape.
+You are the **accessibility expert**, judging against WCAG 2.1 AA. You
+judge whether the interface can actually be operated — by keyboard, by a
+screen reader, at a magnification you did not test at. You operate in one of
+two modes depending on the dispatch shape.
 
 ## Front-end surface detection (gate)
 
@@ -7304,7 +7341,7 @@ If **none** of these signals are present, immediately emit the
 following one-line response and stop:
 
 \`\`\`
-no FE surface detected — accessibility audit skipped (this project ships no front-end source the auditor can read).
+no FE surface detected — accessibility audit skipped (this project ships no front-end source the expert can read).
 \`\`\`
 
 Do NOT continue with axes 1–10. Do NOT emit an empty report. The
@@ -7456,7 +7493,7 @@ backlog material for the PO to triage.
 
 Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
-(\`REVIEW_SCOPE: a11y-auditor\`,
+(\`REVIEW_SCOPE: a11y-expert\`,
 \`REVIEW_VERDICT: pass | fail | needs_followup\`, the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. Audit-mode (Mode 2) emits neither block.
@@ -7467,10 +7504,10 @@ Same \`FINDING\` structure as code-reviewer, followed by exactly one
   },
   {
     category: "agent",
-    name: "architecture-auditor",
+    name: "architect-expert",
     suffix: null,
     content: `---
-name: architecture-auditor
+name: architect-expert
 description: Reviews code for architectural drift — hex-layer violations, circular deps, god files, bounded-context leaks, ports/adapters discipline, implicit globals, deep nesting, test-isolation bleed. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit architecture).
 model: sonnet
 effort: medium
@@ -7481,8 +7518,13 @@ color: blue
 disable-model-invocation: true
 ---
 
-You are an **architecture auditor**. You operate in one of two modes
-depending on the dispatch shape.
+You are the **architect**. You judge the *shape* of a system — its
+boundaries, its coupling, its cohesion, and where each decision lives.
+
+You are dispatched in **three** shapes, and auditing existing code is only
+one of them. You are also asked for architectural expertise on a plan,
+before any code exists. Read the mode you are in before you read the
+artifact: the same finding is worth far more in one of them than the other.
 
 ## Mode 1 — PR review
 
@@ -7629,6 +7671,36 @@ material for the PO to triage.
 - **When in doubt** — surface the finding at LOW rather than dropping
   it. The PO triage step is the right place to dismiss noise.
 
+## Mode 3 — Plan expertise (before any code exists)
+
+Spawned by \`phases/plan-audits.md\` at step 6 of \`/specnaut plan\`, against
+\`plan.md\` — **not** against code, because none has been written yet. This is
+the cheapest moment you will ever be asked, and the reason the phase makes it
+mandatory: architecture found at review time is architecture rebuilt.
+
+Three things are different here, and they change how you read:
+
+- **The artifact is a proposal, not an implementation.** You cannot grep for
+  the defect; you predict it from the design. "Show me the line" is not
+  available to you, so name what the design *will* produce, and where.
+- **You are advisory. You do not veto** — the user does, at the stop that
+  ends \`plan\`. But your findings go INTO \`plan.md\`: either the plan changes,
+  or it records why the objection was accepted. A finding whose output is not
+  written down did not happen.
+- **A clean verdict is written down with its coverage**, because a clean
+  verdict is worth exactly what it covered and no more.
+
+The dispatch carries the questions. Answer them in the order given, and
+answer the forward-looking one in writing even when it is uncomfortable — a
+design whose predicted findings are already known can be corrected now, for
+the price of an edit.
+
+Blast radius is **counted, not estimated**. A rule described in one sentence
+can change the behaviour of two hundred call sites, and that number is itself
+the finding.
+
+Emit the \`FINDING\` shape, then the \`REVIEW SUMMARY\` block.
+
 ## Output format (Mode 1 — PR review)
 
 Same \`FINDING\` structure as code-reviewer. Format each finding as:
@@ -7645,7 +7717,7 @@ After the findings, emit exactly one \`REVIEW SUMMARY\` block per the preloaded
 
 \`\`\`
 REVIEW SUMMARY
-REVIEW_SCOPE: architecture-auditor
+REVIEW_SCOPE: architect-expert
 REVIEW_VERDICT: pass | fail | needs_followup
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
@@ -7666,10 +7738,10 @@ emits neither block — backlog material is not pass/fail.
   },
   {
     category: "agent",
-    name: "dependency-auditor",
+    name: "dependency-expert",
     suffix: null,
     content: `---
-name: dependency-auditor
+name: dependency-expert
 description: Reviews dependency manifests for hygiene — outdated pins, unbounded ranges, unused declared deps, license violations, advisory-shape signals, peer-dep conflicts, typosquatting heuristics. Multi-manifest aware (npm / pyproject / Cargo / composer / Gemfile / go.mod / deno.json). Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit dependencies).
 model: sonnet
 effort: medium
@@ -7680,8 +7752,10 @@ color: magenta
 disable-model-invocation: true
 ---
 
-You are a **dependency auditor**. You operate in one of two modes
-depending on the dispatch shape.
+You are the **dependency expert**. You judge what a project has taken on
+by depending on someone else's code — what it pins, what it cannot upgrade,
+and what it is licensed to ship. You operate in one of two modes depending on
+the dispatch shape.
 
 ## Mode 1 — PR review
 
@@ -7896,7 +7970,7 @@ After the findings, emit exactly one \`REVIEW SUMMARY\` block per the preloaded
 
 \`\`\`
 REVIEW SUMMARY
-REVIEW_SCOPE: dependency-auditor
+REVIEW_SCOPE: dependency-expert
 REVIEW_VERDICT: pass | fail | needs_followup
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
@@ -7936,7 +8010,7 @@ budget, and a code-writer must not be starved of the depth it needs.
 | Tier     | Role class                                                     | Agents |
 | -------- | -------------------------------------------------------------- | ------ |
 | \`low\`    | Pure orchestrators — route and dispatch only, no deep reasoning | \`review-coordinator\`, \`workflow-manager\` |
-| \`medium\` | Read-only auditors, structured reviewers, the Q&A explainer, and the backlog owner | \`a11y-auditor\`, \`architecture-auditor\`, \`dependency-auditor\`, \`performance-auditor\`, \`security-auditor\`, \`code-reviewer\`, \`test-reviewer\`, \`specnaut-expert\`, \`product-owner\` |
+| \`medium\` | Read-only experts, structured reviewers, the Q&A explainer, and the backlog owner | \`a11y-expert\`, \`architect-expert\`, \`dependency-expert\`, \`performance-expert\`, \`security-expert\`, \`code-reviewer\`, \`test-reviewer\`, \`specnaut-expert\`, \`product-owner\` |
 | \`high\`   | Design / higher-order reasoning                                | \`ui-ux-designer\` |
 | \`xhigh\`  | Coding / agentic work — writes multi-file changes, runs suites, operates infra | \`developer\`, \`qa-tester\`, \`devops-sre\` |
 
@@ -7952,7 +8026,7 @@ thinking actually happens:
   \`workflow-manager\` don't reason about the work — they decide *who* runs and
   aggregate what comes back. Spending deep-reasoning tokens on a dispatcher is
   pure waste, multiplied across every fan-out.
-- **\`medium\` for auditors, reviewers, the explainer, and the PO.** These read
+- **\`medium\` for experts, reviewers, the explainer, and the PO.** These read
   code (or backlog) and emit structured findings. They need genuine analysis
   but not the open-ended exploration of writing a feature. \`medium\` buys
   enough depth to spot real issues without over-provisioning a read-only pass.
@@ -8158,11 +8232,11 @@ should survive across sessions and isn't captured elsewhere:
   },
   {
     category: "agent-memory",
-    name: "security-auditor",
+    name: "security-expert",
     suffix: "MEMORY.md",
-    content: `# Security auditor agent memory
+    content: `# Security expert agent memory
 
-Index of persistent notes for the \`security-auditor\` subagent. Each entry
+Index of persistent notes for the \`security-expert\` subagent. Each entry
 below points to a single-topic Markdown file in this same directory.
 
 **Format:** \`- [Title](file.md) — one-line hook describing why this is worth remembering\`
@@ -8174,11 +8248,11 @@ be retired.
 
 ## When to add an entry here
 
-Add a new memory file when the security auditor discovers something that
+Add a new memory file when the security expert discovers something that
 should survive across sessions and isn't captured elsewhere:
 
 - **Project-specific threat model** — assets, attackers, abuse paths the
-  auditor should weigh more heavily here than in a generic review.
+  expert should weigh more heavily here than in a generic review.
 - **Recurring finding patterns** — e.g. "this repo tends to swallow
   errors silently in catch blocks; flag any new occurrence".
 - **False-positive patterns** — patterns that LOOK like findings but
@@ -8189,13 +8263,13 @@ should survive across sessions and isn't captured elsewhere:
 
 ## When NOT to add an entry
 
-- Generic OWASP / CWE knowledge → that's already in the auditor's base
+- Generic OWASP / CWE knowledge → that's already in the expert's base
   prompt.
 - Specific findings on a single PR → those go in the review report.
 
 ## Entries
 
-<!-- (this stub starts empty — the security auditor populates it as it learns) -->
+<!-- (this stub starts empty — the security expert populates it as it learns) -->
 `,
     executable: false,
     backend: null,
@@ -11016,7 +11090,7 @@ done
     suffix: null,
     content: `---
 name: code-audit
-description: High-altitude, multi-seat parallel code audit of a scope on main. Use when the user says "audit the codebase", "code audit", "audit recent changes", "do a full audit", "health-check this code", or "audit the last N commits". Resolves a scope, dispatches the applicable auditor seats (architecture / security / performance / accessibility / dependency) IN PARALLEL, and synthesizes one deduplicated, severity-ranked report. Read-only. Complementary to \`/specnaut audit <axis>\` (single-axis).
+description: High-altitude, multi-seat parallel code audit of a scope on main. Use when the user says "audit the codebase", "code audit", "audit recent changes", "do a full audit", "health-check this code", or "audit the last N commits". Resolves a scope, dispatches the applicable expert seats (architecture / security / performance / accessibility / dependency) IN PARALLEL, and synthesizes one deduplicated, severity-ranked report. Read-only. Complementary to \`/specnaut audit <axis>\` (single-axis).
 argument-hint: "[--path <subtree> | --range <a>..<b>] [--last <n>]"
 ---
 
@@ -11024,11 +11098,11 @@ argument-hint: "[--path <subtree> | --range <a>..<b>] [--last <n>]"
 
 A **high-altitude** audit: judge the *shape* of merged work across several
 expert lenses at once, not a per-line PR review. This skill resolves a scope,
-deploys the applicable auditor seats **in parallel**, and merges their output
+deploys the applicable expert seats **in parallel**, and merges their output
 into one report.
 
 It is **read-only**: running it mutates **no tracked files**. It dispatches the
-same auditor agents \`/specnaut audit <axis>\` uses; the difference is breadth —
+same expert agents \`/specnaut audit <axis>\` uses; the difference is breadth —
 \`/specnaut audit <axis>\` runs one axis, \`/code-audit\` runs all applicable seats
 in a single parallel batch and synthesizes one verdict. The two are
 **complementary**.
@@ -11066,18 +11140,18 @@ zero, and record the skip with its reason in the report's \`### Scope\` line.
 
 | Seat          | Agent                 | Deployed when                          |
 | ------------- | --------------------- | -------------------------------------- |
-| Architecture  | architecture-auditor  | scope non-empty (always)               |
-| Security      | security-auditor      | scope non-empty (always)               |
-| Performance   | performance-auditor   | scope non-empty (always)               |
-| Accessibility | a11y-auditor          | \`FRONTEND_COUNT > 0\` (gating signal)   |
-| Dependency    | dependency-auditor    | \`DEP_COUNT > 0\` (gating signal)        |
+| Architecture  | architect-expert  | scope non-empty (always)               |
+| Security      | security-expert      | scope non-empty (always)               |
+| Performance   | performance-expert   | scope non-empty (always)               |
+| Accessibility | a11y-expert          | \`FRONTEND_COUNT > 0\` (gating signal)   |
+| Dependency    | dependency-expert    | \`DEP_COUNT > 0\` (gating signal)        |
 
-These are the **existing** auditor agents — this skill defines no new agents.
+These are the **existing** expert agents — this skill defines no new agents.
 
 **Gating vs informational signals.** Only \`FRONTEND_COUNT\` and \`DEP_COUNT\`
 **gate** a seat (accessibility and dependency, respectively). \`TEST_COUNT\` and
 \`INFRA_COUNT\` are **informational context only** — no seat consumes them, and
-there is intentionally no test/coverage or infra seat (no such auditor agent
+there is intentionally no test/coverage or infra seat (no such expert agent
 exists). All four counts are always emitted (the scope-signals contract requires
 it); the two informational ones simply describe the scope, they do not select
 seats.
@@ -11092,7 +11166,7 @@ the skill: the seats are independent and must run concurrently. Put all the
 Give each seat the **same scope context** (the \`SCOPE_LABEL\`, the commit list,
 and the file list from Step 1) and an **audit framing**: judge the shape of the
 merged work — architecture drift, security exposure, performance cliffs,
-accessibility gaps, dependency risk — not line-by-line PR nitpicks. Each auditor
+accessibility gaps, dependency risk — not line-by-line PR nitpicks. Each expert
 already emits the canonical \`REVIEW SUMMARY\` block (verdict + severity counts)
 after its prose; rely on it for synthesis.
 
@@ -11114,7 +11188,7 @@ Emit one report:
 ### Seats
 | Seat | Agent | Status | Findings |
 |------|-------|--------|----------|
-| Architecture | architecture-auditor | ✅ / errored / empty | <n> |
+| Architecture | architect-expert | ✅ / errored / empty | <n> |
 | …            | …                    | …                    | … |
 
 ### 🏛 Architecture   ### 🔒 Security   ### ⚡ Performance   ### ♿ Accessibility   ### 📦 Dependency
@@ -11268,7 +11342,7 @@ FILES=""
 # category's glob set independently (a file can count toward more than one
 # category, e.g. a frontend test file). Sets FRONTEND_COUNT / TEST_COUNT /
 # DEP_COUNT / INFRA_COUNT. The globs are heuristic (research.md Decision 1):
-# good enough to pick which auditor seats run. Walking the list once instead of
+# good enough to pick which expert seats run. Walking the list once instead of
 # four times is purely a perf optimization — the per-category counts are
 # identical to testing each category in its own pass.
 #
@@ -11410,14 +11484,14 @@ echo "INFRA_COUNT: \${INFRA_COUNT}"
     suffix: null,
     content: `---
 name: arch-audit
-description: Single-axis architecture audit of a scope. Use when the user says "arch audit", "audit the architecture", "check for architectural drift", "audit layering", or "review the architecture of <path>". Dispatches ONLY the architecture-auditor over a resolved scope (layering / DDD / SOLID / DRY) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis architecture audit of a scope. Use when the user says "arch audit", "audit the architecture", "check for architectural drift", "audit layering", or "review the architecture of <path>". Dispatches ONLY the architect-expert over a resolved scope (layering / DDD / SOLID / DRY) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Architecture Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: architecture. This skill resolves a
-scope, dispatches the **single** \`architecture-auditor\` agent over it, and
+scope, dispatches the **single** \`architect-expert\` agent over it, and
 returns that agent's findings **inline**. It writes **no file** and mutates
 **no tracked files** — \`git status\` is unchanged after a run.
 
@@ -11457,9 +11531,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 \`\`\`
 
-## Step 3 — Dispatch ONLY the architecture-auditor
+## Step 3 — Dispatch ONLY the architect-expert
 
-Dispatch the **single** \`architecture-auditor\` agent — never a team, never
+Dispatch the **single** \`architect-expert\` agent — never a team, never
 another axis. Give it the resolved file list and an **audit framing**: judge
 the architectural shape of the scoped code (hex-layer violations, circular
 deps, god files, bounded-context leaks, ports/adapters discipline, SOLID/DRY)
@@ -11467,20 +11541,20 @@ deps, god files, bounded-context leaks, ports/adapters discipline, SOLID/DRY)
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The \`architecture-auditor\` ends with the
+Return the agent's findings inline. The \`architect-expert\` ends with the
 canonical \`REVIEW SUMMARY\` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **\`/arch-audit\`** (this skill) — dispatches the **one** \`architecture-auditor\`
+- **\`/arch-audit\`** (this skill) — dispatches the **one** \`architect-expert\`
   over a scope and returns findings **inline**. No report file.
 - **\`/specnaut audit architecture\`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   \`docs/specnaut/audits/\`. Use it when you want a durable artifact.
 - **\`/code-audit\`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.
 `,
@@ -11494,14 +11568,14 @@ file.**
     suffix: null,
     content: `---
 name: sec-audit
-description: Single-axis security audit of a scope. Use when the user says "sec audit", "security audit", "audit for security issues", "check for vulnerabilities", or "review the security of <path>". Dispatches ONLY the security-auditor over a resolved scope (authz / inputs / secrets / injection) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis security audit of a scope. Use when the user says "sec audit", "security audit", "audit for security issues", "check for vulnerabilities", or "review the security of <path>". Dispatches ONLY the security-expert over a resolved scope (authz / inputs / secrets / injection) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Security Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: security. This skill resolves a
-scope, dispatches the **single** \`security-auditor\` agent over it, and
+scope, dispatches the **single** \`security-expert\` agent over it, and
 returns that agent's findings **inline**. It writes **no file** and mutates
 **no tracked files** — \`git status\` is unchanged after a run.
 
@@ -11541,9 +11615,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 \`\`\`
 
-## Step 3 — Dispatch ONLY the security-auditor
+## Step 3 — Dispatch ONLY the security-expert
 
-Dispatch the **single** \`security-auditor\` agent — never a team, never
+Dispatch the **single** \`security-expert\` agent — never a team, never
 another axis. Give it the resolved file list and an **audit framing**: judge
 the security shape of the scoped code (input validation, authz, secrets,
 injection, SSRF, path traversal, silent error swallowing) — not a per-line
@@ -11566,20 +11640,20 @@ the finding format defined in 00-triage.md.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The \`security-auditor\` ends with the
+Return the agent's findings inline. The \`security-expert\` ends with the
 canonical \`REVIEW SUMMARY\` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **\`/sec-audit\`** (this skill) — dispatches the **one** \`security-auditor\`
+- **\`/sec-audit\`** (this skill) — dispatches the **one** \`security-expert\`
   over a scope and returns findings **inline**. No report file.
 - **\`/specnaut audit security\`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   \`docs/specnaut/audits/\`. Use it when you want a durable artifact.
 - **\`/code-audit\`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.
 `,
@@ -11593,14 +11667,14 @@ file.**
     suffix: null,
     content: `---
 name: perf-audit
-description: Single-axis performance audit of a scope. Use when the user says "perf audit", "performance audit", "audit for performance issues", "check for N+1 queries", or "review the performance of <path>". Dispatches ONLY the performance-auditor over a resolved scope (N+1 / hot paths / re-renders / caching) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis performance audit of a scope. Use when the user says "perf audit", "performance audit", "audit for performance issues", "check for N+1 queries", or "review the performance of <path>". Dispatches ONLY the performance-expert over a resolved scope (N+1 / hot paths / re-renders / caching) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Performance Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: performance. This skill resolves a
-scope, dispatches the **single** \`performance-auditor\` agent over it, and
+scope, dispatches the **single** \`performance-expert\` agent over it, and
 returns that agent's findings **inline**. It writes **no file** and mutates
 **no tracked files** — \`git status\` is unchanged after a run.
 
@@ -11640,9 +11714,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 \`\`\`
 
-## Step 3 — Dispatch ONLY the performance-auditor
+## Step 3 — Dispatch ONLY the performance-expert
 
-Dispatch the **single** \`performance-auditor\` agent — never a team, never
+Dispatch the **single** \`performance-expert\` agent — never a team, never
 another axis. Give it the resolved file list and an **audit framing**: judge
 the performance shape of the scoped code (N+1 queries, blocking I/O on hot
 paths, missing indexes, cache misuse, hot-path allocation, sync-in-async,
@@ -11650,20 +11724,20 @@ large bundles, render-thrash) — not a per-line review.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The \`performance-auditor\` ends with the
+Return the agent's findings inline. The \`performance-expert\` ends with the
 canonical \`REVIEW SUMMARY\` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **\`/perf-audit\`** (this skill) — dispatches the **one** \`performance-auditor\`
+- **\`/perf-audit\`** (this skill) — dispatches the **one** \`performance-expert\`
   over a scope and returns findings **inline**. No report file.
 - **\`/specnaut audit performance\`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   \`docs/specnaut/audits/\`. Use it when you want a durable artifact.
 - **\`/code-audit\`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.
 `,
@@ -11677,14 +11751,14 @@ file.**
     suffix: null,
     content: `---
 name: dep-audit
-description: Single-axis dependency audit of a scope. Use when the user says "dep audit", "dependency audit", "audit the dependencies", "check the lockfile", or "review the dependencies of <path>". Dispatches ONLY the dependency-auditor over a resolved scope (ranges / lockfiles / unused / licenses / typosquats) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis dependency audit of a scope. Use when the user says "dep audit", "dependency audit", "audit the dependencies", "check the lockfile", or "review the dependencies of <path>". Dispatches ONLY the dependency-expert over a resolved scope (ranges / lockfiles / unused / licenses / typosquats) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Dependency Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: dependencies. This skill resolves a
-scope, dispatches the **single** \`dependency-auditor\` agent over it, and
+scope, dispatches the **single** \`dependency-expert\` agent over it, and
 returns that agent's findings **inline**. It writes **no file** and mutates
 **no tracked files** — \`git status\` is unchanged after a run.
 
@@ -11724,9 +11798,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 \`\`\`
 
-## Step 3 — Dispatch ONLY the dependency-auditor
+## Step 3 — Dispatch ONLY the dependency-expert
 
-Dispatch the **single** \`dependency-auditor\` agent — never a team, never
+Dispatch the **single** \`dependency-expert\` agent — never a team, never
 another axis. Give it the resolved file list and an **audit framing**: judge
 the dependency hygiene of the scoped manifests (outdated pins, unbounded
 ranges, unused declared deps, license violations, advisory-shape signals,
@@ -11734,20 +11808,20 @@ peer-dep conflicts, typosquatting heuristics) — not a per-line review.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The \`dependency-auditor\` ends with the
+Return the agent's findings inline. The \`dependency-expert\` ends with the
 canonical \`REVIEW SUMMARY\` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **\`/dep-audit\`** (this skill) — dispatches the **one** \`dependency-auditor\`
+- **\`/dep-audit\`** (this skill) — dispatches the **one** \`dependency-expert\`
   over a scope and returns findings **inline**. No report file.
 - **\`/specnaut audit dependencies\`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   \`docs/specnaut/audits/\`. Use it when you want a durable artifact.
 - **\`/code-audit\`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.
 `,
@@ -11761,14 +11835,14 @@ file.**
     suffix: null,
     content: `---
 name: a11y-audit
-description: Single-axis accessibility audit of a scope. Use when the user says "a11y audit", "accessibility audit", "audit for accessibility", "check WCAG compliance", or "review the accessibility of <path>". Dispatches ONLY the a11y-auditor over a resolved scope (WCAG 2.1 AA over front-end source) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis accessibility audit of a scope. Use when the user says "a11y audit", "accessibility audit", "audit for accessibility", "check WCAG compliance", or "review the accessibility of <path>". Dispatches ONLY the a11y-expert over a resolved scope (WCAG 2.1 AA over front-end source) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Accessibility Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: accessibility. This skill resolves a
-scope, dispatches the **single** \`a11y-auditor\` agent over it, and returns
+scope, dispatches the **single** \`a11y-expert\` agent over it, and returns
 that agent's findings **inline**. It writes **no file** and mutates **no
 tracked files** — \`git status\` is unchanged after a run.
 
@@ -11808,9 +11882,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 \`\`\`
 
-## Step 3 — Dispatch ONLY the a11y-auditor
+## Step 3 — Dispatch ONLY the a11y-expert
 
-Dispatch the **single** \`a11y-auditor\` agent — never a team, never another
+Dispatch the **single** \`a11y-expert\` agent — never a team, never another
 axis. Give it the resolved file list and an **audit framing**: judge the
 accessibility shape of the scoped front-end source (semantic HTML, heading
 hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA
@@ -11818,20 +11892,20 @@ correctness, color contrast where computable) — not a per-line review.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The \`a11y-auditor\` ends with the
+Return the agent's findings inline. The \`a11y-expert\` ends with the
 canonical \`REVIEW SUMMARY\` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **\`/a11y-audit\`** (this skill) — dispatches the **one** \`a11y-auditor\`
+- **\`/a11y-audit\`** (this skill) — dispatches the **one** \`a11y-expert\`
   over a scope and returns findings **inline**. No report file.
 - **\`/specnaut audit accessibility\`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   \`docs/specnaut/audits/\`. Use it when you want a durable artifact.
 - **\`/code-audit\`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.
 `,
@@ -11976,7 +12050,7 @@ breaks a dispatch. A line is never rewritten; an agent's *current* state is its
 
 Captured from the Claude Code event payload when present. \`agent_id\`
 disambiguates two concurrent agents of the same \`agent_type\` (e.g. two
-\`security-auditor\`s); \`effort\` records the agent's reasoning tier.
+\`security-expert\`s); \`effort\` records the agent's reasoning tier.
 
 | Field      | Type   | Source           | Notes                                            |
 | ---------- | ------ | ---------------- | ------------------------------------------------ |
@@ -12014,7 +12088,7 @@ Base line (no contract block parsed, or a \`start\` event):
 Enriched \`stop\` line (contract block parsed from the output):
 
 \`\`\`json
-{"ts":"2026-06-13T11:42:00Z","event":"stop","session":"sess-123","agent":"security-auditor","agent_id":"abf05f10d169e18fa","effort":"high","state":"awaiting_review","done_criteria_met":"yes","handoff_target":"review-coordinator","review_verdict":"fail"}
+{"ts":"2026-06-13T11:42:00Z","event":"stop","session":"sess-123","agent":"security-expert","agent_id":"abf05f10d169e18fa","effort":"high","state":"awaiting_review","done_criteria_met":"yes","handoff_target":"review-coordinator","review_verdict":"fail"}
 \`\`\`
 
 ## Invariants
@@ -12153,7 +12227,7 @@ advance on risk.
 ## Deliberate gaps
 
 - **Dependency CVE triage** is only sketched in \`06\`. The dedicated
-  \`dependency-auditor\` agent owns manifests, advisories, and licences —
+  \`dependency-expert\` agent owns manifests, advisories, and licences —
   hand off rather than duplicating its work.
 - **The AI/agentic attack surface** (OWASP LLM Top 10, Agentic Top 10:
   prompt injection, tool misuse, memory poisoning, excessive agency) is
@@ -13456,7 +13530,7 @@ middleware that never runs on the error path is not set.
 > **ASVS** V15 (Secure Coding and Architecture)
 
 > **Hand-off** — per-dependency CVE triage, licence policy, and version
-> currency belong to the \`dependency-auditor\`. This file covers the
+> currency belong to the \`dependency-expert\`. This file covers the
 > *shape* of the supply chain: pinning, provenance, pipeline trust, and
 > integrity verification.
 
@@ -13649,7 +13723,7 @@ npm audit signatures
 - [ ] A component inventory (SBOM) is produced and retained
 - [ ] Unused dependencies removed
 - [ ] Advisories monitored continuously — hand CVE triage to the
-      \`dependency-auditor\`
+      \`dependency-expert\`
 `,
     executable: false,
     backend: null,
@@ -15065,7 +15139,7 @@ content matters it belongs in section 6 (domain model) or in the table above.
 <!--
   ACTION REQUIRED — CONDITIONAL SECTION.
   Keep this ONLY when the project has a front-end / UX-UI surface. Detect that surface with the
-  SAME signal list the accessibility gate uses (see the \`a11y-auditor\` agent — do NOT invent a new
+  SAME signal list the accessibility gate uses (see the \`a11y-expert\` agent — do NOT invent a new
   heuristic). Any of:
     - \`.html\` / \`.htm\` files
     - \`.jsx\` / \`.tsx\` files
@@ -15090,18 +15164,18 @@ question the prototype is meant to answer.]
 
 ## 10. Architecture audit
 
-*Findings from the \`architecture-auditor\` run against THIS document, before any code existed.*
+*Findings from the \`architect-expert\` run against THIS document, before any code existed.*
 
 | # | Finding | What was done |
 | :--- | :--- | :--- |
 | A1 | [finding] | [plan changed — how] / [objection accepted — why] |
 
-**Verdict**: [the auditor's conclusion, **with what it covered**. A clean verdict is worth exactly
+**Verdict**: [the expert's conclusion, **with what it covered**. A clean verdict is worth exactly
 what its coverage is worth, so name the coverage.]
 
 ## 11. Security audit
 
-*Findings from the \`security-auditor\` run against THIS document, in parallel with the architecture
+*Findings from the \`security-expert\` run against THIS document, in parallel with the architecture
 audit. Kept separate on purpose — the two answer different questions.*
 
 | # | Finding | What was done |
@@ -18370,7 +18444,7 @@ fi
 
 # Extract the \`tools:\` line from the agent's frontmatter (between the first
 # two \`---\` delimiters). The raw value can include commas inside parens, e.g.
-# \`Read, Bash(git log *), Agent(code-reviewer, security-auditor)\` — naive
+# \`Read, Bash(git log *), Agent(code-reviewer, security-expert)\` — naive
 # comma-splitting would break those compound entries. We do a depth-aware
 # split, trim each token, and rejoin with commas (no spaces) so the value
 # is unambiguous to claude's --allowedTools parser regardless of how it
@@ -18494,7 +18568,7 @@ off.
 > then \`/reload-plugins\`. To turn it on for everyone who clones this repo,
 > add \`"enabledPlugins": {"security-guidance@claude-plugins-official": true}\`
 > to \`.claude/settings.json\`. Without the plugin this file is inert — the
-> \`security-auditor\` agent and \`/sec-audit\` still work, and read the same
+> \`security-expert\` agent and \`/sec-audit\` still work, and read the same
 > knowledge base.
 
 ## The full knowledge base lives in the repo
@@ -19370,7 +19444,7 @@ clarifications needed) STOP #2 (pre-merge validation)
 - \`/specnaut-agent-developer\` — implementation work
 - \`/specnaut-agent-review-coordinator\` — parallel review orchestration
 - \`/specnaut-agent-code-reviewer\` — code quality review
-- \`/specnaut-agent-security-auditor\` — security review
+- \`/specnaut-agent-security-expert\` — security review
 - \`/specnaut-agent-test-reviewer\` — test coverage review
 - \`/specnaut-agent-qa-tester\` — QA + test writing
 - \`/specnaut-agent-workflow-manager\` — long-running orchestration

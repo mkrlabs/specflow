@@ -10,7 +10,7 @@
 # CodeQL note for Deno TS: the `javascript-typescript` extractor parses
 # Deno code as standard TS but doesn't model `Deno.*` globals or URL
 # imports. Initial findings are expected to be a small set (0-5) of
-# generic style/safety issues — triage manually via the security-auditor
+# generic style/safety issues — triage manually via the security-expert
 # agent.
 name: codeql
 

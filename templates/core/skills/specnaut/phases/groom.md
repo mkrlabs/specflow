@@ -240,5 +240,5 @@ to be a **no-op when the project is healthy**.
 - For a single-item backlog clarification → invoke the `product-owner`
   subagent directly with the item number.
 - For PR review on a specific PR → invoke `code-reviewer` /
-  `security-auditor` directly.
+  `security-expert` directly.
 - For implementing a spec → invoke `/specnaut implement` directly.

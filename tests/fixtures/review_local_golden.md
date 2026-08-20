@@ -21,7 +21,7 @@ spawns:
 
 - `code-reviewer` (always) — architecture, DRY, YAGNI, readability, alignment
   with `.specnaut/memory/constitution.md`.
-- `security-auditor` (always) — input validation, auth/authz, secret handling,
+- `security-expert` (always) — input validation, auth/authz, secret handling,
   SQL/command injection, path traversal, silent catches that swallow errors.
 - `test-reviewer` (if test files are in the diff) — adequacy of coverage, test
   quality, mocking boundaries.
@@ -77,7 +77,7 @@ Emit a single report in this exact structure:
 
 Structural
   code-reviewer       : PASS | FAIL (N CRITICAL, M HIGH, …)
-  security-auditor    : …
+  security-expert    : …
   test-reviewer       : … (or SKIPPED)
 
 Quality gates

@@ -1,13 +1,13 @@
 ---
 name: dep-audit
-description: Single-axis dependency audit of a scope. Use when the user says "dep audit", "dependency audit", "audit the dependencies", "check the lockfile", or "review the dependencies of <path>". Dispatches ONLY the dependency-auditor over a resolved scope (ranges / lockfiles / unused / licenses / typosquats) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis dependency audit of a scope. Use when the user says "dep audit", "dependency audit", "audit the dependencies", "check the lockfile", or "review the dependencies of <path>". Dispatches ONLY the dependency-expert over a resolved scope (ranges / lockfiles / unused / licenses / typosquats) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Dependency Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: dependencies. This skill resolves a
-scope, dispatches the **single** `dependency-auditor` agent over it, and
+scope, dispatches the **single** `dependency-expert` agent over it, and
 returns that agent's findings **inline**. It writes **no file** and mutates
 **no tracked files** — `git status` is unchanged after a run.
 
@@ -47,9 +47,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 ```
 
-## Step 3 — Dispatch ONLY the dependency-auditor
+## Step 3 — Dispatch ONLY the dependency-expert
 
-Dispatch the **single** `dependency-auditor` agent — never a team, never
+Dispatch the **single** `dependency-expert` agent — never a team, never
 another axis. Give it the resolved file list and an **audit framing**: judge
 the dependency hygiene of the scoped manifests (outdated pins, unbounded
 ranges, unused declared deps, license violations, advisory-shape signals,
@@ -57,19 +57,19 @@ peer-dep conflicts, typosquatting heuristics) — not a per-line review.
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The `dependency-auditor` ends with the
+Return the agent's findings inline. The `dependency-expert` ends with the
 canonical `REVIEW SUMMARY` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **`/dep-audit`** (this skill) — dispatches the **one** `dependency-auditor`
+- **`/dep-audit`** (this skill) — dispatches the **one** `dependency-expert`
   over a scope and returns findings **inline**. No report file.
 - **`/specnaut audit dependencies`** — the report-writing single-axis audit:
-  runs the same auditor but **persists a dated report** under
+  runs the same expert but **persists a dated report** under
   `docs/specnaut/audits/`. Use it when you want a durable artifact.
 - **`/code-audit`** — the **multi-seat** team audit: dispatches every
-  applicable auditor (architecture / security / performance / a11y /
+  applicable expert (architecture / security / performance / a11y /
   dependency) in parallel and synthesizes one combined report. Use it for a
   broad health-check, not a single axis.

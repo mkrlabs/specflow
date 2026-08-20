@@ -4,7 +4,7 @@
 **Read-only** project-wide dependency-hygiene sweep. Walks every detected
 manifest (`package.json`, `pyproject.toml`, `Cargo.toml`, `composer.json`,
 `Gemfile`, `go.mod`, `deno.json` / `deno.jsonc`), dispatches the
-`dependency-auditor` agent in audit mode, and emits a structured findings
+`dependency-expert` agent in audit mode, and emits a structured findings
 report. **Never mutates project code** — running the phase twice in a
 row leaves `git status --porcelain` identical (modulo the new report
 file).
@@ -47,7 +47,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    a single-line "skipped — no dependency manifest detected" report
    (full section shape still rendered, all findings sections empty).
 
-4. **Dispatch the `dependency-auditor` agent** with the dispatch prompt
+4. **Dispatch the `dependency-expert` agent** with the dispatch prompt
    below. The agent operates in audit mode (full codebase scan, NOT
    per-PR review mode). It has `Read`, `Grep`, `Glob`, and constrained
    `Bash` access; it MUST NOT call `Edit`, `Write`, `NotebookEdit`, or
@@ -74,7 +74,7 @@ Reject any other argument with: `error: unknown argument <token> — accepted: -
    single grouped task if `--severity medium` or `--severity low` was
    passed)."
 
-## Dispatch prompt for the `dependency-auditor` agent
+## Dispatch prompt for the `dependency-expert` agent
 
 Pass the agent the following prompt verbatim (substituting `$INVENTORY`
 with the grouped file inventory from step 2 and `$SEVERITY_FLOOR` with
@@ -139,12 +139,12 @@ Next step: dispatch product-owner to convert findings into a backlog Epic? (y/N)
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the dependency-auditor in PR mode, not audit mode).
+- For per-PR review on a feature branch → use `/specnaut review` (gates merge with the dependency-expert in PR mode, not audit mode).
 - For live CVE / advisory cross-reference → out of scope; run your ecosystem's native audit tool separately (`npm audit`, `cargo audit`, `pip-audit`, `bundle audit`, `osv-scanner`). The audit-dependencies phase intentionally avoids these because they require network access + cached package databases that drift between runs, breaking reproducibility.
-- For a single-file dependency check → invoke `dependency-auditor` directly with the manifest paths.
+- For a single-file dependency check → invoke `dependency-expert` directly with the manifest paths.
 
 ---
 
 Inspired by the discipline of `obra/superpowers` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-`dependency-auditor` agent itself is Specnaut-native (no upstream sibling).
+`dependency-expert` agent itself is Specnaut-native (no upstream sibling).

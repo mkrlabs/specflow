@@ -108,7 +108,7 @@ FILES=""
 # category's glob set independently (a file can count toward more than one
 # category, e.g. a frontend test file). Sets FRONTEND_COUNT / TEST_COUNT /
 # DEP_COUNT / INFRA_COUNT. The globs are heuristic (research.md Decision 1):
-# good enough to pick which auditor seats run. Walking the list once instead of
+# good enough to pick which expert seats run. Walking the list once instead of
 # four times is purely a perf optimization — the per-category counts are
 # identical to testing each category in its own pass.
 #

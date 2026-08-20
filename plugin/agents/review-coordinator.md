@@ -3,7 +3,7 @@ name: review-coordinator
 description: Coordinates parallel structural review agents (code, security, tests) and aggregates their findings. Use when /specnaut review is running Phase 1.
 model: sonnet
 effort: low
-tools: Read, Grep, Glob, Bash, Agent(code-reviewer, security-auditor, test-reviewer)
+tools: Read, Grep, Glob, Bash, Agent(code-reviewer, security-expert, test-reviewer)
 skills: workflow-contract, handoff-protocol, review-findings-contract
 maxTurns: 30
 color: purple
@@ -19,7 +19,7 @@ in parallel and aggregate results.
 
 ## Protocol
 
-1. Always spawn `code-reviewer` and `security-auditor` in parallel, passing them
+1. Always spawn `code-reviewer` and `security-expert` in parallel, passing them
    the list of changed files.
 2. If any changed file matches `**/*test*.*` or `**/*_test.*` or `**/test/**`
    or `**/tests/**`, also spawn `test-reviewer`.
@@ -35,7 +35,7 @@ in parallel and aggregate results.
 ```
 PER-SEAT ROLL-UP
   code-reviewer      : <pass | N CRIT, M HIGH, K MED, L LOW>
-  security-auditor   : <…>
+  security-expert   : <…>
   test-reviewer      : <… | SKIPPED>
 
 CRITICAL findings:
@@ -56,7 +56,7 @@ Emit exactly one `REVIEW SUMMARY` block per the preloaded
 
 ```
 REVIEW SUMMARY
-REVIEW_SCOPE: review gate (aggregated across code-reviewer, security-auditor, test-reviewer)
+REVIEW_SCOPE: review gate (aggregated across code-reviewer, security-expert, test-reviewer)
 REVIEW_VERDICT: pass | fail | needs_followup
 CRITICAL_COUNT: <integer — summed across seats>
 HIGH_COUNT: <integer — summed across seats>

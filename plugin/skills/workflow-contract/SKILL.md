@@ -8,7 +8,7 @@ user-invocable: false
 
 This skill defines the **WORKFLOW STATUS** block. Agents that preload it
 (`developer`, `review-coordinator`, `workflow-manager`, `qa-tester`, and all
-five auditors + both reviewers via this contract) emit exactly one such block at
+five experts + both reviewers via this contract) emit exactly one such block at
 the **end of their turn, after the prose**. The block is additive — it never replaces the prose narrative; it
 appends a normalized, fenced, machine-readable summary that downstream tooling
 (audit synthesis, the status ledger, `/status-audit`) can parse without
@@ -34,6 +34,6 @@ HANDOFF_TARGET: developer | review-coordinator | qa-tester | product-owner | wor
 - Exactly one block per turn; never replaces prose (additive).
 - `STATE: done` only when assigned exit criteria are met; otherwise use `awaiting_review` /
   `awaiting_qa` / `blocked`. Never `done` with `DONE_CRITERIA_MET: no`.
-- `FILES_CHANGED: none` for read-only agents (auditors/reviewers).
+- `FILES_CHANGED: none` for read-only agents (experts/reviewers).
 - `VALIDATION` is explicit, e.g. `deno task test (pass)`.
 - `HANDOFF_TARGET: none` when work terminates here.
