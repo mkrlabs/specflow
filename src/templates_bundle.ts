@@ -277,7 +277,7 @@ One file, read whole by whoever implements. Twelve sections, in order, **none op
    exposes. "One surface only" is a valid answer; an unstated one is not.
    **Front-end / UX-UI features**: where the project has a front-end surface, add a
    \`## Visual Prototyping with Claude Artifacts\` subsection. Detect that surface with the SAME
-   signals the accessibility gate uses — the \`a11y-expert\` FE-surface list; don't invent a second
+   signals the accessibility gate uses — the \`accessibility-expert\` FE-surface list; don't invent a second
    heuristic. No front-end surface → the plan **must not mention** artifacts at all.
 9. **Risks** — each with its mitigation.
 10. **Architecture audit** — findings, and what was done with each. Step 6.
@@ -2428,7 +2428,7 @@ adapted to Specnaut's bundled agent + backlog conventions. The
 # /specnaut audit accessibility
 
 **Read-only** project-wide WCAG 2.1 AA accessibility sweep. Walks the
-front-end surface of the codebase, dispatches the \`a11y-expert\` agent
+front-end surface of the codebase, dispatches the \`accessibility-expert\` agent
 in audit mode, and emits a structured findings report. **Never mutates
 project code** — running the phase twice in a row leaves
 \`git status --porcelain\` identical (modulo the new report file).
@@ -2442,7 +2442,7 @@ produces backlog material, not a pass/fail verdict.
 
 ## FE-surface gate
 
-Before any work, the \`a11y-expert\` agent checks for a front-end
+Before any work, the \`accessibility-expert\` agent checks for a front-end
 surface (see its agent doc for the full signal list — \`.html\`, \`.jsx\`,
 \`.tsx\`, \`.vue\`, \`.svelte\`, \`.astro\` files, or a \`package.json\` listing
 a FE framework dep). If none present, the agent emits:
@@ -2479,7 +2479,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    - Component directories: \`src/components/\`, \`components/\`
    - Dependency manifests: \`package.json\`
 
-3. **Dispatch the \`a11y-expert\` agent** with the dispatch prompt
+3. **Dispatch the \`accessibility-expert\` agent** with the dispatch prompt
    below. The agent first runs the FE-surface gate; if no FE surface
    exists, it returns the skip-line and the phase exits without
    writing a report.
@@ -2507,7 +2507,7 @@ Reject any other argument with: \`error: unknown argument <token> — accepted: 
    into a single grouped task if \`--severity medium\` or
    \`--severity low\` was passed)."
 
-## Dispatch prompt for the \`a11y-expert\` agent
+## Dispatch prompt for the \`accessibility-expert\` agent
 
 Pass the agent the following prompt verbatim (substituting \`\$INVENTORY\`
 with the grouped file inventory from step 2 and \`\$SEVERITY_FLOOR\` with
@@ -2597,16 +2597,16 @@ no FE surface detected — accessibility audit skipped (this project ships no fr
 
 ## When NOT to use this phase
 
-- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the a11y-expert in PR mode, not audit mode).
+- For per-PR review on a feature branch → use \`/specnaut review\` (gates merge with the accessibility-expert in PR mode, not audit mode).
 - For runtime browser-based accessibility testing (axe-core, Lighthouse, screen reader walkthroughs) → out of scope; this phase reads source, not runtime traces.
 - For mobile-native accessibility (iOS VoiceOver, Android TalkBack) → out of scope; web FE only.
-- For a single-component a11y check → invoke \`a11y-expert\` directly with the file paths.
+- For a single-component a11y check → invoke \`accessibility-expert\` directly with the file paths.
 
 ---
 
 Inspired by the discipline of \`obra/superpowers\` v5.1.0 (MIT, Jesse Vincent),
 adapted to Specnaut's bundled agent + backlog conventions. The
-\`a11y-expert\` agent itself is Specnaut-native (no upstream sibling).
+\`accessibility-expert\` agent itself is Specnaut-native (no upstream sibling).
 `,
     executable: false,
     backend: null,
@@ -4206,7 +4206,7 @@ harness's equivalent — see the tool reference described below).
 | \`qa-tester\` | Run the QA scenario catalogue against the released binary. |
 | \`devops-sre\` | Advisory pass before editing \`.github/workflows/\`, \`install.sh\`, \`scripts/build.ts\`, the homebrew tap, or running \`/release\`. |
 | \`architect\` | Architecture-aware research before non-trivial cross-subsystem changes. |
-| \`specnaut-expert\` | Specnaut-specific consulting on the binary, plugin, or scaffolded project state. |
+| \`specnaut-guide\` | Specnaut-specific consulting on the binary, plugin, or scaffolded project state. |
 | \`review-coordinator\` | Orchestrates the implement → review → fix loop for \`/specnaut implement\`. |
 | \`workflow-manager\` | High-level workflow orchestration across phases. |
 
@@ -5492,7 +5492,7 @@ user-invocable: false
 
 This skill defines the **REVIEW SUMMARY** block. Agents that preload it
 (\`architect-expert\`, \`performance-expert\`, \`security-expert\`,
-\`a11y-expert\`, \`dependency-expert\`, \`code-reviewer\`, \`test-reviewer\`, and the
+\`accessibility-expert\`, \`dependency-expert\`, \`code-reviewer\`, \`test-reviewer\`, and the
 \`review-coordinator\`) emit exactly one such block **after their prose** (and
 before the WORKFLOW STATUS block when the agent also carries \`workflow-contract\`).
 It normalizes the review's severity counts and verdict so a coordinator can
@@ -5659,7 +5659,7 @@ Do not duplicate it here — the dispatcher defers to the agent.
 name: product-owner
 description: Product Owner and business guardian. Owns the product backlog, all mutation semantics, epic / sub-task relationships, and recommends workflow (Specnaut spec vs direct implementation). Use when the user asks about backlog, priorities, "what next", or wants to break work into an epic.
 model: opus
-effort: medium
+effort: high
 tools: Read, Write, Edit, Grep, Glob, Bash
 skills: backlog-reference-contract
 maxTurns: 30
@@ -6079,8 +6079,8 @@ needs to make in the prose and the \`BLOCKERS\` field.
     content: `---
 name: review-coordinator
 description: Coordinates parallel structural review agents (code, security, tests) and aggregates their findings. Use when /specnaut review is running Phase 1.
-model: sonnet
-effort: low
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash, Agent(code-reviewer, security-expert, test-reviewer)
 skills: workflow-contract, handoff-protocol, review-findings-contract
 maxTurns: 30
@@ -6167,8 +6167,8 @@ and, when handing the gate result back, the \`HANDOFF\` block per
     content: `---
 name: code-reviewer
 description: Reviews code quality, architecture, DRY/YAGNI, readability, and conformance to the project constitution. Spawned by the review-coordinator during /specnaut review.
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -6236,8 +6236,8 @@ emit the \`WORKFLOW STATUS\` block per \`workflow-contract\`.
     content: `---
 name: security-expert
 description: Reviews code for security issues — input validation, authz, secrets, injection, SSRF, path traversal, silent error swallowing. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) alert triage (spawned by /release after the security-preflight workflow surfaces open GitHub security alerts).
-model: sonnet
-effort: medium
+model: opus
+effort: xhigh
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -6464,8 +6464,8 @@ and is out of scope for the review-findings-contract.)
     content: `---
 name: test-reviewer
 description: Reviews test coverage and quality for changed code. Spawned by the review-coordinator when the diff contains test files.
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -6561,8 +6561,8 @@ preloaded \`qa-report-contract\` skill (it is the single authoritative schema:
     content: `---
 name: workflow-manager
 description: Orchestrates multi-phase feature delivery across specialist agents. Use as the lead session agent for long-running implementations.
-model: sonnet
-effort: low
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash, Agent(product-owner, developer, review-coordinator, qa-tester)
 skills: workflow-contract, handoff-protocol, backlog-reference-contract
 maxTurns: 60
@@ -6747,10 +6747,10 @@ End with a single \`VERDICT\` line: \`VERDICT: pass\` or
   },
   {
     category: "agent",
-    name: "specnaut-expert",
+    name: "specnaut-guide",
     suffix: null,
     content: `---
-name: specnaut-expert
+name: specnaut-guide
 description: >
   Answers questions about Specnaut itself — how it works, its commands,
   harnesses, backlog backends, agents, and what changed between releases.
@@ -6759,8 +6759,8 @@ description: >
   or any question about the tool. Do NOT trigger on plain command
   invocations (\`specnaut init\`, \`specnaut upgrade\`, \`/specnaut plan\`,
   \`/backlog ...\`) — those are command runs, not questions.
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, WebFetch, Grep, Glob, Bash, Agent
 permissionMode: default
 maxTurns: 10
@@ -6818,7 +6818,7 @@ This is a separate, lightweight check — distinct from the live fetch
 protocol above. Run it ONLY when the user's question matches the
 auto-route triggers in your \`description\` ("how does specnaut X",
 "what is /specnaut Y", "explain", "quoi de neuf", etc.). Do NOT run
-it on a manual \`/specnaut-expert\` invocation whose question does not
+it on a manual \`/specnaut-guide\` invocation whose question does not
 match those triggers — silence beats noise.
 
 1. Read \`.specnaut/installed.lock\` and extract the \`templates_version\`
@@ -6870,7 +6870,8 @@ sections above.
 
 **Surface**: generate
 \`https://github.com/specnaut/specnaut-cli/issues/new?title=…&body=…&labels=bug,from%3Aspecnaut-expert\`
-URL-encoded. The label gates the maintainer triage inbox. If the raw
+URL-encoded. The label gates the maintainer triage inbox and keeps this agent's
+former name on purpose — it is stamped on already-filed issues. If the raw
 body exceeds **3000 chars**, present a fenced code block and ask the
 user to paste it into a fresh \`issues/new\` form.
 
@@ -6941,12 +6942,12 @@ Enhanced fork of [\`specify\` CLI](https://github.com/github/spec-kit), distribu
 
 **Different from upstream Spec Kit:** auto-chained pipeline (\`/specnaut plan\` chains all phases); dedicated \`review\` phase after implement; backlog as product source of truth via \`product-owner\` agent (backends: local, github, gitlab); Claude Code plugin distribution (\`specnaut-plugin\` marketplace).
 
-**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-expert, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-expert.
+**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-expert, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-guide.
 
 ### Commands
 
 - \`specnaut init [--here] [--ai <harness>] [--backlog <backend>] [--backlog-url <url>]\` — scaffold the project.
-- \`specnaut upgrade\` — refresh templates. On apply writes \`.specnaut/upgrade-pending.json\` (\`{from,to,at}\`) + staging dir (\`.specnaut/upgrade-staging/<path>\`, consumed by \`specnaut reconcile\`); both removed after successful \`review-upgrade\` walk. Prints \`@specnaut-expert review-upgrade\` handoff.
+- \`specnaut upgrade\` — refresh templates. On apply writes \`.specnaut/upgrade-pending.json\` (\`{from,to,at}\`) + staging dir (\`.specnaut/upgrade-staging/<path>\`, consumed by \`specnaut reconcile\`); both removed after successful \`review-upgrade\` walk. Prints \`@specnaut-guide review-upgrade\` handoff.
 - \`specnaut reconcile --status\` — list files pending post-upgrade reconciliation as JSON.
 - \`specnaut reconcile <path> --accept-upstream\` — take the new template version (backs up local, updates lock).
 - \`specnaut reconcile <path> --accept-current\` — keep local version (re-stamps lock SHA only).
@@ -6983,7 +6984,7 @@ Agnostic of language / LLM / harness / backlog backend. Single binary via \`deno
     content: `---
 name: ui-ux-designer
 description: Owns the project's \`DESIGN.md\` design system. Three modes auto-selected from DESIGN.md state — discovery interview when absent (creates a fresh, opinionated design system from the user's brief), edit mode when present (refactors typography / palette / spacing / components on demand), audit mode on explicit dispatch (scans existing UI source for drift against DESIGN.md). Stack-agnostic — produces a Markdown spec the user's developer agent translates into code. Never invokes itself.
-model: sonnet
+model: opus
 effort: high
 tools: Read, Edit, Write, Glob, Grep
 maxTurns: 30
@@ -7204,8 +7205,8 @@ or other agents. Design decisions are not cheap and must be intentional
     content: `---
 name: performance-expert
 description: Reviews code for performance issues — N+1 queries, blocking I/O on hot paths, missing indexes, cache misuse, hot-path allocation, sync-in-async, large bundles, render-thrash. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit performance).
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -7411,13 +7412,13 @@ Same \`FINDING\` structure as code-reviewer, followed by exactly one
   },
   {
     category: "agent",
-    name: "a11y-expert",
+    name: "accessibility-expert",
     suffix: null,
     content: `---
-name: a11y-expert
+name: accessibility-expert
 description: Reviews front-end code for WCAG 2.1 AA accessibility issues — semantic HTML, heading hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA correctness, color contrast (where computable from source). Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit accessibility).
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -7624,7 +7625,7 @@ backlog material for the PO to triage.
 
 Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
-(\`REVIEW_SCOPE: a11y-expert\`,
+(\`REVIEW_SCOPE: accessibility-expert\`,
 \`REVIEW_VERDICT: pass | fail | needs_followup\`, the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. Audit-mode (Mode 2) emits neither block.
@@ -7640,8 +7641,8 @@ Same \`FINDING\` structure as code-reviewer, followed by exactly one
     content: `---
 name: architect-expert
 description: Reviews code for architectural drift — hex-layer violations, circular deps, god files, bounded-context leaks, ports/adapters discipline, implicit globals, deep nesting, test-isolation bleed. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit architecture).
-model: sonnet
-effort: medium
+model: opus
+effort: xhigh
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -7894,8 +7895,8 @@ emits neither block — backlog material is not pass/fail.
     content: `---
 name: dependency-expert
 description: Reviews dependency manifests for hygiene — outdated pins, unbounded ranges, unused declared deps, license violations, advisory-shape signals, peer-dep conflicts, typosquatting heuristics. Multi-manifest aware (npm / pyproject / Cargo / composer / Gemfile / go.mod / deno.json). Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit dependencies).
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -8167,64 +8168,99 @@ emits neither block — backlog material is not pass/fail.
     category: "agent-doc",
     name: "agents-readme",
     suffix: "README.md",
-    content: `# Agent effort rubric
+    content: `# Bundled agents — naming and effort
 
-Every bundled agent declares an \`effort:\` field in its frontmatter. \`effort\`
-is a reasoning-budget hint the harness reads when it dispatches the agent: it
-trades **token spend** against **reasoning depth**. A higher tier thinks
-harder (and costs more); a lower tier returns faster and cheaper.
+Two conventions govern this directory: what an agent is **called**, and how
+much reasoning budget it is **given**. Both are assigned by role class, so
+that adding an agent is a lookup rather than a judgement call.
 
-Effort is assigned by **role class**, not by how important an agent feels. The
-goal is *legible, intentional spend*: when a coordinator fans out several
-agents in parallel, fire-and-forget dispatchers must not burn a coding-agent's
-budget, and a code-writer must not be starved of the depth it needs.
+## Naming — the suffix carries meaning
 
-## The four tiers
+An agent's suffix is not decoration. It tells you how the agent is reached
+and what it is allowed to do, and the fleet is meant to stay legible when
+someone reads a dispatch line without opening the agent file.
 
-| Tier     | Role class                                                     | Agents |
-| -------- | -------------------------------------------------------------- | ------ |
-| \`low\`    | Pure orchestrators — route and dispatch only, no deep reasoning | \`review-coordinator\`, \`workflow-manager\` |
-| \`medium\` | Read-only experts, structured reviewers, the Q&A explainer, and the backlog owner | \`a11y-expert\`, \`architect-expert\`, \`dependency-expert\`, \`performance-expert\`, \`security-expert\`, \`code-reviewer\`, \`test-reviewer\`, \`specnaut-expert\`, \`product-owner\` |
-| \`high\`   | Design / higher-order reasoning                                | \`ui-ux-designer\` |
-| \`xhigh\`  | Coding / agentic work — writes multi-file changes, runs suites, operates infra | \`developer\`, \`qa-tester\`, \`devops-sre\` |
+| Suffix | Meaning | Agents |
+| ------ | ------- | ------ |
+| \`<domain>-expert\` | A review lens that **also** has a standalone \`/specnaut audit <domain>\` phase — dual mode: per-diff review *and* whole-codebase audit | \`accessibility-expert\`, \`architect-expert\`, \`dependency-expert\`, \`performance-expert\`, \`security-expert\` |
+| \`<domain>-reviewer\` | A review lens with **no** audit phase — it only ever sees a diff | \`code-reviewer\`, \`test-reviewer\` |
+| \`-coordinator\` | Fans out the lenses of a **single** phase and aggregates what returns | \`review-coordinator\` |
+| \`-manager\` | Drives a **multi-phase** delivery across several agents | \`workflow-manager\` |
+| role noun | Does the work rather than judging it | \`developer\`, \`qa-tester\`, \`devops-sre\`, \`product-owner\`, \`ui-ux-designer\` |
 
-Tally: 2 \`low\` · 9 \`medium\` · 1 \`high\` · 3 \`xhigh\` = 15 agents.
+Two rules follow, and they are the whole point of writing this down:
 
-## Rationale — the compound cost/quality tradeoff
+- **\`-expert\` ⇔ an audit phase exists.** The five \`-expert\` agents correspond
+  exactly to the five \`audit-*.md\` phases. If you give \`code-reviewer\` or
+  \`test-reviewer\` an audit phase, **rename it to \`-expert\` in the same
+  change** — otherwise the suffix stops predicting anything and the next
+  person picks one at random.
+- **Agents spell the domain out; skills may abbreviate.** The agent is
+  \`accessibility-expert\` while its skill is \`a11y-audit\`, and that asymmetry
+  is deliberate: a skill name is *typed by a human* at a prompt, where short
+  wins, whereas an agent name is *matched semantically by a model* against a
+  request, where \`a11y\` is a far weaker signal than \`accessibility\`. Optimise
+  each for its own reader.
 
-Effort compounds. A coordinator that itself spawns N sub-agents pays its own
-reasoning budget *plus* every child's. So the budget belongs where the
-thinking actually happens:
+\`specnaut-guide\` is the deliberate exception to the table — the only agent
+named after the tool itself. It answers questions about Specnaut rather than
+reviewing your code, so it carries neither a lens suffix nor a role noun. It
+is **not** an \`-expert\`: giving it that suffix would imply an
+\`/specnaut audit specnaut\` phase that does not and should not exist.
 
-- **\`low\` for pure orchestrators.** \`review-coordinator\` and
-  \`workflow-manager\` don't reason about the work — they decide *who* runs and
-  aggregate what comes back. Spending deep-reasoning tokens on a dispatcher is
-  pure waste, multiplied across every fan-out.
-- **\`medium\` for experts, reviewers, the explainer, and the PO.** These read
-  code (or backlog) and emit structured findings. They need genuine analysis
-  but not the open-ended exploration of writing a feature. \`medium\` buys
-  enough depth to spot real issues without over-provisioning a read-only pass.
-- **\`high\` for design.** \`ui-ux-designer\` does higher-order, open-ended
-  reasoning (synthesising a coherent design system from a brief), which
-  rewards more budget than a structured audit — but it isn't writing and
-  running multi-file code.
-- **\`xhigh\` for coding/agentic agents.** \`developer\`, \`qa-tester\`, and
-  \`devops-sre\` write multi-file changes, run suites, and operate
-  infrastructure. Under-provisioning them is the expensive failure mode: a
-  shallow coding pass ships bugs that cost far more than the saved tokens.
-  This is the one tier where spending *more* is the economical choice.
+## Effort — the reasoning budget
 
-## Caveat — \`xhigh\` is Opus-only
+Every bundled agent declares \`model:\` and \`effort:\` in its frontmatter.
+\`effort\` is a reasoning-budget hint the harness reads on dispatch: a higher
+tier thinks harder and costs more.
 
-\`xhigh\` is only valid on an agent pinned to an Opus \`model:\`. A Sonnet-pinned
-agent that declares \`effort: xhigh\` is rejected by the harness (it would 400
-on dispatch). The three \`xhigh\` agents above (\`developer\`, \`qa-tester\`,
-\`devops-sre\`) are all \`model: opus\`, which is why the tier is valid for them.
+**Every bundled agent is \`model: opus\`.** Opus is the capable default, and a
+fleet that mixes tiers mostly produces a fleet where the cheap agents are the
+ones that miss things — the failure is silent, arrives as a clean report, and
+costs more to discover later than the tokens it saved.
 
-When adding a new agent: pick its tier by role class from the table above, and
-**never** set \`xhigh\` unless the agent is also \`model: opus\`. Every bundled
-agent must carry exactly one \`effort:\` value from {\`low\`, \`medium\`, \`high\`,
-\`xhigh\`}.
+| Tier | Role class | Agents |
+| ---- | ---------- | ------ |
+| \`high\` | Everything not below — review lenses, orchestrators, the backlog owner, the design agent, the explainer | \`accessibility-expert\`, \`dependency-expert\`, \`performance-expert\`, \`code-reviewer\`, \`test-reviewer\`, \`review-coordinator\`, \`workflow-manager\`, \`product-owner\`, \`ui-ux-designer\`, \`specnaut-guide\` |
+| \`xhigh\` | Agentic work, and the two lenses whose misses are hardest to recover from | \`developer\`, \`qa-tester\`, \`devops-sre\`, \`architect-expert\`, \`security-expert\` |
+
+Tally: 10 \`high\` · 5 \`xhigh\` = 15 agents. \`low\` and \`medium\` remain valid
+values for a project's own agents; **no bundled agent uses them.**
+
+### Why \`high\` is the floor
+
+The earlier rubric put review lenses at \`medium\` and orchestrators at \`low\`,
+reasoning that a dispatcher does not think and a read-only pass needs less
+depth than writing code. Both halves turned out to be wrong in the same way.
+
+- **A review lens under-provisioned fails quietly.** It returns a
+  well-formatted report with fewer findings, which is indistinguishable from
+  clean code. There is no error, no retry, and nothing downstream notices —
+  the saving is visible and the cost is not.
+- **An orchestrator does reason.** \`review-coordinator\` decides *which*
+  lenses to fire against a given diff and reconciles findings that several
+  of them report differently; \`workflow-manager\` sequences a delivery and
+  judges when a phase is actually done. Neither is a switch statement.
+
+The compound-cost worry behind the old \`low\` tier is real — a coordinator
+pays its own budget plus every child's — but it is an argument for fanning
+out fewer lenses, not for the one agent choosing them thinking less.
+
+### Why \`architect-expert\` and \`security-expert\` go further
+
+These two are \`xhigh\` for the same reason the coding agents are: their misses
+are the ones you cannot cheaply undo. A missed vulnerability ships. A missed
+layering violation is load-bearing by the time anyone sees it. Both need to
+hold a whole-system model in mind rather than pattern-match a diff, which is
+exactly what the extra budget buys.
+
+### Adding an agent
+
+Pick the suffix from the naming table, then the tier from the effort table.
+Default to \`high\`; reach for \`xhigh\` only for agentic work or an
+irreversible-miss lens. \`xhigh\` requires \`model: opus\` — a Sonnet-pinned
+agent declaring it is rejected by the harness on dispatch, which is why the
+all-Opus rule above makes the tier universally available.
 `,
     executable: false,
     backend: null,
@@ -11317,7 +11353,7 @@ zero, and record the skip with its reason in the report's \`### Scope\` line.
 | Architecture  | architect-expert  | scope non-empty (always)               |
 | Security      | security-expert      | scope non-empty (always)               |
 | Performance   | performance-expert   | scope non-empty (always)               |
-| Accessibility | a11y-expert          | \`FRONTEND_COUNT > 0\` (gating signal)   |
+| Accessibility | accessibility-expert          | \`FRONTEND_COUNT > 0\` (gating signal)   |
 | Dependency    | dependency-expert    | \`DEP_COUNT > 0\` (gating signal)        |
 
 These are the **existing** expert agents — this skill defines no new agents.
@@ -12018,14 +12054,14 @@ file.**
     suffix: null,
     content: `---
 name: a11y-audit
-description: Single-axis accessibility audit of a scope. Use when the user says "a11y audit", "accessibility audit", "audit for accessibility", "check WCAG compliance", or "review the accessibility of <path>". Dispatches ONLY the a11y-expert over a resolved scope (WCAG 2.1 AA over front-end source) and returns its findings inline. Read-only — writes no report file.
+description: Single-axis accessibility audit of a scope. Use when the user says "a11y audit", "accessibility audit", "audit for accessibility", "check WCAG compliance", or "review the accessibility of <path>". Dispatches ONLY the accessibility-expert over a resolved scope (WCAG 2.1 AA over front-end source) and returns its findings inline. Read-only — writes no report file.
 argument-hint: "[--path <subtree> | --range <a>..<b> | --diff]"
 ---
 
 # Accessibility Audit — single-axis dispatch
 
 A **thin, read-only** audit of one axis: accessibility. This skill resolves a
-scope, dispatches the **single** \`a11y-expert\` agent over it, and returns
+scope, dispatches the **single** \`accessibility-expert\` agent over it, and returns
 that agent's findings **inline**. It writes **no file** and mutates **no
 tracked files** — \`git status\` is unchanged after a run.
 
@@ -12065,9 +12101,9 @@ and **STOP**. If the resolved list is **empty**, emit exactly one line and
 Nothing in scope. Widen it with --path <subtree>, --range <a>..<b>, or --diff.
 \`\`\`
 
-## Step 3 — Dispatch ONLY the a11y-expert
+## Step 3 — Dispatch ONLY the accessibility-expert
 
-Dispatch the **single** \`a11y-expert\` agent — never a team, never another
+Dispatch the **single** \`accessibility-expert\` agent — never a team, never another
 axis. Give it the resolved file list and an **audit framing**: judge the
 accessibility shape of the scoped front-end source (semantic HTML, heading
 hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA
@@ -12084,14 +12120,14 @@ and downgrade to \`Suspicion —\` at LOW anything it cannot attribute. If
 
 ## Step 4 — Return findings inline
 
-Return the agent's findings inline. The \`a11y-expert\` ends with the
+Return the agent's findings inline. The \`accessibility-expert\` ends with the
 canonical \`REVIEW SUMMARY\` block (verdict + severity counts, per the
 review-findings-contract, #378) — surface it verbatim. **Write no report
 file.**
 
 ## How this differs — disambiguation
 
-- **\`/a11y-audit\`** (this skill) — dispatches the **one** \`a11y-expert\`
+- **\`/a11y-audit\`** (this skill) — dispatches the **one** \`accessibility-expert\`
   over a scope and returns findings **inline**. No report file.
 - **\`/specnaut audit accessibility\`** — the report-writing single-axis audit:
   runs the same expert but **persists a dated report** under
@@ -21511,7 +21547,7 @@ content matters it belongs in section 6 (domain model) or in the table above.
 <!--
   ACTION REQUIRED — CONDITIONAL SECTION.
   Keep this ONLY when the project has a front-end / UX-UI surface. Detect that surface with the
-  SAME signal list the accessibility gate uses (see the \`a11y-expert\` agent — do NOT invent a new
+  SAME signal list the accessibility gate uses (see the \`accessibility-expert\` agent — do NOT invent a new
   heuristic). Any of:
     - \`.html\` / \`.htm\` files
     - \`.jsx\` / \`.tsx\` files
