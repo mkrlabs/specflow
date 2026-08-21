@@ -6,6 +6,7 @@ import {
   collapseTrailingIssueRefs,
   formatChangelog,
   isMajorTag,
+  parseCommitLog,
 } from "../../scripts/gen-changelog.ts";
 
 Deno.test("classifyCommit categorises feat:", () => {
@@ -927,7 +928,7 @@ Deno.test("assembleAdoptionEntries: a PR with two feat commits yields ONE entry"
 // ---------------------------------------------------------------------------
 
 Deno.test("the CI gate's own pattern and the adoption walk agree on what a feature is", async () => {
-  // Verbatim the shape `pr_adoption_lint.yml` refuses to merge without an
+  // Verbatim the shape `check-adoption.ts` refuses to land without an
   // adoption section: /^feat(\([^)]+\))?!?:/ — the `!?` is deliberate there.
   const gated = [
     "feat: plain (#601)",
@@ -970,7 +971,7 @@ Deno.test("a breaking commit's adoption prompt survives into the entry", async (
 });
 
 Deno.test("widening the walk did not widen it to everything", async () => {
-  // fix/chore PRs are not gated by pr_adoption_lint and carry no section; if
+  // fix/chore commits are not gated by check-adoption and carry no section; if
   // the walk visited them it would warn on every one of them and train the
   // release operator to ignore the warnings that matter.
   const subjects = ["fix: a bug (#701)", "chore: tidy (#702)", "docs: a note (#703)"];
@@ -982,4 +983,128 @@ Deno.test("widening the walk did not widen it to everything", async () => {
 
   assertEquals(entries.length, 0);
   assertEquals(failures.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// The adoption section's home moved from the PR body into the commit body.
+//
+// While it lived in the PR body, the whole chain depended on a forge round-trip:
+// a feature merged with a local fast-forward has no PR, so `gh pr view` returned
+// nothing and the guide vanished from the release notes without a word. These
+// guards pin the new source of truth AND the legacy fallback that keeps already-
+// published history regenerable.
+// ---------------------------------------------------------------------------
+
+Deno.test("a feature merged locally still carries its adoption guide", async () => {
+  // No `(#NNN)` in the subject, and nothing on the other end of the fetcher or
+  // the resolver: exactly what a local fast-forward leaves behind. Before the
+  // move this produced zero entries.
+  const commits = [
+    classifyCommit({
+      hash: "loc1111",
+      subject: "feat(merge): land branches without a forge",
+      body: adoptionBody("update your merge docs"),
+    }),
+  ];
+  const { entries, failures } = await assembleAdoptionEntries(
+    commits,
+    fakeFetcher(new Map()),
+    fakeResolver(new Map()),
+  );
+  assertEquals(failures.length, 0);
+  assertEquals(entries.length, 1);
+  assertEquals(entries[0].prNum, null);
+  assertEquals(entries[0].title, "Land branches without a forge");
+  assertStringIncludes(entries[0].body, "```prompt\nupdate your merge docs\n```");
+});
+
+Deno.test("the commit body is consulted before the forge, not after it", async () => {
+  // A fetcher that throws is the only way to assert "the network was not
+  // touched". Asserting on the returned entry cannot distinguish "read the
+  // commit" from "read the PR and got the same text".
+  const commits = [
+    classifyCommit({
+      hash: "ccc3333",
+      subject: "feat: a thing (#777)",
+      body: adoptionBody("from the commit"),
+    }),
+  ];
+  const exploding: PrBodyFetcher = () => {
+    throw new Error("the PR body must not be fetched when the commit carries the section");
+  };
+  const { entries } = await assembleAdoptionEntries(commits, exploding, fakeResolver(new Map()));
+  assertEquals(entries.length, 1);
+  assertStringIncludes(entries[0].body, "from the commit");
+  // The subject's `(#NNN)` is still read — it costs nothing and keeps the
+  // rendered entry linkable — but it is a label, not a lookup.
+  assertEquals(entries[0].prNum, 777);
+});
+
+Deno.test("history written before the move still regenerates", async () => {
+  // Every feature published before the section moved has its guide in a PR body
+  // and nowhere else. Dropping the fallback would silently empty the Adoption
+  // guide of every regenerated release note older than this change.
+  const commits = [
+    classifyCommit({ hash: "old1111", subject: "feat: shipped last year (#404)", body: "" }),
+  ];
+  const bodies = new Map<number, PrBodyOutcome>([
+    [404, { kind: "retrieved", body: adoptionBody("legacy prompt") }],
+  ]);
+  const { entries, failures } = await assembleAdoptionEntries(commits, fakeFetcher(bodies));
+  assertEquals(failures.length, 0);
+  assertEquals(entries.length, 1);
+  assertEquals(entries[0].prNum, 404);
+  assertStringIncludes(entries[0].body, "legacy prompt");
+});
+
+Deno.test("two locally merged features do not collapse into one entry", async () => {
+  // The dedup key used to be `prNum`, compared with `===`. Once prNum can be
+  // null, every unattached commit matches the first one and all but one guide
+  // disappears — the exact failure mode this whole change exists to remove,
+  // reintroduced by the fix for it.
+  const commits = [
+    classifyCommit({ hash: "aaa1", subject: "feat: first", body: adoptionBody("prompt one") }),
+    classifyCommit({ hash: "bbb2", subject: "feat: second", body: adoptionBody("prompt two") }),
+  ];
+  const { entries } = await assembleAdoptionEntries(
+    commits,
+    fakeFetcher(new Map()),
+    fakeResolver(new Map()),
+  );
+  assertEquals(entries.length, 2);
+  assertEquals(entries.map((e) => e.body.includes("prompt one")), [true, false]);
+});
+
+Deno.test("an entry with no PR renders without an invented reference", async () => {
+  const commits = [
+    classifyCommit({ hash: "ddd4", subject: "feat: local thing", body: adoptionBody("do it") }),
+  ];
+  const { entries } = await assembleAdoptionEntries(
+    commits,
+    fakeFetcher(new Map()),
+    fakeResolver(new Map()),
+  );
+  const md = formatChangelog(commits, {
+    fromTag: "v1.0.0",
+    toTag: "v1.1.0",
+    adoptionEntries: entries,
+  });
+  assertStringIncludes(md, "**Local thing**");
+  assert(!md.includes("#null"), "a missing PR ref must not render as `#null`");
+  assert(!md.includes("**# —"), "a missing PR ref must not leave a dangling `#`");
+});
+
+Deno.test("parseCommitLog keeps a multi-line body attached to its own commit", () => {
+  // The old format was `%h<TAB>%s` split on newline, which cannot carry `%b`:
+  // every newline inside a body would read as another commit, and an adoption
+  // section is multi-line by definition.
+  const raw = "aaa1\x1ffeat: one\x1fline A\n\nline B\x1e\nbbb2\x1ffix: two\x1f\x1e\n";
+  const commits = parseCommitLog(raw);
+  assertEquals(commits.length, 2);
+  assertEquals(commits[0].hash, "aaa1");
+  assertEquals(commits[0].subject, "feat: one");
+  assertStringIncludes(commits[0].body ?? "", "line A");
+  assertStringIncludes(commits[0].body ?? "", "line B");
+  assertEquals(commits[1].hash, "bbb2");
+  assertEquals(commits[1].subject, "fix: two");
 });

@@ -2,13 +2,36 @@
 
 ## Agent adoption {#agent-adoption}
 
-Every PR titled `feat: …` (or `feat(scope): …`) MUST include an `## Agent adoption` section in its
-body. The section is the contract between the PR author and the release pipeline:
+Every `feat: …` / `feat(scope): …` / `feat!: …` commit MUST carry an `## Agent adoption` section
+**in its commit message body**. The section is the contract between the author and the release
+pipeline:
 
 1. `scripts/gen-changelog.ts` extracts the section at release time.
 2. It lands in the GitHub Release body under `### Adoption guide`.
 3. After `specnaut upgrade`, the `specnaut-expert` agent reads the release body and plays each
    adoption prompt one at a time in the user's project.
+
+**In the commit, not in the PR.** Features land here with a local fast-forward — `/specnaut merge`
+opens no pull request unless you pass `--pr`. While the section lived in a PR body, a locally merged
+feature had nowhere for the generator to read it from, and its guide disappeared from the release
+notes with no error and no warning. The commit travels with the change wherever it lands.
+
+Write it during the squash-by-scope step of `/specnaut merge`, or add it after the fact with
+`git commit --amend`. `scripts/check-adoption.ts` is the gate:
+
+```sh
+deno run --allow-run scripts/check-adoption.ts --from main --to HEAD
+```
+
+`.github/workflows/adoption_lint.yml` runs that same script on every push to `main` and on every
+pull request — one rule, one implementation. It used to be re-stated in shell inside the workflow
+while `gen-changelog.ts` decided the same question in TypeScript; the two definitions drifted, the
+laxer one guarded the gate, and an entire major release's feature set was exempted without anyone
+noticing. Do not re-derive the rule anywhere; call the script.
+
+A PR body may still carry the section — the generator falls back to it, so release notes for
+anything published before this convention changed still regenerate correctly. New work must not
+rely on that path.
 
 ### Format
 
@@ -65,12 +88,19 @@ lists pending post-upgrade reconciliation. Open a PR.
 
 ### When the section is optional
 
-`fix:`, `chore:`, `refactor:`, `docs:`, `test:`, and `ci:` PRs may omit the section. If a `fix:`
+`fix:`, `chore:`, `refactor:`, `docs:`, `test:`, and `ci:` commits may omit the section. If a `fix:`
 changes user-visible behavior (rare), the section is recommended — `gen-changelog.ts` will surface
 it.
 
 ### CI enforcement
 
-`.github/workflows/pr_adoption_lint.yml` runs on every `pull_request` event. It fails on `feat:` PRs
-that lack `## Agent adoption` followed by a `` ```prompt `` block. The failure message points back
-to this section.
+`.github/workflows/adoption_lint.yml` runs `scripts/check-adoption.ts` over the pushed range on
+every push to `main`, and over the base…head range on every pull request. It fails on `feat:` /
+`feat!:` commits whose body lacks `## Agent adoption` followed by a `` ```prompt `` block, naming
+every offending commit rather than only the first. The failure message points back to this section.
+
+Run it yourself before landing anything:
+
+```sh
+deno run --allow-run scripts/check-adoption.ts --from main --to HEAD
+```

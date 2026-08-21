@@ -1,0 +1,65 @@
+name: adoption lint
+
+# Every `feat:` / `feat!:` commit must carry an `## Agent adoption` section in
+# its **commit body** — `scripts/gen-changelog.ts` reads it back out at release
+# time and prints it under `### Adoption guide`.
+#
+# Both triggers run the same script over a commit range. That is the point:
+# the previous version re-stated "what is a feature" in shell here while
+# `gen-changelog.ts` decided the same question in TypeScript, the definitions
+# drifted, and the laxer one guarded the gate. One rule, one file, two entry
+# points.
+#
+# `push` is the load-bearing trigger now that features land with a local
+# fast-forward. `pull_request` remains for the `--pr` opt-in path, so a PR
+# still fails before merge rather than after.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The gate reads a range, so shallow history is not enough.
+          fetch-depth: 0
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Resolve the commit range
+        id: range
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          if [ "$EVENT" = pull_request ]; then
+            from="$BASE_SHA"; to="$HEAD_SHA"
+          else
+            from="$BEFORE"; to="$SHA"
+            # A branch's first push reports an all-zero `before`, and a
+            # force-push can report a SHA no longer in the graph. Either way,
+            # fall back to the single pushed commit rather than exploding on a
+            # bad ref — a gate that errors out is a gate that gets disabled.
+            if [ "$from" = "0000000000000000000000000000000000000000" ] \
+               || ! git cat-file -e "${from}^{commit}" 2>/dev/null; then
+              from="${to}^"
+            fi
+          fi
+          echo "from=$from" >> "$GITHUB_OUTPUT"
+          echo "to=$to" >> "$GITHUB_OUTPUT"
+      - name: Check adoption sections
+        run: |
+          deno run --allow-run scripts/check-adoption.ts \
+            --from "${{ steps.range.outputs.from }}" \
+            --to "${{ steps.range.outputs.to }}"

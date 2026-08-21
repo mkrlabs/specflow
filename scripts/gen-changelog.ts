@@ -11,6 +11,19 @@ export type Category = "breaking" | "feat" | "fix" | "chore" | "skip";
 export type Commit = {
   hash: string;
   subject: string;
+  /**
+   * The commit message body (everything after the subject line).
+   *
+   * This is where an `## Agent adoption` section lives. It used to live in the
+   * PR body, which made the whole adoption chain depend on a forge round-trip:
+   * a feature merged with a local fast-forward has no PR, so its guide vanished
+   * from the release notes without a word. The commit travels with the change
+   * wherever it lands, so it is the only source that cannot go missing.
+   *
+   * Optional because callers that only classify subjects (and every existing
+   * test fixture) have no use for it.
+   */
+  body?: string;
 };
 
 export type Classified = Commit & {
@@ -20,11 +33,11 @@ export type Classified = Commit & {
 
 const FEATURE_PREFIXES = new Set(["feat"]);
 /**
- * Categories whose PRs are walked for an `## Agent adoption` section.
+ * Categories whose commits are walked for an `## Agent adoption` section.
  *
- * Kept in step with the `pr_adoption_lint.yml` gate: whatever CI refuses to
- * merge without an adoption section must be read back out here, or the gate
- * collects an artefact nothing consumes.
+ * Kept in step with `scripts/check-adoption.ts`, which both CI gates run:
+ * whatever the gate refuses to land without an adoption section must be read
+ * back out here, or the gate collects an artefact nothing consumes.
  */
 const ADOPTION_CATEGORIES = new Set<Category>(["feat", "breaking"]);
 const FIX_PREFIXES = new Set(["fix"]);
@@ -346,7 +359,13 @@ export async function fetchPrBody(num: number): Promise<PrBodyOutcome> {
 }
 
 export type AdoptionEntry = {
-  prNum: number;
+  /**
+   * The PR the entry came from, or `null` when it came from a commit body that
+   * carries no `(#NNN)` ref — the normal case for a locally merged feature.
+   * Rendering keys off this: an entry with no PR prints its title alone rather
+   * than an invented `#null`.
+   */
+  prNum: number | null;
   title: string;
   body: string;
 };
@@ -361,19 +380,27 @@ export type AdoptionAssembly = {
 const TRAILING_PR_REF_RE = /\s\(#\d+\)\s*$/;
 
 /**
- * Walk the `feat` commits, resolve each PR number, fetch its body via the
- * injected {@link PrBodyFetcher}, and build the Adoption guide entries —
- * keeping retrieval *failures* strictly separate from legitimate *absences*
- * (#363, FR-004). This is the unit-testable seam extracted from `main()`:
+ * Walk the `feat` / `feat!` commits and build the Adoption guide entries.
  *
- * - non-`feat` commit ⇒ no entry, no failure.
- * - `feat` with no trailing `(#NNN)` ⇒ resolved from its SHA via
- *   `resolveFromSha` (this repo rebase-merges, so the ref is never in the
- *   subject); `absent` is a quiet skip, `failed` is recorded like any other.
- * - `retrieved` ⇒ run `extractAdoption`; a valid block yields an entry, an
- *   invalid/missing block is a quiet informational skip.
- * - `absent` ⇒ quiet informational skip.
- * - `failed` ⇒ recorded in `failures` (drives strict mode); never an entry.
+ * **The commit body is the source of truth.** `scripts/check-adoption.ts` — the
+ * single rule both CI gates run — refuses to land a feature whose commit body
+ * has no `## Agent adoption` section, so by the time a commit reaches this walk
+ * the section is already there. No network, no forge, no PR required.
+ *
+ * The PR path below it is **backward compatibility, not a second mechanism**.
+ * Every feature published before the section moved into the commit has its
+ * guide in a PR body and nowhere else; regenerating those release notes must
+ * still work. It is tried only when the commit body yielded nothing.
+ *
+ * Per commit, in order:
+ *
+ * - non-adoption category ⇒ no entry, no failure.
+ * - commit body carries a valid section ⇒ entry, and the PR is never contacted.
+ * - otherwise, legacy fallback: resolve the PR (from the subject's `(#NNN)`, or
+ *   from the SHA via `resolveFromSha` — this repo rebase-merges, so the ref is
+ *   often absent from the subject), fetch its body, and extract from there.
+ *   `absent` at either step is a quiet informational skip; `failed` is recorded
+ *   in `failures` and never becomes an entry (#363, FR-004).
  *
  * Pure of process exit — the caller decides whether `failures` aborts the run.
  */
@@ -385,17 +412,51 @@ export async function assembleAdoptionEntries(
   const entries: AdoptionEntry[] = [];
   const failures: { prNum: number | null; hash?: string; reason: string }[] = [];
 
+  // One entry per PR, not per commit: a PR carrying two `feat:` commits used to
+  // emit the same prose and the same prompt twice, and `specnaut-expert
+  // review-upgrade` walks these one at a time — the user was asked to run an
+  // identical prompt twice in a row.
+  //
+  // A Set keyed by string, not `entries.some(e => e.prNum === prNum)`: once
+  // `prNum` can be null (a locally merged feature has no PR), that comparison
+  // makes every unattached commit collide with the first one and silently drops
+  // every adoption guide but one. Unattached commits fall back to their hash,
+  // which is unique by construction.
+  const seen = new Set<string>();
+  const claim = (prNum: number | null, hash: string): boolean => {
+    const key = prNum === null ? `h:${hash}` : `pr:${prNum}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  };
+  // Title = the cleaned subject without the trailing PR ref.
+  const titleOf = (c: Classified) => c.cleanedSubject.replace(TRAILING_PR_REF_RE, "");
+
   for (const c of classified) {
-    // A breaking change IS a feature that also breaks something, and the CI
-    // gate already treats it as one: `pr_adoption_lint.yml` greps
-    // `^feat(\([^)]+\))?!?:`, so a `feat!:` PR cannot merge without an
+    // A breaking change IS a feature that also breaks something, and the
+    // adoption gate already treats it as one: `check-adoption.ts` matches
+    // `^feat(\([^)]+\))?!?:`, so a `feat!:` commit cannot land without an
     // adoption section. But `classify()` returns "breaking" and returns early,
     // before it ever tests FEATURE_PREFIXES — so a feat-only walk here threw
     // away the adoption prompt of the one commit in a major release most
     // likely to need one. Silently: no warning, and nothing for --strict to
     // catch, because a category that is never visited cannot fail.
     if (!ADOPTION_CATEGORIES.has(c.category)) continue;
+
+    // The subject's `(#NNN)` is a pure read — no network — so it is available
+    // to the commit-body path as a rendering detail without dragging the forge
+    // back in. Under a local merge there is simply no ref to find.
     let prNum = extractPrNumber(c.subject);
+
+    // Source of truth first.
+    const fromCommit = extractAdoption(c.body ?? "");
+    if (fromCommit !== null) {
+      if (!claim(prNum, c.hash)) continue;
+      entries.push({ prNum, title: titleOf(c), body: fromCommit });
+      continue;
+    }
+
+    // --- legacy fallback: the section lives in a PR body (pre-move history) ---
     if (prNum === null) {
       // No `(#NNN)` in the subject. Under squash-merge that means "no PR";
       // under rebase-merge it means nothing at all, because the rebase never
@@ -406,11 +467,14 @@ export async function assembleAdoptionEntries(
         continue;
       }
       if (ref.kind === "absent") {
-        // Under this repo's convention every feat lands through a PR, so this
-        // is worth a line even though it is not a failure. A skip nobody can
-        // see is how the guide stayed empty across a whole major release.
+        // Reached only when the commit body had no section AND the commit has
+        // no PR — i.e. a feature that got past `check-adoption.ts`, which is a
+        // gate failure, not a routine skip. Worth a line even though it is not
+        // a retrieval failure: a skip nobody can see is how the guide stayed
+        // empty across a whole major release.
         console.warn(
-          `gen-changelog: ${c.category} commit ${c.hash} resolves to no PR — skipping adoption`,
+          `gen-changelog: ${c.category} commit ${c.hash} has no adoption section in its body ` +
+            `and resolves to no PR — skipping`,
         );
         continue;
       }
@@ -435,15 +499,8 @@ export async function assembleAdoptionEntries(
       );
       continue;
     }
-    // One entry per PR, not per commit. The adoption section is a property of
-    // the PR, so a PR carrying two `feat:` commits was emitting the same prose
-    // and the same prompt twice — and `specnaut-expert review-upgrade` walks
-    // these entries one at a time, so the user would have been asked to run an
-    // identical prompt twice in a row.
-    if (entries.some((e) => e.prNum === prNum)) continue;
-    // Title = the cleaned subject without the trailing PR ref.
-    const title = c.cleanedSubject.replace(TRAILING_PR_REF_RE, "");
-    entries.push({ prNum, title, body: adoption });
+    if (!claim(prNum, c.hash)) continue;
+    entries.push({ prNum, title: titleOf(c), body: adoption });
   }
 
   return { entries, failures };
@@ -518,7 +575,9 @@ export function formatChangelog(commits: Classified[], opts: FormatOpts): string
       "These prompts help your AI agent adopt the new features in an existing project. " +
       "Copy them into your harness, or run `@specnaut-expert review-upgrade` to be walked " +
       "through automatically.";
-    const items = adoption.map((a) => `**#${a.prNum} — ${a.title}**\n\n${a.body}`).join("\n\n");
+    const items = adoption
+      .map((a) => `**${a.prNum === null ? "" : `#${a.prNum} — `}${a.title}**\n\n${a.body}`)
+      .join("\n\n");
     sections.push(`### Adoption guide\n\n${intro}\n\n${items}`);
   }
   if (chores.length > 0) {
@@ -569,10 +628,41 @@ async function refExists(ref: string): Promise<boolean> {
   }
 }
 
+// ASCII unit / record separators. The old format was `%h<TAB>%s`, split on
+// newline — which cannot carry `%b`, because a commit body is multi-line by
+// definition and every one of its newlines would read as a new commit. These
+// two bytes are the ones the format was designed for and cannot occur in a
+// commit message.
+const FIELD_SEP = "\x1f";
+const RECORD_SEP = "\x1e";
+
+export function parseCommitLog(raw: string): Commit[] {
+  return raw
+    .split(RECORD_SEP)
+    // `git log` writes a newline after each record, so every record after the
+    // first arrives with one leading. Trimming the whole record would also eat
+    // the body's own trailing blank line, which is harmless — `extractAdoption`
+    // trims anyway — but leading whitespace on the hash is not.
+    .map((r) => r.replace(/^\n/, ""))
+    .filter((r) => r.trim().length > 0)
+    .map((record) => {
+      const [hash, subject, ...rest] = record.split(FIELD_SEP);
+      // `rest` is joined rather than indexed: a body containing the separator
+      // byte is impossible in practice, but silently truncating one would be
+      // the kind of failure this file exists to stop shipping.
+      return { hash, subject: subject ?? "", body: rest.join(FIELD_SEP) };
+    });
+}
+
 async function getCommits(from: string | null, to: string): Promise<Commit[]> {
   const range = from ? `${from}..${to}` : to;
   const cmd = new Deno.Command("git", {
-    args: ["log", range, "--format=%h%x09%s", "--no-merges"],
+    args: [
+      "log",
+      range,
+      `--format=%h${FIELD_SEP}%s${FIELD_SEP}%b${RECORD_SEP}`,
+      "--no-merges",
+    ],
     stdout: "piped",
     stderr: "piped",
   });
@@ -580,14 +670,7 @@ async function getCommits(from: string | null, to: string): Promise<Commit[]> {
   if (!success) {
     throw new Error(`git log failed: ${new TextDecoder().decode(stderr)}`);
   }
-  return new TextDecoder()
-    .decode(stdout)
-    .split("\n")
-    .filter((l) => l.length > 0)
-    .map((line) => {
-      const tab = line.indexOf("\t");
-      return { hash: line.slice(0, tab), subject: line.slice(tab + 1) };
-    });
+  return parseCommitLog(new TextDecoder().decode(stdout));
 }
 
 async function detectPrevTag(): Promise<string | null> {
