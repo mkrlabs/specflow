@@ -11,7 +11,7 @@ import { CORE_BUNDLE } from "../../../src/templates_bundle.ts";
  * derived `model_reasoning_effort` from the `model:` tier and never read
  * `effort:`. That produced a plausible spread only while the fleet was split
  * across Sonnet and Opus; the moment every agent moved to Opus, all fifteen
- * emitted `high` and the five `xhigh` seats lost their budget on Codex with
+ * emitted `high` and the `xhigh` seats lost their budget on Codex with
  * no error, no warning, and nothing in the emitted TOML to hint at it.
  */
 
@@ -58,9 +58,7 @@ Deno.test("the fleet does not collapse to a single reasoning effort on Codex", (
 
 Deno.test("the xhigh seats keep xhigh on Codex", () => {
   const agents = codexAgents();
-  for (
-    const name of ["developer", "qa-tester", "devops-sre", "architect-expert", "security-expert"]
-  ) {
+  for (const name of ["architect-expert", "security-expert"]) {
     const t = agents.get(name);
     assert(t, `${name} missing from the Codex bundle`);
     assertEquals(

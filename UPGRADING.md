@@ -28,15 +28,19 @@ the agent.
 ### Every bundled agent is now Opus, at `high` or `xhigh`
 
 Previously the fleet mixed Sonnet and Opus across four effort tiers. It is now uniformly
-`model: opus`, with `effort: high` as the floor and `xhigh` for `developer`, `qa-tester`,
-`devops-sre`, `architect-expert`, and `security-expert`.
+`model: opus`, with `effort: high` as the floor and `xhigh` for exactly two seats:
+`architect-expert` and `security-expert`.
 
 The old rubric put review lenses at `medium` and orchestrators at `low`. Both were wrong in the same
 way: **an under-provisioned review lens fails quietly.** It returns a well-formatted report with
 fewer findings, which is indistinguishable from clean code — no error, no retry, nothing downstream
-notices. The saving was visible and the cost was not. `architect-expert` and `security-expert` go to
-`xhigh` because their misses are the ones you cannot cheaply undo: a missed vulnerability ships, and
-a missed layering violation is load-bearing by the time anyone sees it.
+notices. The saving was visible and the cost was not.
+
+`xhigh` is reserved for the two seats whose misses are _unrecoverable_, not for the ones doing the
+hardest work. Ask what catches an agent that thinks too little: a shallow pass by `developer` meets
+a test suite, a review gate, and a human reading the diff. Nothing checks `security-expert` — a
+clean report is indistinguishable from clean code — and a missed layering violation is load-bearing
+by the time anyone notices.
 
 This costs more per run. If that is not the trade you want, both fields are plain frontmatter — edit
 them in your own `.claude/agents/`, and note that doing so marks the file customized, so `upgrade`

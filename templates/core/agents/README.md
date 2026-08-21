@@ -51,10 +51,10 @@ costs more to discover later than the tokens it saved.
 
 | Tier | Role class | Agents |
 | ---- | ---------- | ------ |
-| `high` | Everything not below — review lenses, orchestrators, the backlog owner, the design agent, the explainer | `accessibility-expert`, `dependency-expert`, `performance-expert`, `code-reviewer`, `test-reviewer`, `review-coordinator`, `workflow-manager`, `product-owner`, `ui-ux-designer`, `specnaut-guide` |
-| `xhigh` | Agentic work, and the two lenses whose misses are hardest to recover from | `developer`, `qa-tester`, `devops-sre`, `architect-expert`, `security-expert` |
+| `high` | Everything else — agentic work, review lenses, orchestrators, the backlog owner, the design agent, the explainer | `developer`, `qa-tester`, `devops-sre`, `accessibility-expert`, `dependency-expert`, `performance-expert`, `code-reviewer`, `test-reviewer`, `review-coordinator`, `workflow-manager`, `product-owner`, `ui-ux-designer`, `specnaut-guide` |
+| `xhigh` | The two lenses whose misses are unrecoverable | `architect-expert`, `security-expert` |
 
-Tally: 10 `high` · 5 `xhigh` = 15 agents. `low` and `medium` remain valid
+Tally: 13 `high` · 2 `xhigh` = 15 agents. `low` and `medium` remain valid
 values for a project's own agents; **no bundled agent uses them.**
 
 ### Why `high` is the floor
@@ -76,13 +76,28 @@ The compound-cost worry behind the old `low` tier is real — a coordinator
 pays its own budget plus every child's — but it is an argument for fanning
 out fewer lenses, not for the one agent choosing them thinking less.
 
-### Why `architect-expert` and `security-expert` go further
+### Why only `architect-expert` and `security-expert` go further
 
-These two are `xhigh` for the same reason the coding agents are: their misses
-are the ones you cannot cheaply undo. A missed vulnerability ships. A missed
-layering violation is load-bearing by the time anyone sees it. Both need to
+The tier is not a ranking of importance, and it is not "who does the hardest
+work" — by that measure `developer` would top the list. It asks one question:
+**when this agent thinks too little, what catches it?**
+
+For `developer`, `qa-tester`, and `devops-sre`, something does. A shallow
+coding pass meets a test suite, a review gate, and a human reading the diff.
+The work is verified downstream by construction, so extra budget buys a better
+first draft of something that was going to be checked anyway.
+
+Nothing checks the checker. When `security-expert` thinks too little it
+returns a clean report, and a clean report is indistinguishable from clean
+code — the miss ships, and it is discovered by whoever finds the
+vulnerability first. When `architect-expert` misses a layering violation, the
+violation is load-bearing by the time anyone notices. These two also need to
 hold a whole-system model in mind rather than pattern-match a diff, which is
-exactly what the extra budget buys.
+what the extra budget actually buys.
+
+So `xhigh` marks *unrecoverable misses*, not *hard work*. Both seats are
+`disable-model-invocation: true` and fire only from a review or audit phase,
+which also bounds what the tier costs.
 
 ### How the two axes reach other harnesses
 
@@ -113,7 +128,8 @@ every emitted id is one of the three.
 ### Adding an agent
 
 Pick the suffix from the naming table, then the tier from the effort table.
-Default to `high`; reach for `xhigh` only for agentic work or an
-irreversible-miss lens. `xhigh` requires `model: opus` — a Sonnet-pinned
+Default to `high`. Reach for `xhigh` only when the agent's output is the last
+line of defence — when nothing downstream would catch it thinking too little.
+Doing hard work is not the test; being unchecked is. `xhigh` requires `model: opus` — a Sonnet-pinned
 agent declaring it is rejected by the harness on dispatch, which is why the
 all-Opus rule above makes the tier universally available.

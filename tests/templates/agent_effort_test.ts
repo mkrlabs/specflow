@@ -20,7 +20,7 @@ type Effort = (typeof VALID_EFFORTS)[number];
 
 /**
  * Authoritative agent → effort assignment, mirroring the tier table in
- * `templates/core/agents/README.md`. 10 high · 5 xhigh = 15.
+ * `templates/core/agents/README.md`. 13 high · 2 xhigh = 15.
  */
 const EFFORT_MAP: Record<string, Effort> = {
   "review-coordinator": "high",
@@ -35,9 +35,9 @@ const EFFORT_MAP: Record<string, Effort> = {
   "ui-ux-designer": "high",
   "architect-expert": "xhigh",
   "security-expert": "xhigh",
-  "developer": "xhigh",
-  "qa-tester": "xhigh",
-  "devops-sre": "xhigh",
+  "developer": "high",
+  "qa-tester": "high",
+  "devops-sre": "high",
 };
 
 function agentEntries(): CoreEntry[] {
