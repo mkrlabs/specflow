@@ -8300,6 +8300,23 @@ user's machine, against a model list we cannot see; inheriting cannot.
 to edit.** The ids live there for that reason, and a fleet-level test asserts
 every emitted id is one of the three.
 
+On **Antigravity** the vocabulary is \`inherit | flash | pro\`, so the two
+capable tiers collapse onto \`pro\` and \`haiku\` maps to \`flash\`
+(\`src/domain/antigravity_models.ts\`). Antigravity has no reasoning-effort
+knob, so \`effort:\` is dropped there rather than approximated.
+
+On **OpenCode** both axes are deliberately omitted. Its \`model\` field takes a
+\`provider/model-id\` pair, and OpenCode is provider-agnostic — emitting
+\`anthropic/…\` would pin every agent to one vendor's account, which is the
+user's choice and not Specnaut's. Reasoning options pass straight through to
+the provider there, so a value valid for one errors on another. Omitting both
+means each agent runs on whatever the user configured: the correct answer,
+not a missing feature.
+
+**Cursor, Windsurf, and Copilot have no subagent concept at all.** Agents
+reach them as skills, workflows, and instruction files respectively — the
+content survives, the dispatch boundary does not. Neither axis applies.
+
 ### Adding an agent
 
 Pick the suffix from the naming table, then the tier from the effort table.
