@@ -1,6 +1,10 @@
 # Upgrading Specnaut
 
-## 2.x → 3.0.0
+## 2.0.x → 2.1.0
+
+> This release renames the five expert agents. `specnaut upgrade` moves the files for you; it cannot
+> update references you wrote yourself, and there are no aliases — a stale name fails at dispatch
+> time, not at scaffold time. If you read one section below, read that one.
 
 ### The architect now reads a catalogue before it judges
 

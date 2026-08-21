@@ -14,8 +14,9 @@ to drive a spec-driven workflow inside your project. It adds three things upstre
 - **Product backlog** — Markdown index + one file per task with structured frontmatter, a Product
   Owner agent for management, one-way sync to GitHub Issues/Project V2
 
-> **Crossing a major version?** Past majors have changed the phase chain and renamed agents — both
-> need edits `specnaut upgrade` cannot make for you. Read [UPGRADING.md](UPGRADING.md) first.
+> **Upgrading an existing project?** Some releases rename or remove things `specnaut upgrade` cannot
+> fix inside files you wrote — your `AGENTS.md`, your own skills, your saved prompts. Check
+> [UPGRADING.md](UPGRADING.md) for the version you are moving to.
 
 ## What Specnaut is not
 
