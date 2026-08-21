@@ -19,6 +19,14 @@ export type Classified = Commit & {
 };
 
 const FEATURE_PREFIXES = new Set(["feat"]);
+/**
+ * Categories whose PRs are walked for an `## Agent adoption` section.
+ *
+ * Kept in step with the `pr_adoption_lint.yml` gate: whatever CI refuses to
+ * merge without an adoption section must be read back out here, or the gate
+ * collects an artefact nothing consumes.
+ */
+const ADOPTION_CATEGORIES = new Set<Category>(["feat", "breaking"]);
 const FIX_PREFIXES = new Set(["fix"]);
 const CHORE_PREFIXES = new Set([
   "chore",
@@ -378,7 +386,15 @@ export async function assembleAdoptionEntries(
   const failures: { prNum: number | null; hash?: string; reason: string }[] = [];
 
   for (const c of classified) {
-    if (c.category !== "feat") continue;
+    // A breaking change IS a feature that also breaks something, and the CI
+    // gate already treats it as one: `pr_adoption_lint.yml` greps
+    // `^feat(\([^)]+\))?!?:`, so a `feat!:` PR cannot merge without an
+    // adoption section. But `classify()` returns "breaking" and returns early,
+    // before it ever tests FEATURE_PREFIXES — so a feat-only walk here threw
+    // away the adoption prompt of the one commit in a major release most
+    // likely to need one. Silently: no warning, and nothing for --strict to
+    // catch, because a category that is never visited cannot fail.
+    if (!ADOPTION_CATEGORIES.has(c.category)) continue;
     let prNum = extractPrNumber(c.subject);
     if (prNum === null) {
       // No `(#NNN)` in the subject. Under squash-merge that means "no PR";
@@ -394,7 +410,7 @@ export async function assembleAdoptionEntries(
         // is worth a line even though it is not a failure. A skip nobody can
         // see is how the guide stayed empty across a whole major release.
         console.warn(
-          `gen-changelog: feat commit ${c.hash} resolves to no PR — skipping adoption`,
+          `gen-changelog: ${c.category} commit ${c.hash} resolves to no PR — skipping adoption`,
         );
         continue;
       }
@@ -408,14 +424,14 @@ export async function assembleAdoptionEntries(
     }
     if (outcome.kind === "absent") {
       console.warn(
-        `gen-changelog: feat commit ${c.hash} (#${prNum}) has no PR body — skipping adoption`,
+        `gen-changelog: ${c.category} commit ${c.hash} (#${prNum}) has no PR body — skipping adoption`,
       );
       continue;
     }
     const adoption = extractAdoption(outcome.body);
     if (adoption === null) {
       console.warn(
-        `gen-changelog: feat commit ${c.hash} (#${prNum}) has no Agent adoption section — skipping`,
+        `gen-changelog: ${c.category} commit ${c.hash} (#${prNum}) has no Agent adoption section — skipping`,
       );
       continue;
     }
