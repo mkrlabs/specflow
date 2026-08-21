@@ -2032,7 +2032,7 @@ being invoked:
 |---|---|
 | \`plan\` | \`tasks.md\` |
 | \`tasks\` | any task in \`tasks.md\` marked done |
-| \`implement\` | a merged PR, or task completion past 50% |
+| \`implement\` | the branch already merged into the base branch, or task completion past 50% |
 | \`review\` | nothing past review (the chain tail is just \`merge\`) — treat as one-shot |
 
 ## Failure handling
@@ -6897,7 +6897,7 @@ Run \`specnaut reconcile --status\`, parse JSON. For each pending path: show dif
 
 ### 7. Cleanup
 
-Both walks complete with nothing skipped: delete \`.specnaut/upgrade-pending.json\`; if on review branch, final commit \`chore: complete specnaut upgrade review v{from} → v{to}\`. Tell user to open a PR. If anything was skipped, leave marker + staging and tell user to resume with \`review-upgrade\`.
+Both walks complete with nothing skipped: delete \`.specnaut/upgrade-pending.json\`; if on review branch, final commit \`chore: complete specnaut upgrade review v{from} → v{to}\`, then land it with \`/specnaut merge\`. If anything was skipped, leave marker + staging and tell user to resume with \`review-upgrade\`.
 
 ## Vendored knowledge snapshot
 

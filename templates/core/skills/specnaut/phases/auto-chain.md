@@ -150,7 +150,7 @@ being invoked:
 |---|---|
 | `plan` | `tasks.md` |
 | `tasks` | any task in `tasks.md` marked done |
-| `implement` | a merged PR, or task completion past 50% |
+| `implement` | the branch already merged into the base branch, or task completion past 50% |
 | `review` | nothing past review (the chain tail is just `merge`) — treat as one-shot |
 
 ## Failure handling
