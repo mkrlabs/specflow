@@ -51,41 +51,49 @@ Deno.test("specnaut init --ai antigravity scaffolds an Antigravity layout", asyn
 
     // v1.0.0: backlog command remains as a flat workflow.
     assertEquals(
-      await exists(join(root, ".agent/workflows/backlog.md")),
+      await exists(join(root, ".agents/workflows/backlog.md")),
       true,
     );
     // Per-phase command workflows are gone post-consolidation.
     assertEquals(
-      await exists(join(root, ".agent/workflows/specnaut-plan.md")),
+      await exists(join(root, ".agents/workflows/specnaut-plan.md")),
       false,
     );
 
     // Consolidated router skill + phase docs in .agent/skills/specnaut/.
     assertEquals(
-      await exists(join(root, ".agent/skills/specnaut/SKILL.md")),
+      await exists(join(root, ".agents/skills/specnaut/SKILL.md")),
       true,
     );
     assertEquals(
-      await exists(join(root, ".agent/skills/specnaut/phases/plan.md")),
+      await exists(join(root, ".agents/skills/specnaut/phases/plan.md")),
       true,
     );
     // #409: the deprecated specnaut-auto alias no longer scaffolds.
     assertEquals(
-      await exists(join(root, ".agent/skills/specnaut-auto/SKILL.md")),
+      await exists(join(root, ".agents/skills/specnaut-auto/SKILL.md")),
       false,
     );
 
     // Agents are flat .md files with the specnaut- prefix; passthrough
     // frontmatter (no permission-map translation).
     assertEquals(
-      await exists(join(root, ".agent/agents/specnaut-product-owner.md")),
+      await exists(join(root, ".agents/agents/specnaut-product-owner.md")),
       true,
     );
     const agentContent = await Deno.readTextFile(
-      join(root, ".agent/agents/specnaut-product-owner.md"),
+      join(root, ".agents/agents/specnaut-product-owner.md"),
     );
     assertEquals(agentContent.includes("name: specnaut-product-owner"), true);
     assertEquals(agentContent.includes("description:"), true);
+    // Without `subagent: true` Antigravity discovers the file but the primary
+    // agent cannot reach it via `invoke_subagent` — a seat that scaffolds and
+    // is then undispatchable looks exactly like a working install.
+    assertEquals(agentContent.includes("subagent: true"), true);
+    // Antigravity's model vocabulary is inherit | flash | pro. The Claude tier
+    // is translated, never copied: `model: opus` is a value it cannot read.
+    assertEquals(agentContent.includes("model: pro"), true);
+    assertEquals(agentContent.includes("model: opus"), false);
 
     // Shared (cross-harness) project metadata still emitted.
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);
@@ -98,7 +106,10 @@ Deno.test("specnaut init --ai antigravity scaffolds an Antigravity layout", asyn
     assertEquals(await exists(join(root, ".cursor/")), false);
     assertEquals(await exists(join(root, ".codex/")), false);
     assertEquals(await exists(join(root, ".opencode/")), false);
-    assertEquals(await exists(join(root, ".agents/")), false); // OpenCode (plural)
+    // `.agents/` is Antigravity's own tree — asserted present above. This line
+    // used to assert it absent, labelled "OpenCode (plural)", which OpenCode
+    // has never used: it writes `.opencode/`, checked on the line above. The
+    // misattribution is what pinned the wrong output path in place.
     assertEquals(await exists(join(root, "CLAUDE.md")), false);
 
     // Lock reflects antigravity.

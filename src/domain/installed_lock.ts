@@ -1,12 +1,23 @@
 import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 
+/**
+ * Every harness the CLI can install *and* read back.
+ *
+ * This list is the single source of truth: `HarnessKey` in the CLI layer is an
+ * alias of it, and a test ties the harness registry to it. It used to be
+ * duplicated — the CLI list carried `antigravity` and this one did not, so
+ * `init --ai antigravity` wrote a lock that `upgrade` then refused to parse,
+ * crashing with an unhandled `Unsupported harness` error. Install worked;
+ * upgrade was a dead end. Add a harness in one place or the test fails.
+ */
 export type KnownHarness =
   | "claude"
   | "cursor"
   | "codex"
   | "windsurf"
   | "copilot"
-  | "opencode";
+  | "opencode"
+  | "antigravity";
 export const KNOWN_HARNESSES: ReadonlyArray<KnownHarness> = [
   "claude",
   "cursor",
@@ -14,6 +25,7 @@ export const KNOWN_HARNESSES: ReadonlyArray<KnownHarness> = [
   "windsurf",
   "copilot",
   "opencode",
+  "antigravity",
 ];
 
 export type BacklogBackend = "local" | "github" | "gitlab" | "cloud";

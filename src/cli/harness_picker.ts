@@ -1,14 +1,13 @@
 import { HARNESSES } from "./harnesses.ts";
 import { selectInteractive, type SelectIO } from "./select.ts";
+import type { KnownHarness } from "../domain/installed_lock.ts";
 
-export type HarnessKey =
-  | "claude"
-  | "cursor"
-  | "codex"
-  | "windsurf"
-  | "copilot"
-  | "opencode"
-  | "antigravity";
+/**
+ * Alias, not a copy. A harness the CLI can pick must also be one the lock can
+ * record and `upgrade` can read back — keeping these as two hand-maintained
+ * lists is what let `antigravity` be installable but not upgradable.
+ */
+export type HarnessKey = KnownHarness;
 
 export const DEFAULT_HARNESS: HarnessKey = "claude";
 

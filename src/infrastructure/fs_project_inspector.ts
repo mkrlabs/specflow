@@ -322,6 +322,7 @@ export class FsProjectInspector implements ProjectInspector {
         windsurf: ".windsurf/",
         copilot: ".github/instructions/",
         opencode: ".opencode/",
+        antigravity: ".agents/",
       };
       const folder = expectedFolder[lock.harness];
       const folderPresent = await exists(join(projectDir, folder));

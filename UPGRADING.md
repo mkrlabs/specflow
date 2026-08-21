@@ -78,6 +78,31 @@ signal. Add an explicit `effort:` to any agent where the budget matters.
 Nothing pins a model id anywhere else in Specnaut, so the GPT-5.4 retirement on 31 August 2026 needs
 no action from you.
 
+### Antigravity projects were installable but not upgradable
+
+Three defects, found by auditing every harness's agent path end to end.
+
+**`specnaut init --ai antigravity` wrote a lock that `specnaut upgrade` then refused to read**,
+crashing with an unhandled `Unsupported harness 'antigravity'`. The CLI kept two hand-maintained
+lists of harnesses; the picker's included Antigravity and the lock's did not. Install succeeded,
+`check` reported all-clear, and the project was a dead end. They are now one list, with a test that
+round-trips every registered harness through the lock.
+
+**The output tree was `.agent/`; Antigravity reads `.agents/`.** Agents, skills, workflows and
+phases all moved. Antigravity keeps backward support for `.agent/rules`, but `.agents/` is the
+documented default for everything else. An existing Antigravity project should delete the stale
+`.agent/` tree after upgrading — nothing removes it for you, because `upgrade` tracks paths, and
+from its point of view these are simply new ones.
+
+**Agent frontmatter now carries `subagent: true` and a translated model.** Without the flag
+Antigravity discovers an agent file but the primary agent cannot reach it through `invoke_subagent`
+— the seat scaffolds and is then undispatchable, which is indistinguishable from a working install.
+And the `model:` tier was copied verbatim, so agents shipped as `model: opus`, a value Antigravity
+has no meaning for; its vocabulary is `inherit | flash | pro`, and the capable tiers now map to
+`pro`.
+
+None of this affects the other six harnesses.
+
 ### The naming convention is now written down
 
 `.claude/agents/README.md` gained a suffix table: `<domain>-expert` for a lens that also has an

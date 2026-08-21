@@ -4,6 +4,7 @@ import type { CoreBundle, CoreEntry } from "../../domain/core_bundle.ts";
 import type { Bundle } from "../../domain/template.ts";
 import { ensureSkillFrontmatter, skillFolderName } from "./skill_folder.ts";
 import { frontmatterField, splitFrontmatter } from "./frontmatter.ts";
+import { tierToAntigravityModel } from "../../domain/antigravity_models.ts";
 import { applyBackend, backlogScriptDestination } from "./backlog_filter.ts";
 import { applyScheme, phaseScriptDestination } from "./scheme_filter.ts";
 import { applySpecBackend } from "./spec_backend_filter.ts";
@@ -29,9 +30,14 @@ function toAntigravityAgentMarkdown(entry: CoreEntry): string {
   const lines: string[] = [
     `name: specnaut-${entry.name}`,
     `description: ${description}`,
+    // Without this, Antigravity discovers the file but the primary agent
+    // cannot reach it through `invoke_subagent` — the seat scaffolds and is
+    // then undispatchable, which looks identical to a working install.
+    "subagent: true",
   ];
   if (tools !== null) lines.push(`tools: ${tools}`);
-  if (model !== null) lines.push(`model: ${model}`);
+  const agModel = tierToAntigravityModel(model);
+  if (agModel !== null) lines.push(`model: ${agModel}`);
   if (skills !== null) lines.push(`skills: ${skills}`);
   return `---\n${lines.join("\n")}\n---\n\n${body}`;
 }
@@ -39,15 +45,15 @@ function toAntigravityAgentMarkdown(entry: CoreEntry): string {
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {
     case "backlog-cmd":
-      return `.agent/workflows/${entry.name}.md`;
+      return `.agents/workflows/${entry.name}.md`;
     case "agent":
-      return `.agent/agents/specnaut-${entry.name}.md`;
+      return `.agents/agents/specnaut-${entry.name}.md`;
     case "skill":
     case "backlog-skill":
-      return `.agent/skills/${skillFolderName(entry)}/SKILL.md`;
+      return `.agents/skills/${skillFolderName(entry)}/SKILL.md`;
     case "phase":
       if (!entry.suffix) throw new Error(`phase needs suffix: ${entry.name}`);
-      return `.agent/skills/specnaut/phases/${entry.suffix}`;
+      return `.agents/skills/specnaut/phases/${entry.suffix}`;
     case "phase-script":
       return phaseScriptDestination(entry);
     case "backlog-script":
