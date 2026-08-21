@@ -56,9 +56,9 @@ ${bold("Flags (for upgrade):")}
   --force             Overwrite locally-customized files (existing content backed up to *.specnaut.bak)
   --backlog <name>    Switch the backlog backend (local | github | gitlab). Re-renders the backlog skill;
                       existing data in the previous backend is NOT migrated.
-  --reset-baseline    Trust the on-disk content as the new SHA baseline. Use when files are flagged
-                      "customized locally" but you never edited them (heals stale lock SHAs). Combine
-                      with --dry-run to preview what would change.
+  --reset-baseline    Take upstream for every file listed under "customized, and behind" — the ones
+                      an update was published for and never reached. Per-file: specnaut reconcile
+                      <path> --accept-upstream. Combine with --dry-run to preview what would change.
   --reset-preserved   Ignore .specnaut/preserve.yml for this run so declared files follow normal
                       upgrade rules (never the default; reported per overridden file).
 

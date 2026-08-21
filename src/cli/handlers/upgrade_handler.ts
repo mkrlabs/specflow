@@ -187,15 +187,61 @@ function renderSummary(plan: UpgradePlan, from: string, to: string) {
     for (const a of groups.added) console.log(green(`    + ${a.dest}`));
     console.log();
   }
-  if (groups.preserve.length > 0) {
+  // Customized files split into two states that read identically today and
+  // need opposite responses. One is settled — you edited it, upstream has not
+  // moved, nothing is missing. The other is an update that was published and
+  // never arrived, and will never arrive on its own: the lock entry froze with
+  // the file, so every later run reaches the same verdict. Reporting both as
+  // "customized locally" is what let five files in this project's own install
+  // sit three months behind, referencing agents that had been deleted, while
+  // every run printed a clean success.
+  const settled = groups.preserve.filter((a) => a.kind === "preserve" && !a.staleSince);
+  const behind = groups.preserve.filter((a) => a.kind === "preserve" && a.staleSince);
+
+  if (settled.length > 0) {
     console.log(bold("  customized locally (not touched)"));
-    for (const a of groups.preserve) {
+    for (const a of settled) {
       const tag = a.kind === "preserve" && a.pluginAvailable
         ? ` ${dim("[plugin available — reconcile manually]")}`
         : "";
       console.log(yellow(`    ⚠ ${a.dest}${tag}`));
     }
     console.log();
+  }
+  if (behind.length > 0) {
+    console.log(bold("  customized, and behind — an update was published and never applied"));
+    // Grouped by the version each file froze at, not listed flat. Files rarely
+    // freeze one at a time: a single out-of-band edit — a repo-wide rename, a
+    // bulk sed — strands a whole set at the same version on the same day. Seeing
+    // them share a freeze point names the event that caused it, which a flat
+    // list repeating the same date on every line actively hides.
+    const byFreeze = new Map<string, typeof behind>();
+    for (const a of behind) {
+      if (a.kind !== "preserve" || !a.staleSince) continue;
+      const key = `${a.staleSince.templatesVersion}\u0000${a.staleSince.installedAt.slice(0, 10)}`;
+      const bucket = byFreeze.get(key);
+      if (bucket) bucket.push(a);
+      else byFreeze.set(key, [a]);
+    }
+    for (const [key, files] of byFreeze) {
+      const [version, day] = key.split("\u0000");
+      console.log(
+        dim(
+          `    last written by v${version} on ${day} — every upgrade since has skipped ` +
+            `${files.length === 1 ? "it" : `these ${files.length}`}:`,
+        ),
+      );
+      for (const a of files) {
+        console.log(yellow(`      ⚠ ${a.dest}`));
+        console.log(dim(`          specnaut reconcile ${a.dest} --accept-upstream`));
+      }
+    }
+    console.log(
+      dim(
+        `    All ${behind.length} at once: specnaut upgrade --reset-baseline` +
+          ` (keeps a .specnaut.bak of each).\n`,
+      ),
+    );
   }
   if (groups.removed.length > 0) {
     console.log(bold("  removed (no longer in templates)"));
@@ -220,7 +266,8 @@ function renderSummary(plan: UpgradePlan, from: string, to: string) {
 
   console.log(
     dim(
-      `  ${groups.auto.length} auto-update, ${groups.preserve.length} preserved, ` +
+      `  ${groups.auto.length} auto-update, ${settled.length} preserved, ` +
+        `${behind.length} behind, ` +
         `${groups.added.length} added, ${groups.removed.length} removed, ` +
         `${groups.orphanPreserved.length} orphan-preserved, ${groups.migrated.length} migrated, ` +
         `${groups.deferred.length} deferred, ${groups.unchanged.length} unchanged`,
@@ -393,10 +440,7 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
     console.log(
       dim(
         "\nFor customized files, review the diff below and merge manually if desired.\n" +
-          "Re-run with --force to overwrite them (edits will be backed up to .specnaut.bak).\n" +
-          "If you never edited these files, the lock baseline is stale — re-run with\n" +
-          "`specnaut upgrade --reset-baseline` to trust the on-disk content as the new\n" +
-          "baseline and apply the upstream updates cleanly.\n",
+          "Re-run with --force to overwrite them (edits will be backed up to .specnaut.bak).\n",
       ),
     );
     // Resolve the harness from the lock to render diffs in the correct file tree.
@@ -439,6 +483,21 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
   }
   console.log();
   console.log(green(`✓ upgraded to templates ${result.fromVersion} → ${result.toVersion}`));
+
+  // A run whose only outcome is skips still printed a bare green tick. That is
+  // the line people read, and it said the work was done. Name what was left,
+  // right where the eye lands, or the group above goes unread.
+  const leftBehind = result.plan.filter((a) => a.kind === "preserve" && a.staleSince);
+  if (leftBehind.length > 0) {
+    console.log(
+      yellow(
+        `⚠ ${leftBehind.length} file${leftBehind.length === 1 ? "" : "s"} did not receive ` +
+          `${leftBehind.length === 1 ? "an update" : "updates"} published for ` +
+          `${leftBehind.length === 1 ? "it" : "them"} — see "customized, and behind" above. ` +
+          `Nothing will deliver ${leftBehind.length === 1 ? "it" : "them"} on a later run.`,
+      ),
+    );
+  }
 
   // A breaking upgrade is the one moment `UPGRADING.md` exists for, and until
   // now the binary never named it — the only inbound links were the README and

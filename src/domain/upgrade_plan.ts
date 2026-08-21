@@ -23,6 +23,26 @@ export type UpgradeAction =
      * untouched either way.
      */
     pluginAvailable: boolean;
+    /**
+     * Set when this file is **both** customized and behind upstream — the
+     * state that rots silently.
+     *
+     * Preserving a customized file is correct, but the lock entry is frozen
+     * along with it (`upgrade_project.ts`: `wrote` is false, so `sha256` and
+     * `templatesVersion` carry over verbatim). Every later run therefore
+     * reaches the same verdict and skips again, forever, while the summary
+     * says only "customized locally" — which reads as a settled fact rather
+     * than as an update that never arrived.
+     *
+     * The frozen field is what makes the gap reportable: it still holds the
+     * version that last wrote the file. Re-stamping it to "heal" the freeze
+     * would destroy the only record of when the divergence began, so this
+     * reads the freeze rather than repairing it.
+     *
+     * Absent when the file is customized but upstream has not moved since —
+     * nothing was missed there, and warning about it would be noise.
+     */
+    staleSince?: { templatesVersion: string; installedAt: string };
   }
   | { kind: "add-new"; dest: string }
   | { kind: "unchanged"; dest: string }
@@ -113,6 +133,39 @@ export type UpgradePlanOptions = {
    */
   isDeclaredPreserved?: (dest: string) => boolean;
 };
+
+/**
+ * Whether a customized file has also fallen behind upstream, and since when.
+ *
+ * Two conditions, and both are load-bearing:
+ *
+ *  - `lockSha !== newSha` — the template actually changed since this file was
+ *    last written. Without it, a file the user edited whose template never
+ *    moved would be reported as behind when nothing was missed.
+ *  - `entry.templatesVersion !== lock.templatesVersion` — this entry never
+ *    caught up. The lock's own version advances on every run, so an entry
+ *    lagging it was skipped by at least one completed upgrade.
+ *
+ * Together they mean: an update was published for this path, and it never
+ * landed. That is the state worth a warning; either alone is not.
+ */
+function staleSince(
+  lock: InstalledLock,
+  dest: string,
+  lockSha: string,
+  newSha: string,
+): { staleSince: { templatesVersion: string; installedAt: string } } | null {
+  if (lockSha === newSha) return null;
+  const entry = lock.entries.get(dest);
+  if (entry === undefined) return null;
+  if (entry.templatesVersion === lock.templatesVersion) return null;
+  return {
+    staleSince: {
+      templatesVersion: entry.templatesVersion,
+      installedAt: entry.installedAt,
+    },
+  };
+}
 
 export function computeUpgradePlan(
   diskShas: Map<string, string>,
@@ -214,6 +267,7 @@ export function computeUpgradePlan(
       dest,
       reason: "customized",
       pluginAvailable: covered,
+      ...(staleSince(lock, dest, lockSha, newSha) ?? {}),
     });
   }
 
