@@ -59,7 +59,13 @@ jobs:
           echo "from=$from" >> "$GITHUB_OUTPUT"
           echo "to=$to" >> "$GITHUB_OUTPUT"
       - name: Check adoption sections
+        # Routed through `env:` rather than interpolated into the shell body,
+        # matching the step above. Not exploitable here — these are SHAs from
+        # `pull_request` (not `pull_request_target`), under `contents: read`
+        # with no secrets — but two adjacent steps disagreeing on the safe
+        # pattern is how the next person copies the wrong one.
+        env:
+          FROM: ${{ steps.range.outputs.from }}
+          TO: ${{ steps.range.outputs.to }}
         run: |
-          deno run --allow-run scripts/check-adoption.ts \
-            --from "${{ steps.range.outputs.from }}" \
-            --to "${{ steps.range.outputs.to }}"
+          deno run --allow-run scripts/check-adoption.ts --from "$FROM" --to "$TO"

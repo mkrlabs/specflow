@@ -55,25 +55,67 @@ fi
 # and a docs rebuild that did not fire is a stale page, not a broken binary.
 docs_warned=0
 echo "▶ refreshing the docs site (version.json tracks the latest release)"
-if gh workflow run pages.yml -R specnaut/specnaut-web >/dev/null 2>&1; then
-  echo "  dispatched specnaut-web pages.yml"
+dispatch_err="$(gh workflow run pages.yml -R specnaut/specnaut-web 2>&1 >/dev/null)" && dispatch_ok=1 || dispatch_ok=0
+if [ "$dispatch_ok" -eq 1 ]; then
+  # `gh workflow run` exits 0 the moment GitHub *accepts* the request; it never
+  # observes the resulting run. Dispatching therefore proves only that we have
+  # permission. Poll the artefact itself — version.json is the thing the
+  # `specnaut-guide` agent reads to answer "am I up to date?", so it is the
+  # signal that matters, and checking it beats watching the job.
+  echo "  dispatched specnaut-web pages.yml — waiting for version.json"
+  published=""
+  for _ in $(seq 1 18); do
+    sleep 5
+    published="$(curl -fsSL https://specnaut.com/version.json 2>/dev/null | grep -o '"version"[^,}]*' | grep -o '[0-9][^"]*' || true)"
+    [ "$published" = "${TAG#v}" ] && break
+  done
+  if [ "$published" = "${TAG#v}" ]; then
+    echo "  specnaut.com/version.json now reports ${TAG#v}"
+  else
+    echo "⚠ specnaut.com/version.json still reports '${published:-unreachable}' after 90s."
+    echo "  The rebuild was dispatched; it may still be running, or it failed."
+    docs_warned=1
+  fi
 else
-  echo "⚠ could not dispatch specnaut-web pages.yml — specnaut.com/version.json"
-  echo "  will keep reporting the previous version until the nightly rebuild."
+  echo "⚠ could not dispatch specnaut-web pages.yml: ${dispatch_err:-no error output}"
+  echo "  specnaut.com/version.json will report the previous version until the"
+  echo "  nightly rebuild."
   docs_warned=1
 fi
 
+# Soft-warn, like the two above. A self-update failure says the *operator's*
+# binary is stale — `.specnaut/release/README.md` documents exactly that case,
+# where the installed binary predates a fix to self-update itself. That is a
+# different page at 3am from "the release is broken", and letting `set -e` abort
+# here would throw away the tap and docs verdicts already computed.
+selfupdate_warned=0
 echo "▶ refreshing local binary"
-specnaut self-update
-local_version="$(specnaut --version | awk '{print $2}')"
-[ "v$local_version" = "$TAG" ] || { echo "❌ local binary at v$local_version, expected $TAG"; exit 1; }
+if specnaut self-update; then
+  local_version="$(specnaut --version | awk '{print $2}')"
+  if [ "v$local_version" != "$TAG" ]; then
+    echo "⚠ local binary at v$local_version, expected $TAG"
+    selfupdate_warned=1
+  fi
+else
+  echo "⚠ specnaut self-update failed — your local binary is not $TAG."
+  echo "  This does not affect the published release; reinstall to catch up."
+  selfupdate_warned=1
+fi
 
+# `|| true` is load-bearing: under `set -e` a bare `[ … ] && arr+=(…)` is exempt
+# only while it is not the final command of the script. That makes the block
+# position-dependent, and the next edit that moves it turns a green release red.
 warnings=()
-[ "$homebrew_warned" -eq 1 ] && warnings+=("tap bump unverified, re-check in ~60s")
-[ "$docs_warned" -eq 1 ] && warnings+=("docs site not rebuilt, version.json is stale")
+[ "$homebrew_warned" -eq 1 ] && warnings+=("tap bump unverified, re-check in ~60s") || true
+[ "$docs_warned" -eq 1 ] && warnings+=("docs site stale, specnaut.com/version.json not updated") || true
+[ "$selfupdate_warned" -eq 1 ] && warnings+=("local binary not refreshed (does not affect the release)") || true
 
 if [ "${#warnings[@]}" -gt 0 ]; then
-  echo "✅ release shipped — $TAG is live (⚠ $(IFS='; '; echo "${warnings[*]}"))"
+  # `${warnings[*]}` joins on the FIRST character of IFS only, so `IFS='; '`
+  # yields `;` with no space. Each warning already contains commas, so the
+  # run-together form is genuinely hard to read. printf keeps the separator.
+  joined="$(printf '%s; ' "${warnings[@]}")"
+  echo "✅ release shipped — $TAG is live (⚠ ${joined%; })"
 else
   echo "✅ postflight passed — $TAG is live"
 fi

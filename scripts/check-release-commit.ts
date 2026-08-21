@@ -12,7 +12,12 @@
 //      by `bump-version.ts`, but nothing stops a hand-edit or a partial revert
 //      from desyncing them, and a binary whose `--version` disagrees with its
 //      templates manifest is a support ticket nobody can reproduce.
-//   3. HEAD is the release commit. In v3.0.0 the bump was swept into a
+//   3. The highlights file, if it has content, was written for *this* release.
+//      It is tracked and nothing truncates it, so the default behaviour is to
+//      republish the previous release's prose verbatim above a commit list
+//      that contradicts it. A missing section is visibly missing; stale prose
+//      reads as authored and current, which is worse.
+//   4. HEAD is the release commit. In v3.0.0 the bump was swept into a
 //      `feat(...)` commit by a stray `git add -A` and the tag landed on it.
 //      Harmless that time — the tree was correct — but it is only luck that
 //      separates "the bump rode along with a feature" from "the tag captured
@@ -79,6 +84,41 @@ async function main() {
       problems.push(`${file} declares no version at all`);
     } else if (!found.includes(expected)) {
       problems.push(`${file} declares ${found.join(", ")}, expected ${expected}`);
+    }
+  }
+
+  // The highlights file is the one part of the release notes a human writes,
+  // so nothing downstream regenerates it — which means nothing downstream
+  // notices when it is a release out of date.
+  const HIGHLIGHTS = ".specnaut/release/HIGHLIGHTS.md";
+  let highlightsBody = "";
+  try {
+    highlightsBody = await Deno.readTextFile(HIGHLIGHTS);
+  } catch {
+    // Absent is fine: a release with no hand-written lead is the normal case.
+  }
+  if (highlightsBody.trim()) {
+    let prevTag = "";
+    try {
+      prevTag = await git("describe", "--tags", "--abbrev=0", "HEAD");
+    } catch {
+      // No previous tag — first release, nothing can be stale yet.
+    }
+    if (prevTag) {
+      const lastTouched = await git("log", "-1", "--format=%H", "--", HIGHLIGHTS);
+      const stale = lastTouched &&
+        (await new Deno.Command("git", {
+          args: ["merge-base", "--is-ancestor", lastTouched, prevTag],
+          stdout: "null",
+          stderr: "null",
+        }).output()).success;
+      if (stale) {
+        problems.push(
+          `${HIGHLIGHTS} has content, but was last written at or before ${prevTag}.\n` +
+            `      Those highlights were already published. Rewrite them for ${tag}, ` +
+            `or empty the file — an empty one renders nothing.`,
+        );
+      }
     }
   }
 

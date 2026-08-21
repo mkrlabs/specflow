@@ -20,14 +20,32 @@ Homebrew vs. Convex + Cloudflare).
 
 ---
 
+## `HIGHLIGHTS.md` — the lead paragraph
+
+`.specnaut/release/HIGHLIGHTS.md` is the one part of the release notes a human writes. When it has
+content, `gen-changelog.ts --highlights` renders it as a `### Highlights` block above every
+generated section, including breaking changes.
+
+**Its correct state between releases is empty.** Rewrite it before tagging; `git checkout` it back
+to empty as part of the release commit, or leave it empty when a release needs no lead. An empty
+file renders nothing, so there is no ceremony for an ordinary patch.
+
+Say what a commit subject cannot: which renames, which defaults changed, what breaks for someone who
+does nothing. It is not a second changelog — the sections below it already list every commit.
+
+`scripts/check-release-commit.ts` refuses to tag when this file has content last written at or
+before the previous tag. Nothing downstream regenerates these words, so nothing downstream would
+notice them being a release out of date — and stale prose reads as authored and current, which is
+worse than a section that is visibly missing.
+
 ## Prerequisites — repo secrets
 
-Two secrets on `specnaut/specnaut-cli`:
+Three secrets on `specnaut/specnaut-cli`:
 
 ### HOMEBREW_TAP_TOKEN
 
 - **`HOMEBREW_TAP_TOKEN`** — fine-grained GitHub Personal Access Token, scoped to
-  `mkrlabs/homebrew-tap` only, with `Contents: Read and write`. Created in GitHub → Settings →
+  `specnaut/homebrew-tap` only, with `Contents: Read and write`. Created in GitHub → Settings →
   Developer settings → Personal access tokens → Fine-grained tokens. Add it under
   `specnaut/specnaut-cli` → Settings → Secrets and variables → Actions → New repository secret. Used
   by `release.yml`'s tap-bump step.
