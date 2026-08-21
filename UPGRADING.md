@@ -23,6 +23,46 @@ The catalogue is Specnaut-owned, so `upgrade` keeps it current. If you want to a
 entries, put them in your own file and reference it from `AGENTS.md` rather than editing a leaf — an
 edited leaf becomes a customized file that `upgrade` will stop refreshing.
 
+### Accessibility gets a catalogue too, keyed to WCAG
+
+`specnaut upgrade` adds `.specnaut/memory/a11y/` — a triage gate plus ten files grouped by the
+surface under review: images, structure, forms, keyboard, ARIA, contrast, zoom and reflow, media,
+navigation, and live regions. Every failure mode inside a file names the WCAG 2.1 success criterion
+it violates, and `a11y-expert` now has to open the file for the surface it is reviewing and cite the
+criterion in the finding.
+
+The layout is deliberately not the architecture catalogue's. Accessibility is the one axis entered
+by one key and left by another: you arrive from "this diff touches a form" and you leave at "3.3.2
+Labels or Instructions". The grouping follows the way in; the criteria inside each file, and the
+index in its `README.md`, keep the way out addressable.
+
+No W3C text is reproduced — the files describe the mechanism and link to the specification. The
+front-end gate still runs first, so on a repo with no front-end surface `a11y-expert` stops before
+it reads anything.
+
+### The remaining seats are grounded without a new catalogue
+
+Not every seat needed one, and two deliberately did not get one.
+
+- **`security-expert`** — the domain files it already read gained a _When it is NOT a finding_
+  section, and the seat must read it for every finding it ships. Every file has one except
+  `00-triage.md`, which is that same gate in its general form.
+- **`dependency-expert`** — pointed at `.specnaut/memory/security/06-supply-chain-and-integrity.md`,
+  which already covered its ground and which the seat was not reading. A parallel catalogue would
+  only have created a second source free to drift from the first.
+- **`performance-expert`** — grounded in your project rather than in a document: the budgets your
+  constitution declares, and whatever benchmark or profile the repo actually holds. No
+  stack-agnostic normative source exists for performance, and inventing one would have produced
+  exactly the vocabulary-shaped findings this programme exists to remove. The seat now also has to
+  answer whether it measured anything before it ships a finding.
+
+All three, and `a11y-expert` with them, carry the same two rules that need no catalogue: a finding
+it cannot cite is **downgraded by the agent itself and labelled a suspicion**, so it cannot fail a
+gate on its own; and the report **states which sources were read**, once, at the top — a skipped
+read is otherwise invisible, and you cannot tell a judgement from a guess.
+
+Nothing here changes how you invoke anything.
+
 ### The five auditor agents are now experts
 
 `auditor` described one dispatch shape out of several. These seats are also asked for their
@@ -59,6 +99,36 @@ describes code that does not exist yet.
 
 Nothing changes in how you invoke them. The findings get better because the seat now knows which
 question it is being asked.
+
+### `upgrade` no longer calls a skipped file a success
+
+A file whose contents diverge from the recorded baseline is preserved rather than overwritten. That
+is unchanged and correct. What was wrong is that the summary called every such file _customized
+locally_ and closed with a green tick, so a file that had silently missed a published update looked
+exactly like one you had deliberately edited.
+
+The two are not distinguishable by content, and this release does not pretend otherwise. What it
+reports instead is **age**. When a file diverges from the current template _and_ its lock entry
+never caught up to a later release, `upgrade` lists it under **customized, and behind**, grouped by
+the version and date it was last written:
+
+```
+last written by v1.12.0 on 2026-05-26 — every upgrade since has skipped these 3:
+  ⚠ .claude/agents/README.md
+      specnaut reconcile .claude/agents/README.md --accept-upstream
+```
+
+The grouping matters more than it looks. Files rarely drift one at a time — a repo-wide rename
+strands a whole set at the same version on the same day, and seeing the shared freeze point names
+the event that caused it. A flat list repeating the same date on every line hides it.
+
+Each path carries the `specnaut reconcile … --accept-upstream` command for that path, and the run
+now ends on a warning line instead of an unqualified tick. A file you edited yourself that has
+nothing published against it stays quiet: it has missed nothing, and warning about it would train
+you to skip the section that matters.
+
+You do not have to act on any of this. Nothing is overwritten, and a path you declared in
+`preserve.yml` is never listed — you already said that file is yours.
 
 ## 1.x → 2.0.0
 
