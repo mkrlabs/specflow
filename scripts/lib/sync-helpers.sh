@@ -18,7 +18,7 @@
 #   - **Skip-on-missing-token** — if the auth secret is unset, emit a
 #     `::warning::` and exit 2. The release.yml workflow translates
 #     exit 2 into a non-blocking skip, the same way `HOMEBREW_TAP_TOKEN`
-#     and `WIKI_SSH_KEY` skip when absent.
+#     skips when absent.
 #
 #   - **DRY_RUN mode** — set `DRY_RUN=1` to print all destructive
 #     actions without performing them (no clone, no push, no PR).
