@@ -26,7 +26,7 @@ const AGENT_WIRING: Record<string, readonly string[]> = {
   "architect-expert": ["review-findings-contract", "workflow-contract"],
   "performance-expert": ["review-findings-contract", "workflow-contract"],
   "security-expert": ["review-findings-contract", "workflow-contract"],
-  "a11y-expert": ["review-findings-contract", "workflow-contract"],
+  "accessibility-expert": ["review-findings-contract", "workflow-contract"],
   "dependency-expert": ["review-findings-contract", "workflow-contract"],
   "code-reviewer": ["review-findings-contract", "workflow-contract"],
   "test-reviewer": ["review-findings-contract", "workflow-contract"],

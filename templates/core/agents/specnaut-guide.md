@@ -1,5 +1,5 @@
 ---
-name: specnaut-expert
+name: specnaut-guide
 description: >
   Answers questions about Specnaut itself — how it works, its commands,
   harnesses, backlog backends, agents, and what changed between releases.
@@ -8,8 +8,8 @@ description: >
   or any question about the tool. Do NOT trigger on plain command
   invocations (`specnaut init`, `specnaut upgrade`, `/specnaut plan`,
   `/backlog ...`) — those are command runs, not questions.
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, WebFetch, Grep, Glob, Bash, Agent
 permissionMode: default
 maxTurns: 10
@@ -67,7 +67,7 @@ This is a separate, lightweight check — distinct from the live fetch
 protocol above. Run it ONLY when the user's question matches the
 auto-route triggers in your `description` ("how does specnaut X",
 "what is /specnaut Y", "explain", "quoi de neuf", etc.). Do NOT run
-it on a manual `/specnaut-expert` invocation whose question does not
+it on a manual `/specnaut-guide` invocation whose question does not
 match those triggers — silence beats noise.
 
 1. Read `.specnaut/installed.lock` and extract the `templates_version`
@@ -119,7 +119,8 @@ sections above.
 
 **Surface**: generate
 `https://github.com/specnaut/specnaut-cli/issues/new?title=…&body=…&labels=bug,from%3Aspecnaut-expert`
-URL-encoded. The label gates the maintainer triage inbox. If the raw
+URL-encoded. The label gates the maintainer triage inbox and keeps this agent's
+former name on purpose — it is stamped on already-filed issues. If the raw
 body exceeds **3000 chars**, present a fenced code block and ask the
 user to paste it into a fresh `issues/new` form.
 
@@ -190,12 +191,12 @@ Enhanced fork of [`specify` CLI](https://github.com/github/spec-kit), distribute
 
 **Different from upstream Spec Kit:** auto-chained pipeline (`/specnaut plan` chains all phases); dedicated `review` phase after implement; backlog as product source of truth via `product-owner` agent (backends: local, github, gitlab); Claude Code plugin distribution (`specnaut-plugin` marketplace).
 
-**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-expert, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-expert.
+**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-expert, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-guide.
 
 ### Commands
 
 - `specnaut init [--here] [--ai <harness>] [--backlog <backend>] [--backlog-url <url>]` — scaffold the project.
-- `specnaut upgrade` — refresh templates. On apply writes `.specnaut/upgrade-pending.json` (`{from,to,at}`) + staging dir (`.specnaut/upgrade-staging/<path>`, consumed by `specnaut reconcile`); both removed after successful `review-upgrade` walk. Prints `@specnaut-expert review-upgrade` handoff.
+- `specnaut upgrade` — refresh templates. On apply writes `.specnaut/upgrade-pending.json` (`{from,to,at}`) + staging dir (`.specnaut/upgrade-staging/<path>`, consumed by `specnaut reconcile`); both removed after successful `review-upgrade` walk. Prints `@specnaut-guide review-upgrade` handoff.
 - `specnaut reconcile --status` — list files pending post-upgrade reconciliation as JSON.
 - `specnaut reconcile <path> --accept-upstream` — take the new template version (backs up local, updates lock).
 - `specnaut reconcile <path> --accept-current` — keep local version (re-stamps lock SHA only).

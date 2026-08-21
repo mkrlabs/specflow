@@ -124,7 +124,7 @@ Deno.test("every leaf carries the section that kills a wrong finding", () => {
     assertStringIncludes(
       entryFor(name).content,
       "## When it is NOT a finding",
-      `${name} has no negative section — a11y-expert is told to read one before each finding`,
+      `${name} has no negative section — accessibility-expert is told to read one before each finding`,
     );
   }
   assert(
@@ -195,8 +195,8 @@ Deno.test("the catalogue reproduces no W3C text and says so", () => {
  * `expert_mechanisms_test.ts`. Asserting their wording in both places is how a
  * shared string acquires two guards that can disagree about it.
  */
-Deno.test("a11y-expert is gated on the catalogue and cites it", () => {
-  const body = agent("a11y-expert");
+Deno.test("accessibility-expert is gated on the catalogue and cites it", () => {
+  const body = agent("accessibility-expert");
   assertStringIncludes(body, "## Step 0");
   assertStringIncludes(body, ".specnaut/memory/a11y/00-triage.md");
   assertStringIncludes(body, "## When it is NOT a finding");
@@ -213,7 +213,7 @@ Deno.test("the FE-surface gate still short-circuits ahead of Step 0", () => {
   // Ordering matters: on a project with no front-end there is nothing to read
   // the catalogue about, and a mandatory read that fires anyway would turn a
   // designed no-op into wasted turns.
-  const body = agent("a11y-expert");
+  const body = agent("accessibility-expert");
   assert(
     body.indexOf("## Front-end surface detection") < body.indexOf("## Step 0"),
     "the FE-surface gate must precede Step 0",
@@ -224,17 +224,17 @@ Deno.test("the FE-surface gate still short-circuits ahead of Step 0", () => {
 Deno.test("the agent's leaf pointers all resolve", () => {
   // The agent replaced its hand-maintained ten-axis checklist with pointers.
   // A pointer at a leaf that does not exist is worse than the checklist was.
-  const body = agent("a11y-expert");
+  const body = agent("accessibility-expert");
   const shipped = new Set(entries().map((e) => (e.suffix ?? "").slice(DIR.length)));
   for (const m of body.matchAll(/`(\d\d-[a-z0-9-]+\.md)`/g)) {
     assert(
       shipped.has(m[1]),
-      `a11y-expert points at ${m[1]}, which the catalogue does not ship`,
+      `accessibility-expert points at ${m[1]}, which the catalogue does not ship`,
     );
   }
   // ...and the pointers actually cover the catalogue, so no leaf is orphaned.
   for (const name of LEAVES) {
-    assertStringIncludes(body, name, `no surface in a11y-expert routes to ${name}`);
+    assertStringIncludes(body, name, `no surface in accessibility-expert routes to ${name}`);
   }
 });
 

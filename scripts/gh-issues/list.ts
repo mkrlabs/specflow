@@ -1,11 +1,14 @@
 // gh-issues list — enumerate inbound issues filed by users via the
-// specnaut-expert bug-report protocol. Filtered by the
+// specnaut-guide bug-report protocol. Filtered by the
 // `from:specnaut-expert` label so it doesn't catch maintainer-filed
 // items.
 //
 // Usage: deno run --allow-run list.ts
 
 const REPO = "specnaut/specnaut-cli";
+// The label deliberately still reads `specnaut-expert`, the agent's pre-rename
+// name: it is a routing token already stamped on filed issues, and renaming it
+// would mean rewriting them. It tracks the inbox, not the agent.
 const LABEL = "from:specnaut-expert";
 
 type GhIssue = {

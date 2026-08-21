@@ -3,37 +3,38 @@ import { CORE_BUNDLE } from "../../src/templates_bundle.ts";
 import type { CoreEntry } from "../../src/domain/core_bundle.ts";
 
 /**
- * Locks the per-agent `effort` tuning rubric (feature 016, #382).
+ * Locks the per-agent `model` + `effort` tuning rubric.
  *
  * Every bundled agent must carry exactly one `effort:` ∈ {low, medium, high,
- * xhigh} (SC-001), no Sonnet-pinned agent may carry `xhigh` (SC-002, the
- * model-compatibility invariant — `xhigh` is Opus-only), and each agent's
- * value must match the authoritative assignment in
- * `contracts/effort-map.md` (no drift between the contract and the shipped
- * frontmatter).
+ * xhigh}, no Sonnet-pinned agent may carry `xhigh` (the model-compatibility
+ * invariant — `xhigh` is Opus-only), every bundled agent is pinned to Opus,
+ * and each agent's value must match the authoritative assignment below.
+ *
+ * The authority is `templates/core/agents/README.md`, not the frozen
+ * `016-agent-effort-rubric` spec contract: spec dirs record a decision as it
+ * was taken, and this rubric has since been retuned (all-Opus, `high` floor).
  */
 
 const VALID_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
 type Effort = (typeof VALID_EFFORTS)[number];
 
 /**
- * Authoritative agent → effort assignment, mirroring
- * `.specnaut/specs/016-agent-effort-rubric/contracts/effort-map.md`.
- * 2 low · 9 medium · 1 high · 3 xhigh = 15.
+ * Authoritative agent → effort assignment, mirroring the tier table in
+ * `templates/core/agents/README.md`. 10 high · 5 xhigh = 15.
  */
 const EFFORT_MAP: Record<string, Effort> = {
-  "review-coordinator": "low",
-  "workflow-manager": "low",
-  "a11y-expert": "medium",
-  "architect-expert": "medium",
-  "dependency-expert": "medium",
-  "performance-expert": "medium",
-  "security-expert": "medium",
-  "code-reviewer": "medium",
-  "test-reviewer": "medium",
-  "specnaut-expert": "medium",
-  "product-owner": "medium",
+  "review-coordinator": "high",
+  "workflow-manager": "high",
+  "accessibility-expert": "high",
+  "dependency-expert": "high",
+  "performance-expert": "high",
+  "code-reviewer": "high",
+  "test-reviewer": "high",
+  "specnaut-guide": "high",
+  "product-owner": "high",
   "ui-ux-designer": "high",
+  "architect-expert": "xhigh",
+  "security-expert": "xhigh",
   "developer": "xhigh",
   "qa-tester": "xhigh",
   "devops-sre": "xhigh",
@@ -92,9 +93,9 @@ for (const entry of agentEntries()) {
   });
 }
 
-// The bundled value matches the authoritative effort-map.md assignment.
+// The bundled value matches the authoritative README.md assignment.
 for (const [name, expected] of Object.entries(EFFORT_MAP)) {
-  Deno.test(`agent "${name}" effort matches effort-map.md (${expected})`, () => {
+  Deno.test(`agent "${name}" effort matches the README rubric (${expected})`, () => {
     const entry = agentEntries().find((e) => e.name === name);
     assert(entry, `agent "${name}" missing from CORE_BUNDLE`);
     const value = scalarField(frontmatter(entry.content), "effort");
@@ -105,8 +106,23 @@ for (const [name, expected] of Object.entries(EFFORT_MAP)) {
 // The contract covers exactly the bundled fleet — no agent unclassified,
 // no stale entry in the map (guards against a future agent added without an
 // effort assignment, per the spec's edge case).
-Deno.test("effort-map.md covers exactly the bundled agent fleet", () => {
+Deno.test("the effort rubric covers exactly the bundled agent fleet", () => {
   const bundled = agentEntries().map((e) => e.name).sort();
   const mapped = Object.keys(EFFORT_MAP).sort();
   assertEquals(bundled, mapped);
 });
+
+// Every bundled agent is pinned to Opus. This is what makes `xhigh` available
+// fleet-wide, and it is the invariant a future "pin this one to Sonnet to save
+// tokens" change must trip over — an under-provisioned review lens fails by
+// returning fewer findings, which is indistinguishable from clean code.
+for (const entry of agentEntries()) {
+  Deno.test(`agent "${entry.name}" is pinned to Opus`, () => {
+    const model = scalarField(frontmatter(entry.content), "model");
+    assertEquals(
+      model,
+      "opus",
+      `agent "${entry.name}" is model: ${model} — every bundled agent must be Opus`,
+    );
+  });
+}

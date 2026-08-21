@@ -254,8 +254,8 @@
     },
     {
       "category": "agent",
-      "name": "specnaut-expert",
-      "source": "core/agents/specnaut-expert.md"
+      "name": "specnaut-guide",
+      "source": "core/agents/specnaut-guide.md"
     },
     {
       "category": "agent",
@@ -269,8 +269,8 @@
     },
     {
       "category": "agent",
-      "name": "a11y-expert",
-      "source": "core/agents/a11y-expert.md"
+      "name": "accessibility-expert",
+      "source": "core/agents/accessibility-expert.md"
     },
     {
       "category": "agent",

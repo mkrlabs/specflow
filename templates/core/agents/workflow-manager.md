@@ -1,8 +1,8 @@
 ---
 name: workflow-manager
 description: Orchestrates multi-phase feature delivery across specialist agents. Use as the lead session agent for long-running implementations.
-model: sonnet
-effort: low
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash, Agent(product-owner, developer, review-coordinator, qa-tester)
 skills: workflow-contract, handoff-protocol, backlog-reference-contract
 maxTurns: 60

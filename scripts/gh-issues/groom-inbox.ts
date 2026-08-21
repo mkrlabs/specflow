@@ -8,6 +8,9 @@
 import { findCandidates, type IssueRef } from "./_dedupe_heuristic.ts";
 
 const REPO = "specnaut/specnaut-cli";
+// The label deliberately still reads `specnaut-expert`, the agent's pre-rename
+// name: it is a routing token already stamped on filed issues, and renaming it
+// would mean rewriting them. It tracks the inbox, not the agent.
 const INBOUND_LABEL = "from:specnaut-expert";
 
 type GhIssue = IssueRef & { createdAt: string };

@@ -111,7 +111,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     const codexAgentsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".codex/agents")),
     )).length;
-    // 11 original + performance-expert (#304) + a11y-expert (#305) +
+    // 11 original + performance-expert (#304) + accessibility-expert (#305) +
     // architect-expert (#321) + dependency-expert (#322) = 15.
     assertEquals(codexAgentsCount, 15);
 

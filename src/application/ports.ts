@@ -228,7 +228,7 @@ import type { UpgradeMarker } from "../domain/upgrade_marker.ts";
  * Filesystem-backed store for `.specnaut/upgrade-pending.json`.
  *
  * Written by `specnaut upgrade` on every applied upgrade.
- * Read by `specnaut-expert review-upgrade` and by `specnaut reconcile`.
+ * Read by `specnaut-guide review-upgrade` and by `specnaut reconcile`.
  * Deleted at the end of a successful review.
  */
 export interface UpgradeMarkerStore {

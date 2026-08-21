@@ -24,7 +24,7 @@ import { WINDSURF_WORKFLOW_MAX_CHARS } from "../../src/infrastructure/harness/wi
  */
 
 /** The seats grounded without a catalogue of their own to key the wording to. */
-const SEATS = ["performance-expert", "a11y-expert", "dependency-expert"] as const;
+const SEATS = ["performance-expert", "accessibility-expert", "dependency-expert"] as const;
 
 /**
  * The canonical text. Presence of a heading proves nothing — a seat can carry

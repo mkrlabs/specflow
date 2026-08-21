@@ -414,7 +414,7 @@ Deno.test("C2/SC-002: adoption section is byte-identical to golden AND strict-in
   // Byte-exact golden of the Adoption guide section.
   const golden = "### Adoption guide\n\n" +
     "These prompts help your AI agent adopt the new features in an existing project. " +
-    "Copy them into your harness, or run `@specnaut-expert review-upgrade` to be walked " +
+    "Copy them into your harness, or run `@specnaut-guide review-upgrade` to be walked " +
     "through automatically.\n\n" +
     "**#252 — Add the thing**\n\n" +
     "prose\n\n```prompt\nrun X\n```";

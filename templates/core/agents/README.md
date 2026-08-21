@@ -1,58 +1,93 @@
-# Agent effort rubric
+# Bundled agents — naming and effort
 
-Every bundled agent declares an `effort:` field in its frontmatter. `effort`
-is a reasoning-budget hint the harness reads when it dispatches the agent: it
-trades **token spend** against **reasoning depth**. A higher tier thinks
-harder (and costs more); a lower tier returns faster and cheaper.
+Two conventions govern this directory: what an agent is **called**, and how
+much reasoning budget it is **given**. Both are assigned by role class, so
+that adding an agent is a lookup rather than a judgement call.
 
-Effort is assigned by **role class**, not by how important an agent feels. The
-goal is *legible, intentional spend*: when a coordinator fans out several
-agents in parallel, fire-and-forget dispatchers must not burn a coding-agent's
-budget, and a code-writer must not be starved of the depth it needs.
+## Naming — the suffix carries meaning
 
-## The four tiers
+An agent's suffix is not decoration. It tells you how the agent is reached
+and what it is allowed to do, and the fleet is meant to stay legible when
+someone reads a dispatch line without opening the agent file.
 
-| Tier     | Role class                                                     | Agents |
-| -------- | -------------------------------------------------------------- | ------ |
-| `low`    | Pure orchestrators — route and dispatch only, no deep reasoning | `review-coordinator`, `workflow-manager` |
-| `medium` | Read-only experts, structured reviewers, the Q&A explainer, and the backlog owner | `a11y-expert`, `architect-expert`, `dependency-expert`, `performance-expert`, `security-expert`, `code-reviewer`, `test-reviewer`, `specnaut-expert`, `product-owner` |
-| `high`   | Design / higher-order reasoning                                | `ui-ux-designer` |
-| `xhigh`  | Coding / agentic work — writes multi-file changes, runs suites, operates infra | `developer`, `qa-tester`, `devops-sre` |
+| Suffix | Meaning | Agents |
+| ------ | ------- | ------ |
+| `<domain>-expert` | A review lens that **also** has a standalone `/specnaut audit <domain>` phase — dual mode: per-diff review *and* whole-codebase audit | `accessibility-expert`, `architect-expert`, `dependency-expert`, `performance-expert`, `security-expert` |
+| `<domain>-reviewer` | A review lens with **no** audit phase — it only ever sees a diff | `code-reviewer`, `test-reviewer` |
+| `-coordinator` | Fans out the lenses of a **single** phase and aggregates what returns | `review-coordinator` |
+| `-manager` | Drives a **multi-phase** delivery across several agents | `workflow-manager` |
+| role noun | Does the work rather than judging it | `developer`, `qa-tester`, `devops-sre`, `product-owner`, `ui-ux-designer` |
 
-Tally: 2 `low` · 9 `medium` · 1 `high` · 3 `xhigh` = 15 agents.
+Two rules follow, and they are the whole point of writing this down:
 
-## Rationale — the compound cost/quality tradeoff
+- **`-expert` ⇔ an audit phase exists.** The five `-expert` agents correspond
+  exactly to the five `audit-*.md` phases. If you give `code-reviewer` or
+  `test-reviewer` an audit phase, **rename it to `-expert` in the same
+  change** — otherwise the suffix stops predicting anything and the next
+  person picks one at random.
+- **Agents spell the domain out; skills may abbreviate.** The agent is
+  `accessibility-expert` while its skill is `a11y-audit`, and that asymmetry
+  is deliberate: a skill name is *typed by a human* at a prompt, where short
+  wins, whereas an agent name is *matched semantically by a model* against a
+  request, where `a11y` is a far weaker signal than `accessibility`. Optimise
+  each for its own reader.
 
-Effort compounds. A coordinator that itself spawns N sub-agents pays its own
-reasoning budget *plus* every child's. So the budget belongs where the
-thinking actually happens:
+`specnaut-guide` is the deliberate exception to the table — the only agent
+named after the tool itself. It answers questions about Specnaut rather than
+reviewing your code, so it carries neither a lens suffix nor a role noun. It
+is **not** an `-expert`: giving it that suffix would imply an
+`/specnaut audit specnaut` phase that does not and should not exist.
 
-- **`low` for pure orchestrators.** `review-coordinator` and
-  `workflow-manager` don't reason about the work — they decide *who* runs and
-  aggregate what comes back. Spending deep-reasoning tokens on a dispatcher is
-  pure waste, multiplied across every fan-out.
-- **`medium` for experts, reviewers, the explainer, and the PO.** These read
-  code (or backlog) and emit structured findings. They need genuine analysis
-  but not the open-ended exploration of writing a feature. `medium` buys
-  enough depth to spot real issues without over-provisioning a read-only pass.
-- **`high` for design.** `ui-ux-designer` does higher-order, open-ended
-  reasoning (synthesising a coherent design system from a brief), which
-  rewards more budget than a structured audit — but it isn't writing and
-  running multi-file code.
-- **`xhigh` for coding/agentic agents.** `developer`, `qa-tester`, and
-  `devops-sre` write multi-file changes, run suites, and operate
-  infrastructure. Under-provisioning them is the expensive failure mode: a
-  shallow coding pass ships bugs that cost far more than the saved tokens.
-  This is the one tier where spending *more* is the economical choice.
+## Effort — the reasoning budget
 
-## Caveat — `xhigh` is Opus-only
+Every bundled agent declares `model:` and `effort:` in its frontmatter.
+`effort` is a reasoning-budget hint the harness reads on dispatch: a higher
+tier thinks harder and costs more.
 
-`xhigh` is only valid on an agent pinned to an Opus `model:`. A Sonnet-pinned
-agent that declares `effort: xhigh` is rejected by the harness (it would 400
-on dispatch). The three `xhigh` agents above (`developer`, `qa-tester`,
-`devops-sre`) are all `model: opus`, which is why the tier is valid for them.
+**Every bundled agent is `model: opus`.** Opus is the capable default, and a
+fleet that mixes tiers mostly produces a fleet where the cheap agents are the
+ones that miss things — the failure is silent, arrives as a clean report, and
+costs more to discover later than the tokens it saved.
 
-When adding a new agent: pick its tier by role class from the table above, and
-**never** set `xhigh` unless the agent is also `model: opus`. Every bundled
-agent must carry exactly one `effort:` value from {`low`, `medium`, `high`,
-`xhigh`}.
+| Tier | Role class | Agents |
+| ---- | ---------- | ------ |
+| `high` | Everything not below — review lenses, orchestrators, the backlog owner, the design agent, the explainer | `accessibility-expert`, `dependency-expert`, `performance-expert`, `code-reviewer`, `test-reviewer`, `review-coordinator`, `workflow-manager`, `product-owner`, `ui-ux-designer`, `specnaut-guide` |
+| `xhigh` | Agentic work, and the two lenses whose misses are hardest to recover from | `developer`, `qa-tester`, `devops-sre`, `architect-expert`, `security-expert` |
+
+Tally: 10 `high` · 5 `xhigh` = 15 agents. `low` and `medium` remain valid
+values for a project's own agents; **no bundled agent uses them.**
+
+### Why `high` is the floor
+
+The earlier rubric put review lenses at `medium` and orchestrators at `low`,
+reasoning that a dispatcher does not think and a read-only pass needs less
+depth than writing code. Both halves turned out to be wrong in the same way.
+
+- **A review lens under-provisioned fails quietly.** It returns a
+  well-formatted report with fewer findings, which is indistinguishable from
+  clean code. There is no error, no retry, and nothing downstream notices —
+  the saving is visible and the cost is not.
+- **An orchestrator does reason.** `review-coordinator` decides *which*
+  lenses to fire against a given diff and reconciles findings that several
+  of them report differently; `workflow-manager` sequences a delivery and
+  judges when a phase is actually done. Neither is a switch statement.
+
+The compound-cost worry behind the old `low` tier is real — a coordinator
+pays its own budget plus every child's — but it is an argument for fanning
+out fewer lenses, not for the one agent choosing them thinking less.
+
+### Why `architect-expert` and `security-expert` go further
+
+These two are `xhigh` for the same reason the coding agents are: their misses
+are the ones you cannot cheaply undo. A missed vulnerability ships. A missed
+layering violation is load-bearing by the time anyone sees it. Both need to
+hold a whole-system model in mind rather than pattern-match a diff, which is
+exactly what the extra budget buys.
+
+### Adding an agent
+
+Pick the suffix from the naming table, then the tier from the effort table.
+Default to `high`; reach for `xhigh` only for agentic work or an
+irreversible-miss lens. `xhigh` requires `model: opus` — a Sonnet-pinned
+agent declaring it is rejected by the harness on dispatch, which is why the
+all-Opus rule above makes the tier universally available.

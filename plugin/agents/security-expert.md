@@ -1,8 +1,8 @@
 ---
 name: security-expert
 description: Reviews code for security issues — input validation, authz, secrets, injection, SSRF, path traversal, silent error swallowing. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) alert triage (spawned by /release after the security-preflight workflow surfaces open GitHub security alerts).
-model: sonnet
-effort: medium
+model: opus
+effort: xhigh
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20

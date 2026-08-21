@@ -8,7 +8,7 @@ user-invocable: false
 
 This skill defines the **REVIEW SUMMARY** block. Agents that preload it
 (`architect-expert`, `performance-expert`, `security-expert`,
-`a11y-expert`, `dependency-expert`, `code-reviewer`, `test-reviewer`, and the
+`accessibility-expert`, `dependency-expert`, `code-reviewer`, `test-reviewer`, and the
 `review-coordinator`) emit exactly one such block **after their prose** (and
 before the WORKFLOW STATUS block when the agent also carries `workflow-contract`).
 It normalizes the review's severity counts and verdict so a coordinator can

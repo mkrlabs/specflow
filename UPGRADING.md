@@ -1,5 +1,71 @@
 # Upgrading Specnaut
 
+## 2.1.x → 2.2.0
+
+### Two agents are renamed
+
+| Before            | After                  |
+| :---------------- | :--------------------- |
+| `a11y-expert`     | `accessibility-expert` |
+| `specnaut-expert` | `specnaut-guide`       |
+
+`a11y-expert` was the only agent in the fleet that abbreviated its domain — its four siblings are
+`architect-expert`, `dependency-expert`, `performance-expert`, `security-expert`. The abbreviation
+costs twice: a reader who does not know the numeronym cannot guess the name, and a model matching a
+request against agent descriptions gets a far weaker signal from `a11y` than from `accessibility`.
+The audit **skill** stays `/a11y-audit`, and that asymmetry is deliberate — a skill name is typed by
+a human, where short wins; an agent name is matched semantically by a model, where the full word
+does.
+
+`specnaut-expert` was the only `-expert` that is not a review lens. In this fleet the suffix means
+"has a `/specnaut audit <domain>` phase", which this agent does not and should not have — it answers
+questions about Specnaut, it does not review your code. `specnaut-guide` says that.
+
+**The `from:specnaut-expert` issue label is unchanged.** It routes the maintainer triage inbox and
+is already stamped on filed issues; renaming it would mean rewriting them. It tracks the inbox, not
+the agent.
+
+### Every bundled agent is now Opus, at `high` or `xhigh`
+
+Previously the fleet mixed Sonnet and Opus across four effort tiers. It is now uniformly
+`model: opus`, with `effort: high` as the floor and `xhigh` for `developer`, `qa-tester`,
+`devops-sre`, `architect-expert`, and `security-expert`.
+
+The old rubric put review lenses at `medium` and orchestrators at `low`. Both were wrong in the same
+way: **an under-provisioned review lens fails quietly.** It returns a well-formatted report with
+fewer findings, which is indistinguishable from clean code — no error, no retry, nothing downstream
+notices. The saving was visible and the cost was not. `architect-expert` and `security-expert` go to
+`xhigh` because their misses are the ones you cannot cheaply undo: a missed vulnerability ships, and
+a missed layering violation is load-bearing by the time anyone sees it.
+
+This costs more per run. If that is not the trade you want, both fields are plain frontmatter — edit
+them in your own `.claude/agents/`, and note that doing so marks the file customized, so `upgrade`
+will stop refreshing it.
+
+### The naming convention is now written down
+
+`.claude/agents/README.md` gained a suffix table: `<domain>-expert` for a lens that also has an
+audit phase, `<domain>-reviewer` for a lens that only ever sees a diff, `-coordinator` for a
+single-phase fan-out, `-manager` for a multi-phase delivery, and a plain role noun for agents that
+do the work rather than judge it. The rule that matters when you add one: **`-expert` ⇔ an audit
+phase exists.** Give `code-reviewer` an audit phase and you rename it in the same change, or the
+suffix stops predicting anything.
+
+The convention had been followed consistently for a year without ever being stated — which is
+exactly how conventions die.
+
+### What `upgrade` moves, and what it cannot
+
+`specnaut upgrade` moves the two agent files for you. **What it cannot move is your own writing**:
+if you reference either agent by name in your `AGENTS.md`, your own skills, a script, or a saved
+prompt, update it. There are no aliases — an unknown agent name fails at dispatch time, not at
+scaffold time, so a stale reference stays silent until the moment you need the seat.
+
+If you kept a local copy of either agent (a `preserve.yml` entry, or a file `upgrade` reports as
+customized), the rename lands as a **new** path and your copy stays behind under the old one. Move
+your customisation across yourself, and re-point the `preserve.yml` entry — otherwise the old path
+protects a file nothing reads, and the new path is left unprotected.
+
 ## 2.0.x → 2.1.0
 
 > This release renames the five expert agents. `specnaut upgrade` moves the files for you; it cannot

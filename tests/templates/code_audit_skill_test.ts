@@ -56,7 +56,7 @@ Deno.test("code-audit SKILL body encodes the seat→signal selection rules", () 
   assertStringIncludes(body, "security-expert");
   assertStringIncludes(body, "performance-expert");
   // Signal-gated seats.
-  assertStringIncludes(body, "a11y-expert");
+  assertStringIncludes(body, "accessibility-expert");
   assertStringIncludes(body, "dependency-expert");
   assertStringIncludes(body, "FRONTEND_COUNT > 0");
   assertStringIncludes(body, "DEP_COUNT > 0");

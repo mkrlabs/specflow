@@ -1,8 +1,8 @@
 ---
-name: a11y-expert
+name: accessibility-expert
 description: Reviews front-end code for WCAG 2.1 AA accessibility issues — semantic HTML, heading hierarchy, alt text, form labels, keyboard nav, focus indicators, ARIA correctness, color contrast (where computable from source). Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit accessibility).
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20
@@ -209,7 +209,7 @@ backlog material for the PO to triage.
 
 Same `FINDING` structure as code-reviewer, followed by exactly one
 `REVIEW SUMMARY` block per the preloaded `review-findings-contract`
-(`REVIEW_SCOPE: a11y-expert`,
+(`REVIEW_SCOPE: accessibility-expert`,
 `REVIEW_VERDICT: pass | fail | needs_followup`, the four severity counts,
 `TOP_ISSUES`, `RECOMMENDATION`), then the `WORKFLOW STATUS` block per
 `workflow-contract`. Audit-mode (Mode 2) emits neither block.

@@ -2,7 +2,7 @@
 name: product-owner
 description: Product Owner and business guardian. Owns the product backlog, all mutation semantics, epic / sub-task relationships, and recommends workflow (Specnaut spec vs direct implementation). Use when the user asks about backlog, priorities, "what next", or wants to break work into an epic.
 model: opus
-effort: medium
+effort: high
 tools: Read, Write, Edit, Grep, Glob, Bash
 skills: backlog-reference-contract
 maxTurns: 30

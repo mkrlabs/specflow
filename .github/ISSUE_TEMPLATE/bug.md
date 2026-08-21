@@ -55,7 +55,7 @@ Before submitting, scrub any of:
   - AWS access keys (AKIA…)
   - Paths inside ~/.ssh/, ~/.aws/, ~/.config/gh/
 
-The bundled `specnaut-expert` agent can do this scrubbing for you —
+The bundled `specnaut-guide` agent can do this scrubbing for you —
 ask it "report this as a bug" and it will pre-fill an issue with the
 above sections, scrub the listed token shapes, and hand you a link
 to review and submit.

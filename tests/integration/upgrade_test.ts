@@ -166,7 +166,7 @@ Deno.test("integration: applied upgrade writes marker and prints handoff", async
       if (typeof marker.at !== "string") throw new Error("marker.at missing");
 
       // Handoff line present:
-      if (!r.stdout.includes("@specnaut-expert review-upgrade")) {
+      if (!r.stdout.includes("@specnaut-guide review-upgrade")) {
         throw new Error(`handoff line missing in stdout:\n${r.stdout}`);
       }
     } else {

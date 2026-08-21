@@ -53,7 +53,7 @@ zero, and record the skip with its reason in the report's `### Scope` line.
 | Architecture  | architect-expert  | scope non-empty (always)               |
 | Security      | security-expert      | scope non-empty (always)               |
 | Performance   | performance-expert   | scope non-empty (always)               |
-| Accessibility | a11y-expert          | `FRONTEND_COUNT > 0` (gating signal)   |
+| Accessibility | accessibility-expert          | `FRONTEND_COUNT > 0` (gating signal)   |
 | Dependency    | dependency-expert    | `DEP_COUNT > 0` (gating signal)        |
 
 These are the **existing** expert agents — this skill defines no new agents.

@@ -155,7 +155,7 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
   // basename in plugin scope; no namespacing needed for invocation
   // (agents are not user-invokable like slash commands).
   // Counts: 10 original + ui-ux-designer (#198, sync-test drift fix in
-  // #321) + performance-expert (#304) + a11y-expert (#305) +
+  // #321) + performance-expert (#304) + accessibility-expert (#305) +
   // architect-expert (#321) + dependency-expert (#322) = 15.
   ...[
     "code-reviewer",
@@ -165,12 +165,12 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     "qa-tester",
     "review-coordinator",
     "security-expert",
-    "specnaut-expert",
+    "specnaut-guide",
     "test-reviewer",
     "workflow-manager",
     "ui-ux-designer",
     "performance-expert",
-    "a11y-expert",
+    "accessibility-expert",
     "architect-expert",
     "dependency-expert",
   ].map((name) => ({

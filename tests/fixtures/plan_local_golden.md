@@ -87,7 +87,7 @@ One file, read whole by whoever implements. Twelve sections, in order, **none op
    exposes. "One surface only" is a valid answer; an unstated one is not.
    **Front-end / UX-UI features**: where the project has a front-end surface, add a
    `## Visual Prototyping with Claude Artifacts` subsection. Detect that surface with the SAME
-   signals the accessibility gate uses — the `a11y-expert` FE-surface list; don't invent a second
+   signals the accessibility gate uses — the `accessibility-expert` FE-surface list; don't invent a second
    heuristic. No front-end surface → the plan **must not mention** artifacts at all.
 9. **Risks** — each with its mitigation.
 10. **Architecture audit** — findings, and what was done with each. Step 6.

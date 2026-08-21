@@ -108,10 +108,10 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
     )).length;
     assertEquals(commandsCount, 2);
     // 15 agent .md files (11 original + performance-expert #304 +
-    // a11y-expert #305 + architect-expert #321 + dependency-expert
+    // accessibility-expert #305 + architect-expert #321 + dependency-expert
     // #322) + 5 memory subfolders (product-owner, developer, qa-tester,
-    // devops-sre, security-expert; specnaut-expert, ui-ux-designer,
-    // performance-expert, a11y-expert, architect-expert, and
+    // devops-sre, security-expert; specnaut-guide, ui-ux-designer,
+    // performance-expert, accessibility-expert, architect-expert, and
     // dependency-expert are stateless and ship without a memory stub)
     const agentDirEntries = await Array.fromAsync(
       Deno.readDir(join(root, ".claude/agents")),
@@ -135,9 +135,9 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
       await exists(join(root, ".claude/agents/product-owner/memory/MEMORY.md")),
       true,
     );
-    // Spot-check the new specnaut-expert agent
+    // Spot-check the new specnaut-guide agent
     assertEquals(
-      await exists(join(root, ".claude/agents/specnaut-expert.md")),
+      await exists(join(root, ".claude/agents/specnaut-guide.md")),
       true,
     );
   });

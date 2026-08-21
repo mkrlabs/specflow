@@ -413,7 +413,7 @@ export async function assembleAdoptionEntries(
   const failures: { prNum: number | null; hash?: string; reason: string }[] = [];
 
   // One entry per PR, not per commit: a PR carrying two `feat:` commits used to
-  // emit the same prose and the same prompt twice, and `specnaut-expert
+  // emit the same prose and the same prompt twice, and `specnaut-guide
   // review-upgrade` walks these one at a time — the user was asked to run an
   // identical prompt twice in a row.
   //
@@ -573,7 +573,7 @@ export function formatChangelog(commits: Classified[], opts: FormatOpts): string
   if (adoption.length > 0) {
     const intro =
       "These prompts help your AI agent adopt the new features in an existing project. " +
-      "Copy them into your harness, or run `@specnaut-expert review-upgrade` to be walked " +
+      "Copy them into your harness, or run `@specnaut-guide review-upgrade` to be walked " +
       "through automatically.";
     const items = adoption
       .map((a) => `**${a.prNum === null ? "" : `#${a.prNum} — `}${a.title}**\n\n${a.body}`)

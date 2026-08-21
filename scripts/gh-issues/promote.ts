@@ -19,7 +19,7 @@ const THANK_YOU = `Thanks for the report! 🙏
 
 I've added this to the Specnaut backlog (Status: \`Ready\`). I'll keep this issue updated as the work progresses — no action needed on your end.
 
-If you spot anything else, the bundled \`specnaut-expert\` agent in your project (run \`/specnaut-expert <question>\` or just ask "report this as a bug" when something breaks) can pre-fill structured reports for future fixes.`;
+If you spot anything else, the bundled \`specnaut-guide\` agent in your project (run \`/specnaut-guide <question>\` or just ask "report this as a bug" when something breaks) can pre-fill structured reports for future fixes.`;
 
 export type PromoteArgs = {
   num: number;

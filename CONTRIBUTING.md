@@ -8,7 +8,7 @@ pipeline:
 
 1. `scripts/gen-changelog.ts` extracts the section at release time.
 2. It lands in the GitHub Release body under `### Adoption guide`.
-3. After `specnaut upgrade`, the `specnaut-expert` agent reads the release body and plays each
+3. After `specnaut upgrade`, the `specnaut-guide` agent reads the release body and plays each
    adoption prompt one at a time in the user's project.
 
 **In the commit, not in the PR.** Features land here with a local fast-forward — `/specnaut merge`
@@ -80,7 +80,7 @@ Replace each with `/specnaut specify "<…>"`. Add a brief note explaining
 `.claude/agents/` or harness rules that document the upgrade flow should mention it.
 
 ```prompt
-Add a short note to my project's `.claude/agents/specnaut-expert.md` (and any
+Add a short note to my project's `.claude/agents/specnaut-guide.md` (and any
 equivalent agent files for other harnesses) that `specnaut reconcile --status`
 lists pending post-upgrade reconciliation. Open a PR.
 ```

@@ -20,7 +20,7 @@ const AXIS_SKILLS: ReadonlyArray<{ skill: string; agent: string }> = [
   { skill: "sec-audit", agent: "security-expert" },
   { skill: "perf-audit", agent: "performance-expert" },
   { skill: "dep-audit", agent: "dependency-expert" },
-  { skill: "a11y-audit", agent: "a11y-expert" },
+  { skill: "a11y-audit", agent: "accessibility-expert" },
 ];
 
 function skillEntry(name: string): CoreEntry | undefined {

@@ -127,7 +127,7 @@ content matters it belongs in section 6 (domain model) or in the table above.
 <!--
   ACTION REQUIRED — CONDITIONAL SECTION.
   Keep this ONLY when the project has a front-end / UX-UI surface. Detect that surface with the
-  SAME signal list the accessibility gate uses (see the `a11y-expert` agent — do NOT invent a new
+  SAME signal list the accessibility gate uses (see the `accessibility-expert` agent — do NOT invent a new
   heuristic). Any of:
     - `.html` / `.htm` files
     - `.jsx` / `.tsx` files

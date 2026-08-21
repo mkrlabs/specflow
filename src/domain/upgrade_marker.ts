@@ -1,6 +1,6 @@
 /**
  * The `.specnaut/upgrade-pending.json` marker. Written by `specnaut upgrade`
- * on successful apply; consumed by `specnaut-expert review-upgrade`.
+ * on successful apply; consumed by `specnaut-guide review-upgrade`.
  *
  * The marker is intentionally minimal. The list of preserved files is NOT
  * carried here — `specnaut reconcile --status` inspects the staging directory

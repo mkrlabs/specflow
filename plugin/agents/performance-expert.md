@@ -1,8 +1,8 @@
 ---
 name: performance-expert
 description: Reviews code for performance issues — N+1 queries, blocking I/O on hot paths, missing indexes, cache misuse, hot-path allocation, sync-in-async, large bundles, render-thrash. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) full-codebase audit (spawned by /specnaut audit performance).
-model: sonnet
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash
 skills: review-findings-contract, workflow-contract
 maxTurns: 20

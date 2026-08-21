@@ -526,7 +526,7 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
   // Handoff: tell the user how to invoke the agent-assisted review.
   console.log();
   console.log("→ Walk through what's new with your AI:");
-  console.log("  `@specnaut-expert review-upgrade`");
+  console.log("  `@specnaut-guide review-upgrade`");
   console.log();
   console.log(dim(
     "  (proposes a review branch, plays adoption prompts for each new\n" +

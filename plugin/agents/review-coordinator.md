@@ -1,8 +1,8 @@
 ---
 name: review-coordinator
 description: Coordinates parallel structural review agents (code, security, tests) and aggregates their findings. Use when /specnaut review is running Phase 1.
-model: sonnet
-effort: low
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash, Agent(code-reviewer, security-expert, test-reviewer)
 skills: workflow-contract, handoff-protocol, review-findings-contract
 maxTurns: 30
