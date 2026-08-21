@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { findOffenders } from "../../scripts/check-adoption.ts";
 
 const GUIDE = "## Agent adoption\n\nprose\n\n```prompt\ndo the thing\n```\n";
@@ -71,4 +71,68 @@ Deno.test("every offender is reported, not just the first", () => {
     { hash: "f3", subject: "feat!: three", body: "" },
   ]);
   assertEquals(offenders.map((o) => o.hash), ["f1", "f3"]);
+});
+
+// --- the ships-something rule -------------------------------------------
+
+const withPrompt = "## Agent adoption\n\nprose\n\n```prompt\ndo it\n```\n";
+
+Deno.test("a feat that ships no user-facing file is refused", () => {
+  // The real case: `scripts/check-release-commit.ts` is absent from
+  // templates/manifest.json, so it reaches no user project. Typed `feat`, it
+  // made this gate demand a guide, which was then written by inventing a
+  // user-facing story — telling an agent to confirm the file "arrived with the
+  // upgrade", which it never can.
+  const offenders = findOffenders([{
+    hash: "f4b3408",
+    subject: "feat(release): gate the tag on the release commit actually being one",
+    body: withPrompt,
+    files: ["scripts/check-release-commit.ts", "tests/scripts/check_release_commit_test.ts"],
+  }]);
+  assertEquals(offenders.length, 1);
+  assertStringIncludes(offenders[0].reason, "ships");
+  assertStringIncludes(offenders[0].reason, "Repo-internal:");
+});
+
+Deno.test("the escape hatch admits a repo-internal change that is genuinely a feature", () => {
+  // `feat(changelog): read the adoption guide from the commit body` touched
+  // only scripts/ and .github/ and was a real feature — it changed the release
+  // notes users read. A path-only rule would have rejected it, which is why
+  // the rule asks for a sentence rather than forbidding the shape.
+  const offenders = findOffenders([{
+    hash: "88548c9",
+    subject: "feat(changelog): read the adoption guide from the commit body",
+    body: withPrompt + "\nRepo-internal: changes the release notes users read.\n",
+    files: ["scripts/gen-changelog.ts", ".github/workflows/adoption_lint.yml"],
+  }]);
+  assertEquals(offenders, []);
+});
+
+Deno.test("touching any user-facing prefix needs no trailer", () => {
+  for (const f of ["src/domain/x.ts", "templates/core/agents/a.md", "plugin/agents/a.md"]) {
+    const offenders = findOffenders([{
+      hash: "abc1234",
+      subject: "feat: x",
+      body: withPrompt,
+      files: [f, "tests/x_test.ts"],
+    }]);
+    assertEquals(offenders, [], `${f} should count as user-facing`);
+  }
+});
+
+Deno.test("the scope rule does not fire when no diff is available", () => {
+  // `files` absent means the caller had no diff to offer; the rule must then
+  // stay silent rather than assume the worst.
+  const offenders = findOffenders([{ hash: "abc1234", subject: "feat: x", body: withPrompt }]);
+  assertEquals(offenders, []);
+});
+
+Deno.test("a chore is never subject to the scope rule", () => {
+  const offenders = findOffenders([{
+    hash: "abc1234",
+    subject: "chore(release): internal tooling",
+    body: "",
+    files: ["scripts/whatever.ts"],
+  }]);
+  assertEquals(offenders, []);
 });

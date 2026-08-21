@@ -86,6 +86,30 @@ lists pending post-upgrade reconciliation. Open a PR.
 ```
 ````
 
+### When `feat:` is the wrong type
+
+A `feat` that touches nothing under `src/`, `templates/` or `plugin/` ships no file any user
+installs, and `check-adoption.ts` refuses it. Use `chore:`.
+
+The rule exists because this gate can push in the wrong direction. A repo-internal release script
+was once committed as `feat`, which made the gate demand an adoption guide, which was then written
+by inventing a user-facing story — it told an agent to confirm the file "arrived with the upgrade",
+and that file is not in the manifest and never arrives. **A gate that asks the wrong question gets
+an answer invented to satisfy it.**
+
+Some repo-internal changes genuinely are features.
+`feat(changelog): read the
+adoption guide from the commit body` touched only `scripts/` and
+`.github/`, and it changed the release notes users read. For those, add a trailer:
+
+```
+Repo-internal: changes the release notes users read.
+```
+
+One line, stating why a change that ships nothing is still user-facing. It is a prompt for a
+sentence, not a prohibition — but the sentence has to exist, so the claim is deliberate rather than
+assumed.
+
 ### When the section is optional
 
 `fix:`, `chore:`, `refactor:`, `docs:`, `test:`, and `ci:` commits may omit the section. If a `fix:`

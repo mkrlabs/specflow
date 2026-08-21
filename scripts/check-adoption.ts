@@ -35,14 +35,59 @@ import { extractAdoption, parseCommitLog } from "./gen-changelog.ts";
  */
 const FEATURE_SUBJECT_RE = /^feat(\([^)]+\))?!?:/;
 
+/**
+ * Paths whose contents reach a user project — the binary's own source, the
+ * templates `init`/`upgrade` write, and the plugin mirror.
+ *
+ * A `feat` touching none of them ships nothing anybody installs, which is
+ * usually a mistyped `chore`. Usually, not always: `feat(changelog): read the
+ * adoption guide from the commit body` changed only `scripts/` and `.github/`
+ * and was a genuine feature, because it changed the release notes users read.
+ * So this is a prompt for a sentence, not a prohibition — see
+ * `REPO_INTERNAL_TRAILER`.
+ */
+const USER_FACING_PREFIXES = ["src/", "templates/", "plugin/"];
+
+/**
+ * The escape hatch. A `feat` that ships no user-facing file must say, in one
+ * line, why it is still a feature.
+ *
+ * The rule exists because the gate can push in the wrong direction. A
+ * repo-internal script was once committed as `feat`, which made this gate
+ * demand an adoption guide, which was then written by inventing a user-facing
+ * story — it told an agent to confirm a file "arrived with the upgrade" that
+ * is not in the manifest and never arrives. A gate that asks the wrong
+ * question gets an answer invented to satisfy it. Requiring the sentence turns
+ * that invention into a deliberate claim someone has to write down.
+ */
+const REPO_INTERNAL_TRAILER = /^Repo-internal:\s*\S+/m;
+
 export type Offender = { hash: string; subject: string; reason: string };
 
 /** Pure core, so the rule is testable without a git repository. */
-export function findOffenders(commits: { hash: string; subject: string; body?: string }[]) {
+export function findOffenders(
+  commits: { hash: string; subject: string; body?: string; files?: string[] }[],
+) {
   const offenders: Offender[] = [];
   for (const c of commits) {
     if (!FEATURE_SUBJECT_RE.test(c.subject.trim())) continue;
     const body = c.body ?? "";
+
+    // `files` is absent when the caller has no diff to offer (the pure unit
+    // tests); the scope rule simply does not apply then.
+    if (c.files !== undefined) {
+      const shipsSomething = c.files.some((f) => USER_FACING_PREFIXES.some((p) => f.startsWith(p)));
+      if (!shipsSomething && !REPO_INTERNAL_TRAILER.test(body)) {
+        offenders.push({
+          hash: c.hash,
+          subject: c.subject,
+          reason: "a `feat` that touches nothing under src/, templates/ or plugin/ — it ships " +
+            "no file any user installs. Use `chore:`, or add a `Repo-internal: <why " +
+            "this is still user-facing>` line to the body",
+        });
+        continue;
+      }
+    }
     if (!/^## Agent adoption\b/m.test(body)) {
       offenders.push({
         hash: c.hash,
@@ -65,6 +110,17 @@ export function findOffenders(commits: { hash: string; subject: string; body?: s
   return offenders;
 }
 
+/** The paths a commit touches, for the ships-something rule. */
+async function filesIn(hash: string): Promise<string[]> {
+  const { stdout, success } = await new Deno.Command("git", {
+    args: ["show", "--name-only", "--format=", hash],
+    stdout: "piped",
+    stderr: "null",
+  }).output();
+  if (!success) return [];
+  return new TextDecoder().decode(stdout).split("\n").map((l) => l.trim()).filter(Boolean);
+}
+
 function parseFlag(args: string[], flag: string): string | null {
   const i = args.indexOf(flag);
   return i >= 0 && i < args.length - 1 ? args[i + 1] : null;
@@ -85,7 +141,11 @@ async function main() {
     Deno.exit(2);
   }
 
-  const commits = parseCommitLog(new TextDecoder().decode(stdout));
+  const parsed = parseCommitLog(new TextDecoder().decode(stdout));
+  const commits = await Promise.all(parsed.map(async (c) => ({
+    ...c,
+    files: await filesIn(c.hash),
+  })));
   const offenders = findOffenders(commits);
   const features = commits.filter((c) => FEATURE_SUBJECT_RE.test(c.subject.trim()));
 
