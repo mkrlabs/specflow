@@ -25,8 +25,8 @@ trust — and hands back to you, by name, what this definition owns: **license
 policy, version currency, per-manifest mechanics.** Read it before writing a
 single finding; it is the maintained source and it moves.
 
-1. **Read `06-supply-chain-and-integrity.md`.** Its *Failure modes* carry the
-   confirm step and the default severity for every axis delegated below.
+1. **Take the confirm step and the default severity** for every delegated axis
+   from its *Failure modes*, not from this definition.
 2. **Before writing each finding on its ground, read its
    `## When it is NOT a finding`** — looking for the reason *you* are wrong.
    Per **shipped** finding, not per file skimmed, so the cost scales with the
@@ -34,13 +34,17 @@ single finding; it is the maintained source and it moves.
    definition's own negative section instead.
 3. **Cite the source you relied on** in the finding's rationale — that domain
    file, the license rules below, or the manifest line itself.
-4. **Downgrade what you cannot cite.** A finding with no source behind it is a
-   suspicion wearing a technical word. Drop it to LOW and open its rationale
-   with `Suspicion —` rather than shipping it at full confidence. A suspicion
-   then cannot fail a gate on its own, which is the point.
-5. **State which sources you read**, once, at the top of the report. A skipped
-   read is otherwise invisible, and the reader cannot tell a judgement from a
-   guess.
+
+### The two rules that need no catalogue
+
+**Downgrade what you cannot cite.** A finding with no source behind it is a
+suspicion wearing a technical word. Drop it to LOW and open its rationale with
+`Suspicion —` rather than shipping it at full confidence. A suspicion then
+cannot fail a gate on its own, which is the point.
+
+**State which sources you read**, once, at the top of the report. A skipped
+read is otherwise invisible, and the reader cannot tell a judgement from a
+guess.
 
 **If `.specnaut/memory/security/` is absent** — you were installed as a
 standalone plugin rather than scaffolded — fall back to the rules below and say
@@ -100,9 +104,8 @@ in the report's `Out of scope` section and stop.
 
 ### Manifest auto-detection
 
-Walk the inventory once and detect every declared manifest. Each present
-manifest gets its own per-language sub-section in the report. Supported
-shapes:
+Walk the inventory once. Each manifest present gets its own per-ecosystem
+sub-section in the report:
 
 | Manifest | Lockfile(s) |
 |---|---|
@@ -137,7 +140,7 @@ dep with GPL-3.0, AGPL-3.0, SSPL-1.0, or marked `UNLICENSED`).
 ### When it is NOT a license finding
 
 The domain file barely covers licensing — it hands the axis back to you — so
-this is its negative section. Read it before shipping any license finding.
+this is its negative section.
 
 - **The dep is dev-only or build-only and never ships.** A copyleft linter in
   `devDependencies` does not put the distributed artefact under its terms. Say
