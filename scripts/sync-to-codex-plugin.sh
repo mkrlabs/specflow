@@ -70,59 +70,46 @@ cd "$CLONE_TARGET"
 git_bot_identity
 wire_gh_token_to_remote
 
-# rsync EXCLUDES — what NOT to ship into the Codex marketplace.
-# Inspired by superpowers' EXCLUDES array. We ship:
-#   - .codex-plugin/plugin.json
-#   - assets/                  (icons referenced by the manifest)
-#   - plugin/skills/           (the bundled skill library)
-# We DON'T ship:
-#   - .claude-plugin/          (Claude Code-specific)
-#   - .cursor-plugin/          (when it lands — Cursor-specific)
-#   - .opencode/               (OpenCode-specific)
-#   - .git/, .github/, docs/, tests/, src/, scripts/, etc.
-EXCLUDES=(
-  --exclude='/.git/'
-  --exclude='/.github/'
-  --exclude='/.claude-plugin/'
-  --exclude='/.cursor-plugin/'
-  --exclude='/.opencode/'
-  --exclude='/.specnaut/'
-  --exclude='/docs/'
-  --exclude='/tests/'
-  --exclude='/src/'
-  --exclude='/scripts/'
-  --exclude='/templates/'
-  --exclude='/dist/'
-  --exclude='/.claude/'
-  --exclude='/.cursor/'
-  --exclude='/.codex/'
-  --exclude='/.windsurf/'
-  --exclude='/.agents/'
-  --exclude='/.opencode/'
-  --exclude='/.gitignore'
-  --exclude='/deno.json'
-  --exclude='/deno.lock'
-  --exclude='/install.sh'
-  --exclude='/AGENTS.md'
-  --exclude='/CLAUDE.md'
-  --exclude='/CHANGELOG.md'
-  --exclude='/CONTRIBUTING.md'
-  --exclude='/SECURITY.md'
-  --exclude='/CODE_OF_CONDUCT.md'
-  --exclude='/LICENSE'
-  --exclude='/README.md'
-  --exclude='/RELEASE-NOTES.md'
-  --exclude='/package.json'
-  --exclude='/Cargo.toml'
-  --exclude='**/.DS_Store'
-  --exclude='**/node_modules/'
-  --exclude='**/__pycache__/'
+# What ships to the Codex marketplace — an ALLOW-list, not a deny-list.
+#
+# This was a deny-list: rsync copied the whole repo and excluded ~30 named
+# paths. That inverts the risk. Every directory added to this repo afterwards
+# shipped to a public fork by default, and the only thing standing between a
+# new directory and publication was someone remembering to add a line here.
+#
+# Nobody remembered for `examples/` — 254 files of a consuming project's
+# scaffolded workspace, its `.claude/`, its `.specify/`, its backlog. It was
+# purged from this repo and its history months ago; the fork kept serving it
+# until 2026-08-21 because nothing ever looked there. Constitution § XI.
+#
+# An allow-list cannot fail that way. A new directory is invisible to the sync
+# until someone names it, and naming it is a deliberate act.
+INCLUDES=(
+  ".codex-plugin"
+  "assets"
+  "plugin"
+  "hooks"
+  "packaging"
+  "DESIGN.md"
 )
 
-# Sync source → fork/plugins/specnaut/.
-mkdir -p "$CLONE_TARGET/$DEST_REL"
-echo "Syncing $REPO_ROOT → $CLONE_TARGET/$DEST_REL ..."
-rsync -av --delete "${EXCLUDES[@]}" \
+# Guard against the opposite failure: an entry that silently stops existing
+# would shrink the published plugin with no signal at all.
+for item in "${INCLUDES[@]}"; do
+  if [ ! -e "$REPO_ROOT/$item" ]; then
+    echo "::error::sync allow-list names '$item', which does not exist in $REPO_ROOT." >&2
+    echo "  Either restore it or remove it from INCLUDES — do not ship a partial plugin." >&2
+    exit 1
+  fi
+done
+
+# `--delete` still applies, so anything previously published and no longer in
+# the allow-list is removed from the fork on the next sync.
+rsync -av --delete --delete-excluded \
+  $(printf -- '--include=/%s ' "${INCLUDES[@]}") \
+  $(printf -- '--include=/%s/*** ' "${INCLUDES[@]}") \
+  --exclude='/*' \
+  --exclude='**/.DS_Store' --exclude='**/node_modules/' --exclude='**/__pycache__/' \
   "$REPO_ROOT/" "$CLONE_TARGET/$DEST_REL/"
 
 # Detect "no changes" early — superpowers' pattern, avoids opening
@@ -168,5 +155,34 @@ if ! git push -u origin "$BRANCH"; then
 fi
 
 create_pr_idempotent "$FORK" "$BRANCH" "$TITLE" "$BODY"
+
+# Retire every earlier sync branch and its PR.
+#
+# One branch and one PR were created per release and neither was ever closed.
+# By v3.0.1 that was 15 branches and 18 open PRs on a *public* fork — and the
+# eight oldest still carried a `plugins/specnaut/examples/` tree that had been
+# purged from this repo's own history months earlier. The rewrite here never
+# reached them, because nothing was looking at branches already pushed.
+#
+# So this is not tidiness. A sync branch is a snapshot of what shipped at one
+# tag; keeping it forever means every past mistake stays published even after
+# it is fixed at the source. Only the current one has any purpose — a human
+# rebases it into upstream `openai/plugins`.
+#
+# Best-effort throughout: the release has already shipped by this point, and a
+# failure to reap is never worth failing it.
+echo "▶ reaping superseded sync branches on $FORK"
+for stale in $(gh api "repos/$FORK/branches?per_page=100" --paginate \
+  --jq '.[].name' 2>/dev/null | grep "^$BRANCH_PREFIX/" | grep -vx "$BRANCH" || true); do
+  pr="$(gh pr list -R "$FORK" --head "$stale" --state open \
+    --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+  if [ -n "$pr" ]; then
+    gh pr close "$pr" -R "$FORK" \
+      --comment "Superseded by the v$VERSION sync. Branch deleted." >/dev/null 2>&1 || true
+  fi
+  gh api -X DELETE "repos/$FORK/git/refs/heads/$stale" >/dev/null 2>&1 \
+    && echo "  reaped $stale" \
+    || echo "::warning::could not delete $stale on $FORK"
+done
 
 echo "✓ Specnaut synced to $FORK:$BRANCH (v$VERSION)"
