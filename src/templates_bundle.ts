@@ -4205,10 +4205,14 @@ harness's equivalent — see the tool reference described below).
 | \`product-owner\` | **Every** backlog mutation goes through this agent — no exceptions. Read-only inspection (\`list.sh\`, \`view.sh\`) can be done directly. |
 | \`qa-tester\` | Run the QA scenario catalogue against the released binary. |
 | \`devops-sre\` | Advisory pass before editing \`.github/workflows/\`, \`install.sh\`, \`scripts/build.ts\`, the homebrew tap, or running \`/release\`. |
-| \`architect\` | Architecture-aware research before non-trivial cross-subsystem changes. |
 | \`specnaut-guide\` | Specnaut-specific consulting on the binary, plugin, or scaffolded project state. |
 | \`review-coordinator\` | Orchestrates the implement → review → fix loop for \`/specnaut implement\`. |
 | \`workflow-manager\` | High-level workflow orchestration across phases. |
+| \`architect-expert\` | Architectural drift — layering, cycles, god files, ports/adapters discipline. Reviews a diff, or audits the whole codebase via \`/specnaut audit architecture\`. |
+| \`performance-expert\` | N+1 queries, blocking I/O, missing indexes, cache misuse, bundle weight. Review or \`/specnaut audit performance\`. |
+| \`dependency-expert\` | Manifest hygiene — pins, ranges, licences, advisory shape, typosquatting. Review or \`/specnaut audit dependencies\`. |
+| \`accessibility-expert\` | WCAG 2.1 AA over front-end source. Review or \`/specnaut audit accessibility\`. Stops early on a repo with no front-end surface. |
+| \`ui-ux-designer\` | Owns \`DESIGN.md\`. Creates a design system from a brief, edits an existing one, or audits UI source for drift against it. |
 
 ## Routing principles
 
@@ -4231,12 +4235,13 @@ harness's equivalent — see the tool reference described below).
    dispatch \`devops-sre\` for an advisory pass. The agent is read-only;
    the main session executes after the advisory.
 
-4. **Architecture-level work → \`architect\` first** — non-trivial
-   changes that cross subsystems (new CLI command, new application
-   use case, new port, new infrastructure adapter, new harness target,
-   changes to bundling / install / release flow, changes to the
-   lock-file or backlog-sync contract). The architect returns a design
-   proposal grounded in the current code; main session implements.
+4. **\`-expert\` vs \`-reviewer\`** — a \`-reviewer\` only ever sees a diff.
+   An \`-expert\` does that too, but also runs standalone over the whole
+   codebase via \`/specnaut audit <domain>\`. So reach for an expert when
+   the question is about the shape of the code rather than about this
+   change: a new subsystem boundary, a dependency surface you inherited,
+   a performance characteristic nobody has measured. Both are read-only
+   — they return findings, the main session acts.
 
 ## Skill discovery on different harnesses
 
