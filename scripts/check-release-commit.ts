@@ -1,0 +1,104 @@
+// check-release-commit — the gate between the release commit and `git tag`.
+//
+// Usage: deno run --allow-read --allow-run scripts/check-release-commit.ts v3.0.0
+//
+// Three things must hold at the moment a release tag is created, and none of
+// them is checked by anything else in the pipeline:
+//
+//   1. The working tree is clean. A tag records a commit; anything uncommitted
+//      is simply not in the release, and the difference is invisible from the
+//      tag afterwards.
+//   2. All six version files agree with the tag. They are written in lockstep
+//      by `bump-version.ts`, but nothing stops a hand-edit or a partial revert
+//      from desyncing them, and a binary whose `--version` disagrees with its
+//      templates manifest is a support ticket nobody can reproduce.
+//   3. HEAD is the release commit. In v3.0.0 the bump was swept into a
+//      `feat(...)` commit by a stray `git add -A` and the tag landed on it.
+//      Harmless that time — the tree was correct — but it is only luck that
+//      separates "the bump rode along with a feature" from "the tag captured
+//      half a feature". This is the check that would have said so.
+//
+// Exit 0 = safe to tag. 1 = do not tag. 2 = usage/environment error.
+
+import { VERSIONED_FILES } from "./bump-version.ts";
+
+const SEMVER_TAG = /^v(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/;
+
+async function git(...args: string[]): Promise<string> {
+  const out = await new Deno.Command("git", { args, stdout: "piped", stderr: "piped" }).output();
+  if (!out.success) {
+    throw new Error(`git ${args.join(" ")}: ${new TextDecoder().decode(out.stderr).trim()}`);
+  }
+  return new TextDecoder().decode(out.stdout).trim();
+}
+
+/**
+ * Every place a version can hide in these files: a JSON `"version": "x"` field
+ * and the TypeScript `VERSION` constant. Deliberately not anchored to a single
+ * shape — the point is to catch a file that disagrees, whatever its format.
+ */
+export function versionsIn(content: string): string[] {
+  const found = [
+    ...content.matchAll(/"version"\s*:\s*"([^"]+)"/g),
+    ...content.matchAll(/VERSION\s*=\s*"([^"]+)"/g),
+  ].map((m) => m[1]);
+  return [...new Set(found)];
+}
+
+async function main() {
+  const tag = Deno.args[0];
+  if (!tag) {
+    console.error("usage: check-release-commit.ts <tag>   (e.g. v3.0.0)");
+    Deno.exit(2);
+  }
+  if (!SEMVER_TAG.test(tag)) {
+    console.error(`check-release-commit: "${tag}" is not a vMAJOR.MINOR.PATCH tag`);
+    Deno.exit(2);
+  }
+  const expected = tag.slice(1);
+  const problems: string[] = [];
+
+  const dirty = await git("status", "--porcelain");
+  if (dirty) {
+    problems.push(
+      `working tree is dirty — these changes would not be in ${tag}:\n` +
+        dirty.split("\n").map((l) => `      ${l}`).join("\n"),
+    );
+  }
+
+  for (const file of VERSIONED_FILES) {
+    let content: string;
+    try {
+      content = await Deno.readTextFile(file);
+    } catch {
+      problems.push(`${file} is missing`);
+      continue;
+    }
+    const found = versionsIn(content);
+    if (found.length === 0) {
+      problems.push(`${file} declares no version at all`);
+    } else if (!found.includes(expected)) {
+      problems.push(`${file} declares ${found.join(", ")}, expected ${expected}`);
+    }
+  }
+
+  const subject = await git("log", "-1", "--format=%s");
+  if (subject !== `chore: release ${tag}`) {
+    problems.push(
+      `HEAD is "${subject}" — expected "chore: release ${tag}".\n` +
+        `      The bump must be its own commit; a tag that lands on a feature ` +
+        `commit captures whatever else that commit carried.`,
+    );
+  }
+
+  if (problems.length > 0) {
+    console.error(`check-release-commit: ${problems.length} problem(s) — do NOT tag ${tag}\n`);
+    for (const p of problems) console.error(`  ✗ ${p}`);
+    Deno.exit(1);
+  }
+  console.log(
+    `check-release-commit: ✓ HEAD is the release commit for ${tag}, all ${VERSIONED_FILES.length} version files agree`,
+  );
+}
+
+if (import.meta.main) await main();
