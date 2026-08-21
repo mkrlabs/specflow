@@ -30,8 +30,8 @@ laxer one guarded the gate, and an entire major release's feature set was exempt
 noticing. Do not re-derive the rule anywhere; call the script.
 
 A PR body may still carry the section — the generator falls back to it, so release notes for
-anything published before this convention changed still regenerate correctly. New work must not
-rely on that path.
+anything published before this convention changed still regenerate correctly. New work must not rely
+on that path.
 
 ### Format
 
