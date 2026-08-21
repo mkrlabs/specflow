@@ -911,3 +911,75 @@ Deno.test("assembleAdoptionEntries: a PR with two feat commits yields ONE entry"
   assertEquals(entries.length, 1);
   assertEquals(entries[0].prNum, 461);
 });
+
+// ---------------------------------------------------------------------------
+// A breaking change is a feature that also breaks something (#509).
+//
+// `classifyCommit` returns "breaking" and returns EARLY, before it ever tests
+// FEATURE_PREFIXES — so `feat(x)!:` never carries the "feat" category. A
+// feat-only adoption walk therefore dropped the adoption prompt of the one
+// commit in a major release most likely to need one, and dropped it with no
+// warning and nothing for --strict to catch.
+//
+// These are written through the real `classifyCommit` rather than a hand-built
+// fixture: the hole only exists because of how the two halves fit together, so
+// a guard that stubs the category cannot see it reopen.
+// ---------------------------------------------------------------------------
+
+Deno.test("the CI gate's own pattern and the adoption walk agree on what a feature is", async () => {
+  // Verbatim the shape `pr_adoption_lint.yml` refuses to merge without an
+  // adoption section: /^feat(\([^)]+\))?!?:/ — the `!?` is deliberate there.
+  const gated = [
+    "feat: plain (#601)",
+    "feat(scope): scoped (#602)",
+    "feat!: breaking (#603)",
+    "feat(agents)!: rename the five auditor seats to experts (#604)",
+  ];
+  const map = new Map<number, PrBodyOutcome>(
+    [601, 602, 603, 604].map((n) => [n, { kind: "retrieved", body: adoptionBody(`run ${n}`) }]),
+  );
+
+  const classified = gated.map((subject) =>
+    classifyCommit({ hash: `h${subject.length}`, subject })
+  );
+  const { entries, failures } = await assembleAdoptionEntries(classified, fakeFetcher(map));
+
+  assertEquals(failures.length, 0);
+  // Every subject CI demands a section for must come back out of the walk.
+  // Collecting an artefact nothing reads is the failure this guards.
+  assertEquals(entries.map((e) => e.prNum).sort(), [601, 602, 603, 604]);
+});
+
+Deno.test("a breaking commit's adoption prompt survives into the entry", async () => {
+  const c = classifyCommit({
+    hash: "caafccc",
+    subject: "feat(agents)!: rename the five auditor seats to experts (#497)",
+  });
+  // The premise of the bug, asserted rather than assumed: this is NOT "feat".
+  assertEquals(c.category, "breaking");
+
+  const map = new Map<number, PrBodyOutcome>([
+    [497, { kind: "retrieved", body: adoptionBody("update the agent names you reference") }],
+  ]);
+  const { entries } = await assembleAdoptionEntries([c], fakeFetcher(map));
+
+  assertEquals(entries.length, 1);
+  assertEquals(entries[0].prNum, 497);
+  assertEquals(entries[0].title, "Rename the five auditor seats to experts");
+  assertStringIncludes(entries[0].body, "update the agent names you reference");
+});
+
+Deno.test("widening the walk did not widen it to everything", async () => {
+  // fix/chore PRs are not gated by pr_adoption_lint and carry no section; if
+  // the walk visited them it would warn on every one of them and train the
+  // release operator to ignore the warnings that matter.
+  const subjects = ["fix: a bug (#701)", "chore: tidy (#702)", "docs: a note (#703)"];
+  const map = new Map<number, PrBodyOutcome>(
+    [701, 702, 703].map((n) => [n, { kind: "retrieved", body: adoptionBody(`run ${n}`) }]),
+  );
+  const classified = subjects.map((s, i) => classifyCommit({ hash: `f${i}`, subject: s }));
+  const { entries, failures } = await assembleAdoptionEntries(classified, fakeFetcher(map));
+
+  assertEquals(entries.length, 0);
+  assertEquals(failures.length, 0);
+});
