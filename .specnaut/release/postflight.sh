@@ -45,13 +45,35 @@ if [[ "$formula_msg" != "$expected_prefix"* ]]; then
   homebrew_warned=1
 fi
 
+# The docs site derives `version.json` from the latest CLI release at *build*
+# time, and it only builds on a push to its own repo or on a nightly cron. So
+# every release left the site announcing the previous version for up to a day
+# — and `version.json` is exactly what the `specnaut-guide` agent reads to
+# answer "am I up to date?". It answered "yes" to users who were not.
+#
+# Soft-warn, never fail: the release itself has already shipped by this point,
+# and a docs rebuild that did not fire is a stale page, not a broken binary.
+docs_warned=0
+echo "▶ refreshing the docs site (version.json tracks the latest release)"
+if gh workflow run pages.yml -R specnaut/specnaut-web >/dev/null 2>&1; then
+  echo "  dispatched specnaut-web pages.yml"
+else
+  echo "⚠ could not dispatch specnaut-web pages.yml — specnaut.com/version.json"
+  echo "  will keep reporting the previous version until the nightly rebuild."
+  docs_warned=1
+fi
+
 echo "▶ refreshing local binary"
 specnaut self-update
 local_version="$(specnaut --version | awk '{print $2}')"
 [ "v$local_version" = "$TAG" ] || { echo "❌ local binary at v$local_version, expected $TAG"; exit 1; }
 
-if [ "$homebrew_warned" -eq 1 ]; then
-  echo "✅ release shipped — $TAG is live (⚠ tap bump unverified, re-check in ~60s)"
+warnings=()
+[ "$homebrew_warned" -eq 1 ] && warnings+=("tap bump unverified, re-check in ~60s")
+[ "$docs_warned" -eq 1 ] && warnings+=("docs site not rebuilt, version.json is stale")
+
+if [ "${#warnings[@]}" -gt 0 ]; then
+  echo "✅ release shipped — $TAG is live (⚠ $(IFS='; '; echo "${warnings[*]}"))"
 else
   echo "✅ postflight passed — $TAG is live"
 fi
