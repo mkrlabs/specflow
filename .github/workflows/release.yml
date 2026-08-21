@@ -229,7 +229,19 @@ jobs:
         # the "Create release" step publishes — so an incomplete Adoption guide
         # can never ship silently. `--allow-env` is added for explicitness
         # (the token reaches `gh` via subprocess env inheritance regardless).
-        run: deno run --allow-read --allow-write --allow-run --allow-env scripts/gen-changelog.ts --strict
+        # `--highlights` is passed only when the file exists, so a release
+        # without a hand-written lead still produces byte-identical notes. A
+        # named-but-unreadable file is a hard error inside the script — the
+        # one section a human authored must never go missing quietly.
+        run: |
+          if [ -s .specnaut/release/HIGHLIGHTS.md ]; then
+            deno run --allow-read --allow-write --allow-run --allow-env \
+              scripts/gen-changelog.ts --strict \
+              --highlights .specnaut/release/HIGHLIGHTS.md
+          else
+            deno run --allow-read --allow-write --allow-run --allow-env \
+              scripts/gen-changelog.ts --strict
+          fi
       - name: Create release
         id: release
         uses: softprops/action-gh-release@v3

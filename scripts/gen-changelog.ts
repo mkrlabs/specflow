@@ -511,6 +511,20 @@ export type FormatOpts = {
   toTag: string;
   repoUrl?: string;
   adoptionEntries?: AdoptionEntry[];
+  /**
+   * Optional lead paragraph, rendered under the title and above every
+   * generated section.
+   *
+   * Everything else in these notes is derived from commit subjects, which are
+   * written one change at a time and cannot know what the release as a whole
+   * is about. A subject like "rename two seats" is accurate and tells a reader
+   * nothing they can act on. This is where a release says which two.
+   *
+   * Optional by design: when absent the output is byte-identical to what it
+   * was before highlights existed, so an ordinary patch release needs no
+   * ceremony.
+   */
+  highlights?: string;
 };
 
 /**
@@ -550,6 +564,10 @@ export function formatChangelog(commits: Classified[], opts: FormatOpts): string
 
   const sections: string[] = [];
   sections.push(`## What's changed in ${opts.toTag}`);
+  const highlights = opts.highlights?.trim();
+  if (highlights) {
+    sections.push(`### Highlights\n\n${highlights}`);
+  }
   const breaking = commits.filter((c) => c.category === "breaking");
   if (breaking.length > 0) {
     // First, and never inside a <details>. Someone skimming a major release
@@ -709,11 +727,26 @@ async function main() {
   const fromArg = parseFlag(args, "--from");
   const toArg = parseFlag(args, "--to");
   const outArg = parseFlag(args, "--out");
+  const highlightsArg = parseFlag(args, "--highlights");
   // CI-only parity guard: in `--strict` mode any *retrieval failure* aborts the
   // run before the body is written, so the pipeline can never publish a body
   // that is silently missing an Adoption guide the local path would produce
   // (#363, FR-005). The local preview deliberately stays non-strict (D6).
   const strict = args.includes("--strict");
+
+  // A named highlights file that cannot be read is an error, never a silent
+  // omission: the whole point of the flag is that someone deliberately wrote
+  // the lead for this release, and dropping it quietly is how a release ships
+  // without the one section a human authored.
+  let highlights: string | undefined;
+  if (highlightsArg !== null) {
+    try {
+      highlights = await Deno.readTextFile(highlightsArg);
+    } catch (e) {
+      console.error(`gen-changelog: --highlights ${highlightsArg} is unreadable: ${e}`);
+      Deno.exit(1);
+    }
+  }
 
   const from = fromArg ?? (await detectPrevTag());
   const to = toArg ?? (await detectCurrentTag());
@@ -759,6 +792,7 @@ async function main() {
     toTag: to,
     repoUrl: REPO_URL,
     adoptionEntries,
+    highlights,
   });
 
   await ensureDir(out);
