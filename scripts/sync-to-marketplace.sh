@@ -100,14 +100,38 @@ if [ ! -f "$CATALOG" ]; then
   exit 1
 fi
 
-jq --arg v "$VERSION" \
-  '(.plugins[] | select(.name == "specnaut") | .version) = $v' \
+# The plugin's name is declared once, in its own manifest. Hardcoding it here
+# is what broke this sync: the selector looked for `specnaut` while the
+# published entry was still named `specflow`, so it matched nothing, changed
+# nothing, and fell into the "no changes" branch below — reporting success on
+# every release since 2026-05-22 while the catalog sat fifteen versions behind.
+PLUGIN_NAME="$(jq -r '.name' "$REPO_ROOT/plugin/.claude-plugin/plugin.json")"
+if [ -z "$PLUGIN_NAME" ] || [ "$PLUGIN_NAME" = "null" ]; then
+  echo "::error::could not read .name from plugin/.claude-plugin/plugin.json" >&2
+  exit 1
+fi
+
+# Assert the selector matches BEFORE relying on the diff. "Nothing to update"
+# and "nothing matched" produce an identical clean tree, and only one of them
+# is success. This is the check whose absence let the failure run for months.
+matches="$(jq --arg n "$PLUGIN_NAME" '[.plugins[] | select(.name == $n)] | length' "$CATALOG")"
+if [ "$matches" -eq 0 ]; then
+  echo "::error::no plugin named '$PLUGIN_NAME' in $CATALOG." >&2
+  echo "  The catalog lists: $(jq -r '[.plugins[].name] | join(", ")' "$CATALOG")" >&2
+  echo "  A rename on either side silently stops this sync — fix the catalog entry" >&2
+  echo "  or plugin/.claude-plugin/plugin.json so the names agree." >&2
+  exit 1
+fi
+
+jq --arg v "$VERSION" --arg n "$PLUGIN_NAME" \
+  '(.plugins[] | select(.name == $n) | .version) = $v' \
   "$CATALOG" > "$CATALOG.tmp"
 mv "$CATALOG.tmp" "$CATALOG"
 
-# Detect "no changes" early.
+# A clean tree here now means one thing only: the catalog already declares this
+# version. The no-match case exited above.
 if [ -z "$(git status --porcelain)" ]; then
-  echo "No changes to sync — $MARKETPLACE is already at v$VERSION."
+  echo "No changes to sync — $MARKETPLACE already lists $PLUGIN_NAME v$VERSION."
   exit 0
 fi
 
