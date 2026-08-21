@@ -1,6 +1,6 @@
 # Upgrading Specnaut
 
-## 2.1.x → 2.2.0
+## 2.1.x → 3.0.0
 
 ### Two agents are renamed
 
