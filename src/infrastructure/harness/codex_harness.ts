@@ -5,6 +5,7 @@ import type { Bundle } from "../../domain/template.ts";
 import { HARNESS_STATIC } from "../../templates_bundle.ts";
 import { ensureSkillFrontmatter, skillFolderName } from "./skill_folder.ts";
 import { frontmatterField, splitFrontmatter } from "./frontmatter.ts";
+import { effortToCodexReasoning, tierToCodexModel } from "../../domain/codex_models.ts";
 import { applyBackend, backlogScriptDestination } from "./backlog_filter.ts";
 import { applyScheme, phaseScriptDestination } from "./scheme_filter.ts";
 import { applySpecBackend } from "./spec_backend_filter.ts";
@@ -12,44 +13,26 @@ import { applySpecAutogen } from "./spec_autogen_filter.ts";
 
 function parseAgentFrontmatter(
   content: string,
-): { description: string; model: string | null; body: string } {
+): { description: string; model: string | null; effort: string | null; body: string } {
   const split = splitFrontmatter(content);
-  if (!split) return { description: "", model: null, body: content };
+  if (!split) return { description: "", model: null, effort: null, body: content };
   return {
     description: frontmatterField(split.fmBody, "description") ?? "",
     model: frontmatterField(split.fmBody, "model"),
+    effort: frontmatterField(split.fmBody, "effort"),
     body: split.rest.replace(/^\n+/, ""),
   };
 }
 
-/**
- * Translates a Specnaut agent's declared capability tier (a Claude model name)
- * into a Codex `model_reasoning_effort` level. Codex models are OpenAI-specific,
- * so we map the *tier* rather than copy the vendor model id — keeping the
- * mapping stable across OpenAI model releases. An absent, empty, or
- * unrecognised tier (including `inherit`) returns null so the sub-agent
- * inherits the parent Codex session default instead of getting a guessed value.
- */
-function tierToReasoningEffort(model: string | null): string | null {
-  switch (model?.trim().toLowerCase()) {
-    case "opus":
-      return "high";
-    case "sonnet":
-      return "medium";
-    case "haiku":
-      return "low";
-    default:
-      return null;
-  }
-}
-
 function toCodexSubagentToml(entry: CoreEntry): string {
-  const { description, model, body } = parseAgentFrontmatter(entry.content);
-  const effort = tierToReasoningEffort(model);
+  const { description, model, effort, body } = parseAgentFrontmatter(entry.content);
+  const codexModel = tierToCodexModel(model);
+  const reasoning = effortToCodexReasoning(effort);
   return stringifyToml({
     name: entry.name,
     description: description || `Specnaut ${entry.name} agent`,
-    ...(effort ? { model_reasoning_effort: effort } : {}),
+    ...(codexModel ? { model: codexModel } : {}),
+    ...(reasoning ? { model_reasoning_effort: reasoning } : {}),
     developer_instructions: body,
   });
 }

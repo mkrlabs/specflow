@@ -74,8 +74,10 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     assertEquals(parsed.name, "product-owner");
     assertEquals(typeof parsed.description, "string");
     assertEquals(typeof parsed.developer_instructions, "string");
-    // The bundled product-owner declares `model: opus`, which maps to the
-    // Codex reasoning-effort tier "high" (not a copied vendor model id).
+    // The bundled product-owner declares `model: opus` + `effort: high`, which
+    // map onto Codex's own two axes: the capability tier picks the model, the
+    // effort passes through verbatim.
+    assertEquals(parsed.model, "gpt-5.6-sol");
     assertEquals(parsed.model_reasoning_effort, "high");
 
     // Codex harness reference doc + /goal prompt template

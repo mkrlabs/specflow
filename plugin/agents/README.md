@@ -84,6 +84,32 @@ layering violation is load-bearing by the time anyone sees it. Both need to
 hold a whole-system model in mind rather than pattern-match a diff, which is
 exactly what the extra budget buys.
 
+### How the two axes reach other harnesses
+
+`model:` and `effort:` are Claude's vocabulary, but they describe two axes
+every harness has. On Codex they translate onto its own two, in
+`src/domain/codex_models.ts`:
+
+| Specnaut | Codex |
+| -------- | ----- |
+| `model: opus` | `model = "gpt-5.6-sol"` |
+| `model: sonnet` | `model = "gpt-5.6-terra"` |
+| `model: haiku` | `model = "gpt-5.6-luna"` |
+| `effort: low` / `medium` / `high` / `xhigh` | `model_reasoning_effort`, verbatim |
+
+Specnaut's effort vocabulary is a strict subset of Codex's
+(`ultra`, `max`, `xhigh`, `high`, `medium`, `low`), so that half is identity.
+`ultra` and `max` are never emitted — a subagent is already the unit `ultra`
+fans out over.
+
+An unrecognised value on either axis omits that key rather than guessing, so
+the subagent inherits the parent session's setting. A wrong pin fails on the
+user's machine, against a model list we cannot see; inheriting cannot.
+
+**When OpenAI renames a model, `src/domain/codex_models.ts` is the only file
+to edit.** The ids live there for that reason, and a fleet-level test asserts
+every emitted id is one of the three.
+
 ### Adding an agent
 
 Pick the suffix from the naming table, then the tier from the effort table.

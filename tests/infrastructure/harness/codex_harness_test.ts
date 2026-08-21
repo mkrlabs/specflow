@@ -119,30 +119,34 @@ Deno.test("CodexHarness maps agent to .codex/agents/<name>.toml with valid TOML"
     (parsed.developer_instructions as string).includes("You are the PO"),
     "agent body should end up in developer_instructions",
   );
-  // The Claude `model` tier is translated to Codex `model_reasoning_effort`,
-  // never copied verbatim; `tools` is dropped entirely.
-  assertEquals("model" in parsed, false);
-  assertEquals(parsed.model_reasoning_effort, "high"); // opus → high
+  // The Claude `model` tier picks a Codex model id; `tools` is dropped.
+  assertEquals(parsed.model, "gpt-5.6-sol"); // opus → Sol
   assertEquals("tools" in parsed, false);
 });
 
-Deno.test("CodexHarness maps agent model tiers to model_reasoning_effort", () => {
-  const agent = (name: string, model: string | null): CoreBundle[number] => ({
+Deno.test("CodexHarness maps the tier to a model and the effort to reasoning", () => {
+  const agent = (
+    name: string,
+    model: string | null,
+    effort: string | null,
+  ): CoreBundle[number] => ({
     category: "agent",
     name,
     suffix: null,
     content: `---\nname: ${name}\ndescription: ${name} role\n${
       model === null ? "" : `model: ${model}\n`
-    }tools: Read\n---\n\n# Body\n`,
+    }${effort === null ? "" : `effort: ${effort}\n`}tools: Read\n---\n\n# Body\n`,
     executable: false,
   });
   const core: CoreBundle = [
-    agent("heavy", "opus"), // → high
-    agent("mid", "sonnet"), // → medium
-    agent("light", "haiku"), // → low
-    agent("none", null), // → omitted (inherit session default)
-    agent("inherit", "inherit"), // → omitted
-    agent("weird", "gpt-9-ultra"), // → omitted (unrecognised, no guess)
+    agent("deep", "opus", "xhigh"), // → Sol + xhigh
+    agent("standard", "opus", "high"), // → Sol + high
+    agent("mid", "sonnet", "medium"), // → Terra + medium
+    agent("light", "haiku", "low"), // → Luna + low
+    agent("no-model", null, "high"), // → model omitted, effort kept
+    agent("no-effort", "opus", null), // → model kept, effort omitted
+    agent("inherit", "inherit", "inherit"), // → both omitted
+    agent("weird", "gpt-9-ultra", "cosmic"), // → both omitted, no guess
   ];
   const h = new CodexHarness();
   const mapped = h.mapBundle(core, {
@@ -150,24 +154,43 @@ Deno.test("CodexHarness maps agent model tiers to model_reasoning_effort", () =>
     versionScheme: "semver",
     specBackend: "local",
   });
-
-  const effortOf = (name: string) => {
+  const toml = (name: string) => {
     const file = mapped[`.codex/agents/${name}.toml`];
     assert(file, `${name} TOML not emitted`);
-    return parseToml(file.content).model_reasoning_effort;
+    return parseToml(file.content);
   };
 
-  assertEquals(effortOf("heavy"), "high");
-  assertEquals(effortOf("mid"), "medium");
-  assertEquals(effortOf("light"), "low");
-  // A higher tier and a mid tier emit distinct signals (SC-002).
-  assert(effortOf("heavy") !== effortOf("mid"));
-  // Absent / inherit / unrecognised tiers omit the field so Codex inherits
-  // the parent session default (FR-003) — and the file stays valid TOML.
-  for (const name of ["none", "inherit", "weird"]) {
-    const parsed = parseToml(mapped[`.codex/agents/${name}.toml`]!.content);
+  assertEquals(toml("deep").model, "gpt-5.6-sol");
+  assertEquals(toml("deep").model_reasoning_effort, "xhigh");
+  assertEquals(toml("mid").model, "gpt-5.6-terra");
+  assertEquals(toml("mid").model_reasoning_effort, "medium");
+  assertEquals(toml("light").model, "gpt-5.6-luna");
+  assertEquals(toml("light").model_reasoning_effort, "low");
+
+  // The whole point of reading `effort:` rather than deriving it from the
+  // model: two agents on the same tier must still emit distinct budgets.
+  // While effort came from the tier, these two were indistinguishable — and
+  // an all-Opus fleet made *every* agent indistinguishable.
+  assertEquals(toml("standard").model, toml("deep").model);
+  assert(
+    toml("standard").model_reasoning_effort !== toml("deep").model_reasoning_effort,
+    "same tier, different effort must not collapse to one budget",
+  );
+
+  // The two axes are independent — one being unresolvable never suppresses
+  // the other.
+  assertEquals("model" in toml("no-model"), false);
+  assertEquals(toml("no-model").model_reasoning_effort, "high");
+  assertEquals(toml("no-effort").model, "gpt-5.6-sol");
+  assertEquals("model_reasoning_effort" in toml("no-effort"), false);
+
+  // Absent / inherit / unrecognised omit the key so Codex inherits the parent
+  // session default, and the file stays valid & discoverable.
+  for (const name of ["inherit", "weird"]) {
+    const parsed = toml(name);
+    assertEquals("model" in parsed, false, `${name} should omit model`);
     assertEquals("model_reasoning_effort" in parsed, false, `${name} should omit effort`);
-    assertEquals(parsed.name, name); // file is still valid & discoverable
+    assertEquals(parsed.name, name);
   }
 });
 

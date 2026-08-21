@@ -42,6 +42,38 @@ This costs more per run. If that is not the trade you want, both fields are plai
 them in your own `.claude/agents/`, and note that doing so marks the file customized, so `upgrade`
 will stop refreshing it.
 
+### Codex agents now pick a GPT-5.6 model, and finally honour `effort:`
+
+Two things were wrong on the Codex harness, and the second was hiding behind the first.
+
+`model_reasoning_effort` was derived from the agent's **`model:`** tier — `opus` → `high`, `sonnet`
+→ `medium` — and the `effort:` field was never read at all. That produced a plausible spread only
+while the fleet was split across Sonnet and Opus. The all-Opus retune above would have collapsed
+every one of the fifteen agents onto `high`, and the five `xhigh` seats would have lost their budget
+on Codex with no error and nothing in the emitted TOML to show it.
+
+`effort:` is now read directly. Specnaut's vocabulary — `low`, `medium`, `high`, `xhigh` — is a
+strict subset of Codex's own, so it passes through verbatim.
+
+That frees `model:` to do what it was named for. A Codex subagent TOML accepts a `model` key, so the
+capability tier now picks one:
+
+| Specnaut | Codex                                                 |
+| :------- | :---------------------------------------------------- |
+| `opus`   | `gpt-5.6-sol` — complex, open-ended, high-value work  |
+| `sonnet` | `gpt-5.6-terra` — the everyday all-rounder            |
+| `haiku`  | `gpt-5.6-luna` — clear, repeatable, high-volume tasks |
+
+The same ids work whether Codex is signed in with ChatGPT or with your own API key.
+
+**One behaviour change to know about.** An agent of your own that declares `model:` but no `effort:`
+used to inherit an effort guessed from its tier; it now omits the key and inherits the parent Codex
+session's setting instead. Deriving a reasoning budget from a model name was always the wrong
+signal. Add an explicit `effort:` to any agent where the budget matters.
+
+Nothing pins a model id anywhere else in Specnaut, so the GPT-5.4 retirement on 31 August 2026 needs
+no action from you.
+
 ### The naming convention is now written down
 
 `.claude/agents/README.md` gained a suffix table: `<domain>-expert` for a lens that also has an
