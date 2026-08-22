@@ -1036,7 +1036,8 @@ wanted pull requests will say so.
 4. **Squash by scope** — see the section below. This phase performs the squash; it does not check
    that somebody else did it, and it does not ask permission to do its own job.
 5. **\`--pr\` only** — push the feature branch, open the pull request against \`<base>\`, and **stop
-   here**: report the PR URL and end. Nothing below this line applies, because nothing has merged
+   here**. First run \`gh pr view <n> --json closingIssuesReferences\` and name any issue the
+   body references but that list omits — mentioned, not closed. Report only. Then: report the PR URL and end. Nothing below this line applies, because nothing has merged
    yet. In particular the backlog item stays where it is — a PR that is open is not work that is
    done, and flipping the column now would make the board claim an outcome the repository cannot
    corroborate. Re-run \`/specnaut merge\` (without \`--pr\`) after the PR lands, or let the forge's own
@@ -1089,24 +1090,23 @@ wanted pull requests will say so.
     landed yet — the user answers \`no\` in step 11.4 and re-runs \`/specnaut merge\` on the last one.
 
 12. **Reconcile the board** (only if push happened; github + gitlab backends only).
-    Run \`bash .specnaut/scripts/backlog/sweep-closed.sh\`. It reports; it does not
-    move anything.
+    Run \`bash .specnaut/scripts/backlog/sweep-closed.sh --passes 2\` — its header
+    explains the second pass. It reports; it moves nothing.
 
-    - For each \`DRIFTED <number> <status>\` line, run
-      \`bash .specnaut/scripts/backlog/move.sh <number> Done\`. Collect failures and
-      report them — one card that will not move must never abort the loop or fail
-      the merge, which has already happened by this point.
-    - For each \`REOPENED <number>\` line, **report it and move nothing.** The card is
-      in Done while the issue is open again; whether it belongs in \`Ready\` or
+    - Collect every \`DRIFTED <number>\` and move them in **one** call:
+      \`bash .specnaut/scripts/backlog/move-batch.sh Done <n> <n> …\` (github) or a
+      \`move.sh\` per item (gitlab). A card it reports as absent from the project is
+      reported and skipped — one bad card never aborts the rest, and nothing here
+      may fail the merge, which has already happened.
+    - For each \`REOPENED <number>\` line, **report it and move nothing.** \`Ready\` vs
       \`In progress\` is not guessable, and guessing wrong is worse than saying so.
     - Quote the script's **summary line** in the report, not your own count.
 
-    This exists because step 11 only ever sees \`feature.json.linked_issue\`. An issue
-    closed by a \`Closes #N\` in the commit body, through the web UI, or by another
-    agent is invisible to it — and the card then sits in the wrong column with
-    nothing anywhere reporting the disagreement. This step asks the board whether it
-    agrees with the repository, rather than asking the merge what it believes it
-    closed. The second question is answerable without being true.
+    Step 11 only ever sees \`feature.json.linked_issue\`; a \`Closes #N\` in a commit
+    body, a web-UI close or another agent's close is invisible to it. This step asks
+    the board whether it agrees with the repository, rather than asking the merge
+    what it believes it closed — the second question is answerable without being
+    true.
 
 ## Squash by scope — one commit per scope, never "exactly one commit"
 
@@ -9992,22 +9992,34 @@ fi
 # board is org-wide, so an unscoped sweep would report cards this repository's
 # work never touched.
 #
-# Usage: sweep-closed.sh [--since <hours>]     (default 24)
+# \`--passes 2\` re-scans after a short pause and unions the results. GitHub's
+# auto-close lands 1–2s after the push, so a sweep run immediately by the merge
+# phase can legitimately see an issue that is not closed *yet* — and a single
+# pass would report a clean board with total confidence. Grooming needs no
+# second pass; a merge does.
+#
+# Usage: sweep-closed.sh [--since <hours>] [--passes <n>]   (default 24, 1)
 set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "\$(dirname "\$0")/_config.sh"
 
 SINCE_HOURS=24
+PASSES=1
 while [ "\$#" -gt 0 ]; do
   case "\$1" in
+    --passes)
+      PASSES="\${2:-}"
+      [ -n "\$PASSES" ] || { echo 'usage: sweep-closed.sh [--since <hours>] [--passes <n>]' >&2; exit 2; }
+      shift 2
+      ;;
     --since)
       SINCE_HOURS="\${2:-}"
       [ -n "\$SINCE_HOURS" ] || { echo 'usage: sweep-closed.sh [--since <hours>]' >&2; exit 2; }
       shift 2
       ;;
     -h | --help)
-      echo 'usage: sweep-closed.sh [--since <hours>]   (default 24)' >&2
+      echo 'usage: sweep-closed.sh [--since <hours>] [--passes <n>]   (default 24, 1)' >&2
       exit 0
       ;;
     *)
@@ -10023,38 +10035,63 @@ case "\$SINCE_HOURS" in
     exit 2
     ;;
 esac
+case "\$PASSES" in
+  '' | *[!0-9]* | 0)
+    echo "--passes expects a positive whole number, got '\$PASSES'" >&2
+    exit 2
+    ;;
+esac
 
-# One project read, then one issue-state read per repo — not per item.
-ITEMS="\$(gh project item-list "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" \\
-  --format json --limit 500 2>/dev/null || true)"
-if [ -z "\$ITEMS" ]; then
-  echo "error: could not read Project #\$PROJECT_NUMBER for owner \$REPO_OWNER" >&2
-  exit 1
-fi
+ALL_DRIFTED='[]'
+ALL_REOPENED='[]'
+SCANNED=0
 
-# \`.content.repository\` — NOT \`.repository\`. Filtering on the latter silently
-# yields an empty set, which reads as "the board is clean" when it is not.
-SCOPED="\$(echo "\$ITEMS" | jq -c --arg repo "\$REPO" '
-  [ .items[]
-    | select(.content.type == "Issue")
-    | select((.content.repository // "") | endswith(\$repo))
-    | { number: .content.number, status: (.status // "(unset)") } ]')"
+pass=1
+while [ "\$pass" -le "\$PASSES" ]; do
+  [ "\$pass" -gt 1 ] && sleep 5
 
-SCANNED="\$(echo "\$SCOPED" | jq 'length')"
+  # One project read, then one issue-state read per repo — not per item.
+  ITEMS="\$(gh project item-list "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" \\
+    --format json --limit 500 2>/dev/null || true)"
+  if [ -z "\$ITEMS" ]; then
+    echo "error: could not read Project #\$PROJECT_NUMBER for owner \$REPO_OWNER" >&2
+    exit 1
+  fi
 
-# Issue state is not exposed by \`item-list\`, so read it per repo in one call.
-# \`--search\` bounds closed issues to the window; open ones are cheap to list.
-CLOSED="\$(gh issue list --repo "\$REPO" --state closed --limit 500 \\
-  --search "closed:>=\$(date -u -v-"\${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\
-    || date -u -d "\${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')" \\
-  --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
-OPEN="\$(gh issue list --repo "\$REPO" --state open --limit 500 \\
-  --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+  # \`.content.repository\` — NOT \`.repository\`. Filtering on the latter silently
+  # yields an empty set, which reads as "the board is clean" when it is not.
+  SCOPED="\$(echo "\$ITEMS" | jq -c --arg repo "\$REPO" '
+    [ .items[]
+      | select(.content.type == "Issue")
+      | select((.content.repository // "") | endswith(\$repo))
+      | { number: .content.number, status: (.status // "(unset)") } ]')"
 
-DRIFTED="\$(jq -n -c --argjson items "\$SCOPED" --argjson closed "\$CLOSED" '
-  [ \$items[] | select(.status != "Done") | select(.number as \$n | \$closed | index(\$n)) ]')"
-REOPENED="\$(jq -n -c --argjson items "\$SCOPED" --argjson open "\$OPEN" '
-  [ \$items[] | select(.status == "Done") | select(.number as \$n | \$open | index(\$n)) ]')"
+  SCANNED="\$(echo "\$SCOPED" | jq 'length')"
+
+  # Issue state is not exposed by \`item-list\`, so read it per repo in one call.
+  CLOSED="\$(gh issue list --repo "\$REPO" --state closed --limit 500 \\
+    --search "closed:>=\$(date -u -v-"\${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\
+      || date -u -d "\${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')" \\
+    --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+  OPEN="\$(gh issue list --repo "\$REPO" --state open --limit 500 \\
+    --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+
+  D="\$(jq -n -c --argjson items "\$SCOPED" --argjson closed "\$CLOSED" '
+    [ \$items[] | select(.status != "Done") | select(.number as \$n | \$closed | index(\$n)) ]')"
+  R="\$(jq -n -c --argjson items "\$SCOPED" --argjson open "\$OPEN" '
+    [ \$items[] | select(.status == "Done") | select(.number as \$n | \$open | index(\$n)) ]')"
+
+  # Union across passes, keyed on number: a later pass can only ever add.
+  ALL_DRIFTED="\$(jq -n -c --argjson a "\$ALL_DRIFTED" --argjson b "\$D" \\
+    '(\$a + \$b) | group_by(.number) | map(.[0])')"
+  ALL_REOPENED="\$(jq -n -c --argjson a "\$ALL_REOPENED" --argjson b "\$R" \\
+    '(\$a + \$b) | group_by(.number) | map(.[0])')"
+
+  pass=\$((pass + 1))
+done
+
+DRIFTED="\$ALL_DRIFTED"
+REOPENED="\$ALL_REOPENED"
 
 echo "\$DRIFTED" | jq -r '.[] | "DRIFTED  \\(.number) \\(.status)"'
 echo "\$REOPENED" | jq -r '.[] | "REOPENED \\(.number)"'
@@ -10068,6 +10105,98 @@ if [ "\$SCANNED" -eq 0 ]; then
   echo "error: scanned 0 board items for \$REPO — the query matched nothing, which is not the same as a clean board" >&2
   exit 1
 fi
+`,
+    executable: true,
+    backend: "github",
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-script",
+    name: "move-batch",
+    suffix: "move-batch.sh",
+    content: `#!/usr/bin/env bash
+# Move several issues to the same Status in one round-trip.
+#
+# \`move.sh\` is the single-item path and costs one lookup plus one mutation per
+# issue. Looping it over N cards is N times that, and the backlog contract is
+# explicit that a multi-item mutation goes out as one request — a board sweep
+# after a busy merge is exactly the case it was written for.
+#
+# This resolves every item id in ONE query, then emits ONE multi-alias mutation
+# (\`m0:\`, \`m1:\`, …). N cards cost 2 requests, not 2N.
+#
+# It deliberately does NOT run the parent-epic propagation hook that \`move.sh\`
+# fires. Propagation is a per-item state machine with its own recursion guard;
+# folding it in would make a batch move mean something different from N single
+# moves. Callers that need it should use \`move.sh\` for those items.
+#
+# Output: one \`✓ #<n> → <Status>\` per moved card, then a summary. Issues not on
+# the project are reported and skipped — one absent card never aborts the rest.
+#
+# Usage: move-batch.sh <Status> <number>...
+set -euo pipefail
+
+# shellcheck source=./_config.sh
+. "\$(dirname "\$0")/_config.sh"
+
+if [ "\$#" -lt 2 ]; then
+  echo 'usage: move-batch.sh <Status> <number>...' >&2
+  echo '  Status one of: Backlog, Ready, "In progress", "In review", Done' >&2
+  exit 2
+fi
+STATUS="\$1"
+shift
+
+PROJECT_NODE_ID=\$(gh project view "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" --format json | jq -r '.id')
+STATUS_FIELD_JSON=\$(gh project field-list "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" --format json)
+STATUS_FIELD_ID=\$(echo "\$STATUS_FIELD_JSON" | jq -r '.fields[] | select(.name=="Status") | .id')
+OPTION_ID=\$(echo "\$STATUS_FIELD_JSON" | jq -r --arg s "\$STATUS" '.fields[] | select(.name=="Status") | .options[] | select(.name==\$s) | .id')
+if [ -z "\$OPTION_ID" ] || [ "\$OPTION_ID" = "null" ]; then
+  echo "unknown status '\$STATUS' in Project #\$PROJECT_NUMBER" >&2
+  exit 1
+fi
+
+# --- one query: every item id in a single aliased request -------------------
+Q='query(\$owner:String!, \$name:String!) { repository(owner:\$owner, name:\$name) {'
+i=0
+for n in "\$@"; do
+  Q="\$Q i\$i: issue(number:\$n) { number projectItems(first:5) { nodes { id project { id } } } }"
+  i=\$((i + 1))
+done
+Q="\$Q } }"
+
+RESOLVED="\$(gh api graphql -f query="\$Q" -f owner="\$REPO_OWNER" -f name="\$REPO_NAME" \\
+  | jq -c --arg p "\$PROJECT_NODE_ID" '
+      [ .data.repository | to_entries[] | select(.value != null)
+        | { number: .value.number,
+            id: ([.value.projectItems.nodes[] | select(.project.id == \$p) | .id] | first) } ]')"
+
+MISSING="\$(echo "\$RESOLVED" | jq -r '.[] | select(.id == null) | .number')"
+TARGETS="\$(echo "\$RESOLVED" | jq -c '[ .[] | select(.id != null) ]')"
+COUNT="\$(echo "\$TARGETS" | jq 'length')"
+
+for n in \$MISSING; do
+  echo "⚠ #\$n is not on Project #\$PROJECT_NUMBER — skipped" >&2
+done
+
+if [ "\$COUNT" -eq 0 ]; then
+  echo "moved 0 of \$# — none of the requested issues are on Project #\$PROJECT_NUMBER" >&2
+  exit 1
+fi
+
+# --- one mutation: every field write in a single aliased request ------------
+M='mutation {'
+i=0
+for id in \$(echo "\$TARGETS" | jq -r '.[].id'); do
+  M="\$M m\$i: updateProjectV2ItemFieldValue(input: {projectId: \\"\$PROJECT_NODE_ID\\", itemId: \\"\$id\\", fieldId: \\"\$STATUS_FIELD_ID\\", value: {singleSelectOptionId: \\"\$OPTION_ID\\"}}) { projectV2Item { id } }"
+  i=\$((i + 1))
+done
+M="\$M }"
+
+gh api graphql -f query="\$M" >/dev/null
+
+echo "\$TARGETS" | jq -r --arg s "\$STATUS" '.[] | "✓ #\\(.number) → \\(\$s)"'
+echo "moved \$COUNT of \$# in 2 requests"
 `,
     executable: true,
     backend: "github",

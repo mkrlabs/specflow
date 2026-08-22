@@ -27,22 +27,34 @@
 # board is org-wide, so an unscoped sweep would report cards this repository's
 # work never touched.
 #
-# Usage: sweep-closed.sh [--since <hours>]     (default 24)
+# `--passes 2` re-scans after a short pause and unions the results. GitHub's
+# auto-close lands 1–2s after the push, so a sweep run immediately by the merge
+# phase can legitimately see an issue that is not closed *yet* — and a single
+# pass would report a clean board with total confidence. Grooming needs no
+# second pass; a merge does.
+#
+# Usage: sweep-closed.sh [--since <hours>] [--passes <n>]   (default 24, 1)
 set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "$(dirname "$0")/_config.sh"
 
 SINCE_HOURS=24
+PASSES=1
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --passes)
+      PASSES="${2:-}"
+      [ -n "$PASSES" ] || { echo 'usage: sweep-closed.sh [--since <hours>] [--passes <n>]' >&2; exit 2; }
+      shift 2
+      ;;
     --since)
       SINCE_HOURS="${2:-}"
       [ -n "$SINCE_HOURS" ] || { echo 'usage: sweep-closed.sh [--since <hours>]' >&2; exit 2; }
       shift 2
       ;;
     -h | --help)
-      echo 'usage: sweep-closed.sh [--since <hours>]   (default 24)' >&2
+      echo 'usage: sweep-closed.sh [--since <hours>] [--passes <n>]   (default 24, 1)' >&2
       exit 0
       ;;
     *)
@@ -58,38 +70,63 @@ case "$SINCE_HOURS" in
     exit 2
     ;;
 esac
+case "$PASSES" in
+  '' | *[!0-9]* | 0)
+    echo "--passes expects a positive whole number, got '$PASSES'" >&2
+    exit 2
+    ;;
+esac
 
-# One project read, then one issue-state read per repo — not per item.
-ITEMS="$(gh project item-list "$PROJECT_NUMBER" --owner "$REPO_OWNER" \
-  --format json --limit 500 2>/dev/null || true)"
-if [ -z "$ITEMS" ]; then
-  echo "error: could not read Project #$PROJECT_NUMBER for owner $REPO_OWNER" >&2
-  exit 1
-fi
+ALL_DRIFTED='[]'
+ALL_REOPENED='[]'
+SCANNED=0
 
-# `.content.repository` — NOT `.repository`. Filtering on the latter silently
-# yields an empty set, which reads as "the board is clean" when it is not.
-SCOPED="$(echo "$ITEMS" | jq -c --arg repo "$REPO" '
-  [ .items[]
-    | select(.content.type == "Issue")
-    | select((.content.repository // "") | endswith($repo))
-    | { number: .content.number, status: (.status // "(unset)") } ]')"
+pass=1
+while [ "$pass" -le "$PASSES" ]; do
+  [ "$pass" -gt 1 ] && sleep 5
 
-SCANNED="$(echo "$SCOPED" | jq 'length')"
+  # One project read, then one issue-state read per repo — not per item.
+  ITEMS="$(gh project item-list "$PROJECT_NUMBER" --owner "$REPO_OWNER" \
+    --format json --limit 500 2>/dev/null || true)"
+  if [ -z "$ITEMS" ]; then
+    echo "error: could not read Project #$PROJECT_NUMBER for owner $REPO_OWNER" >&2
+    exit 1
+  fi
 
-# Issue state is not exposed by `item-list`, so read it per repo in one call.
-# `--search` bounds closed issues to the window; open ones are cheap to list.
-CLOSED="$(gh issue list --repo "$REPO" --state closed --limit 500 \
-  --search "closed:>=$(date -u -v-"${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
-    || date -u -d "${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')" \
-  --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
-OPEN="$(gh issue list --repo "$REPO" --state open --limit 500 \
-  --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+  # `.content.repository` — NOT `.repository`. Filtering on the latter silently
+  # yields an empty set, which reads as "the board is clean" when it is not.
+  SCOPED="$(echo "$ITEMS" | jq -c --arg repo "$REPO" '
+    [ .items[]
+      | select(.content.type == "Issue")
+      | select((.content.repository // "") | endswith($repo))
+      | { number: .content.number, status: (.status // "(unset)") } ]')"
 
-DRIFTED="$(jq -n -c --argjson items "$SCOPED" --argjson closed "$CLOSED" '
-  [ $items[] | select(.status != "Done") | select(.number as $n | $closed | index($n)) ]')"
-REOPENED="$(jq -n -c --argjson items "$SCOPED" --argjson open "$OPEN" '
-  [ $items[] | select(.status == "Done") | select(.number as $n | $open | index($n)) ]')"
+  SCANNED="$(echo "$SCOPED" | jq 'length')"
+
+  # Issue state is not exposed by `item-list`, so read it per repo in one call.
+  CLOSED="$(gh issue list --repo "$REPO" --state closed --limit 500 \
+    --search "closed:>=$(date -u -v-"${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+      || date -u -d "${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')" \
+    --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+  OPEN="$(gh issue list --repo "$REPO" --state open --limit 500 \
+    --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+
+  D="$(jq -n -c --argjson items "$SCOPED" --argjson closed "$CLOSED" '
+    [ $items[] | select(.status != "Done") | select(.number as $n | $closed | index($n)) ]')"
+  R="$(jq -n -c --argjson items "$SCOPED" --argjson open "$OPEN" '
+    [ $items[] | select(.status == "Done") | select(.number as $n | $open | index($n)) ]')"
+
+  # Union across passes, keyed on number: a later pass can only ever add.
+  ALL_DRIFTED="$(jq -n -c --argjson a "$ALL_DRIFTED" --argjson b "$D" \
+    '($a + $b) | group_by(.number) | map(.[0])')"
+  ALL_REOPENED="$(jq -n -c --argjson a "$ALL_REOPENED" --argjson b "$R" \
+    '($a + $b) | group_by(.number) | map(.[0])')"
+
+  pass=$((pass + 1))
+done
+
+DRIFTED="$ALL_DRIFTED"
+REOPENED="$ALL_REOPENED"
 
 echo "$DRIFTED" | jq -r '.[] | "DRIFTED  \(.number) \(.status)"'
 echo "$REOPENED" | jq -r '.[] | "REOPENED \(.number)"'

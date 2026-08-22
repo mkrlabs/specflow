@@ -23,6 +23,8 @@ type Fixture = {
   items: unknown;
   closed: number[];
   open: number[];
+  /** When set, the Nth `gh issue list --state closed` call returns this instead. */
+  closedOnSecondCall?: number[];
 };
 
 /** Builds a throwaway project whose `gh` is a script returning `fx`. */
@@ -44,13 +46,25 @@ async function runSweep(fx: Fixture, args: string[] = []) {
   await Deno.writeTextFile(
     `${bin}/gh`,
     `#!/usr/bin/env bash
+STUB_STATE="\${STUB_STATE:-/dev/null}"
 case "$1 $2" in
   "project item-list") cat <<'J'
 ${JSON.stringify({ items: fx.items })}
 J
   ;;
   "issue list")
-    for a in "$@"; do [ "$a" = "closed" ] && echo '${JSON.stringify(fx.closed)}' && exit 0; done
+    for a in "$@"; do
+      if [ "$a" = "closed" ]; then
+        n=0; [ -f "$STUB_STATE" ] && n=$(cat "$STUB_STATE")
+        echo $((n + 1)) > "$STUB_STATE"
+        if [ "$n" -ge 1 ] && [ -n "\${SECOND_CLOSED:-}" ]; then
+          echo "$SECOND_CLOSED"
+        else
+          echo '${JSON.stringify(fx.closed)}'
+        fi
+        exit 0
+      fi
+    done
     echo '${JSON.stringify(fx.open)}'
   ;;
   *) exit 1 ;;
@@ -61,7 +75,11 @@ esac
 
   const out = await new Deno.Command("bash", {
     args: [`${scripts}/sweep-closed.sh`, ...args],
-    env: { PATH: `${bin}:${Deno.env.get("PATH")}` },
+    env: {
+      PATH: `${bin}:${Deno.env.get("PATH")}`,
+      STUB_STATE: `${dir}/calls`,
+      ...(fx.closedOnSecondCall ? { SECOND_CLOSED: JSON.stringify(fx.closedOnSecondCall) } : {}),
+    },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -135,5 +153,39 @@ Deno.test("--since rejects anything that is not a whole number of hours", async 
       bad,
     ]);
     assertEquals(r.code, 2, `--since ${bad} should be a usage error`);
+  }
+});
+
+Deno.test("a second pass catches an issue GitHub had not closed yet", async () => {
+  // The real race: the push returns, the merge phase sweeps, and GitHub's
+  // auto-close lands a second or two later. One pass sees a clean board and
+  // says so with total confidence — which is the failure this option exists
+  // for, not a hypothetical one.
+  const r = await runSweep(
+    { items: [item(7, "Ready")], closed: [], open: [7], closedOnSecondCall: [7] },
+    ["--passes", "2"],
+  );
+  assertEquals(r.code, 0);
+  assertStringIncludes(r.stdout, "DRIFTED  7 Ready");
+  assertStringIncludes(r.stdout, "drifted 1");
+});
+
+Deno.test("one pass reports the same race as a clean board", async () => {
+  // Pins why --passes exists: without it the output above is indistinguishable
+  // from nothing being wrong.
+  const r = await runSweep(
+    { items: [item(7, "Ready")], closed: [], open: [7], closedOnSecondCall: [7] },
+  );
+  assertEquals(r.code, 0);
+  assertStringIncludes(r.stdout, "drifted 0");
+});
+
+Deno.test("--passes rejects zero and non-numbers", async () => {
+  for (const bad of ["0", "two", "-1"]) {
+    const r = await runSweep({ items: [item(1, "Ready")], closed: [1], open: [] }, [
+      "--passes",
+      bad,
+    ]);
+    assertEquals(r.code, 2, `--passes ${bad} should be a usage error`);
   }
 });

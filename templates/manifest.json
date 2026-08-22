@@ -437,6 +437,14 @@
     },
     {
       "category": "backlog-script",
+      "name": "move-batch",
+      "suffix": "move-batch.sh",
+      "source": "core/skills/backlog/scripts/github/move-batch.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
       "name": "clarify-comment",
       "suffix": "clarify-comment.sh",
       "source": "core/skills/backlog/scripts/github/clarify-comment.sh",

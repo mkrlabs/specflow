@@ -37,7 +37,8 @@ wanted pull requests will say so.
 4. **Squash by scope** — see the section below. This phase performs the squash; it does not check
    that somebody else did it, and it does not ask permission to do its own job.
 5. **`--pr` only** — push the feature branch, open the pull request against `<base>`, and **stop
-   here**: report the PR URL and end. Nothing below this line applies, because nothing has merged
+   here**. First run `gh pr view <n> --json closingIssuesReferences` and name any issue the
+   body references but that list omits — mentioned, not closed. Report only. Then: report the PR URL and end. Nothing below this line applies, because nothing has merged
    yet. In particular the backlog item stays where it is — a PR that is open is not work that is
    done, and flipping the column now would make the board claim an outcome the repository cannot
    corroborate. Re-run `/specnaut merge` (without `--pr`) after the PR lands, or let the forge's own
@@ -90,24 +91,23 @@ wanted pull requests will say so.
     landed yet — the user answers `no` in step 11.4 and re-runs `/specnaut merge` on the last one.
 
 12. **Reconcile the board** (only if push happened; github + gitlab backends only).
-    Run `bash .specnaut/scripts/backlog/sweep-closed.sh`. It reports; it does not
-    move anything.
+    Run `bash .specnaut/scripts/backlog/sweep-closed.sh --passes 2` — its header
+    explains the second pass. It reports; it moves nothing.
 
-    - For each `DRIFTED <number> <status>` line, run
-      `bash .specnaut/scripts/backlog/move.sh <number> Done`. Collect failures and
-      report them — one card that will not move must never abort the loop or fail
-      the merge, which has already happened by this point.
-    - For each `REOPENED <number>` line, **report it and move nothing.** The card is
-      in Done while the issue is open again; whether it belongs in `Ready` or
+    - Collect every `DRIFTED <number>` and move them in **one** call:
+      `bash .specnaut/scripts/backlog/move-batch.sh Done <n> <n> …` (github) or a
+      `move.sh` per item (gitlab). A card it reports as absent from the project is
+      reported and skipped — one bad card never aborts the rest, and nothing here
+      may fail the merge, which has already happened.
+    - For each `REOPENED <number>` line, **report it and move nothing.** `Ready` vs
       `In progress` is not guessable, and guessing wrong is worse than saying so.
     - Quote the script's **summary line** in the report, not your own count.
 
-    This exists because step 11 only ever sees `feature.json.linked_issue`. An issue
-    closed by a `Closes #N` in the commit body, through the web UI, or by another
-    agent is invisible to it — and the card then sits in the wrong column with
-    nothing anywhere reporting the disagreement. This step asks the board whether it
-    agrees with the repository, rather than asking the merge what it believes it
-    closed. The second question is answerable without being true.
+    Step 11 only ever sees `feature.json.linked_issue`; a `Closes #N` in a commit
+    body, a web-UI close or another agent's close is invisible to it. This step asks
+    the board whether it agrees with the repository, rather than asking the merge
+    what it believes it closed — the second question is answerable without being
+    true.
 
 ## Squash by scope — one commit per scope, never "exactly one commit"
 
