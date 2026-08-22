@@ -174,9 +174,17 @@ create_pr_idempotent "$FORK" "$BRANCH" "$TITLE" "$BODY"
 #
 # Best-effort throughout: the release has already shipped by this point, and a
 # failure to reap is never worth failing it.
+#
+# The filter matches the PRE-REBRAND prefix too. It did not, and that one-word
+# gap is how the leak above outlived its own remediation: `specflow-sync/v1.12.0`,
+# `/v1.13.0` and `/v1.13.1` were invisible to a reaper grepping `specnaut-sync/`
+# only, and each went on serving `plugins/specflow/examples/` from a public fork
+# for months after the tree was purged here. Its sibling in sync-to-marketplace.sh
+# already matched both prefixes; this one did not, so nothing reconciled them.
+# Deleted out of band on 2026-08-22. Constitution § XI.
 echo "▶ reaping superseded sync branches on $FORK"
 for stale in $(gh api "repos/$FORK/branches?per_page=100" --paginate \
-  --jq '.[].name' 2>/dev/null | grep "^$BRANCH_PREFIX/" | grep -vx "$BRANCH" || true); do
+  --jq '.[].name' 2>/dev/null | grep -E "^(specnaut|specflow)-sync/" | grep -vx "$BRANCH" || true); do
   pr="$(gh pr list -R "$FORK" --head "$stale" --state open \
     --json number --jq '.[0].number // empty' 2>/dev/null || true)"
   if [ -n "$pr" ]; then
