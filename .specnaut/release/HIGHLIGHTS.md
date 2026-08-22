@@ -1,18 +1,27 @@
-**A fix for the scaffolded templates, and the marketplace channel now publishes itself.**
+**`specnaut upgrade` told you what it planned, not what it did.**
 
-Three bundled files still directed agents at artefacts 2.0.0 removed. `tasks-template.md` listed
-`spec.md`, `research.md`, `data-model.md` and `contracts/` as prerequisites; `developer.md` read the
-domain model from `spec.md` and returned BLOCKED when it could not find it — a hard stop on a file
-that no longer exists; and the brainstorming skill told agents to _write_ a greenfield design to
-`spec.md`, producing a second design document beside the plan that nothing downstream reads. All
-three now point into `plan.md`. `specnaut upgrade` picks them up.
+Three defects, one root. The report was rendered from the plan computed _before_ the write phase and
+presented as the outcome, so under `--force` it stated the opposite of the truth twice over: every
+file it overwrote was still listed under "customized locally (not touched)" — a run that replaced 64
+files summarised them as "64 preserved" — and the files that had just received a long-delayed update
+were the ones warned to have missed it, with "Nothing will deliver them on a later run" said about
+work the same command had completed a second earlier. The report now renders from the paths the run
+actually wrote, under their own "overwritten (was customized)" heading. A dry run still forecasts,
+because there the plan _is_ the outcome.
 
-The prose had been corrected in 2.0.0 and the instructions had not, which is the harder half to
-notice: prose that contradicts an instruction reads as documentation drift right up until an agent
-follows the instruction. A guard now greps the whole bundle for the removed names.
+The third defect was the costly one. `--reset-baseline` re-baselined every file whose content
+disagreed with the lock, rather than the "customized, and behind" list its own help text names — so
+a project with 2 files behind and 111 merely customized lost all 113 — and it wrote none of the
+`.specnaut.bak` copies the hint beside it promises, because the backup was keyed on `--force` alone.
+It destroyed more than `--force` did, and more quietly. It is now bounded to files upstream has
+actually moved for, leaves deliberate edits alone, and backs up everything it overwrites.
 
-Separately, the marketplace catalog that serves Claude Code and Copilot CLI users had been one to
-fifteen versions behind for months. Every step of the sync reported success; it opened a pull
-request and left a human to merge it, and after the first two nobody did. The bump now lands
-directly, and the script verifies the published catalog reports the new version rather than trusting
-its own exit code.
+Any project that runs a markdown formatter over its own tree reaches all three: bundled templates
+are not shipped formatter-clean, so the first pass marks most of the scaffold customized, and both
+flags are entered through that bucket.
+
+This release also fixes a publishing defect with no user-visible surface: the script that reaps
+superseded branches from the Codex marketplace fork matched only the post-rebrand branch prefix,
+while its counterpart for the other channel matched both. Three pre-rebrand branches were therefore
+invisible to the mechanism meant to delete them and stayed published long after their content was
+removed here. They are gone, both reapers now share one filter, and a test asserts they always will.
