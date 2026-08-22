@@ -47,7 +47,10 @@
 require_gh_token() {
   local secret_name="${1:-GH_TOKEN}"
   if [ -z "${GH_TOKEN:-}" ] && [ -z "${DRY_RUN:-}" ]; then
-    echo "::warning::${secret_name} (GH_TOKEN) not set — skipping sync" >&2
+    # Name the consequence, not just the cause. "skipping sync" reads as
+    # housekeeping; what actually happened is that a distribution channel did
+    # not receive this release, and nothing downstream will say so.
+    echo "::warning::${secret_name} not set — ${SYNC_CHANNEL:-this channel} did NOT receive this release. The release itself is unaffected; the channel is now behind." >&2
     exit 2
   fi
 }

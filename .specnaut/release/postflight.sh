@@ -83,6 +83,29 @@ else
   docs_warned=1
 fi
 
+# Verify the marketplace catalog by reading the PUBLISHED file, not by trusting
+# the sync step's exit code. That step reported `success` on every release from
+# 2026-05-22 to 2026-08-21 while publishing nothing: its jq selector matched no
+# entry, the tree stayed clean, and it took its "already up to date" branch.
+#
+# SOFT-WARN, not a hard failure: by this point the tag is pushed, the binaries
+# are published and the Homebrew formula is bumped. A stale catalog means one
+# distribution channel is behind — worth shouting about, not worth reporting the
+# whole release as failed. The hard gate lives in the sync script itself, which
+# now exits non-zero when it cannot prove it published.
+marketplace_warned=0
+echo "▶ verifying the marketplace catalog was published"
+catalog_version="$(gh api repos/specnaut/specnaut-marketplace/contents/.claude-plugin/marketplace.json \
+  --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
+  | jq -r '.plugins[0].version' 2>/dev/null || true)"
+if [ "$catalog_version" = "${TAG#v}" ]; then
+  echo "  catalog lists ${TAG#v}"
+else
+  echo "⚠ marketplace catalog lists '${catalog_version:-unreadable}', expected ${TAG#v}."
+  echo "  Claude Code / Copilot CLI marketplace users are on the previous version."
+  marketplace_warned=1
+fi
+
 # Soft-warn, like the two above. A self-update failure says the *operator's*
 # binary is stale — `.specnaut/release/README.md` documents exactly that case,
 # where the installed binary predates a fix to self-update itself. That is a
@@ -108,6 +131,7 @@ fi
 warnings=()
 [ "$homebrew_warned" -eq 1 ] && warnings+=("tap bump unverified, re-check in ~60s") || true
 [ "$docs_warned" -eq 1 ] && warnings+=("docs site stale, specnaut.com/version.json not updated") || true
+[ "$marketplace_warned" -eq 1 ] && warnings+=("marketplace catalog stale, that channel is behind") || true
 [ "$selfupdate_warned" -eq 1 ] && warnings+=("local binary not refreshed (does not affect the release)") || true
 
 if [ "${#warnings[@]}" -gt 0 ]; then

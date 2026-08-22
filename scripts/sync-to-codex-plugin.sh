@@ -43,6 +43,9 @@ BRANCH_PREFIX="specnaut-sync"
 
 # Resolve the version to ship.
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Named in the skip warning so an unpublished channel is legible in the log.
+SYNC_CHANNEL="the Codex marketplace fork"
 VERSION="${SPECNAUT_VERSION:-$(jq -r '.version' "$REPO_ROOT/deno.json")}"
 
 require_gh_token "CODEX_SYNC_TOKEN"

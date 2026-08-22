@@ -49,6 +49,9 @@ BRANCH_PREFIX="specnaut-sync"
 
 # Resolve the version to ship.
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Named in the skip warning so an unpublished channel is legible in the log.
+SYNC_CHANNEL="the Claude Code / Copilot CLI marketplace catalog"
 VERSION="${SPECNAUT_VERSION:-$(jq -r '.version' "$REPO_ROOT/deno.json")}"
 
 require_gh_token "MARKETPLACE_SYNC_TOKEN"
@@ -128,9 +131,18 @@ jq --arg v "$VERSION" --arg n "$PLUGIN_NAME" \
   "$CATALOG" > "$CATALOG.tmp"
 mv "$CATALOG.tmp" "$CATALOG"
 
-# A clean tree here now means one thing only: the catalog already declares this
-# version. The no-match case exited above.
+# A clean tree is not evidence on its own — it is what the broken version
+# produced for three months. Before taking the "already up to date" exit,
+# assert the catalog actually declares this version. If the tree is clean for
+# any other reason, that is a failed publish and the release goes red.
 if [ -z "$(git status --porcelain)" ]; then
+  published="$(jq -r --arg n "$PLUGIN_NAME" \
+    '.plugins[] | select(.name == $n) | .version' "$CATALOG")"
+  if [ "$published" != "$VERSION" ]; then
+    echo "::error::$MARKETPLACE lists $PLUGIN_NAME v${published:-<none>}, expected v$VERSION," >&2
+    echo "  yet the patch produced no change. The catalog was not published." >&2
+    exit 1
+  fi
   echo "No changes to sync — $MARKETPLACE already lists $PLUGIN_NAME v$VERSION."
   exit 0
 fi
