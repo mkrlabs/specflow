@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { fromFileUrl, join } from "@std/path";
 
 const MAIN = fromFileUrl(new URL("../../src/main.ts", import.meta.url));
@@ -73,17 +73,24 @@ Deno.test("a forced upgrade leaves nothing pending for the files it overwrote", 
   }
 });
 
-Deno.test("a dry run still stages, so the plan can be previewed", async () => {
-  // The half that must NOT change: staging during --dry-run is what lets an
-  // agent preview the reconciliation before committing to it.
+Deno.test("a dry run stages nothing — it is a preview, not a partial upgrade", async () => {
+  // This reverses a deliberate earlier choice (#516). Staging during --dry-run
+  // was introduced so an agent could preview the reconciliation before
+  // committing to it. The cost turned out to be higher than the benefit: the
+  // run wrote dozens of files and then printed "no files written", and it left
+  // `specnaut reconcile` primed with upstream content for an upgrade that was
+  // never applied — a pending reconciliation for a decision nobody took.
+  //
+  // The preview survives without the writes: the plan already names every
+  // customized dest, and `specnaut diff` shows the content.
   const dir = await customizedProject();
   try {
     const dry = await runSpecnaut(["upgrade", "--dry-run"], dir);
     assertEquals(dry.code, 0, `dry-run failed: ${dry.stderr}`);
 
-    const staged = await pending(dir);
+    assertEquals(await pending(dir), [], "a dry run must leave nothing staged");
     for (const rel of CUSTOMIZED) {
-      assert(staged.includes(rel), `${rel} must be staged by a dry run`);
+      assertStringIncludes(dry.stdout, rel);
     }
   } finally {
     await Deno.remove(dir, { recursive: true });

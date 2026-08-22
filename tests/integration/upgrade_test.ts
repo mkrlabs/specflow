@@ -104,15 +104,17 @@ Deno.test("upgrade --dry-run shows plan without writing when user customized a f
     assertEquals(init.code, 0);
 
     const projectDir = join(parent, "demo");
-    const agentsPath = join(projectDir, "AGENTS.md");
-    const original = await Deno.readTextFile(agentsPath);
-    await Deno.writeTextFile(agentsPath, original + "\n\n# User customization\n");
+    // A file specnaut genuinely owns. NOT AGENTS.md: that one is skipIfExists,
+    // so it belongs to the project and an upgrade never full-writes it (#517).
+    const ownedPath = join(projectDir, ".claude/skills/specnaut/SKILL.md");
+    const original = await Deno.readTextFile(ownedPath);
+    await Deno.writeTextFile(ownedPath, original + "\n\n# User customization\n");
 
     const upgrade = await runSpecnaut(["upgrade", "--dry-run"], { cwd: projectDir });
     assertEquals(upgrade.code, 0);
-    assertStringIncludes(upgrade.stdout, "AGENTS.md");
+    assertStringIncludes(upgrade.stdout, "SKILL.md");
     assertStringIncludes(upgrade.stdout, "customized locally");
-    const after = await Deno.readTextFile(agentsPath);
+    const after = await Deno.readTextFile(ownedPath);
     assertEquals(after.includes("# User customization"), true);
   });
 });
@@ -123,20 +125,21 @@ Deno.test("upgrade --force overwrites a customized file with backup", async () =
     assertEquals(init.code, 0);
 
     const projectDir = join(parent, "demo");
-    const agentsPath = join(projectDir, "AGENTS.md");
-    const original = await Deno.readTextFile(agentsPath);
-    await Deno.writeTextFile(agentsPath, original + "\n# User customization\n");
+    // See above — AGENTS.md is the project's file, and --force does not reach it.
+    const ownedPath = join(projectDir, ".claude/skills/specnaut/SKILL.md");
+    const original = await Deno.readTextFile(ownedPath);
+    await Deno.writeTextFile(ownedPath, original + "\n# User customization\n");
 
     const upgrade = await runSpecnaut(["upgrade", "--force"], { cwd: projectDir });
     assertEquals(upgrade.code, 0);
 
-    const backupExists = await exists(`${agentsPath}.specnaut.bak`);
+    const backupExists = await exists(`${ownedPath}.specnaut.bak`);
     assertEquals(backupExists, true);
 
-    const bak = await Deno.readTextFile(`${agentsPath}.specnaut.bak`);
+    const bak = await Deno.readTextFile(`${ownedPath}.specnaut.bak`);
     assertEquals(bak.includes("# User customization"), true);
 
-    const after = await Deno.readTextFile(agentsPath);
+    const after = await Deno.readTextFile(ownedPath);
     assertEquals(after.includes("# User customization"), false);
   });
 });

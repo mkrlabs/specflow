@@ -228,6 +228,26 @@ export function computeUpgradePlan(
       continue;
     }
 
+    // A `skipIfExists` dest that is present on disk belongs to the user, not
+    // to Specnaut — `AGENTS.md` and the constitution are written once, at
+    // init, and are the project's own thereafter. Full-writing one is never
+    // correct, so this guard sits above every write branch and is independent
+    // of the lock.
+    //
+    // It used to live inside the `lockSha === undefined` branch below, which
+    // made the protection self-disarming: any binary that once tracked the
+    // dest — before it was declared `skipIfExists`, or during a partial
+    // upgrade that got one file in — left an entry behind, and from then on
+    // the guard never fired for that project again. The file fell through to
+    // `auto-update` and was overwritten wholesale by a plain `upgrade`: no
+    // `--force`, no "preserved" line, no warning. The protection held for
+    // fresh installs and failed for exactly the long-lived ones carrying user
+    // content worth protecting.
+    //
+    // The one section Specnaut does own inside these files still reaches the
+    // project: `managedSection` merges are surveyed outside the plan.
+    if (isSkipIfExists(dest)) continue;
+
     // Vanilla = SHA matches lock entry. With plugin installed and
     // covered, hand the file off to the plugin regardless of whether
     // the new bundle's SHA matches.
@@ -242,14 +262,9 @@ export function computeUpgradePlan(
       continue;
     }
     if (lockSha === undefined) {
-      // skipIfExists files (AGENTS.md, .specnaut/memory/constitution.md, …)
-      // that the user already had at init time were deliberately not
-      // tracked by the lock. They were never specnaut-managed; do not
-      // emit any action — silent skip prevents the false-positive
-      // "customized locally" report (#163).
-      if (isSkipIfExists(dest)) {
-        continue;
-      }
+      // Untracked and diverged from the bundle: the user's own edit of a file
+      // Specnaut manages. (`skipIfExists` dests never reach here — they are
+      // skipped above, whatever the lock says.)
       actions.push({
         kind: "preserve",
         dest,

@@ -253,9 +253,25 @@ export class UpgradeProjectUseCase {
       return { status: "up-to-date", currentVersion: lock.templatesVersion };
     }
 
+    // `--dry-run` returns here, BEFORE anything is written. It used to fall
+    // through the staging block below on the argument that an agent could then
+    // preview the reconciliation plan — but a preview that leaves several dozen
+    // files on disk is not a preview, and the run ended by printing "no files
+    // written". Worse, it primed `specnaut reconcile` with upstream content for
+    // an upgrade that was never applied. The plan itself already names every
+    // customized dest, which is what a preview owes the caller.
+    if (input.dryRun) {
+      return {
+        status: "planned",
+        plan,
+        fromVersion: lock.templatesVersion,
+        toVersion: templatesVersion,
+        managedSections: plannedSections,
+      };
+    }
+
     // Stage upstream content for preserved (customized) files so that
-    // `specnaut reconcile` can act on them later. We stage in dry-run too,
-    // so the agent can preview the reconciliation plan.
+    // `specnaut reconcile` can act on them later.
     const stagingWrites: Bundle = {};
     for (const action of plan) {
       // Stage only `customized` preserves for reconcile; a declared-preserve is
@@ -270,16 +286,6 @@ export class UpgradeProjectUseCase {
         overwrite: true,
         backupExisting: false,
       });
-    }
-
-    if (input.dryRun) {
-      return {
-        status: "planned",
-        plan,
-        fromVersion: lock.templatesVersion,
-        toVersion: templatesVersion,
-        managedSections: plannedSections,
-      };
     }
 
     const toWrite: Bundle = {};
@@ -403,7 +409,15 @@ export class UpgradeProjectUseCase {
       // dump a full diff — and makes `--force` overwrite it. That is the #163
       // false positive, arriving one run later through the lock instead of
       // through the plan.
-      if (!wrote && existing === undefined && bundle[dest]?.skipIfExists === true) continue;
+      //
+      // This drops a PRE-EXISTING entry too, and that is the point. The guard
+      // used to require `existing === undefined`, so it only ever prevented
+      // adoption on a clean lock — a project whose lock already carried the
+      // dest (tracked by an older binary, or by a partial upgrade) kept that
+      // entry forever, which is precisely what disarmed the plan-side guard.
+      // Dropping it here heals the project on its next upgrade, without the
+      // user needing to know the problem existed.
+      if (!wrote && bundle[dest]?.skipIfExists === true) continue;
       updatedEntries.set(dest, {
         sha256: wrote ? sha : existing?.sha256 ?? sha,
         installedAt: wrote ? now : (existing?.installedAt ?? now),

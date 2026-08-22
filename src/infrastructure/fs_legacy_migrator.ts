@@ -22,6 +22,23 @@ async function isDir(p: string): Promise<boolean> {
   }
 }
 
+/** Which of the two config dirs are present. Read-only. */
+export type LegacyDirState = "legacy-only" | "current-only" | "both" | "neither";
+
+/**
+ * Probe the two config dirs WITHOUT touching either. Callers that must not
+ * write — `upgrade --dry-run` above all — ask this instead of calling the
+ * migrator and reading its result, which is a rename that already happened.
+ */
+export async function inspectLegacyConfigDir(projectDir: string): Promise<LegacyDirState> {
+  const hasCurrent = await isDir(join(projectDir, ".specnaut"));
+  const hasLegacy = await isDir(join(projectDir, ".specflow"));
+  if (hasCurrent && hasLegacy) return "both";
+  if (hasCurrent) return "current-only";
+  if (hasLegacy) return "legacy-only";
+  return "neither";
+}
+
 /**
  * Rename a legacy `.specflow/` project dir to `.specnaut/`:
  *  - `migrated`           — renamed legacy → current
@@ -32,13 +49,10 @@ async function isDir(p: string): Promise<boolean> {
 export async function migrateLegacyConfigDir(
   projectDir: string,
 ): Promise<LegacyMigrationResult> {
-  const legacy = join(projectDir, ".specflow");
-  const current = join(projectDir, ".specnaut");
-  const hasCurrent = await isDir(current);
-  const hasLegacy = await isDir(legacy);
-  if (hasCurrent && hasLegacy) return { kind: "conflict" };
-  if (hasCurrent) return { kind: "already-current" };
-  if (!hasLegacy) return { kind: "nothing-to-migrate" };
-  await Deno.rename(legacy, current);
+  const state = await inspectLegacyConfigDir(projectDir);
+  if (state === "both") return { kind: "conflict" };
+  if (state === "current-only") return { kind: "already-current" };
+  if (state === "neither") return { kind: "nothing-to-migrate" };
+  await Deno.rename(join(projectDir, ".specflow"), join(projectDir, ".specnaut"));
   return { kind: "migrated" };
 }

@@ -12,7 +12,10 @@ import { findHarness } from "../harnesses.ts";
 import { DenoFsReader } from "../../infrastructure/fs_reader.ts";
 import { DenoFsWriter } from "../../infrastructure/deno_fs_writer.ts";
 import { FsLockStore } from "../../infrastructure/fs_lock_store.ts";
-import { migrateLegacyConfigDir } from "../../infrastructure/fs_legacy_migrator.ts";
+import {
+  inspectLegacyConfigDir,
+  migrateLegacyConfigDir,
+} from "../../infrastructure/fs_legacy_migrator.ts";
 import { FsPluginDetector } from "../../infrastructure/fs_plugin_detector.ts";
 import { FsParentWorkspaceReader } from "../../infrastructure/fs_parent_workspace_reader.ts";
 import { FsPreserveStore } from "../../infrastructure/fs_preserve_store.ts";
@@ -280,15 +283,40 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
 
   // Rebrand migration: move a legacy `.specflow/` tree to `.specnaut/` before
   // the lock is read, so existing projects upgrade transparently.
-  const migration = await migrateLegacyConfigDir(projectDir);
-  if (migration.kind === "conflict") {
-    console.error(
-      red("error: both .specflow/ (legacy) and .specnaut/ exist — remove one before continuing"),
-    );
-    return 2;
-  }
-  if (migration.kind === "migrated") {
-    console.log(dim("↳ migrated .specflow/ → .specnaut/ (legacy config dir)"));
+  //
+  // This is a real `rename()`, so it is gated on `--dry-run` — it used to run
+  // eleven lines above the first dry-run guard, which meant a preview silently
+  // moved the managed tree and then reported "no files written". A dry-run on a
+  // legacy project now refuses rather than migrating: previewing the plan means
+  // reading the lock, and the lock is only addressable at the current path.
+  if (intent.dryRun) {
+    const state = await inspectLegacyConfigDir(projectDir);
+    if (state === "both") {
+      console.error(
+        red("error: both .specflow/ (legacy) and .specnaut/ exist — remove one before continuing"),
+      );
+      return 2;
+    }
+    if (state === "legacy-only") {
+      console.error(red("error: this project still uses the legacy .specflow/ directory."));
+      console.error(
+        "  --dry-run will not move it, and the plan cannot be computed until it moves.",
+      );
+      console.error("  Run `specnaut upgrade` (without --dry-run) to migrate and upgrade in one");
+      console.error("  step, or move it yourself first:  mv .specflow .specnaut");
+      return 2;
+    }
+  } else {
+    const migration = await migrateLegacyConfigDir(projectDir);
+    if (migration.kind === "conflict") {
+      console.error(
+        red("error: both .specflow/ (legacy) and .specnaut/ exist — remove one before continuing"),
+      );
+      return 2;
+    }
+    if (migration.kind === "migrated") {
+      console.log(dim("↳ migrated .specflow/ → .specnaut/ (legacy config dir)"));
+    }
   }
 
   if (!intent.dryRun) {
