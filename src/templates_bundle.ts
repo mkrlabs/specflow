@@ -1088,6 +1088,26 @@ wanted pull requests will say so.
     skip step 11 silently. A feature delivered across several branches — the last one has not
     landed yet — the user answers \`no\` in step 11.4 and re-runs \`/specnaut merge\` on the last one.
 
+12. **Reconcile the board** (only if push happened; github + gitlab backends only).
+    Run \`bash .specnaut/scripts/backlog/sweep-closed.sh\`. It reports; it does not
+    move anything.
+
+    - For each \`DRIFTED <number> <status>\` line, run
+      \`bash .specnaut/scripts/backlog/move.sh <number> Done\`. Collect failures and
+      report them — one card that will not move must never abort the loop or fail
+      the merge, which has already happened by this point.
+    - For each \`REOPENED <number>\` line, **report it and move nothing.** The card is
+      in Done while the issue is open again; whether it belongs in \`Ready\` or
+      \`In progress\` is not guessable, and guessing wrong is worse than saying so.
+    - Quote the script's **summary line** in the report, not your own count.
+
+    This exists because step 11 only ever sees \`feature.json.linked_issue\`. An issue
+    closed by a \`Closes #N\` in the commit body, through the web UI, or by another
+    agent is invisible to it — and the card then sits in the wrong column with
+    nothing anywhere reporting the disagreement. This step asks the board whether it
+    agrees with the repository, rather than asking the merge what it believes it
+    closed. The second question is answerable without being true.
+
 ## Squash by scope — one commit per scope, never "exactly one commit"
 
 A branch usually carries more than one kind of change, and collapsing them into a single commit
@@ -1149,6 +1169,11 @@ step 11 ran — whether the linked issue was closed (and via which backend), or 
 no \`linked_issue\`, user declined, or \`cascade-check\` blocked the close). It must also quote
 the branch \`HEAD\` is on after the merge, from \`git rev-parse --abbrev-ref HEAD\` — a merge report
 that claims success without naming the branch is unverifiable.
+
+When step 12 ran, quote \`sweep-closed.sh\`'s summary line verbatim and list any card it moved and
+any \`REOPENED\` it reported. Report the summary even when nothing moved: "drifted 0" is the evidence
+that the board was checked, and omitting it makes a checked board indistinguishable from a skipped
+step.
 
 On the \`--pr\` path the report is shorter and must say so plainly: the branch pushed, the PR URL,
 and the fact that **nothing has merged and the backlog item has not moved**. A report that reads
@@ -1477,15 +1502,28 @@ then, the local backend has no column model and this groom phase is a
 no-op for it (the PO should report "skipped — local backend predates
 the column model").
 
-### 2. Stale PR surface
+### 2. Board drift — closed items outside Done
 
-For each open PR on this repository, check whether it has been waiting
-on review or CI for more than 48 hours. List them in the report so the
-user can decide whether to ping, close, or merge.
+**github + gitlab backends only.** Run
+\`bash .specnaut/scripts/backlog/sweep-closed.sh --since 168\` and report its
+output verbatim, summary line included. The script's header documents what each
+line means; do not restate it, or the two definitions will drift.
 
-This step is read-only; do not mutate PRs.
+**Read-only — report, never move.** Correcting drift belongs to
+\`/specnaut merge\`, which already owns board mutations; a detector that also
+mutates cannot be run freely on a schedule.
 
-### 3. Orphan spec detection
+### 3. Stale PR surface
+
+**Only when the project actually opens pull requests** — \`/specnaut merge\` opens
+none unless \`--pr\` is passed, so otherwise say the step does not apply rather
+than reporting an empty section forever.
+
+Where it applies: list open PRs waiting on review or CI for more than 48 hours,
+so the user can decide whether to ping, close, or merge. Read-only; do not
+mutate PRs.
+
+### 4. Orphan spec detection
 
 Walk \`.specnaut/specs/\` (if present) and surface any feature directory
 that is missing the next expected artefact:
@@ -9923,6 +9961,120 @@ fi
   },
   {
     category: "backlog-script",
+    name: "sweep-closed",
+    suffix: "sweep-closed.sh",
+    content: `#!/usr/bin/env bash
+# List backlog items whose board column disagrees with the issue's real state.
+#
+# This script REPORTS. It never moves a card. Detection and correction are
+# split on purpose: \`/specnaut groom\` prints this output read-only, while
+# \`/specnaut merge\` pipes the DRIFTED lines into \`move.sh\`. A read-only core
+# cannot mutate anything from the wrong caller, and both callers get the same
+# answer to "what drifted".
+#
+# Why reconcile rather than attribute: asking "which issues did my merge close"
+# reports success from its own belief about the answer, and every failure in
+# that shape is silent. Asking "does the board agree with the repository"
+# makes the success criterion the outcome itself.
+#
+# Output (machine-readable, one per line):
+#
+#   DRIFTED  <number> <current-status>   closed, but not in Done
+#   REOPENED <number>                    open, but sitting in Done
+#   scanned <N>, drifted <M>, reopened <R>
+#
+# **Read the summary line, not the absence of DRIFTED lines.** \`drifted 0\` is a
+# normal quiet run; \`scanned 0\` is a failure — it means the query matched
+# nothing at all, which looks identical to a clean board. That distinction is
+# the whole point of the summary existing.
+#
+# Scope: this repository only, and issues closed within --since hours. The
+# board is org-wide, so an unscoped sweep would report cards this repository's
+# work never touched.
+#
+# Usage: sweep-closed.sh [--since <hours>]     (default 24)
+set -euo pipefail
+
+# shellcheck source=./_config.sh
+. "\$(dirname "\$0")/_config.sh"
+
+SINCE_HOURS=24
+while [ "\$#" -gt 0 ]; do
+  case "\$1" in
+    --since)
+      SINCE_HOURS="\${2:-}"
+      [ -n "\$SINCE_HOURS" ] || { echo 'usage: sweep-closed.sh [--since <hours>]' >&2; exit 2; }
+      shift 2
+      ;;
+    -h | --help)
+      echo 'usage: sweep-closed.sh [--since <hours>]   (default 24)' >&2
+      exit 0
+      ;;
+    *)
+      echo "unknown argument: \$1" >&2
+      echo 'usage: sweep-closed.sh [--since <hours>]' >&2
+      exit 2
+      ;;
+  esac
+done
+case "\$SINCE_HOURS" in
+  '' | *[!0-9]*)
+    echo "--since expects a whole number of hours, got '\$SINCE_HOURS'" >&2
+    exit 2
+    ;;
+esac
+
+# One project read, then one issue-state read per repo — not per item.
+ITEMS="\$(gh project item-list "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" \\
+  --format json --limit 500 2>/dev/null || true)"
+if [ -z "\$ITEMS" ]; then
+  echo "error: could not read Project #\$PROJECT_NUMBER for owner \$REPO_OWNER" >&2
+  exit 1
+fi
+
+# \`.content.repository\` — NOT \`.repository\`. Filtering on the latter silently
+# yields an empty set, which reads as "the board is clean" when it is not.
+SCOPED="\$(echo "\$ITEMS" | jq -c --arg repo "\$REPO" '
+  [ .items[]
+    | select(.content.type == "Issue")
+    | select((.content.repository // "") | endswith(\$repo))
+    | { number: .content.number, status: (.status // "(unset)") } ]')"
+
+SCANNED="\$(echo "\$SCOPED" | jq 'length')"
+
+# Issue state is not exposed by \`item-list\`, so read it per repo in one call.
+# \`--search\` bounds closed issues to the window; open ones are cheap to list.
+CLOSED="\$(gh issue list --repo "\$REPO" --state closed --limit 500 \\
+  --search "closed:>=\$(date -u -v-"\${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\
+    || date -u -d "\${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')" \\
+  --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+OPEN="\$(gh issue list --repo "\$REPO" --state open --limit 500 \\
+  --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+
+DRIFTED="\$(jq -n -c --argjson items "\$SCOPED" --argjson closed "\$CLOSED" '
+  [ \$items[] | select(.status != "Done") | select(.number as \$n | \$closed | index(\$n)) ]')"
+REOPENED="\$(jq -n -c --argjson items "\$SCOPED" --argjson open "\$OPEN" '
+  [ \$items[] | select(.status == "Done") | select(.number as \$n | \$open | index(\$n)) ]')"
+
+echo "\$DRIFTED" | jq -r '.[] | "DRIFTED  \\(.number) \\(.status)"'
+echo "\$REOPENED" | jq -r '.[] | "REOPENED \\(.number)"'
+
+echo "scanned \$SCANNED, drifted \$(echo "\$DRIFTED" | jq 'length'), reopened \$(echo "\$REOPENED" | jq 'length')"
+
+# A board with items is the precondition for this script meaning anything. Zero
+# is not "nothing drifted" — it is "the query found no items", which happens
+# when the project number is wrong or the repo filter matched nothing.
+if [ "\$SCANNED" -eq 0 ]; then
+  echo "error: scanned 0 board items for \$REPO — the query matched nothing, which is not the same as a clean board" >&2
+  exit 1
+fi
+`,
+    executable: true,
+    backend: "github",
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-script",
     name: "clarify-comment",
     suffix: "clarify-comment.sh",
     content: `#!/usr/bin/env bash
@@ -10841,6 +10993,97 @@ glab issue update "\$NUM" --repo "\$PROJECT_ID" \\
   --label "Status::\$STATUS" >/dev/null
 
 echo "✓ #\$NUM → Status::\$STATUS"
+`,
+    executable: true,
+    backend: "gitlab",
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-script",
+    name: "sweep-closed",
+    suffix: "sweep-closed.sh",
+    content: `#!/usr/bin/env bash
+# List backlog items whose Status:: label disagrees with the issue's real state.
+#
+# This script REPORTS. It never moves an issue. Detection and correction are
+# split on purpose: \`/specnaut groom\` prints this output read-only, while
+# \`/specnaut merge\` pipes the DRIFTED lines into \`move.sh\`.
+#
+# Why reconcile rather than attribute: asking "which issues did my merge close"
+# reports success from its own belief about the answer, and every failure in
+# that shape is silent. Asking "does the board agree with the repository" makes
+# the success criterion the outcome itself.
+#
+# Output (machine-readable, one per line):
+#
+#   DRIFTED  <number> <current-status>   closed, but not labelled Status::Done
+#   REOPENED <number>                    open, but labelled Status::Done
+#   scanned <N>, drifted <M>, reopened <R>
+#
+# **Read the summary line, not the absence of DRIFTED lines.** \`drifted 0\` is a
+# normal quiet run; \`scanned 0\` is a failure — the query matched nothing at all,
+# which looks identical to a clean board.
+#
+# Unlike the GitHub backend there is no separate board object here: the
+# Status:: scoped label *is* the column, and it lives on the issue. So one
+# listing answers both halves, and there is no cross-repository scope to guard
+# — a GitLab project is the unit.
+#
+# Usage: sweep-closed.sh [--since <hours>]     (default 24)
+set -euo pipefail
+
+# shellcheck source=./_config.sh
+. "\$(dirname "\$0")/_config.sh"
+
+SINCE_HOURS=24
+while [ "\$#" -gt 0 ]; do
+  case "\$1" in
+    --since)
+      SINCE_HOURS="\${2:-}"
+      [ -n "\$SINCE_HOURS" ] || { echo 'usage: sweep-closed.sh [--since <hours>]' >&2; exit 2; }
+      shift 2
+      ;;
+    -h | --help)
+      echo 'usage: sweep-closed.sh [--since <hours>]   (default 24)' >&2
+      exit 0
+      ;;
+    *)
+      echo "unknown argument: \$1" >&2
+      exit 2
+      ;;
+  esac
+done
+case "\$SINCE_HOURS" in
+  '' | *[!0-9]*)
+    echo "--since expects a whole number of hours, got '\$SINCE_HOURS'" >&2
+    exit 2
+    ;;
+esac
+
+SINCE="\$(date -u -v-"\${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\
+  || date -u -d "\${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')"
+
+CLOSED="\$(glab issue list --repo "\$PROJECT_ID" --closed --per-page 500 --output json 2>/dev/null || echo '[]')"
+OPEN="\$(glab issue list --repo "\$PROJECT_ID" --per-page 500 --output json 2>/dev/null || echo '[]')"
+
+SCANNED="\$(jq -n --argjson c "\$CLOSED" --argjson o "\$OPEN" '(\$c | length) + (\$o | length)')"
+
+status_of='([.labels[]? | select(startswith("Status::"))][0] // "(unset)") | sub("^Status::"; "")'
+
+DRIFTED="\$(jq -c -r --arg since "\$SINCE" "
+  [ .[] | select((.closed_at // \\"\\") >= \\\$since)
+        | { number: .iid, status: (\$status_of) }
+        | select(.status != \\"Done\\") ]" <<<"\$CLOSED")"
+REOPENED="\$(jq -c -r "[ .[] | { number: .iid, status: (\$status_of) } | select(.status == \\"Done\\") ]" <<<"\$OPEN")"
+
+echo "\$DRIFTED" | jq -r '.[] | "DRIFTED  \\(.number) \\(.status)"'
+echo "\$REOPENED" | jq -r '.[] | "REOPENED \\(.number)"'
+echo "scanned \$SCANNED, drifted \$(echo "\$DRIFTED" | jq 'length'), reopened \$(echo "\$REOPENED" | jq 'length')"
+
+if [ "\$SCANNED" -eq 0 ]; then
+  echo "error: scanned 0 issues on \$PROJECT_ID — the query matched nothing, which is not the same as a clean board" >&2
+  exit 1
+fi
 `,
     executable: true,
     backend: "gitlab",

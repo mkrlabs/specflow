@@ -161,15 +161,28 @@ then, the local backend has no column model and this groom phase is a
 no-op for it (the PO should report "skipped — local backend predates
 the column model").
 
-### 2. Stale PR surface
+### 2. Board drift — closed items outside Done
 
-For each open PR on this repository, check whether it has been waiting
-on review or CI for more than 48 hours. List them in the report so the
-user can decide whether to ping, close, or merge.
+**github + gitlab backends only.** Run
+`bash .specnaut/scripts/backlog/sweep-closed.sh --since 168` and report its
+output verbatim, summary line included. The script's header documents what each
+line means; do not restate it, or the two definitions will drift.
 
-This step is read-only; do not mutate PRs.
+**Read-only — report, never move.** Correcting drift belongs to
+`/specnaut merge`, which already owns board mutations; a detector that also
+mutates cannot be run freely on a schedule.
 
-### 3. Orphan spec detection
+### 3. Stale PR surface
+
+**Only when the project actually opens pull requests** — `/specnaut merge` opens
+none unless `--pr` is passed, so otherwise say the step does not apply rather
+than reporting an empty section forever.
+
+Where it applies: list open PRs waiting on review or CI for more than 48 hours,
+so the user can decide whether to ping, close, or merge. Read-only; do not
+mutate PRs.
+
+### 4. Orphan spec detection
 
 Walk `.specnaut/specs/` (if present) and surface any feature directory
 that is missing the next expected artefact:

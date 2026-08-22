@@ -89,6 +89,26 @@ wanted pull requests will say so.
     skip step 11 silently. A feature delivered across several branches — the last one has not
     landed yet — the user answers `no` in step 11.4 and re-runs `/specnaut merge` on the last one.
 
+12. **Reconcile the board** (only if push happened; github + gitlab backends only).
+    Run `bash .specnaut/scripts/backlog/sweep-closed.sh`. It reports; it does not
+    move anything.
+
+    - For each `DRIFTED <number> <status>` line, run
+      `bash .specnaut/scripts/backlog/move.sh <number> Done`. Collect failures and
+      report them — one card that will not move must never abort the loop or fail
+      the merge, which has already happened by this point.
+    - For each `REOPENED <number>` line, **report it and move nothing.** The card is
+      in Done while the issue is open again; whether it belongs in `Ready` or
+      `In progress` is not guessable, and guessing wrong is worse than saying so.
+    - Quote the script's **summary line** in the report, not your own count.
+
+    This exists because step 11 only ever sees `feature.json.linked_issue`. An issue
+    closed by a `Closes #N` in the commit body, through the web UI, or by another
+    agent is invisible to it — and the card then sits in the wrong column with
+    nothing anywhere reporting the disagreement. This step asks the board whether it
+    agrees with the repository, rather than asking the merge what it believes it
+    closed. The second question is answerable without being true.
+
 ## Squash by scope — one commit per scope, never "exactly one commit"
 
 A branch usually carries more than one kind of change, and collapsing them into a single commit
@@ -150,6 +170,11 @@ step 11 ran — whether the linked issue was closed (and via which backend), or 
 no `linked_issue`, user declined, or `cascade-check` blocked the close). It must also quote
 the branch `HEAD` is on after the merge, from `git rev-parse --abbrev-ref HEAD` — a merge report
 that claims success without naming the branch is unverifiable.
+
+When step 12 ran, quote `sweep-closed.sh`'s summary line verbatim and list any card it moved and
+any `REOPENED` it reported. Report the summary even when nothing moved: "drifted 0" is the evidence
+that the board was checked, and omitting it makes a checked board indistinguishable from a skipped
+step.
 
 On the `--pr` path the report is shorter and must say so plainly: the branch pushed, the PR URL,
 and the fact that **nothing has merged and the backlog item has not moved**. A report that reads

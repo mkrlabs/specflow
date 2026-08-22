@@ -429,6 +429,14 @@
     },
     {
       "category": "backlog-script",
+      "name": "sweep-closed",
+      "suffix": "sweep-closed.sh",
+      "source": "core/skills/backlog/scripts/github/sweep-closed.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
       "name": "clarify-comment",
       "suffix": "clarify-comment.sh",
       "source": "core/skills/backlog/scripts/github/clarify-comment.sh",
@@ -512,6 +520,14 @@
       "name": "move",
       "suffix": "move.sh",
       "source": "core/skills/backlog/scripts/gitlab/move.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "sweep-closed",
+      "suffix": "sweep-closed.sh",
+      "source": "core/skills/backlog/scripts/gitlab/sweep-closed.sh",
       "executable": true,
       "backend": "gitlab"
     },
