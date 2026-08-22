@@ -77,6 +77,17 @@ export type UpgradeProjectResult =
     toVersion: string;
     backups: ReadonlyArray<string>;
     managedSections: ReadonlyArray<ManagedSectionOutcome>;
+    /**
+     * Dests whose content this run actually wrote from the bundle.
+     *
+     * The plan is a forecast, and the report used to render it as the outcome
+     * (#519). Under `--force` that is not merely imprecise: every overwritten
+     * file was still listed under "customized locally (not touched)", and the
+     * files that *did* receive their delayed update were the ones the run
+     * warned had missed it. A forecast and a result are different objects, so
+     * the result now carries its own.
+     */
+    written: ReadonlyArray<string>;
   };
 
 export type UpgradeProjectDeps = {
@@ -300,9 +311,16 @@ export class UpgradeProjectUseCase {
       }
     }
 
+    // `--reset-baseline` overwrites from the bundle exactly like `--force` does,
+    // so it owes the same `.specnaut.bak` (#519). It never wrote one: the flag
+    // re-baselines before the plan is computed, so every file it touches arrives
+    // here as `auto-update` rather than a forced `preserve`, and the backup was
+    // keyed on `force` alone. The hint that advertises the flag promises "keeps
+    // a .specnaut.bak of each" — it produced none, which made the safer-looking
+    // option the destructive one.
     const backupReport = await writer.writeBundle(toWrite, input.projectDir, {
       overwrite: true,
-      backupExisting: input.force,
+      backupExisting: input.force || (input.resetBaseline ?? false),
     });
 
     // JSON-merged files are not part of the plan; re-graft the bundled
@@ -448,6 +466,7 @@ export class UpgradeProjectUseCase {
       toVersion: templatesVersion,
       backups: [...backupReport.backups, ...extraBackups].map((b) => b.dest),
       managedSections: appliedSections,
+      written: Object.keys(toWrite).sort(),
     };
   }
 

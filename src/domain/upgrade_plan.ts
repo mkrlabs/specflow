@@ -212,7 +212,23 @@ export function computeUpgradePlan(
     // and is the migration path for the false-positive "customized"
     // bug (#163). Skipped when the lock genuinely has no entry — that
     // case still falls through to the skipIfExists / customized branch.
-    if (resetBaseline && diskSha !== undefined && lockSha !== undefined && diskSha !== lockSha) {
+    //
+    // `lockSha !== newSha` bounds it to files upstream has actually moved for
+    // (#519). Without it the reset swept the whole `customized` bucket: every
+    // file whose recorded SHA disagreed with disk was re-baselined, reclassified
+    // `auto-update`, and overwritten from the bundle — including files nobody
+    // was behind on, edited deliberately, with no update waiting for them. The
+    // flag's own hint calls it the way to apply the "behind" list, so a project
+    // with 2 behind and 111 merely customized lost all 113.
+    //
+    // The bound keeps the #163 migration intact: a lock corrupted by an old
+    // binary carries a SHA matching neither disk nor bundle, so it still enters
+    // here. What it excludes is the one shape that is genuinely settled —
+    // recorded SHA equal to the bundle's, meaning the template never moved.
+    if (
+      resetBaseline && diskSha !== undefined && lockSha !== undefined &&
+      diskSha !== lockSha && lockSha !== newSha
+    ) {
       lockSha = diskSha;
     }
 

@@ -164,10 +164,24 @@ export async function switchBacklogBackend(
   return { switched: true, from };
 }
 
-function renderSummary(plan: UpgradePlan, from: string, to: string) {
+/**
+ * @param written Dests this run actually wrote. Empty for a dry run, which has
+ *   nothing to report but the forecast — there, the plan IS the outcome.
+ */
+function renderSummary(
+  plan: UpgradePlan,
+  from: string,
+  to: string,
+  written: ReadonlySet<string> = new Set(),
+) {
   const groups = {
     auto: plan.filter((a) => a.kind === "auto-update"),
-    preserve: plan.filter((a) => a.kind === "preserve"),
+    // A preserve the run then wrote is not a preserve — `--force` overwrites
+    // the whole `customized` bucket, and rendering the plan verbatim reported
+    // every one of those files as "not touched" while their content had just
+    // been replaced (#519). Split them out before anything reads this group.
+    preserve: plan.filter((a) => a.kind === "preserve" && !written.has(a.dest)),
+    overwritten: plan.filter((a) => a.kind === "preserve" && written.has(a.dest)),
     added: plan.filter((a) => a.kind === "add-new"),
     unchanged: plan.filter((a) => a.kind === "unchanged"),
     removed: plan.filter((a) => a.kind === "remove" && !a.wasCustomized),
@@ -188,6 +202,11 @@ function renderSummary(plan: UpgradePlan, from: string, to: string) {
   if (groups.added.length > 0) {
     console.log(bold("  new files to add"));
     for (const a of groups.added) console.log(green(`    + ${a.dest}`));
+    console.log();
+  }
+  if (groups.overwritten.length > 0) {
+    console.log(bold("  overwritten (was customized — previous content backed up)"));
+    for (const a of groups.overwritten) console.log(cyan(`    ↻ ${a.dest}`));
     console.log();
   }
   // Customized files split into two states that read identically today and
@@ -271,6 +290,7 @@ function renderSummary(plan: UpgradePlan, from: string, to: string) {
     dim(
       `  ${groups.auto.length} auto-update, ${settled.length} preserved, ` +
         `${behind.length} behind, ` +
+        (groups.overwritten.length > 0 ? `${groups.overwritten.length} overwritten, ` : "") +
         `${groups.added.length} added, ${groups.removed.length} removed, ` +
         `${groups.orphanPreserved.length} orphan-preserved, ${groups.migrated.length} migrated, ` +
         `${groups.deferred.length} deferred, ${groups.unchanged.length} unchanged`,
@@ -424,7 +444,10 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
     return 0;
   }
 
-  renderSummary(result.plan, result.fromVersion, result.toVersion);
+  const written: ReadonlySet<string> = new Set(
+    result.status === "applied" ? result.written : [],
+  );
+  renderSummary(result.plan, result.fromVersion, result.toVersion, written);
 
   // Sections Specnaut owns inside files the user owns (#466). `AGENTS.md` is
   // never rewritten by an upgrade, so the one section that has to reach an
@@ -515,7 +538,14 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
   // A run whose only outcome is skips still printed a bare green tick. That is
   // the line people read, and it said the work was done. Name what was left,
   // right where the eye lands, or the group above goes unread.
-  const leftBehind = result.plan.filter((a) => a.kind === "preserve" && a.staleSince);
+  // Only files the run left alone. A `--force` run delivers the whole behind
+  // bucket, and this warning still fired for every one of them — telling the
+  // reader that "nothing will deliver them on a later run" about updates the
+  // same command had just applied, which reads as a failure and invites a
+  // pointless second pass (#519).
+  const leftBehind = result.plan.filter(
+    (a) => a.kind === "preserve" && a.staleSince && !written.has(a.dest),
+  );
   if (leftBehind.length > 0) {
     console.log(
       yellow(

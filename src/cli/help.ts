@@ -57,8 +57,9 @@ ${bold("Flags (for upgrade):")}
   --backlog <name>    Switch the backlog backend (local | github | gitlab). Re-renders the backlog skill;
                       existing data in the previous backend is NOT migrated.
   --reset-baseline    Take upstream for every file listed under "customized, and behind" — the ones
-                      an update was published for and never reached. Per-file: specnaut reconcile
-                      <path> --accept-upstream. Combine with --dry-run to preview what would change.
+                      an update was published for and never reached. Files merely customized are
+                      left alone; each overwrite keeps a *.specnaut.bak. Per-file: specnaut
+                      reconcile <path> --accept-upstream. Add --dry-run to preview what would change.
   --reset-preserved   Ignore .specnaut/preserve.yml for this run so declared files follow normal
                       upgrade rules (never the default; reported per overridden file).
 
