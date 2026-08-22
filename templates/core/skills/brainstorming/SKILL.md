@@ -151,9 +151,10 @@ unrelated refactoring.
 Save the validated design (spec) to a location appropriate for the
 project:
 
-- **Greenfield spec-kit features** — `.specnaut/specs/<feature-id>/spec.md`
-  (this is the spec-kit convention; `/specnaut plan` lives in this
-  same space)
+- **Greenfield Specnaut features** — hand the validated design to
+  `/specnaut plan`, which writes `.specnaut/specs/<feature-id>/plan.md`.
+  That is the feature's design document; do not hand-write a second one
+  beside it.
 - **Issue-driven brownfield work** — `docs/specnaut/specs/YYYY-MM-DD-<topic>.md`
   (mirror of the `docs/specnaut/plans/` convention used by `writing-plans`)
 - **Backlog item refinement** — update the issue body in-place (the

@@ -21,13 +21,18 @@ architecture.
 2. Read `.specnaut/memory/constitution.md` for non-negotiable invariants —
    especially the **Engineering methodology**, **Architecture layers**,
    **Back-end patterns**, and **Front-end patterns** sections.
-3. Read the current feature's `spec.md`, `plan.md`, and `tasks.md` if a
-   Specnaut feature directory is in context.
-4. **Read the `## Domain Model` block** — in `spec.md` (spec path) or in the
-   Product Owner's `/backlog brief` output (direct-implementation path). If
-   the block is absent or empty, return BLOCKED with reason
-   `awaiting:product-owner-domain-brief` and stop. Do not proceed without
-   the Domain Model block.
+3. Read the current feature's `plan.md` and `tasks.md` if a Specnaut feature
+   directory is in context. Those are the only two artefacts a feature has.
+   (A directory scaffolded before 2.0.0 may also carry `spec.md` and friends;
+   read them if present, but never require them.)
+4. **Read the domain model** — `plan.md` § 6 (Technical context → Domain
+   model) on the spec path, or the Product Owner's `/backlog brief` output on
+   the direct-implementation path. If it is absent or empty, return BLOCKED
+   with reason `awaiting:product-owner-domain-brief` and stop. Do not proceed
+   without it.
+5. **Read `plan.md` § 5 (Decision table)** if the plan has one. Each rule's
+   home is a single file path, and you may not introduce a second spelling of
+   it without the plan being amended first.
 
 ## Non-negotiable rules
 

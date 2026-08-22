@@ -5232,9 +5232,10 @@ unrelated refactoring.
 Save the validated design (spec) to a location appropriate for the
 project:
 
-- **Greenfield spec-kit features** — \`.specnaut/specs/<feature-id>/spec.md\`
-  (this is the spec-kit convention; \`/specnaut plan\` lives in this
-  same space)
+- **Greenfield Specnaut features** — hand the validated design to
+  \`/specnaut plan\`, which writes \`.specnaut/specs/<feature-id>/plan.md\`.
+  That is the feature's design document; do not hand-write a second one
+  beside it.
 - **Issue-driven brownfield work** — \`docs/specnaut/specs/YYYY-MM-DD-<topic>.md\`
   (mirror of the \`docs/specnaut/plans/\` convention used by \`writing-plans\`)
 - **Backlog item refinement** — update the issue body in-place (the
@@ -6004,13 +6005,18 @@ architecture.
 2. Read \`.specnaut/memory/constitution.md\` for non-negotiable invariants —
    especially the **Engineering methodology**, **Architecture layers**,
    **Back-end patterns**, and **Front-end patterns** sections.
-3. Read the current feature's \`spec.md\`, \`plan.md\`, and \`tasks.md\` if a
-   Specnaut feature directory is in context.
-4. **Read the \`## Domain Model\` block** — in \`spec.md\` (spec path) or in the
-   Product Owner's \`/backlog brief\` output (direct-implementation path). If
-   the block is absent or empty, return BLOCKED with reason
-   \`awaiting:product-owner-domain-brief\` and stop. Do not proceed without
-   the Domain Model block.
+3. Read the current feature's \`plan.md\` and \`tasks.md\` if a Specnaut feature
+   directory is in context. Those are the only two artefacts a feature has.
+   (A directory scaffolded before 2.0.0 may also carry \`spec.md\` and friends;
+   read them if present, but never require them.)
+4. **Read the domain model** — \`plan.md\` § 6 (Technical context → Domain
+   model) on the spec path, or the Product Owner's \`/backlog brief\` output on
+   the direct-implementation path. If it is absent or empty, return BLOCKED
+   with reason \`awaiting:product-owner-domain-brief\` and stop. Do not proceed
+   without it.
+5. **Read \`plan.md\` § 5 (Decision table)** if the plan has one. Each rule's
+   home is a single file path, and you may not introduce a second spelling of
+   it without the plan being amended first.
 
 ## Non-negotiable rules
 
@@ -22059,7 +22065,7 @@ description: "Task list template for feature implementation"
 # Tasks: [FEATURE NAME]
 
 **Input**: Design documents from \`/.specnaut/specs/[###-feature-name]/\`
-**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
+**Prerequisites**: plan.md (required — it is the only design document; a feature produces plan.md and tasks.md, nothing else)
 
 **Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
 
@@ -22083,10 +22089,13 @@ description: "Task list template for feature implementation"
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
   
   The __SPECNAUT_COMMAND_TASKS__ command MUST replace these with actual tasks based on:
-  - User stories from spec.md (with their priorities P1, P2, P3...)
-  - Feature requirements from plan.md
-  - Entities from data-model.md
-  - Endpoints from contracts/
+  - User stories and their priorities from plan.md § 2 (User scenarios)
+  - Feature requirements from plan.md § 3 (Requirements)
+  - Entities from plan.md § 6 (Technical context → Domain model)
+  - Endpoints and other surfaces from plan.md § 8 (Surface impact)
+
+  Every task must also respect plan.md § 5 (Decision table): a rule's home is
+  a file path, and a task may not introduce a second spelling of it.
   
   Tasks MUST be organized by user story so each story can be:
   - Implemented independently
@@ -22208,7 +22217,7 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
-- [ ] TXXX Run quickstart.md validation
+- [ ] TXXX Verify every success criterion in plan.md § 4 is met
 
 ---
 

@@ -6,7 +6,7 @@ description: "Task list template for feature implementation"
 # Tasks: [FEATURE NAME]
 
 **Input**: Design documents from `/.specnaut/specs/[###-feature-name]/`
-**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
+**Prerequisites**: plan.md (required — it is the only design document; a feature produces plan.md and tasks.md, nothing else)
 
 **Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
 
@@ -30,10 +30,13 @@ description: "Task list template for feature implementation"
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
   
   The __SPECNAUT_COMMAND_TASKS__ command MUST replace these with actual tasks based on:
-  - User stories from spec.md (with their priorities P1, P2, P3...)
-  - Feature requirements from plan.md
-  - Entities from data-model.md
-  - Endpoints from contracts/
+  - User stories and their priorities from plan.md § 2 (User scenarios)
+  - Feature requirements from plan.md § 3 (Requirements)
+  - Entities from plan.md § 6 (Technical context → Domain model)
+  - Endpoints and other surfaces from plan.md § 8 (Surface impact)
+
+  Every task must also respect plan.md § 5 (Decision table): a rule's home is
+  a file path, and a task may not introduce a second spelling of it.
   
   Tasks MUST be organized by user story so each story can be:
   - Implemented independently
@@ -155,7 +158,7 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
-- [ ] TXXX Run quickstart.md validation
+- [ ] TXXX Verify every success criterion in plan.md § 4 is met
 
 ---
 
