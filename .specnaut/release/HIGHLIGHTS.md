@@ -1,13 +1,20 @@
-**Nothing you install has changed.** The binary and the scaffolded templates are byte-identical to
-v3.0.0 — `specnaut upgrade` on a project already at 3.0.0 will find nothing to do, and that is the
-correct outcome.
+**Two files that belong to your project are no longer at risk, and the board keeps itself honest.**
 
-This release exists to harden the release pipeline itself, after a retroactive audit of how v3.0.0
-shipped. Three defects would have hit the _next_ release: the hand-written highlights block
-republished itself because nothing reset it; postflight aborted before printing the verdicts it had
-just computed whenever the operator's local binary failed to self-update; and the docs-site refresh
-reported success on dispatch acceptance rather than on the site actually being rebuilt.
+`AGENTS.md` and `.specnaut/memory/constitution.md` are yours — Specnaut writes them once, at init, and
+never again. That guarantee had a hole: it only held while the file had no entry in
+`installed.lock`. Any older binary that once tracked one, or a partial upgrade that got a single file
+in, left an entry behind — and from then on a plain `specnaut upgrade` replaced the file wholesale.
+No `--force`, no "preserved" line in the report, no warning. The protection worked for fresh
+installs and failed for exactly the long-lived ones whose `AGENTS.md` had accumulated something worth
+keeping. It now holds regardless of the lock, and an affected project heals itself on its next
+upgrade. As a consequence `--force` no longer reaches either file; deleting one and re-running
+remains the way to reset it to the bundled version.
 
-A tag can now only be cut on a commit that is genuinely a release commit, with a clean tree and six
-version files that agree, and the adoption gate no longer demands a user-facing guide for code that
-reaches no user project.
+`specnaut upgrade --dry-run` also stopped writing. It renamed a legacy `.specflow/` directory before
+the dry-run guard was reached, and populated the reconciliation staging area — then printed
+"no files written".
+
+On the backlog side, closing an issue through a merge keyword closes the issue and moves nothing:
+the card sits in whatever column it was in. `/specnaut groom` now reports that drift, `/specnaut
+merge` corrects it after landing, and the correction is batched — any number of cards costs two
+requests, not two per card.
