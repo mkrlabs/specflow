@@ -1,21 +1,18 @@
-**Two files that belong to your project are no longer at risk, and the board keeps itself honest.**
+**A fix for the scaffolded templates, and the marketplace channel now publishes itself.**
 
-`AGENTS.md` and `.specnaut/memory/constitution.md` are yours — Specnaut writes them once, at init,
-and never again. That guarantee had a hole: it only held while the file had no entry in
-`installed.lock`. Any older binary that once tracked one, or a partial upgrade that got a single
-file in, left an entry behind — and from then on a plain `specnaut upgrade` replaced the file
-wholesale. No `--force`, no "preserved" line in the report, no warning. The protection worked for
-fresh installs and failed for exactly the long-lived ones whose `AGENTS.md` had accumulated
-something worth keeping. It now holds regardless of the lock, and an affected project heals itself
-on its next upgrade. As a consequence `--force` no longer reaches either file; deleting one and
-re-running remains the way to reset it to the bundled version.
+Three bundled files still directed agents at artefacts 2.0.0 removed. `tasks-template.md` listed
+`spec.md`, `research.md`, `data-model.md` and `contracts/` as prerequisites; `developer.md` read the
+domain model from `spec.md` and returned BLOCKED when it could not find it — a hard stop on a file
+that no longer exists; and the brainstorming skill told agents to _write_ a greenfield design to
+`spec.md`, producing a second design document beside the plan that nothing downstream reads. All
+three now point into `plan.md`. `specnaut upgrade` picks them up.
 
-`specnaut upgrade --dry-run` also stopped writing. It renamed a legacy `.specflow/` directory before
-the dry-run guard was reached, and populated the reconciliation staging area — then printed "no
-files written".
+The prose had been corrected in 2.0.0 and the instructions had not, which is the harder half to
+notice: prose that contradicts an instruction reads as documentation drift right up until an agent
+follows the instruction. A guard now greps the whole bundle for the removed names.
 
-On the backlog side, closing an issue through a merge keyword closes the issue and moves nothing:
-the card sits in whatever column it was in. `/specnaut groom` now reports that drift,
-`/specnaut
-merge` corrects it after landing, and the correction is batched — any number of cards
-costs two requests, not two per card.
+Separately, the marketplace catalog that serves Claude Code and Copilot CLI users had been one to
+fifteen versions behind for months. Every step of the sync reported success; it opened a pull
+request and left a human to merge it, and after the first two nobody did. The bump now lands
+directly, and the script verifies the published catalog reports the new version rather than trusting
+its own exit code.
