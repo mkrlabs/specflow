@@ -120,19 +120,49 @@ wire_gh_token_to_remote() {
 
 # create_pr_idempotent <repo> <branch> <title> <body>
 #
-# Open a PR on <repo> from <branch> against main. If a PR with the
-# same head already exists, log it and exit 0 rather than failing
-# (an earlier run already pushed the same content; nothing to do).
+# Open a PR on <repo> from <branch> against main. If a PR with the same head
+# already exists, log it and return 0 (an earlier run already pushed the same
+# content; nothing to do). ANY OTHER failure returns non-zero and prints what
+# `gh` actually said.
+#
+# It used to swallow everything: `gh pr create … 2>/dev/null` with `if !`, and
+# a single reassuring "PR already exists" line for every non-zero exit. A rate
+# limit, a revoked token scope, a missing base branch and a genuine
+# already-exists were indistinguishable to the caller and to the release log —
+# all of them printed the same sentence and returned success (#523).
+#
+# That is how a publish channel stays green for eighteen months without
+# publishing anything: when opening the PR is the last step, a lie here is the
+# last word. Idempotency is now something this function VERIFIES rather than
+# something it assumes from an exit code it never read.
 #
 # Arguments:
-#   $1 — repo (e.g. specnaut/specnaut-plugins)
+#   $1 — repo (e.g. specnaut/specnaut-marketplace)
 #   $2 — branch (e.g. specnaut-sync/v1.8.0)
 #   $3 — PR title
 #   $4 — PR body (multi-line OK)
 create_pr_idempotent() {
   local repo="$1" branch="$2" title="$3" body="$4"
-  if ! gh pr create --repo "$repo" --base main --head "$branch" \
-    --title "$title" --body "$body" 2>/dev/null; then
-    echo "PR already exists for $branch on $repo; skipping create."
+  local err rc=0
+
+  err="$(gh pr create --repo "$repo" --base main --head "$branch" \
+    --title "$title" --body "$body" 2>&1 >/dev/null)" || rc=$?
+  [ "$rc" -eq 0 ] && return 0
+
+  # Benign only if a PR for this head genuinely exists. `gh pr list` failing
+  # here (its own rate limit, a bad token) leaves `existing` empty, so the
+  # failure propagates rather than being read as idempotency.
+  local existing
+  existing="$(gh pr list --repo "$repo" --head "$branch" --state open \
+    --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+  if [ -n "$existing" ]; then
+    echo "PR #$existing already exists for $branch on $repo; skipping create."
+    return 0
   fi
+
+  echo "::error::gh pr create failed for $branch on $repo (exit $rc), and no open PR exists for that head." >&2
+  # The captured stderr is the whole point — it names the cause the old
+  # `2>/dev/null` threw away.
+  [ -n "$err" ] && printf '%s\n' "$err" >&2
+  return "$rc"
 }
