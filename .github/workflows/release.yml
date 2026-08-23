@@ -50,7 +50,19 @@ jobs:
           # Permission gaps surface as 0 here and downstream — a degraded
           # but non-blocking signal — and a workflow ::warning is emitted
           # so the local /release session can investigate.
-          missing_perms=()
+          #
+          # The degraded labels go to a FILE, not an array (#522). Every call
+          # site below is a command substitution, so `fetch_count` runs in a
+          # subshell and any `missing_perms+=()` died with it: the parent's
+          # array was always empty and the warning at the bottom of this step
+          # had never once printed. Not a latent path either — the
+          # `private_advisories` query returns non-numeric on every run (see
+          # its comment below), so the step has been in degraded mode
+          # permanently and silently. A revoked scope on any of the seven
+          # queries reads as "0 open alerts", and the gate then passes on an
+          # empty signal it believes is a clean one.
+          degraded_file="${RUNNER_TEMP:-/tmp}/security-preflight-degraded.txt"
+          : > "$degraded_file"
           fetch_count() {
             local label="$1" url="$2" jq_filter="$3"
             local out
@@ -58,7 +70,8 @@ jobs:
             if [[ "$out" =~ ^[0-9]+$ ]]; then
               printf '%s' "$out"
             else
-              missing_perms+=("$label")
+              # Appending from a subshell is fine; the parent reads the file.
+              printf '%s\n' "$label" >> "$degraded_file"
               printf '0'
             fi
           }
@@ -133,8 +146,12 @@ jobs:
             echo "::warning::High-severity findings open: $dep_high dependabot + $code_high code-scanning. The release proceeds; dispatch the security-expert agent locally to triage."
           fi
 
-          if [ "${#missing_perms[@]}" -gt 0 ]; then
-            echo "::warning::Security preflight had no GITHUB_TOKEN access to: ${missing_perms[*]} — those signals are reported as 0 (degraded mode, not a release block). Wire a dedicated PAT secret if any of these must hard-gate releases."
+          # Read back what the subshells recorded. Sorted and de-duplicated:
+          # the three dependabot queries share a URL, so one permission gap
+          # would otherwise name it three times.
+          if [ -s "$degraded_file" ]; then
+            missing_perms="$(sort -u "$degraded_file" | tr '\n' ' ' | sed 's/ $//')"
+            echo "::warning::Security preflight had no GITHUB_TOKEN access to: ${missing_perms} — those signals are reported as 0 (degraded mode, not a release block). Wire a dedicated PAT secret if any of these must hard-gate releases."
           fi
 
   build:
