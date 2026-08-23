@@ -272,27 +272,23 @@ jobs:
         run: |
           deno run --allow-read --allow-write --allow-run --allow-env \
             scripts/bump-tap-formula.ts
-      - name: Sync to Codex marketplace fork (#277 / B1)
-        if: ${{ !cancelled() && steps.release.outcome == 'success' }}
-        # Mirrors the Specnaut plugin content into
-        # `specnaut/specnaut-plugins:plugins/specnaut/`. A human rebases that
-        # fork's PR into upstream `openai/plugins` for the actual
-        # marketplace publish. If CODEX_SYNC_TOKEN is unset, the
-        # script emits a workflow ::warning and exits 0 — the release
-        # itself ships unaffected (same pattern as HOMEBREW_TAP_TOKEN).
-        env:
-          GH_TOKEN: ${{ secrets.CODEX_SYNC_TOKEN }}
-          SPECNAUT_VERSION: ${{ github.ref_name }}
-        run: |
-          # Strip leading "v" from the tag ref for the version arg.
-          export SPECNAUT_VERSION="${SPECNAUT_VERSION#v}"
-          bash scripts/sync-to-codex-plugin.sh || rc=$?
-          # Treat exit 2 (no token) as a non-blocking skip, same as
-          # the Homebrew bump's behaviour.
-          if [ "${rc:-0}" = "2" ]; then
-            exit 0
-          fi
-          exit "${rc:-0}"
+      # The Codex marketplace fork step stood here (#277 / B1). Retired with
+      # `specnaut/specnaut-plugins` itself on 2026-08-22 — the repository is
+      # deleted, so the step could only fail: it cloned with no guard, and this
+      # wrapper mapped only exit 2 to success.
+      #
+      # The fork never published anything. Its PRs were opened against its own
+      # main and a human was supposed to rebase them into upstream
+      # `openai/plugins`; after the first two, nobody did, and nothing in the
+      # pipeline noticed because opening a PR was the last step. That is what
+      # cli#514 was for. It also went on serving a purged tree from a public
+      # default branch for months (constitution § XI), which is what forced the
+      # decision.
+      #
+      # `specnaut/specnaut-marketplace` below is the channel that actually
+      # reaches users, and it verifies its own published catalog rather than
+      # trusting its exit code. Delete `CODEX_SYNC_TOKEN` from the repo secrets;
+      # nothing reads it any more.
       - name: Sync to Specnaut marketplace catalog (#281 / B5)
         if: ${{ !cancelled() && steps.release.outcome == 'success' }}
         # Bumps `.claude-plugin/marketplace.json` in

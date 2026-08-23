@@ -1,25 +1,30 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert } from "@std/assert";
 import { fromFileUrl } from "@std/path";
 
 /**
- * The two publish channels reap their own superseded sync branches. Their
- * filters drifted, and the drift was the leak.
+ * A publish channel reaps its own superseded sync branches. The filter that
+ * decides which branches it can see must match the PRE-REBRAND prefix too.
  *
- * `sync-to-marketplace.sh` matched both the current and the pre-rebrand branch
- * prefix; `sync-to-codex-plugin.sh` matched only its own `BRANCH_PREFIX`. So
- * three `specflow-sync/*` branches on the public Codex fork were invisible to
- * the thing whose job was to delete them, and went on serving a consuming
- * project's scaffolded tree for months after that tree was purged from this
- * repo's history — the same content, the same fork, surviving the remediation
- * that was supposed to end it (constitution § XI).
+ * This test began as a parity check between two channels, because their filters
+ * had drifted: `sync-to-marketplace.sh` matched `^(specnaut|specflow)-sync/`
+ * while `sync-to-codex-plugin.sh` matched only its own `BRANCH_PREFIX`. Three
+ * `specflow-sync/*` branches on the public Codex fork were therefore invisible
+ * to the one mechanism whose job was to delete them, and went on serving a
+ * consuming project's scaffolded tree for months after that tree was purged
+ * from this repo's history (constitution § XI).
  *
- * Nothing compared the two scripts, so nothing could notice. This does.
+ * That fork has since been deleted outright, so only one reaper remains and
+ * there is no parity left to check. The rule it broke still binds: a rename
+ * orphans what it renames away from, and the reaper is the only thing standing
+ * between a stale snapshot and indefinite publication — its `|| true` means an
+ * unreapable branch produces no signal at all.
+ *
+ * Any future channel added here must be appended to SCRIPTS.
  */
 
 const ROOT = fromFileUrl(new URL("../../", import.meta.url));
 
 const SCRIPTS = [
-  "scripts/sync-to-codex-plugin.sh",
   "scripts/sync-to-marketplace.sh",
 ] as const;
 
@@ -40,7 +45,7 @@ Deno.test("every sync reaper matches the pre-rebrand branch prefix", async () =>
     assert(
       new RegExp(pattern).test("specflow-sync/v1.13.1"),
       `${rel} cannot see pre-rebrand sync branches (pattern: ${pattern}). ` +
-        `They carry content purged from this repo and are published on a public fork.`,
+        `They carry content purged from this repo and are published on a public repo.`,
     );
     assert(
       new RegExp(pattern).test("specnaut-sync/v3.1.2"),
@@ -49,14 +54,19 @@ Deno.test("every sync reaper matches the pre-rebrand branch prefix", async () =>
   }
 });
 
-Deno.test("both reapers use the same filter", async () => {
-  const [codex, marketplace] = await Promise.all(
-    SCRIPTS.map(async (rel) => reaperFilter(await Deno.readTextFile(ROOT + rel))),
-  );
-  assertEquals(
-    codex,
-    marketplace,
-    "the two channels publish the same content to different public forks; " +
-      "a filter that holds for one and not the other is how the last leak survived",
-  );
+Deno.test("no script still points at the deleted Codex fork", async () => {
+  // The repository is gone. A surviving reference would clone nothing, and the
+  // release wrapper mapped only exit 2 to success — so it would red a release.
+  for await (const entry of Deno.readDir(ROOT + "scripts")) {
+    if (!entry.isFile || !entry.name.endsWith(".sh")) continue;
+    const source = await Deno.readTextFile(`${ROOT}scripts/${entry.name}`);
+    const live = source
+      .split("\n")
+      .filter((l) => !l.trimStart().startsWith("#"))
+      .join("\n");
+    assert(
+      !live.includes("specnaut/specnaut-plugins"),
+      `scripts/${entry.name} still targets the deleted fork specnaut/specnaut-plugins`,
+    );
+  }
 });
