@@ -12,7 +12,6 @@ pass `--manual` to opt out.
 | `.claude-plugin/plugin.json`                                                                                                               | Plugin manifest (`specnaut-plugin`, lockstep with the binary version)                                                                  |
 | `skills/specnaut/phases/*.md`                                                                                                              | The phase reference docs the router loads on demand — `plan`, `tasks`, `implement`, `review`, `merge`, plus the out-of-band utilities. |
 | `agents/{code-reviewer,developer,devops-sre,product-owner,qa-tester,review-coordinator,security-expert,test-reviewer,workflow-manager}.md` | 9 sub-agents available to invoke in plugin scope                                                                                       |
-| `skills/groom/SKILL.md`                                                                                                                    | Groom skill — `/specnaut-plugin:groom`                                                                                                 |
 
 The full plugin migration shipped in v0.12.x (issue
 [#73](https://github.com/specnaut/specnaut-cli/issues/73)). When the plugin is installed and the
@@ -39,7 +38,9 @@ discoverability layer, not the polished workflow. Handoff rewriting is a known f
   per-project, and they ship with shorter slash-command names (e.g. `/specnaut plan` instead of
   `/specnaut-plugin:specnaut plan`).
 - Backlog skill, hooks, and `.specnaut/` files stay binary-owned because they read project-state at
-  runtime.
+  runtime. **`groom` is one of them** — it is backlog management, so it lives in the binary's
+  backlog skill and is not served from plugin scope. (This table previously listed a
+  `skills/groom/SKILL.md` the plugin has never shipped.)
 
 ## Install
 

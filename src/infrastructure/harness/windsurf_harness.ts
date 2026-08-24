@@ -37,6 +37,12 @@ function destinationFor(entry: CoreEntry): string {
     case "skill":
     case "backlog-skill":
       return `.windsurf/workflows/${skillFolderName(entry)}.md`;
+    case "backlog-doc":
+      // Windsurf is flat: the doc becomes a sibling workflow, not a child file.
+      if (!entry.suffix) throw new Error(`backlog-doc needs suffix: ${entry.name}`);
+      return `.windsurf/workflows/${skillFolderName({ ...entry, category: "backlog-skill" })}-${
+        entry.suffix.replace(/\.md$/, "")
+      }.md`;
     case "phase":
       // Windsurf is flat — no nested skill folders. Each phase doc
       // becomes a sibling workflow file the router references by name.

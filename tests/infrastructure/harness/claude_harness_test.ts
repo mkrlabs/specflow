@@ -23,7 +23,7 @@ Deno.test("ClaudeHarness.mapBundle emits the Claude tree", () => {
   assert(keys.length > 50, `expected ~58 entries, got ${keys.length}`);
   assert(".claude/skills/specnaut/SKILL.md" in mapped);
   assert(".claude/skills/specnaut/phases/plan.md" in mapped);
-  assert(".claude/skills/specnaut/phases/groom.md" in mapped);
+  assert(".claude/skills/backlog/groom.md" in mapped);
   assert(".claude/skills/specnaut-review/SKILL.md" in mapped);
   // /backlog stays as a flat command
   assert(".claude/commands/backlog.md" in mapped);

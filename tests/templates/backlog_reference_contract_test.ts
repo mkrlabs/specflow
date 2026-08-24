@@ -32,7 +32,7 @@ const CHANNEL_A = ["product-owner", "developer", "workflow-manager"] as const;
 const CHANNEL_B_CORE: ReadonlyArray<{ category: string; name: string }> = [
   { category: "backlog-skill", name: "backlog" },
   { category: "backlog-cmd", name: "backlog" },
-  { category: "phase", name: "groom" },
+  { category: "backlog-doc", name: "backlog" },
   { category: "phase", name: "merge" },
   { category: "project-root", name: "root" },
   // `specify` is deliberately absent. Windsurf renders each phase as a Cascade
@@ -109,7 +109,7 @@ Deno.test("Channel B — every non-preloading surface carries the pointer", () =
 });
 
 Deno.test("groom.md's local restatement was replaced, not left beside the pointer", () => {
-  const e = entry("phase", "groom")!;
+  const e = entry("backlog-doc", "backlog")!;
   assert(
     !e.content.includes('#<num> "<short title>"'),
     "groom.md must not keep its own partial statement of the rule alongside the pointer",

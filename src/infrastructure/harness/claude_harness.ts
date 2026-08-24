@@ -30,6 +30,11 @@ function destinationFor(entry: CoreEntry): string {
       // verbatim as the folder name (`specnaut`, `backlog`,
       // `specnaut-review`, …).
       return `.claude/skills/${entry.name}/SKILL.md`;
+    case "backlog-doc":
+      // A skill doc sitting beside its SKILL.md, loaded by name from the
+      // skill's own directory — the same shape as the router's phases/.
+      if (!entry.suffix) throw new Error(`backlog-doc needs suffix: ${entry.name}`);
+      return `.claude/skills/${entry.name}/${entry.suffix}`;
     case "phase":
       // Phase reference docs sit beside the router skill so the router
       // can load them via `phases/<phase>.md` from its own directory.

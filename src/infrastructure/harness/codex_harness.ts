@@ -70,6 +70,15 @@ export class CodexHarness implements Harness {
           };
           break;
         }
+        case "backlog-doc": {
+          if (!entry.suffix) throw new Error(`backlog-doc needs suffix: ${entry.name}`);
+          const name = skillFolderName({ ...entry, category: "backlog-skill" });
+          out[`.agents/skills/${name}/${entry.suffix}`] = {
+            content: entry.content,
+            executable: entry.executable,
+          };
+          break;
+        }
         case "phase": {
           if (!entry.suffix) throw new Error(`phase needs suffix: ${entry.name}`);
           out[`.agents/skills/specnaut/phases/${entry.suffix}`] = {

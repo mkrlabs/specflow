@@ -59,7 +59,7 @@ when_to_use: |
 | \`review\` | \`phases/review.md\` | The quality battery on a frozen tree. Its verdict is the merge request. |
 | \`merge\` | \`phases/merge.md\` | Pre-merge validation and merge the feature branch. |
 | \`constitution\` | \`phases/constitution.md\` | Edit the project's \`constitution.md\` rules. |
-| \`groom\` | \`phases/groom.md\` | Backlog hygiene pass via the product-owner agent. |
+| \`groom\` | the **\`backlog\`** skill's \`groom.md\` | Backlog and delivery hygiene, via the product-owner agent. Owned by \`/backlog\`; \`/specnaut groom\` reads the same file rather than a copy. |
 | \`tag-version\` | \`phases/tag-version.md\` | Bump + create an annotated git tag using the project's versioning scheme. |
 | \`release-version\` | \`phases/release-version.md\` | Generate categorized release notes for a tag (default: latest). |
 | \`audit security\` | \`phases/audit-security.md\` | Read-only project-wide security sweep; emits a findings report. |
@@ -67,6 +67,17 @@ when_to_use: |
 | \`audit accessibility\` | \`phases/audit-accessibility.md\` | Read-only project-wide WCAG 2.1 AA sweep; skips when no FE surface is detected. |
 | \`audit architecture\` | \`phases/audit-architecture.md\` | Read-only project-wide architectural sweep — hex-layer violations, circular deps, god files, bounded-context leaks. |
 | \`audit dependencies\` | \`phases/audit-dependencies.md\` | Read-only multi-manifest dependency-hygiene sweep. |
+
+## Which skill owns what
+
+\`/specnaut\` owns the **specification** phases tied to the project, and code
+implementation, planning and review. \`/backlog\` owns **backlog management**.
+\`/specnaut\` does not own everything.
+
+The line decides where a new capability lands, not where a file happens to sit
+today. \`groom\` sits on the \`/backlog\` side and is reached from here; orphan
+spec detection sits on this side and lives in \`phases/auto-chain.md\`, because it
+reads spec artefacts and prescribes specnaut phases.
 
 \`phases/plan-audits.md\` and \`phases/auto-chain.md\` are **contract docs, not routable phases** —
 \`plan\` loads the first at its step 6, the router loads the second when it chains. Naming either as a
@@ -1336,22 +1347,24 @@ Check if \`.specnaut/extensions.yml\` exists in the project root.
     skipIfExists: false,
   },
   {
-    category: "phase",
-    name: "groom",
+    category: "backlog-doc",
+    name: "backlog",
     suffix: "groom.md",
-    content: `
-# /specnaut groom
+    content: `# groom — backlog and delivery hygiene
 
-A maintenance pass that keeps the project's backlog and review pipeline
-flowing without human intervention. Designed to be invoked manually or
-on a timer via \`/loop\`.
+Keeps the backlog and delivery pipeline flowing without human intervention.
+Reachable as **\`/backlog groom\`** and **\`/specnaut groom\`** — both read this
+file, which is the only copy.
 
-This skill is **manual-only** (\`disable-model-invocation: true\`) — it
-should not auto-trigger on casual user prompts. The user invokes it
-explicitly with \`/specnaut groom\` or schedules it with
-\`/loop 1h /specnaut groom\`.
+**Owned by \`/backlog\`** — see "Which skill owns what" in \`SKILL.md\`. Orphan
+**spec** detection used to live here and does not belong to it; it moved to the
+specnaut skill's \`phases/auto-chain.md\`.
 
-## What this skill does
+Auto-invocable: the router advertises "groom the backlog" and "run a hygiene
+pass", and this file honours them. Also invoked explicitly, or scheduled with
+\`/loop 1h /backlog groom\`.
+
+## What this pass does
 
 A grooming pass runs three independent checks. Each is delegated to the
 right subagent so this skill stays small and the heavy lifting is owned
@@ -1361,6 +1374,11 @@ by the agent that has the right tools and prompt for the job.
 
 Dispatch the **\`product-owner\`** subagent to clarify any items currently
 in the \`Backlog\` column (i.e. not yet promoted to \`Ready\`).
+
+Epic and sub-task hygiene — orphaned children, parents due to close, sub-tasks
+that escaped a closed epic — is part of this dispatch and is specified in the
+\`product-owner\` agent's contract. Do not restate those rules here, and do not
+assume a run covered them unless the PO reports on them.
 
 The PO must respect the column model: items in \`Backlog\` need more
 information / sizing / prioritisation; items in \`Ready\` are picked up by
@@ -1523,22 +1541,12 @@ Where it applies: list open PRs waiting on review or CI for more than 48 hours,
 so the user can decide whether to ping, close, or merge. Read-only; do not
 mutate PRs.
 
-### 4. Orphan spec detection
-
-Walk \`.specnaut/specs/\` (if present) and surface any feature directory
-that is missing the next expected artefact:
-
-- Has \`spec.md\` but no \`plan.md\` → flag as "needs \`/specnaut plan\`".
-- Has \`plan.md\` but no \`tasks.md\` → flag as "needs \`/specnaut tasks\`".
-- Has \`tasks.md\` but no \`installed\` markers in commits → flag as
-  "needs \`/specnaut implement\`".
-
-This is also read-only; never delete or modify spec files.
 
 **\`<backlog-reference>\`** below means a reference built per the
 \`backlog-reference-contract\` skill: the number **and** the title, wrapped in a
 backend-resolved link — never a bare \`#<num>\`. Read that contract for the format
 and the degradation ladder; do not restate it here.
+
 
 ## Output format
 
@@ -2116,6 +2124,27 @@ being invoked:
 Long features (≥13 story points or ≥30 tasks) may exhaust context during \`implement\`. If compaction
 occurs mid-chain, say so and let the user resume from a fresh session — the re-entry detection above
 picks up where the previous run stopped.
+
+## Orphan spec detection — the chain, inspected at rest
+
+The flow above describes a chain moving forward in one session. This check reads
+the same chain across the whole project at rest, and names the phase each stalled
+feature is missing. It was part of \`groom\` until the backlog//specnaut ownership
+line was drawn: grooming is backlog management, while this reads spec artefacts
+and prescribes specnaut phases, so it belongs on this side of the line.
+
+Run it when asked to audit the spec pipeline, and from a grooming pass when the
+project keeps specs locally.
+
+Walk \`.specnaut/specs/\` (if present) and surface any feature directory
+that is missing the next expected artefact:
+
+- Has \`spec.md\` but no \`plan.md\` → flag as "needs \`/specnaut plan\`".
+- Has \`plan.md\` but no \`tasks.md\` → flag as "needs \`/specnaut tasks\`".
+- Has \`tasks.md\` but no \`installed\` markers in commits → flag as
+  "needs \`/specnaut implement\`".
+
+This is also read-only; never delete or modify spec files.
 `,
     executable: false,
     backend: null,
@@ -8611,6 +8640,24 @@ flow depends on the backend chosen at \`specnaut init\` (or the most recent
 \`specnaut upgrade --backlog <name>\`).
 
 **Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
+
+## Which skill owns what
+
+\`/backlog\` owns **backlog management**. \`/specnaut\` owns the specification
+phases tied to the project, and code implementation, planning and review. The
+line decides where a new capability lands, not where a file happens to sit
+today.
+
+## \`groom\`
+
+The grooming pass — Backlog-column clarification, board drift, stale PRs — is
+specified in **\`groom.md\`, beside this file**. Read and follow it. It is the
+only copy: \`/specnaut groom\` reads the same file, so do not restate any of it
+here and do not answer a grooming request from memory.
+
+Orphan **spec** detection is deliberately not part of it. That reads spec
+artefacts and prescribes specnaut phases, so it lives on the other side of the
+line, in the specnaut skill's \`phases/auto-chain.md\`.
 
 ## All mutations go through the Product Owner agent
 

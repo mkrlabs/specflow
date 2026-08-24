@@ -150,7 +150,7 @@ being invoked:
 |---|---|
 | `plan` | `tasks.md` |
 | `tasks` | any task in `tasks.md` marked done |
-| `implement` | a merged PR, or task completion past 50% |
+| `implement` | the branch already merged into the base branch, or task completion past 50% |
 | `review` | nothing past review (the chain tail is just `merge`) — treat as one-shot |
 
 ## Failure handling
@@ -168,3 +168,24 @@ being invoked:
 Long features (≥13 story points or ≥30 tasks) may exhaust context during `implement`. If compaction
 occurs mid-chain, say so and let the user resume from a fresh session — the re-entry detection above
 picks up where the previous run stopped.
+
+## Orphan spec detection — the chain, inspected at rest
+
+The flow above describes a chain moving forward in one session. This check reads
+the same chain across the whole project at rest, and names the phase each stalled
+feature is missing. It was part of `groom` until the backlog//specnaut ownership
+line was drawn: grooming is backlog management, while this reads spec artefacts
+and prescribes specnaut phases, so it belongs on this side of the line.
+
+Run it when asked to audit the spec pipeline, and from a grooming pass when the
+project keeps specs locally.
+
+Walk `.specnaut/specs/` (if present) and surface any feature directory
+that is missing the next expected artefact:
+
+- Has `spec.md` but no `plan.md` → flag as "needs `/specnaut plan`".
+- Has `plan.md` but no `tasks.md` → flag as "needs `/specnaut tasks`".
+- Has `tasks.md` but no `installed` markers in commits → flag as
+  "needs `/specnaut implement`".
+
+This is also read-only; never delete or modify spec files.

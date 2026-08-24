@@ -108,6 +108,11 @@ function destinationFor(entry: CoreEntry): string {
     case "skill":
     case "backlog-skill":
       return `.opencode/skills/${skillFolderName(entry)}/SKILL.md`;
+    case "backlog-doc":
+      if (!entry.suffix) throw new Error(`backlog-doc needs suffix: ${entry.name}`);
+      return `.opencode/skills/${
+        skillFolderName({ ...entry, category: "backlog-skill" })
+      }/${entry.suffix}`;
     case "phase":
       if (!entry.suffix) throw new Error(`phase needs suffix: ${entry.name}`);
       return `.opencode/skills/specnaut/phases/${entry.suffix}`;

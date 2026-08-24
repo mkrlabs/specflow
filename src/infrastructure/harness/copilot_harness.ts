@@ -22,6 +22,12 @@ function destinationFor(entry: CoreEntry): string {
     case "skill":
     case "backlog-skill":
       return `.github/instructions/${skillFolderName(entry)}.instructions.md`;
+    case "backlog-doc":
+      // Copilot is flat too — a sibling instruction file.
+      if (!entry.suffix) throw new Error(`backlog-doc needs suffix: ${entry.name}`);
+      return `.github/instructions/${skillFolderName({ ...entry, category: "backlog-skill" })}-${
+        entry.suffix.replace(/\.md$/, "")
+      }.instructions.md`;
     case "phase":
       // Copilot is flat — phase docs become sibling instruction files.
       if (!entry.suffix) throw new Error(`phase needs suffix: ${entry.name}`);

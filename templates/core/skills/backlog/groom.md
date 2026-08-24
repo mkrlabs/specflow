@@ -1,16 +1,18 @@
+# groom — backlog and delivery hygiene
 
-# /specnaut groom
+Keeps the backlog and delivery pipeline flowing without human intervention.
+Reachable as **`/backlog groom`** and **`/specnaut groom`** — both read this
+file, which is the only copy.
 
-A maintenance pass that keeps the project's backlog and review pipeline
-flowing without human intervention. Designed to be invoked manually or
-on a timer via `/loop`.
+**Owned by `/backlog`** — see "Which skill owns what" in `SKILL.md`. Orphan
+**spec** detection used to live here and does not belong to it; it moved to the
+specnaut skill's `phases/auto-chain.md`.
 
-This skill is **manual-only** (`disable-model-invocation: true`) — it
-should not auto-trigger on casual user prompts. The user invokes it
-explicitly with `/specnaut groom` or schedules it with
-`/loop 1h /specnaut groom`.
+Auto-invocable: the router advertises "groom the backlog" and "run a hygiene
+pass", and this file honours them. Also invoked explicitly, or scheduled with
+`/loop 1h /backlog groom`.
 
-## What this skill does
+## What this pass does
 
 A grooming pass runs three independent checks. Each is delegated to the
 right subagent so this skill stays small and the heavy lifting is owned
@@ -20,6 +22,11 @@ by the agent that has the right tools and prompt for the job.
 
 Dispatch the **`product-owner`** subagent to clarify any items currently
 in the `Backlog` column (i.e. not yet promoted to `Ready`).
+
+Epic and sub-task hygiene — orphaned children, parents due to close, sub-tasks
+that escaped a closed epic — is part of this dispatch and is specified in the
+`product-owner` agent's contract. Do not restate those rules here, and do not
+assume a run covered them unless the PO reports on them.
 
 The PO must respect the column model: items in `Backlog` need more
 information / sizing / prioritisation; items in `Ready` are picked up by
@@ -182,22 +189,12 @@ Where it applies: list open PRs waiting on review or CI for more than 48 hours,
 so the user can decide whether to ping, close, or merge. Read-only; do not
 mutate PRs.
 
-### 4. Orphan spec detection
-
-Walk `.specnaut/specs/` (if present) and surface any feature directory
-that is missing the next expected artefact:
-
-- Has `spec.md` but no `plan.md` → flag as "needs `/specnaut plan`".
-- Has `plan.md` but no `tasks.md` → flag as "needs `/specnaut tasks`".
-- Has `tasks.md` but no `installed` markers in commits → flag as
-  "needs `/specnaut implement`".
-
-This is also read-only; never delete or modify spec files.
 
 **`<backlog-reference>`** below means a reference built per the
 `backlog-reference-contract` skill: the number **and** the title, wrapped in a
 backend-resolved link — never a bare `#<num>`. Read that contract for the format
 and the degradation ladder; do not restate it here.
+
 
 ## Output format
 

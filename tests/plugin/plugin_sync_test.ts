@@ -34,7 +34,6 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     "review",
     "merge",
     "constitution",
-    "groom",
     "tag-version",
     "release-version",
     "audit-security",

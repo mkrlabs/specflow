@@ -48,7 +48,7 @@ when_to_use: |
 | `review` | `phases/review.md` | The quality battery on a frozen tree. Its verdict is the merge request. |
 | `merge` | `phases/merge.md` | Pre-merge validation and merge the feature branch. |
 | `constitution` | `phases/constitution.md` | Edit the project's `constitution.md` rules. |
-| `groom` | `phases/groom.md` | Backlog hygiene pass via the product-owner agent. |
+| `groom` | the **`backlog`** skill's `groom.md` | Backlog and delivery hygiene, via the product-owner agent. Owned by `/backlog`; `/specnaut groom` reads the same file rather than a copy. |
 | `tag-version` | `phases/tag-version.md` | Bump + create an annotated git tag using the project's versioning scheme. |
 | `release-version` | `phases/release-version.md` | Generate categorized release notes for a tag (default: latest). |
 | `audit security` | `phases/audit-security.md` | Read-only project-wide security sweep; emits a findings report. |
@@ -56,6 +56,17 @@ when_to_use: |
 | `audit accessibility` | `phases/audit-accessibility.md` | Read-only project-wide WCAG 2.1 AA sweep; skips when no FE surface is detected. |
 | `audit architecture` | `phases/audit-architecture.md` | Read-only project-wide architectural sweep — hex-layer violations, circular deps, god files, bounded-context leaks. |
 | `audit dependencies` | `phases/audit-dependencies.md` | Read-only multi-manifest dependency-hygiene sweep. |
+
+## Which skill owns what
+
+`/specnaut` owns the **specification** phases tied to the project, and code
+implementation, planning and review. `/backlog` owns **backlog management**.
+`/specnaut` does not own everything.
+
+The line decides where a new capability lands, not where a file happens to sit
+today. `groom` sits on the `/backlog` side and is reached from here; orphan
+spec detection sits on this side and lives in `phases/auto-chain.md`, because it
+reads spec artefacts and prescribes specnaut phases.
 
 `phases/plan-audits.md` and `phases/auto-chain.md` are **contract docs, not routable phases** —
 `plan` loads the first at its step 6, the router loads the second when it chains. Naming either as a

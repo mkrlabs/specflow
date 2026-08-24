@@ -120,7 +120,6 @@ export const PLUGIN_COVERED_PATHS_CLAUDE: ReadonlyArray<string> = [
     "merge",
     "auto-chain",
     "constitution",
-    "groom",
     "tag-version",
     "release-version",
     "audit-security",

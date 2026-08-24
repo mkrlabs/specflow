@@ -40,7 +40,10 @@ const ALLOWED = new Map<string, string>([
   // same kind of justification.
   ["specify|templates/plan-template.md", "states that they do not exist"],
   ["tasks|tasks.md", "states that they do not exist"],
-  ["groom|groom.md", "detects pre-2.0.0 spec dirs, which genuinely have one"],
+  // Moved out of groom with the backlog//specnaut ownership split (#540): the
+  // check reads spec artefacts and prescribes specnaut phases, so it lives
+  // with the chain it inspects. The exemption travels with it unchanged.
+  ["auto-chain|auto-chain.md", "detects pre-2.0.0 spec dirs, which genuinely have one"],
   ["developer|", "tolerates a pre-2.0.0 dir without ever requiring it"],
   ["constitution|constitution.md", "a project's own docs/quickstart.md, not ours"],
   ["product-owner|", "a spec the user attaches; never generated, never required"],

@@ -11,6 +11,7 @@ export type CoreCategory =
   | "project-root"
   | "backlog-cmd"
   | "backlog-skill"
+  | "backlog-doc"
   | "backlog-script"
   | "mergeable-project-root";
 

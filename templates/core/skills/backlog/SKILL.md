@@ -13,6 +13,24 @@ flow depends on the backend chosen at `specnaut init` (or the most recent
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
 
+## Which skill owns what
+
+`/backlog` owns **backlog management**. `/specnaut` owns the specification
+phases tied to the project, and code implementation, planning and review. The
+line decides where a new capability lands, not where a file happens to sit
+today.
+
+## `groom`
+
+The grooming pass — Backlog-column clarification, board drift, stale PRs — is
+specified in **`groom.md`, beside this file**. Read and follow it. It is the
+only copy: `/specnaut groom` reads the same file, so do not restate any of it
+here and do not answer a grooming request from memory.
+
+Orphan **spec** detection is deliberately not part of it. That reads spec
+artefacts and prescribes specnaut phases, so it lives on the other side of the
+line, in the specnaut skill's `phases/auto-chain.md`.
+
 ## All mutations go through the Product Owner agent
 
 The main session does **not** run the scripts directly. Dispatch the

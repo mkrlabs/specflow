@@ -70,7 +70,7 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
       true,
     );
     assertEquals(
-      await exists(join(root, ".claude/skills/specnaut/phases/groom.md")),
+      await exists(join(root, ".claude/skills/backlog/groom.md")),
       true,
     );
     // Auto-invoke alias for the review phase.
@@ -473,7 +473,6 @@ Deno.test("specnaut init scaffolds the consolidated router skill + its phase doc
         "review",
         "merge",
         "constitution",
-        "groom",
       ]
     ) {
       assertEquals(

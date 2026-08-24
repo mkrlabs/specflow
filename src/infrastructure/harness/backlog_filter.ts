@@ -21,7 +21,10 @@ export function applyBackend(
   ) {
     return null;
   }
-  if (entry.category === "backlog-skill") {
+  // `backlog-doc` carries the same per-backend conditional sections as the
+  // SKILL.md it sits beside — groom's field-vs-label persistence differs by
+  // backend — so it renders through the same path.
+  if (entry.category === "backlog-skill" || entry.category === "backlog-doc") {
     return {
       ...entry,
       content: renderBackend(entry.content, opts.backlogBackend),

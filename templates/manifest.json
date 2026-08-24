@@ -49,10 +49,10 @@
       "source": "core/skills/specnaut/phases/constitution.md"
     },
     {
-      "category": "phase",
-      "name": "groom",
+      "category": "backlog-doc",
+      "name": "backlog",
       "suffix": "groom.md",
-      "source": "core/skills/specnaut/phases/groom.md"
+      "source": "core/skills/backlog/groom.md"
     },
     {
       "category": "phase",
