@@ -11,8 +11,8 @@ export const CORE_BUNDLE: CoreBundle = [
     suffix: null,
     content: `---
 name: specnaut
-description: Specnaut workflow router — entry point for the spec-driven pipeline. \`/specnaut <phase> [args]\` dispatches to a single phase (plan, tasks, implement, review, merge, constitution, groom, tag-version, release-version, audit). \`/specnaut\` with no args prints the workflow overview.
-argument-hint: <plan|tasks|implement|review|merge|constitution|groom|tag-version|release-version|audit> [args]
+description: Specnaut workflow router — entry point for the spec-driven pipeline. \`/specnaut <phase> [args]\` dispatches to a single phase (plan, tasks, implement, review, merge, constitution, tag-version, release-version, audit). \`/specnaut\` with no args prints the workflow overview.
+argument-hint: <plan|tasks|implement|review|merge|constitution|tag-version|release-version|audit> [args]
 when_to_use: |
   Trigger phrases that should route here:
   - plan: "plan a feature", "spec out a feature", "write a spec", "build a technical plan", "I have a rough idea", "help me figure out what to build", "I don't know exactly what I want yet", "clarify requirements"
@@ -21,7 +21,6 @@ when_to_use: |
   - review: "review the implementation", "run quality gates"
   - merge: "merge the branch", "ship the feature"
   - constitution: "update the constitution", "edit project rules"
-  - groom: "groom the backlog", "run a hygiene pass"
   - tag-version: "tag a version", "create a release tag", "bump the version"
   - release-version: "release", "publish a release", "create release notes"
   - audit: "audit security / performance / accessibility / architecture / dependencies", "scan the codebase for X issues"
@@ -59,7 +58,6 @@ when_to_use: |
 | \`review\` | \`phases/review.md\` | The quality battery on a frozen tree. Its verdict is the merge request. |
 | \`merge\` | \`phases/merge.md\` | Pre-merge validation and merge the feature branch. |
 | \`constitution\` | \`phases/constitution.md\` | Edit the project's \`constitution.md\` rules. |
-| \`groom\` | the **\`backlog\`** skill's \`groom.md\` | Backlog and delivery hygiene, via the product-owner agent. Owned by \`/backlog\`; \`/specnaut groom\` reads the same file rather than a copy. |
 | \`tag-version\` | \`phases/tag-version.md\` | Bump + create an annotated git tag using the project's versioning scheme. |
 | \`release-version\` | \`phases/release-version.md\` | Generate categorized release notes for a tag (default: latest). |
 | \`audit security\` | \`phases/audit-security.md\` | Read-only project-wide security sweep; emits a findings report. |
@@ -75,7 +73,8 @@ implementation, planning and review. \`/backlog\` owns **backlog management**.
 \`/specnaut\` does not own everything.
 
 The line decides where a new capability lands, not where a file happens to sit
-today. \`groom\` sits on the \`/backlog\` side and is reached from here; orphan
+today. Grooming is backlog management, so it is reached only as \`/backlog
+groom\` — this router does not carry a \`groom\` verb at all. Orphan
 spec detection sits on this side and lives in \`phases/auto-chain.md\`, because it
 reads spec artefacts and prescribes specnaut phases.
 
@@ -84,7 +83,7 @@ reads spec artefacts and prescribes specnaut phases.
 phase prints the index and stops.
 
 Chainable phases are: \`plan\`, \`tasks\`, \`implement\`, \`review\`. The others (\`merge\`, \`constitution\`,
-\`groom\`, \`tag-version\`, \`release-version\`, \`audit <axis>\`) are one-shot regardless of chain mode.
+\`tag-version\`, \`release-version\`, \`audit <axis>\`) are one-shot regardless of chain mode.
 
 The accessibility phase is FE-gated — projects without front-end source receive a one-line "skipped
 — no FE surface" response instead of an empty report. The dependencies phase aborts with "skipped —
@@ -122,7 +121,7 @@ Unknown phase → print the phase index and stop.
 After the phase procedure completes successfully:
 
 - \`CHAIN_MODE == off\` (the user passed \`--manual\`) → stop. Report the phase outcome.
-- Phase is not chainable (\`merge\`, \`constitution\`, \`groom\`, \`tag-version\`, \`release-version\`,
+- Phase is not chainable (\`merge\`, \`constitution\`, \`tag-version\`, \`release-version\`,
   \`audit <axis>\`) → stop.
 - Otherwise → read \`phases/auto-chain.md\` and follow it.
 
@@ -1353,8 +1352,8 @@ Check if \`.specnaut/extensions.yml\` exists in the project root.
     content: `# groom — backlog and delivery hygiene
 
 Keeps the backlog and delivery pipeline flowing without human intervention.
-Reachable as **\`/backlog groom\`** and **\`/specnaut groom\`** — both read this
-file, which is the only copy.
+Reachable as **\`/backlog groom\`** — the only door. The \`/specnaut\` router
+carries no \`groom\` verb.
 
 **Owned by \`/backlog\`** — see "Which skill owns what" in \`SKILL.md\`. Orphan
 **spec** detection used to live here and does not belong to it; it moved to the
@@ -3648,7 +3647,7 @@ Use when:
 - The user describes a feature and says "write a plan"
 - You hit a non-trivial change mid-task and need to step back before
   coding
-- A \`/specnaut groom\` pass surfaces a Ready item that needs design before
+- A \`/backlog groom\` pass surfaces a Ready item that needs design before
   implementation
 
 Do **not** use when:
@@ -7035,7 +7034,7 @@ Enhanced fork of [\`specify\` CLI](https://github.com/github/spec-kit), distribu
 
 ### Backlog conventions (GitHub backend)
 
-\`Priority\` (P0–P2) and \`Size\` (XS–XL) via Project V2 native fields (\`set-field.sh\`); fall back to \`priority:*\`/\`size:*\` labels when the native field is absent. Two-step close: \`move.sh <num> Done\` then \`gh issue close --reason completed\`. \`/specnaut groom\` catches items closed via paths that bypassed the move step.
+\`Priority\` (P0–P2) and \`Size\` (XS–XL) via Project V2 native fields (\`set-field.sh\`); fall back to \`priority:*\`/\`size:*\` labels when the native field is absent. Two-step close: \`move.sh <num> Done\` then \`gh issue close --reason completed\`. \`/backlog groom\` catches items closed via paths that bypassed the move step.
 
 ### Design principles
 
@@ -8652,8 +8651,9 @@ today.
 
 The grooming pass — Backlog-column clarification, board drift, stale PRs — is
 specified in **\`groom.md\`, beside this file**. Read and follow it. It is the
-only copy: \`/specnaut groom\` reads the same file, so do not restate any of it
-here and do not answer a grooming request from memory.
+only copy, and \`/backlog groom\` is its only entry point — the \`/specnaut\`
+router carries no \`groom\` verb. Do not restate any of it here, and do not
+answer a grooming request from memory.
 
 Orphan **spec** detection is deliberately not part of it. That reads spec
 artefacts and prescribes specnaut phases, so it lives on the other side of the
@@ -9458,7 +9458,7 @@ emit_section() {
 The 5 status columns mirror the GitHub Projects "kanban" model:
 
 - **Backlog** — needs more info, sizing, or prioritisation. The PO
-  works these on \`/specnaut groom\` until they're ready.
+  works these on \`/backlog groom\` until they're ready.
 - **Ready** — clarified, sized, prioritised. The PO proposes these
   for development when asked "what's next".
 - **In progress** — actively being worked on (a branch is open).
@@ -9480,7 +9480,7 @@ created: ...
 ---
 \`\`\`
 
-The PO assigns size + priority during the \`/specnaut groom\` pass.
+The PO assigns size + priority during the \`/backlog groom\` pass.
 
 ---
 
@@ -10020,7 +10020,7 @@ fi
 # List backlog items whose board column disagrees with the issue's real state.
 #
 # This script REPORTS. It never moves a card. Detection and correction are
-# split on purpose: \`/specnaut groom\` prints this output read-only, while
+# split on purpose: \`/backlog groom\` prints this output read-only, while
 # \`/specnaut merge\` pipes the DRIFTED lines into \`move.sh\`. A read-only core
 # cannot mutate anything from the wrong caller, and both callers get the same
 # answer to "what drifted".
@@ -11188,7 +11188,7 @@ echo "✓ #\$NUM → Status::\$STATUS"
 # List backlog items whose Status:: label disagrees with the issue's real state.
 #
 # This script REPORTS. It never moves an issue. Detection and correction are
-# split on purpose: \`/specnaut groom\` prints this output read-only, while
+# split on purpose: \`/backlog groom\` prints this output read-only, while
 # \`/specnaut merge\` pipes the DRIFTED lines into \`move.sh\`.
 #
 # Why reconcile rather than attribute: asking "which issues did my merge close"
@@ -21789,7 +21789,7 @@ with a real invariant, not an undescribed state.
 The 5 status columns mirror the GitHub Projects "kanban" model:
 
 - **Backlog** — needs more info, sizing, or prioritisation. The PO
-  works these on \`/specnaut groom\` until they're ready.
+  works these on \`/backlog groom\` until they're ready.
 - **Ready** — clarified, sized, prioritised. The PO proposes these
   for development when asked "what's next".
 - **In progress** — actively being worked on (a branch is open).
@@ -21811,7 +21811,7 @@ created: ...
 ---
 \`\`\`
 
-The PO assigns size + priority during the \`/specnaut groom\` pass.
+The PO assigns size + priority during the \`/backlog groom\` pass.
 
 ---
 
@@ -25218,7 +25218,7 @@ team's needs.
 
 - **Periodic maintenance** — \`/loop 1h\` runs the prompt in
   \`.claude/loop.md\` every hour. The bundled default delegates to the
-  \`/specnaut groom\` skill (groom backlog, surface stale PRs, list orphan
+  \`/backlog groom\` skill (groom backlog, surface stale PRs, list orphan
   specs); edit \`loop.md\` freely to add project-specific checks. See
   https://code.claude.com/docs/fr/scheduled-tasks.
 
@@ -25429,7 +25429,7 @@ this project's hygiene needs.
 
 Run a hygiene pass on this Specnaut project:
 
-1. Invoke the \`/specnaut groom\` skill — it grooms the backlog, surfaces
+1. Invoke the \`/backlog groom\` skill — it grooms the backlog, surfaces
    stale PRs, and flags orphan specs.
 2. If anything actionable came out of the pass, summarize it concisely
    so the human reading the loop output can decide what to do.
@@ -25440,7 +25440,7 @@ Run a hygiene pass on this Specnaut project:
 
 - **Active development**: \`/loop 1h\` — frequent grooming during a sprint.
 - **Quiet projects**: \`/loop 12h\` or \`/loop 24h\` — daily cadence.
-- **One-off check**: just \`/specnaut groom\` (no loop) — runs once and exits.
+- **One-off check**: just \`/backlog groom\` (no loop) — runs once and exits.
 
 ## Customizing further
 
@@ -26090,7 +26090,7 @@ loads the right reference at session start.
 - **Skills**: installed skills live in \`.agents/skills/\`.
 - **Subagents**: Codex subagent definitions live in \`.codex/agents/\`
   (TOML format).
-- **Backlog**: managed via the \`/specnaut groom\` workflow — when the
+- **Backlog**: managed via the \`/backlog groom\` workflow — when the
   project uses the local Markdown backend, see \`.specnaut/backlog.md\`.
 
 **Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
@@ -26126,7 +26126,7 @@ this project's hygiene needs.
 
 Run a hygiene pass on this Specnaut project:
 
-1. Invoke the \`/specnaut groom\` skill — it grooms the backlog, surfaces
+1. Invoke the \`/backlog groom\` skill — it grooms the backlog, surfaces
    stale PRs, and flags orphan specs.
 2. If anything actionable came out of the pass, summarize it concisely
    so the human reading the result can decide what to do.

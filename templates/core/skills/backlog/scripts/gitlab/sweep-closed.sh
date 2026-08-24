@@ -2,7 +2,7 @@
 # List backlog items whose Status:: label disagrees with the issue's real state.
 #
 # This script REPORTS. It never moves an issue. Detection and correction are
-# split on purpose: `/specnaut groom` prints this output read-only, while
+# split on purpose: `/backlog groom` prints this output read-only, while
 # `/specnaut merge` pipes the DRIFTED lines into `move.sh`.
 #
 # Why reconcile rather than attribute: asking "which issues did my merge close"

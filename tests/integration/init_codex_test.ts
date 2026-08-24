@@ -90,7 +90,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     const codexGoalMd = await Deno.readTextFile(join(root, ".codex/goal.md"));
     assertEquals(codexGoalMd.includes("# Project goal prompt"), true);
     assertEquals(codexGoalMd.includes("## Default goal prompt"), true);
-    assertEquals(codexGoalMd.includes("/specnaut groom"), true);
+    assertEquals(codexGoalMd.includes("/backlog groom"), true);
 
     // Top-level skill folders post-consolidation: specnaut router +
     // specnaut-review alias + specnaut-backlog +

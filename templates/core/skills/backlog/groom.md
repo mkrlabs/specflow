@@ -1,8 +1,8 @@
 # groom — backlog and delivery hygiene
 
 Keeps the backlog and delivery pipeline flowing without human intervention.
-Reachable as **`/backlog groom`** and **`/specnaut groom`** — both read this
-file, which is the only copy.
+Reachable as **`/backlog groom`** — the only door. The `/specnaut` router
+carries no `groom` verb.
 
 **Owned by `/backlog`** — see "Which skill owns what" in `SKILL.md`. Orphan
 **spec** detection used to live here and does not belong to it; it moved to the

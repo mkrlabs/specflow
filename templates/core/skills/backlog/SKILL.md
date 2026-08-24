@@ -24,8 +24,9 @@ today.
 
 The grooming pass — Backlog-column clarification, board drift, stale PRs — is
 specified in **`groom.md`, beside this file**. Read and follow it. It is the
-only copy: `/specnaut groom` reads the same file, so do not restate any of it
-here and do not answer a grooming request from memory.
+only copy, and `/backlog groom` is its only entry point — the `/specnaut`
+router carries no `groom` verb. Do not restate any of it here, and do not
+answer a grooming request from memory.
 
 Orphan **spec** detection is deliberately not part of it. That reads spec
 artefacts and prescribes specnaut phases, so it lives on the other side of the
