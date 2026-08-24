@@ -213,21 +213,27 @@ export function computeUpgradePlan(
     // bug (#163). Skipped when the lock genuinely has no entry — that
     // case still falls through to the skipIfExists / customized branch.
     //
-    // `lockSha !== newSha` bounds it to files upstream has actually moved for
-    // (#519). Without it the reset swept the whole `customized` bucket: every
-    // file whose recorded SHA disagreed with disk was re-baselined, reclassified
-    // `auto-update`, and overwritten from the bundle — including files nobody
-    // was behind on, edited deliberately, with no update waiting for them. The
-    // flag's own hint calls it the way to apply the "behind" list, so a project
-    // with 2 behind and 111 merely customized lost all 113.
+    // The bound is `staleSince` itself — the SAME predicate that decides what
+    // the report lists under "customized, and behind", which is the list the
+    // flag's own hint offers to apply ("All N at once"). Anything looser makes
+    // that N a lie.
     //
-    // The bound keeps the #163 migration intact: a lock corrupted by an old
-    // binary carries a SHA matching neither disk nor bundle, so it still enters
-    // here. What it excludes is the one shape that is genuinely settled —
-    // recorded SHA equal to the bundle's, meaning the template never moved.
+    // It has been wrong in both directions. Originally the reset swept the
+    // entire `customized` bucket, so a project with 2 behind and 111 merely
+    // customized lost all 113 (#519). The fix bounded it to `lockSha !== newSha`
+    // — upstream actually moved — which is only the FIRST of the two conditions
+    // `staleSince` requires. On a same-minor upgrade the two agree and the gap
+    // is invisible; across majors upstream has moved for nearly everything, and
+    // a project audited going 1.14.1 → 3.1.2 measured 53 auto-updates against
+    // the 2 its hint advertised.
+    //
+    // The #163 migration still passes through: a lock corrupted by a pre-v1.0
+    // binary carries a SHA matching neither disk nor bundle, and its entry stops
+    // advancing the moment the file is preserved, so it lags the lock's own
+    // version and `staleSince` fires.
     if (
       resetBaseline && diskSha !== undefined && lockSha !== undefined &&
-      diskSha !== lockSha && lockSha !== newSha
+      diskSha !== lockSha && staleSince(lock, dest, lockSha, newSha) !== null
     ) {
       lockSha = diskSha;
     }

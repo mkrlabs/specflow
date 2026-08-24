@@ -13,7 +13,13 @@ const emptyLock: InstalledLock = {
   entries: new Map(),
 };
 
-function lockWith(path: string, sha: string): InstalledLock {
+/**
+ * @param entryVersion the entry's own `templates_version`. Defaults to the
+ *   lock's, i.e. "this entry is level with the install". Pass an older value to
+ *   model an entry that a completed upgrade skipped — which is what separates
+ *   "behind" from "customized and settled".
+ */
+function lockWith(path: string, sha: string, entryVersion = "0.1.0"): InstalledLock {
   return {
     version: 2,
     harness: "claude",
@@ -23,7 +29,7 @@ function lockWith(path: string, sha: string): InstalledLock {
     templatesVersion: "0.1.0",
     entries: new Map([[
       path,
-      { sha256: sha, installedAt: "2026-04-25T00:00:00Z", templatesVersion: "0.1.0" },
+      { sha256: sha, installedAt: "2026-04-25T00:00:00Z", templatesVersion: entryVersion },
     ]]),
   };
 }
@@ -321,11 +327,19 @@ Deno.test("computeUpgradePlan: skipIfExists file not in lock → silently omitte
 // #163: --reset-baseline (resetBaseline=true) heals stale lock SHAs by
 // trusting the on-disk content as the new baseline. The plan then
 // auto-updates against the bundle.
+//
+// The entry lags the lock's own version (#524). That is the realistic shape of
+// a stale lock: a preserved file's entry stops advancing while the lock's does,
+// so any entry a completed upgrade skipped falls behind. The flag is now bound
+// to exactly that — the "customized, and behind" bucket its hint advertises —
+// rather than to every file upstream has moved for. The corruption is healed one
+// upgrade later than before, which is the price of the number in the hint being
+// true.
 Deno.test("computeUpgradePlan: resetBaseline aligns stale lock with disk → auto-update", async () => {
   const path = ".claude/skills/specnaut/SKILL.md";
   const diskSha = await sha256Hex("router skill — current on disk\n");
   const newSha = await sha256Hex("router skill — new bundle content\n");
-  const lock = lockWith(path, "stale-sha-from-an-old-binary");
+  const lock = lockWith(path, "stale-sha-from-an-old-binary", "0.0.9");
   const plan = computeUpgradePlan(
     new Map([[path, diskSha]]),
     lock,
