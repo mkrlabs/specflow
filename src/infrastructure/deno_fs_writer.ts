@@ -6,6 +6,16 @@ import type { BackupReport, FsWriter } from "../application/ports.ts";
 
 const BACKUP_SUFFIX = ".specnaut.bak";
 
+/** Whether `path` is itself a symlink — `lstat`, never `stat`. */
+async function isSymlink(path: string): Promise<boolean> {
+  try {
+    return (await Deno.lstat(path)).isSymlink;
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return false;
+    throw err;
+  }
+}
+
 async function fileExists(path: string): Promise<boolean> {
   try {
     await Deno.lstat(path);
@@ -104,6 +114,34 @@ export class DenoFsWriter implements FsWriter {
       // originally created (lock-tracked → standard upgrade path).
       if (
         file.skipIfExists === true && !overwrite && (await fileExists(abs))
+      ) {
+        skippedSkipIfExists.push(dest);
+        continue;
+      }
+
+      // A `skipIfExists` dest belongs to the project, and a project may have
+      // made it a symlink — consolidating several context files onto one, then
+      // leaving `AGENTS.md` pointing at the survivor, is a reasonable thing to
+      // do, and Specnaut's own instructions tell agents to read `AGENTS.md`, so
+      // the shape recurs.
+      //
+      // `Deno.writeTextFile` follows symlinks. A wholesale write would not
+      // replace this dest: it would overwrite whatever the link points at, and
+      // leave the link untouched afterwards — same name, same mode, same target.
+      // Nothing in a directory listing changes, and the file destroyed is a
+      // different one nobody asked to touch.
+      //
+      // Skipped rather than unlinked: breaking a symlink the project made on
+      // purpose is its own kind of damage. When `backupExisting` is set the
+      // caller is already safe — `Deno.rename` moves the LINK aside, so the
+      // write lands on a fresh regular file and the target survives.
+      //
+      // Gated on `skipIfExists` on purpose. The managed-section merge builds its
+      // own bundle entry without that flag and MUST follow the link, so its
+      // fenced section reaches the real file (`upgrade_project.ts`).
+      if (
+        file.skipIfExists === true && !backupExisting &&
+        (await isSymlink(abs))
       ) {
         skippedSkipIfExists.push(dest);
         continue;
