@@ -22,13 +22,39 @@ function stripCascadeIgnoredFields(content: string): string {
 }
 
 /**
- * Windsurf's per-workflow character cap. Cascade silently truncates at this
- * boundary, so we hard-fail at test time when any emitted workflow would
- * exceed it.
+ * Windsurf's per-workflow cap, in **characters**.
  *
- * Documented at https://docs.windsurf.com/windsurf/cascade/workflows
+ * The unit is load-bearing and was never established until #539. The vendor
+ * page says, verbatim: "Workflow files are limited to 12000 characters each."
+ * Characters — not bytes. This repo is dense with em dashes and arrows, so the
+ * two measures diverge by roughly 1.7%, and four emitted workflows sit inside
+ * that gap: over 12,000 bytes and under it in characters. Read as bytes they
+ * would have been shipping truncated for months; read as characters, correctly,
+ * they are fine. Nothing recorded which reading applied.
+ *
+ * Measure with {@link workflowLength}, not `String.length`: that counts UTF-16
+ * code units, which exceeds the character count wherever an astral-plane
+ * character appears (any emoji costs 2). Conservative rather than wrong, but
+ * "conservative" is a claim nobody had checked either.
+ *
+ * The vendor documents **no** failure mode — not truncation, not an error, not
+ * rejection. The previous version of this comment asserted silent truncation;
+ * that was never sourced, and it is why the margin was treated as a hard cliff
+ * rather than an unknown. Stay under it; do not rely on what happens above it.
+ *
+ * Documented at https://docs.devin.ai/desktop/cascade/workflows
+ * (https://docs.windsurf.com/windsurf/cascade/workflows now redirects there).
  */
 export const WINDSURF_WORKFLOW_MAX_CHARS = 12_000;
+
+/**
+ * Character count of an emitted workflow, in the unit the vendor's limit uses.
+ * Counting code points rather than UTF-16 code units is the whole difference
+ * between measuring the file and measuring its JavaScript representation.
+ */
+export function workflowLength(content: string): number {
+  return [...content].length;
+}
 
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {

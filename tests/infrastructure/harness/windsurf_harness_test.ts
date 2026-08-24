@@ -2,7 +2,10 @@ import { assert, assertEquals } from "@std/assert";
 import { WindsurfHarness } from "../../../src/infrastructure/harness/windsurf_harness.ts";
 import type { CoreBundle } from "../../../src/domain/core_bundle.ts";
 import { CORE_BUNDLE } from "../../../src/templates_bundle.ts";
-import { WINDSURF_WORKFLOW_MAX_CHARS } from "../../../src/infrastructure/harness/windsurf_harness.ts";
+import {
+  WINDSURF_WORKFLOW_MAX_CHARS,
+  workflowLength,
+} from "../../../src/infrastructure/harness/windsurf_harness.ts";
 
 const SAMPLE: CoreBundle = [
   {
@@ -152,17 +155,42 @@ Deno.test("WindsurfHarness emits no Claude/Cursor/Codex artefacts", () => {
 });
 
 Deno.test("WindsurfHarness emits no workflow exceeding the Cascade cap", () => {
+  // #539: measured in CHARACTERS, the unit the vendor's limit uses, and across
+  // every backlog backend. The previous version pinned one option combination
+  // and counted UTF-16 code units — right for this content by luck, and unable
+  // to say so. Reporting the three measures on failure is deliberate: the gap
+  // between them is what made the earlier reading ambiguous.
   const h = new WindsurfHarness();
-  const mapped = h.mapBundle(CORE_BUNDLE, {
-    backlogBackend: "local",
-    versionScheme: "semver",
-    specBackend: "local",
-  });
-  for (const [path, file] of Object.entries(mapped)) {
-    if (!path.startsWith(".windsurf/workflows/")) continue;
-    assert(
-      file.content.length <= WINDSURF_WORKFLOW_MAX_CHARS,
-      `${path} exceeds ${WINDSURF_WORKFLOW_MAX_CHARS} chars: ${file.content.length}`,
-    );
+  for (const backlogBackend of ["local", "github", "gitlab", "cloud"] as const) {
+    for (const versionScheme of ["semver", "date"] as const) {
+      const mapped = h.mapBundle(CORE_BUNDLE, {
+        backlogBackend,
+        versionScheme,
+        specBackend: "local",
+      });
+      for (const [path, file] of Object.entries(mapped)) {
+        if (!path.startsWith(".windsurf/workflows/")) continue;
+        const chars = workflowLength(file.content);
+        assert(
+          chars <= WINDSURF_WORKFLOW_MAX_CHARS,
+          `${path} exceeds ${WINDSURF_WORKFLOW_MAX_CHARS} characters: ${chars} ` +
+            `(${new TextEncoder().encode(file.content).length} bytes, ` +
+            `${file.content.length} UTF-16 units) on ` +
+            `backlog=${backlogBackend} scheme=${versionScheme}`,
+        );
+      }
+    }
   }
+});
+
+Deno.test("workflowLength counts characters, not UTF-16 code units", () => {
+  // The distinction only shows on astral-plane characters, which is exactly
+  // when a length assertion quietly starts measuring something else.
+  assertEquals(workflowLength("abc"), 3);
+  assertEquals("👋".length, 2);
+  assertEquals(workflowLength("👋"), 1);
+  // A BMP non-ASCII character costs one character and three bytes — the axis
+  // that put four workflows over the limit when read as bytes.
+  assertEquals(workflowLength("—"), 1);
+  assertEquals(new TextEncoder().encode("—").length, 3);
 });
