@@ -310,52 +310,28 @@ jobs:
           # (#521). `postflight.sh` still asserts `asset_count >= 10` as the
           # second net; this is the gate upstream of it.
           fail_on_unmatched_files: true
-      # The publish steps below (tap / marketplace) each run
-      # INDEPENDENTLY: gated only on the release having been created, never on
-      # each other. A failure in one (e.g. an expired HOMEBREW_TAP_TOKEN) no
-      # longer skips the others — the job still ends red so the failure is
-      # noticed and fixed, but every distribution channel that *can* publish
-      # does. (Hardening after v1.14.0, where a tap-token 403 skipped both
-      # syncs — see specnaut-cli#402.)
-      - name: Bump specnaut/homebrew-tap formula
-        if: ${{ !cancelled() && steps.release.outcome == 'success' }}
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          deno run --allow-read --allow-write --allow-run --allow-env \
-            scripts/bump-tap-formula.ts
-      # The Codex marketplace fork step stood here (#277 / B1). Retired with
-      # `specnaut/specnaut-plugins` itself on 2026-08-22 — the repository is
-      # deleted, so the step could only fail: it cloned with no guard, and this
-      # wrapper mapped only exit 2 to success.
+      # NOTHING IS PUSHED FROM HERE ANY MORE.
       #
-      # The fork never published anything. Its PRs were opened against its own
-      # main and a human was supposed to rebase them into upstream
-      # `openai/plugins`; after the first two, nobody did, and nothing in the
-      # pipeline noticed because opening a PR was the last step. That is what
-      # cli#514 was for. It also went on serving a purged tree from a public
-      # default branch for months (constitution § XI), which is what forced the
-      # decision.
+      # Two steps used to live at this point: a Homebrew tap bump and a
+      # marketplace catalog bump, each reading a fine-grained PAT held as a
+      # secret on THIS repository — which is public. A repository publishing a
+      # release should not need write access to everything that packages or
+      # lists it, and the credentials enabling that should not sit in a public
+      # repo at all.
       #
-      # `specnaut/specnaut-marketplace` below is the channel that actually
-      # reaches users, and it verifies its own published catalog rather than
-      # trusting its exit code. `CODEX_SYNC_TOKEN` was deleted from the repo
-      # secrets on 2026-08-22; nothing reads it any more.
-      - name: Sync to Specnaut marketplace catalog (#281 / B5)
-        if: ${{ !cancelled() && steps.release.outcome == 'success' }}
-        # Bumps `.claude-plugin/marketplace.json` in
-        # `specnaut/specnaut-marketplace` (the shared marketplace
-        # catalog serving both Claude Code AND Copilot CLI users via
-        # `/plugin install specnaut@specnaut-marketplace` and
-        # `copilot plugin install specnaut@specnaut-marketplace`).
-        # Same skip-if-no-secret fail-safe as the Codex step.
-        env:
-          GH_TOKEN: ${{ secrets.MARKETPLACE_SYNC_TOKEN }}
-          SPECNAUT_VERSION: ${{ github.ref_name }}
-        run: |
-          export SPECNAUT_VERSION="${SPECNAUT_VERSION#v}"
-          bash scripts/sync-to-marketplace.sh || rc=$?
-          if [ "${rc:-0}" = "2" ]; then
-            exit 0
-          fi
-          exit "${rc:-0}"
+      # The direction is inverted. `specnaut/homebrew-tap` and
+      # `specnaut/specnaut-marketplace` each run their own `sync from
+      # specnaut-cli` workflow, reading this repository's Releases API — which
+      # needs no authentication, because this repository is public — and
+      # committing to themselves with their own run-scoped GITHUB_TOKEN. Zero
+      # secrets, in either direction.
+      #
+      # `HOMEBREW_TAP_TOKEN`, `MARKETPLACE_SYNC_TOKEN` and `CODEX_SYNC_TOKEN`
+      # were deleted from this repository's secrets on 2026-08-22. Do not
+      # re-provision any of them.
+      #
+      # Latency is the trade: each target syncs on its own cron rather than
+      # within seconds of the tag. `.specnaut/release/postflight.sh` dispatches
+      # both immediately after a release using the operator's own credentials,
+      # so a normal release still publishes at once — and it verifies the
+      # published artefacts rather than trusting an exit code.

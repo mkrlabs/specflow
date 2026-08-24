@@ -40,20 +40,27 @@ worse than a section that is visibly missing.
 
 ## Prerequisites — repo secrets
 
-Three secrets on `specnaut/specnaut-cli`:
+**None.** This repository holds no Actions secrets, and must not.
 
-### HOMEBREW_TAP_TOKEN
+It is public. A secret here is a credential in a public repository, and the three that used to live
+here all pointed outward — write access to the Homebrew tap, to the marketplace catalog, and to a
+plugin fork. A repository publishing a release does not need write access to everything that
+packages or lists it.
 
-- **`HOMEBREW_TAP_TOKEN`** — fine-grained GitHub Personal Access Token, scoped to
-  `specnaut/homebrew-tap` only, with `Contents: Read and write`. Created in GitHub → Settings →
-  Developer settings → Personal access tokens → Fine-grained tokens. Add it under
-  `specnaut/specnaut-cli` → Settings → Secrets and variables → Actions → New repository secret. Used
-  by `release.yml`'s tap-bump step.
+The direction is inverted. `specnaut/homebrew-tap` and `specnaut/specnaut-marketplace` each run
+their own `sync from specnaut-cli` workflow: they read this repository's Releases API — which needs
+no authentication, because this repository is public — and commit to themselves with their own
+run-scoped `GITHUB_TOKEN`. Neither side holds a credential for the other.
 
-  If missing, the bump step exits 0 with a workflow warning
-  (`HOMEBREW_TAP_TOKEN not set — skipping ...`). The release itself still ships; only the formula
-  bump is skipped, and `brew upgrade specnaut` will silently keep serving the previous version until
-  the next release that does have the secret.
+`HOMEBREW_TAP_TOKEN`, `MARKETPLACE_SYNC_TOKEN` and `CODEX_SYNC_TOKEN` were all deleted on
+2026-08-22. Do not re-provision them; nothing reads them, and adding one back would restore the
+shape this removed.
+
+**What this costs, and how it is paid.** Each target syncs on a 15-minute cron, so a release reaches
+them within that window rather than within seconds. `postflight.sh` dispatches both immediately
+after a release using the operator's own `gh` credentials, then reads the published formula and
+catalog back — so a normal release still publishes at once, and "dispatched" is never mistaken for
+"published".
 
 ---
 

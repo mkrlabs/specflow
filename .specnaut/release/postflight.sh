@@ -45,18 +45,38 @@ echo "▶ verifying GitHub Release exists with assets"
 asset_count="$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets | length')"
 [ "$asset_count" -ge 10 ] || { echo "❌ release has $asset_count assets (expected ≥10: 5 binaries + 5 checksums)"; exit 1; }
 
+# The two packaging channels PULL from this repository's public Releases API;
+# nothing is pushed to them, and neither this repo nor they hold a credential
+# for the other. Their own cron would pick this release up within the interval —
+# dispatching here just removes the wait, using the operator's `gh` auth rather
+# than a secret stored in a public repository.
+#
+# `gh workflow run` exits 0 the moment GitHub ACCEPTS the request. That is not
+# evidence of anything, which is why each dispatch is followed by reading the
+# published artefact back.
+echo "▶ dispatching the packaging syncs (they pull; nothing is pushed to them)"
+for target in homebrew-tap specnaut-marketplace; do
+  gh workflow run "sync from specnaut-cli" -R "specnaut/$target" >/dev/null 2>&1 \
+    && echo "  dispatched $target" \
+    || echo "  ⚠ could not dispatch $target — its cron will pick this up within 15 min"
+done
+
 echo "▶ verifying Homebrew tap formula bumped to ${TAG#v}"
-# Match the exact commit-message template used by scripts/bump-tap-formula.ts
-# instead of a bare version glob — catches both message-template drift and
-# tag-not-bumped cases. Soft-warn (don't exit), since the bump can land slightly
-# after the release.yml run completes. We track the soft-warn so the final
-# status differentiates "all green" from "release shipped but tap unverified".
+# Read the formula itself, not a commit message. The message was the tell while
+# a script here wrote it; now the tap writes its own, so the only thing that
+# actually matters is what the published file declares. Soft-warn: the sync is
+# asynchronous by design, and the release has already shipped by this point.
 homebrew_warned=0
-formula_msg="$(gh api repos/specnaut/homebrew-tap/commits/main --jq '.commit.message' | head -1)"
-expected_prefix="chore: bump specnaut to ${TAG#v}"
-if [[ "$formula_msg" != "$expected_prefix"* ]]; then
-  echo "⚠ Homebrew formula tip message != '$expected_prefix*': '$formula_msg'"
-  homebrew_warned=1
+for attempt in 1 2 3 4 5 6; do
+  formula="$(gh api repos/specnaut/homebrew-tap/contents/Formula/specnaut.rb \
+    --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || true)"
+  case "$formula" in
+    *"version \"${TAG#v}\""*) break ;;
+  esac
+  [ "$attempt" -eq 6 ] && homebrew_warned=1 || sleep 10
+done
+if [ "$homebrew_warned" -eq 1 ]; then
+  echo "⚠ tap formula does not declare ${TAG#v} yet — its sync runs on a 15-min cron"
 fi
 
 # The docs site derives `version.json` from the latest CLI release at *build*
