@@ -139,11 +139,6 @@
     },
     {
       "category": "skill",
-      "name": "specnaut-review",
-      "source": "core/skills/specnaut-review/SKILL.md"
-    },
-    {
-      "category": "skill",
       "name": "writing-plans",
       "source": "core/skills/writing-plans/SKILL.md"
     },

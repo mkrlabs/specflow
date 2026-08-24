@@ -106,10 +106,13 @@ Deno.test("isPluginCoveredPath: claude + deprecated specnaut-auto skill is NOT c
   );
 });
 
-Deno.test("isPluginCoveredPath: claude + specnaut-review alias is covered", () => {
+Deno.test("isPluginCoveredPath: the retired specnaut-review alias is not covered", () => {
+  // #534 dropped it from the bundle. Kept as an assertion rather than deleted:
+  // a coverage list that still claims a file `specnaut check` will never find
+  // reports it missing forever.
   assertEquals(
     isPluginCoveredPath("claude", ".claude/skills/specnaut-review/SKILL.md"),
-    true,
+    false,
   );
 });
 

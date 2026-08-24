@@ -45,11 +45,6 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     plugin: `plugin/skills/specnaut/phases/${name}.md`,
     source: `templates/core/skills/specnaut/phases/${name}.md`,
   })),
-  // Thin alias preserving auto-invocation for the review phase.
-  {
-    plugin: "plugin/skills/specnaut-review/SKILL.md",
-    source: "templates/core/skills/specnaut-review/SKILL.md",
-  },
   // writing-plans skill — Specnaut's native equivalent of obra/superpowers
   // writing-plans, used for issue-driven planning where the spec-kit
   // /specnaut plan ceremony would be overkill (Epic #270, A1 #271).

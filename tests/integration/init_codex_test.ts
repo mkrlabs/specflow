@@ -93,7 +93,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     assertEquals(codexGoalMd.includes("/backlog groom"), true);
 
     // Top-level skill folders post-consolidation: specnaut router +
-    // specnaut-review alias + specnaut-backlog +
+    // specnaut-backlog +
     // writing-plans (A1) + requesting-code-review (A3) +
     // using-specnaut bootstrap (B6) + subagent-driven-development (A2) +
     // executing-plans (A4) + verification-before-completion (A5) +
@@ -101,7 +101,8 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     // workflow-contract, handoff-protocol, review-findings-contract,
     // qa-report-contract, backlog-reference-contract) + code-audit (#379) + 5 per-axis audit skills
     // (#380: arch-audit, sec-audit, perf-audit, dep-audit, a11y-audit) +
-    // status-audit (#381) = 22 (specnaut-auto removed in #409).
+    // status-audit (#381) = 21 (specnaut-auto removed in #409,
+    // specnaut-review in #534).
     // The audit-security phase (#303) lands under specnaut/phases/, not as a
     // top-level skill — no bump there. code-audit's scope script ships under
     // .specnaut/scripts/code-audit/, not as a skill folder; status-audit's
@@ -109,7 +110,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     const agentsSkillsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".agents/skills")),
     )).length;
-    assertEquals(agentsSkillsCount, 22);
+    assertEquals(agentsSkillsCount, 21);
     const codexAgentsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".codex/agents")),
     )).length;

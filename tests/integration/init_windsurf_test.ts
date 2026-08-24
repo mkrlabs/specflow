@@ -50,7 +50,7 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
     const root = join(parent, "demo");
 
     // v1.0.0: router workflow + 11 sibling phase workflows +
-    // specnaut-review alias + backlog + 9 agent workflows.
+    // backlog + 9 agent workflows.
     assertEquals(
       await exists(join(root, ".windsurf/workflows/specnaut.md")),
       true,
@@ -81,7 +81,7 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
     // audit-accessibility #305 + audit-architecture #321 +
     // audit-dependencies #322 — brainstorm/specify/clarify/analyze/checklist/
     // list-skills/lite-heuristic removed in #455) +
-    // specnaut-review alias + writing-plans (#271) +
+    // writing-plans (#271) +
     // requesting-code-review (#273) + using-specnaut (#282) +
     // subagent-driven-development (#272) + executing-plans (#274) +
     // verification-before-completion (#275) + brainstorming (#276) +

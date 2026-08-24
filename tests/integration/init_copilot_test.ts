@@ -50,7 +50,7 @@ Deno.test("specnaut init --ai copilot scaffolds a Copilot layout", async () => {
     const root = join(parent, "demo");
 
     // v1.0.0: router instruction + 11 phase instructions +
-    // specnaut-review + backlog + 9 agent instructions.
+    // backlog + 9 agent instructions.
     assertEquals(
       await exists(join(root, ".github/instructions/specnaut.instructions.md")),
       true,
@@ -89,7 +89,7 @@ Deno.test("specnaut init --ai copilot scaffolds a Copilot layout", async () => {
     // audit-accessibility #305 + audit-architecture #321 +
     // audit-dependencies #322 — brainstorm/specify/clarify/analyze/checklist/
     // list-skills/lite-heuristic removed in #455) +
-    // specnaut-review + writing-plans (#271) +
+    // writing-plans (#271) +
     // requesting-code-review (#273) + using-specnaut (#282) +
     // subagent-driven-development (#272) + executing-plans (#274) +
     // verification-before-completion (#275) + brainstorming (#276) +

@@ -73,10 +73,10 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
       await exists(join(root, ".claude/skills/backlog/groom.md")),
       true,
     );
-    // Auto-invoke alias for the review phase.
+    // #534: the auto-invoke alias is retired, not scaffolded.
     assertEquals(
       await exists(join(root, ".claude/skills/specnaut-review/SKILL.md")),
-      true,
+      false,
     );
     // Old per-phase folders are gone post-consolidation.
     assertEquals(
@@ -483,7 +483,6 @@ Deno.test("specnaut init scaffolds the consolidated router skill + its phase doc
         `expected .claude/skills/specnaut/phases/${name}.md`,
       );
       // Old per-phase folders are gone post-consolidation.
-      // Exception: `specnaut-review` is the auto-invoke alias (kept).
       if (name !== "review") {
         assertEquals(
           await exists(join(root, `.claude/skills/specnaut-${name}/SKILL.md`)),
@@ -497,10 +496,10 @@ Deno.test("specnaut init scaffolds the consolidated router skill + its phase doc
       await exists(join(root, ".claude/skills/specnaut-groom/SKILL.md")),
       false,
     );
-    // Auto-invoke alias still ships.
+    // #534: retired.
     assertEquals(
       await exists(join(root, ".claude/skills/specnaut-review/SKILL.md")),
-      true,
+      false,
     );
     const routerContent = await Deno.readTextFile(
       join(root, ".claude/skills/specnaut/SKILL.md"),

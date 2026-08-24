@@ -24,11 +24,10 @@ uninstalled.
 ### Known caveat: handoff IDs
 
 The 10 command SKILL.md files include `handoffs:` frontmatter that references peer commands by their
-**binary-scaffolded** IDs (`specnaut-plan`, `specnaut-review`, …). In plugin scope those IDs are
-`specnaut-plugin:plan` etc., so the clickable handoff buttons may not resolve. For the full handoff
-UX today, use the binary-scaffolded copies (run `specnaut init`) — the plugin versions are the
-discoverability layer, not the polished workflow. Handoff rewriting is a known follow-up task on
-#73.
+**binary-scaffolded** IDs (`specnaut-plan`, …). In plugin scope those IDs are `specnaut-plugin:plan`
+etc., so the clickable handoff buttons may not resolve. For the full handoff UX today, use the
+binary-scaffolded copies (run `specnaut init`) — the plugin versions are the discoverability layer,
+not the polished workflow. Handoff rewriting is a known follow-up task on #73.
 
 ## How this differs from `specnaut init`
 

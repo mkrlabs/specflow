@@ -28,7 +28,6 @@ import type { KnownHarness } from "./installed_lock.ts";
  *   - `.claude/skills/specnaut/phases/<phase>.md` — phase reference docs.
  *     Hyphenated names are valid (`tag-version`, `release-version`,
  *     `list-skills`, `audit-security`, …).
- *   - `.claude/skills/specnaut-review/SKILL.md` — auto-invoke alias
  *
  * Everything else (project-stateful files in `.specnaut/`, harness-
  * static files like `.claude/settings.json`, hooks, `CLAUDE.md`,
@@ -51,7 +50,6 @@ export function isPluginCoveredPath(
   if (/^\.claude\/skills\/specnaut\/phases\/[a-z]+(?:-[a-z]+)*\.md$/.test(dest)) {
     return true;
   }
-  if (dest === ".claude/skills/specnaut-review/SKILL.md") return true;
 
   return false;
 }
@@ -66,7 +64,6 @@ export function isPluginCoveredPath(
  * the bundled snapshot).
  *
  * Kept in sync with `isPluginCoveredPath` above. Total: 33 paths
- * (15 agents + 1 router skill + 16 phase docs + specnaut-review alias).
  *
  * This array is hand-written, and it drifted: #455 removed six phases and
  * added two, and only the *other* hand-written mirror (`SYNC_PAIRS` in the
@@ -128,5 +125,4 @@ export const PLUGIN_COVERED_PATHS_CLAUDE: ReadonlyArray<string> = [
     "audit-architecture",
     "audit-dependencies",
   ].map((name) => `.claude/skills/specnaut/phases/${name}.md`),
-  ".claude/skills/specnaut-review/SKILL.md",
 ];

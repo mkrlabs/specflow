@@ -15,7 +15,7 @@ Deno.test("ClaudeHarness.mapBundle emits the Claude tree", () => {
     versionScheme: "semver",
     specBackend: "local",
   });
-  // Router skill + 11 phase docs + specnaut-review alias +
+  // Router skill + 11 phase docs +
   // backlog skill + 1 backlog cmd + 9 agents + 5 agent-memory stubs +
   // 16 spec-root entries + AGENTS.md + .gitignore + 5 backlog scripts +
   // .claude/CLAUDE.md + dispatch-agent.sh + loop.md + settings.json + 3 hooks.
@@ -24,7 +24,8 @@ Deno.test("ClaudeHarness.mapBundle emits the Claude tree", () => {
   assert(".claude/skills/specnaut/SKILL.md" in mapped);
   assert(".claude/skills/specnaut/phases/plan.md" in mapped);
   assert(".claude/skills/backlog/groom.md" in mapped);
-  assert(".claude/skills/specnaut-review/SKILL.md" in mapped);
+  // #534 retired the auto-invoke alias; the router is model-invocable itself.
+  assert(!(".claude/skills/specnaut-review/SKILL.md" in mapped));
   // /backlog stays as a flat command
   assert(".claude/commands/backlog.md" in mapped);
   // Old per-phase skill folders are gone post-consolidation

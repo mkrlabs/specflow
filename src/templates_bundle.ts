@@ -3592,34 +3592,6 @@ echo "  or pipe to a custom publisher"
   },
   {
     category: "skill",
-    name: "specnaut-review",
-    suffix: null,
-    content: `---
-name: specnaut-review
-description: Review the implementation against spec, plan, and tasks before merge — runs the quality gates (functional acceptance, test coverage, constitution checks). Auto-invokable when the user signals readiness to merge or asks for a final review pass.
-argument-hint: [feature-path-or-PR-number]
-when_to_use: |
-  Trigger phrases:
-  - "review the implementation"
-  - "run quality gates"
-  - "final review before merge"
-  - "is this ready to ship?"
----
-
-# Specnaut review (auto-invoke alias)
-
-This is a thin alias that exists solely so Claude Code can auto-invoke the review phase from natural-language prompts (the main \`specnaut\` skill is \`disable-model-invocation: true\`).
-
-When this skill fires, dispatch immediately to the router by reading and executing the procedure in \`.claude/skills/specnaut/phases/review.md\`. Pass any \`\$ARGUMENTS\` through unchanged.
-
-Do not duplicate the review procedure here — it lives in \`phases/review.md\` and is the single source of truth.
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
-    category: "skill",
     name: "writing-plans",
     suffix: null,
     content: `---
@@ -4248,7 +4220,6 @@ not re-read the file with \`Read\`.
 | \`arch-audit\` / \`sec-audit\` / \`perf-audit\` / \`dep-audit\` / \`a11y-audit\` | Per-axis audit family — user wants **one** lens over a scope ("arch audit", "security audit \`--path src/\`", "perf audit \`--diff\`"). Each resolves a uniform scope (\`--path\` / \`--range\` / \`--diff\` / whole) and dispatches its **single** bound expert (architecture / security / performance / dependency / a11y), returning findings **inline**. Read-only, writes no report. Complements \`/specnaut audit <axis>\` (which persists a dated report) and \`/code-audit\` (the multi-seat team). |
 | \`status-audit\` | User wants a health check of a running multi-agent session ("status audit", "audit the session", "what's blocked", "session health"). Reads the \`.specnaut/logs/agents.jsonl\` status ledger and reports seven views (state counts / per-agent latest / blocked / stale ≥15m / done-vs-criteria contradictions / missing handoffs / verdict summary). Read-only. Pair with \`/loop 5m /status-audit\` to supervise long headless work. |
 | \`backlog\` | User asked about a backlog item, the board, an issue. Read-only access; mutations go through the \`product-owner\` agent. |
-| \`specnaut-review\` | Auto-invoke alias preserved for the \`/specnaut review\` phase. |
 
 **Preloaded output-contract skills** (\`user-invocable: false\` — never invoke
 directly): \`workflow-contract\`, \`handoff-protocol\`, \`review-findings-contract\`,
