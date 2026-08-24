@@ -29,13 +29,25 @@ export function skillFolderName(entry: CoreEntry): string {
 
 /**
  * Injects `name:` and `description:` into a SKILL.md's frontmatter when missing.
- * Preserves any existing values. Used by harnesses whose skill registries require
- * these fields (Cursor, Codex).
+ * Preserves any existing values. Used by every harness whose skill registry
+ * requires these fields: Claude, Cursor, Codex, Antigravity and OpenCode.
+ *
+ * The fallback description is JSON-quoted because it contains `": "`, which a
+ * plain YAML scalar may not. Emitting it bare produced frontmatter that every
+ * parser rejects — and a registry that warns-and-skips on malformed frontmatter
+ * drops the skill silently, so the guard failed more quietly than the condition
+ * it guards against.
  */
+function fallbackDescription(skillName: string): string {
+  return JSON.stringify(`Specnaut skill: ${skillName}`);
+}
+
 export function ensureSkillFrontmatter(content: string, skillName: string): string {
   const split = splitFrontmatter(content);
   if (!split) {
-    return `---\nname: ${skillName}\ndescription: Specnaut skill: ${skillName}\n---\n\n${content}`;
+    return `---\nname: ${skillName}\ndescription: ${
+      fallbackDescription(skillName)
+    }\n---\n\n${content}`;
   }
   const fmBody = split.fmBody;
   const rest = split.rest;
@@ -44,7 +56,7 @@ export function ensureSkillFrontmatter(content: string, skillName: string): stri
   let newFm = fmBody;
   if (!hasName) newFm = `name: ${skillName}\n${newFm}`;
   if (!hasDescription) {
-    newFm = `${newFm}\ndescription: Specnaut skill: ${skillName}`;
+    newFm = `${newFm}\ndescription: ${fallbackDescription(skillName)}`;
   }
   return `---\n${newFm}\n---\n${rest}`;
 }
