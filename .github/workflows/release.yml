@@ -180,7 +180,6 @@ jobs:
             echo "::warning::High-severity findings open: $dep_high dependabot + $code_high code-scanning. The release proceeds; dispatch the security-expert agent locally to triage."
           fi
 
-
   build:
     needs: [security-preflight]
     runs-on: ubuntu-latest
