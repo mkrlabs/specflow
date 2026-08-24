@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { CORE_BUNDLE } from "../../src/templates_bundle.ts";
+import { CORE_BUNDLE, HARNESS_STATIC } from "../../src/templates_bundle.ts";
 
 /**
  * A shipped file must not tell a reader to open a path that exists only in
@@ -48,9 +48,23 @@ const ADDRESSES_THIS_REPO: Record<string, string> = {
 
 type Entry = { category: string; name: string; content: unknown };
 
-const ENTRIES = (CORE_BUNDLE as ReadonlyArray<Entry>).filter(
-  (e) => typeof e.content === "string",
-);
+/**
+ * Core AND harness-specific — 265 entries plus 17. Scanning only the core
+ * half would report a clean surface while never reading the other one, which
+ * is the same shape of failure this file exists to catch.
+ */
+const ENTRIES: Entry[] = [
+  ...(CORE_BUNDLE as ReadonlyArray<Entry>).filter((e) => typeof e.content === "string"),
+  ...Object.entries(HARNESS_STATIC).flatMap(([harness, files]) =>
+    Object.entries(files)
+      .filter(([, f]) => typeof f?.content === "string")
+      .map(([dest, f]) => ({
+        category: `harness:${harness}`,
+        name: dest,
+        content: f.content as unknown,
+      }))
+  ),
+];
 
 function offendersOf(markers: readonly string[]): string[] {
   return [

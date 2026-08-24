@@ -1,6 +1,6 @@
 # Upgrading Specnaut
 
-## Unreleased
+## 3.2.x → 4.0.0
 
 ### `/backlog` is now `/board`
 
