@@ -1,10 +1,13 @@
-import { dirname, join, resolve } from "@std/path";
+import { dirname, isAbsolute, join, relative, resolve } from "@std/path";
 import { assertSafeDestination, type Bundle } from "../domain/template.ts";
 import { mergeIntoFile } from "../domain/merge_block.ts";
 import { mergeClaudeSettings } from "../domain/claude_settings_merge.ts";
 import type { BackupReport, FsWriter } from "../application/ports.ts";
 
 const BACKUP_SUFFIX = ".specnaut.bak";
+
+/** Native path separator — `\\` on Windows, `/` everywhere else. */
+const SEP = Deno.build.os === "windows" ? "\\" : "/";
 
 /**
  * Removes `dir` and each now-empty ancestor, stopping below `stopAt`.
@@ -22,14 +25,23 @@ const BACKUP_SUFFIX = ".specnaut.bak";
  */
 async function pruneEmptyParents(dir: string, stopAt: string): Promise<void> {
   let current = dir;
-  while (current !== stopAt && current.startsWith(stopAt + "/")) {
+  while (current !== stopAt) {
+    // Containment via `relative`, not a string prefix. The first version
+    // tested `current.startsWith(stopAt + "/")`, which hardcodes the POSIX
+    // separator: on Windows `resolve` yields `C:\a\b`, the prefix never
+    // matched, and the prune silently never ran — the ghost directory this
+    // whole function exists to remove survived on exactly one platform.
+    const rel = relative(stopAt, current);
+    if (rel === "" || rel === ".." || rel.startsWith(`..${SEP}`) || isAbsolute(rel)) return;
     try {
-      for await (const _ of Deno.readDir(current)) return; // not empty — stop
+      for await (const _ of Deno.readDir(current)) return; // still in use — stop
       await Deno.remove(current);
     } catch {
       return;
     }
-    current = resolve(current, "..");
+    const parent = dirname(current);
+    if (parent === current) return; // filesystem root; `dirname` is a fixpoint there
+    current = parent;
   }
 }
 

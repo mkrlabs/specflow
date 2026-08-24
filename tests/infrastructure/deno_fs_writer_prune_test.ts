@@ -122,3 +122,29 @@ Deno.test("the walk cascades while each ancestor is left empty", async () => {
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+Deno.test("nothing outside the target directory is ever pruned", async () => {
+  // The containment guard, exercised directly. It is the half that was
+  // written as a POSIX string prefix and so did nothing on Windows —
+  // where "does nothing" degraded safely, but the pruning it gates did
+  // not happen either.
+  const parent = await Deno.makeTempDir();
+  try {
+    const target = join(parent, "project");
+    const sibling = join(parent, "sibling");
+    await Deno.mkdir(join(target, "a"), { recursive: true });
+    await Deno.mkdir(sibling, { recursive: true });
+    await Deno.writeTextFile(join(target, "a/f.md"), "x");
+
+    await new DenoFsWriter().deletePaths(["a/f.md"], target, {
+      backupExisting: false,
+    });
+
+    assertEquals(await exists(join(target, "a")), false, "the emptied dir goes");
+    assertEquals(await exists(target), true, "the target itself stays");
+    assertEquals(await exists(sibling), true, "a sibling is never reachable");
+    assertEquals(await exists(parent), true, "nor is the target's parent");
+  } finally {
+    await Deno.remove(parent, { recursive: true });
+  }
+});
