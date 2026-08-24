@@ -3,7 +3,7 @@
 // Defaults: P3 / M (Kevin reviews and lifts before final apply).
 //
 // Pipeline:
-//   1. Verify the issue carries `from:specnaut-expert` (refuses otherwise).
+//   1. Verify the issue carries `from:specnaut-guide` (refuses otherwise).
 //   2. move.sh <num> Ready
 //   3. set-field.sh <num> Priority <P>  (exit 11 → fall back to label)
 //   4. set-field.sh <num> Size <S>      (same fallback contract)
@@ -124,9 +124,9 @@ if (import.meta.main) {
   }
 
   const labels = await fetchLabels(args.num);
-  if (!labels.includes("from:specnaut-expert")) {
+  if (!labels.includes("from:specnaut-guide")) {
     console.error(
-      `error: #${args.num} is not labelled \`from:specnaut-expert\` — ` +
+      `error: #${args.num} is not labelled \`from:specnaut-guide\` — ` +
         `triage promote is for inbound user-filed issues only.`,
     );
     Deno.exit(2);

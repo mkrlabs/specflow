@@ -21,9 +21,10 @@ does.
 "has a `/specnaut audit <domain>` phase", which this agent does not and should not have — it answers
 questions about Specnaut, it does not review your code. `specnaut-guide` says that.
 
-**The `from:specnaut-expert` issue label is unchanged.** It routes the maintainer triage inbox and
-is already stamped on filed issues; renaming it would mean rewriting them. It tracks the inbox, not
-the agent.
+**The issue label is now `from:specnaut-guide`.** It routes the maintainer triage inbox. The
+previous entry claimed the old spelling was stamped on filed issues and that renaming would mean
+rewriting them — neither was true: no issue has ever carried any spelling, because the label named
+in the prefill did not exist on the repo and GitHub drops unknown labels silently.
 
 ### Every bundled agent is now Opus, at `high` or `xhigh`
 

@@ -1,15 +1,22 @@
 // gh-issues list — enumerate inbound issues filed by users via the
 // specnaut-guide bug-report protocol. Filtered by the
-// `from:specnaut-expert` label so it doesn't catch maintainer-filed
+// `from:specnaut-guide` label so it doesn't catch maintainer-filed
 // items.
 //
 // Usage: deno run --allow-run list.ts
 
 const REPO = "specnaut/specnaut-cli";
-// The label deliberately still reads `specnaut-expert`, the agent's pre-rename
-// name: it is a routing token already stamped on filed issues, and renaming it
-// would mean rewriting them. It tracks the inbox, not the agent.
-const LABEL = "from:specnaut-expert";
+// The label is named for the agent that files through it, and it MUST exist on
+// the repo. GitHub drops an unknown label from an `issues/new?labels=` prefill
+// without erroring, so a mismatch yields a report carrying `bug` and nothing
+// else — and an inbox that reads "empty" because nothing can enter it. Both
+// ends failed that way for months: the prefill named `from:specnaut-expert`,
+// which was never created, while the repo carried `from:specflow-expert` from
+// before the rebrand. Zero issues ever bore either. Rename this constant, the
+// sibling scripts and the guide agent's prefill together, and create the label
+// on the repo in the same change — a rename that stops at the string is the
+// shape that produced the original silence.
+const LABEL = "from:specnaut-guide";
 
 type GhIssue = {
   number: number;
@@ -48,7 +55,7 @@ async function ghList(): Promise<GhIssue[]> {
 if (import.meta.main) {
   const issues = await ghList();
   if (issues.length === 0) {
-    console.log("✓ inbox empty (no open issues with label `from:specnaut-expert`)");
+    console.log("✓ inbox empty (no open issues with label `from:specnaut-guide`)");
     Deno.exit(0);
   }
 

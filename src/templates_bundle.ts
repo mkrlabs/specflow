@@ -6931,9 +6931,9 @@ sections above.
 \`~/.config/gh/\`. Email addresses NOT scrubbed — tell the user to review.
 
 **Surface**: generate
-\`https://github.com/specnaut/specnaut-cli/issues/new?title=…&body=…&labels=bug,from%3Aspecnaut-expert\`
-URL-encoded. The label gates the maintainer triage inbox and keeps this agent's
-former name on purpose — it is stamped on already-filed issues. If the raw
+\`https://github.com/specnaut/specnaut-cli/issues/new?title=…&body=…&labels=bug,from%3Aspecnaut-guide\`
+URL-encoded. The label gates the triage inbox and **must exist on the repo** —
+see \`scripts/gh-issues/list.ts\` for why a wrong name fails silently. If the raw
 body exceeds **3000 chars**, present a fenced code block and ask the
 user to paste it into a fresh \`issues/new\` form.
 

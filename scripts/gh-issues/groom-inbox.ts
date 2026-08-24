@@ -8,10 +8,11 @@
 import { findCandidates, type IssueRef } from "./_dedupe_heuristic.ts";
 
 const REPO = "specnaut/specnaut-cli";
-// The label deliberately still reads `specnaut-expert`, the agent's pre-rename
-// name: it is a routing token already stamped on filed issues, and renaming it
-// would mean rewriting them. It tracks the inbox, not the agent.
-const INBOUND_LABEL = "from:specnaut-expert";
+// The label is named for the agent that files through it. It must exist on
+// the repo: GitHub drops an unknown label from an `issues/new?labels=`
+// prefill without erroring, so a mismatch here yields an inbox that is
+// empty because nothing can enter it.
+const INBOUND_LABEL = "from:specnaut-guide";
 
 type GhIssue = IssueRef & { createdAt: string };
 
@@ -85,7 +86,7 @@ if (import.meta.main) {
   const [inbox, pool] = await Promise.all([fetchInbox(), fetchPool()]);
 
   if (inbox.length === 0) {
-    console.log("✓ inbox empty (no open issues with label `from:specnaut-expert`)");
+    console.log("✓ inbox empty (no open issues with label `from:specnaut-guide`)");
     Deno.exit(0);
   }
 
