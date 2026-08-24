@@ -31,7 +31,6 @@ const CHANNEL_A = ["product-owner", "developer", "workflow-manager"] as const;
 /** Bundled surfaces with no frontmatter preloading — they carry a pointer. */
 const CHANNEL_B_CORE: ReadonlyArray<{ category: string; name: string }> = [
   { category: "backlog-skill", name: "backlog" },
-  { category: "backlog-cmd", name: "backlog" },
   { category: "backlog-doc", name: "backlog" },
   { category: "phase", name: "merge" },
   { category: "project-root", name: "root" },

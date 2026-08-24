@@ -19,13 +19,6 @@ const SAMPLE: CoreBundle = [
     executable: false,
   },
   {
-    category: "backlog-cmd",
-    name: "backlog",
-    suffix: null,
-    content: "---\ndescription: Backlog dispatcher\n---\n\n# body\n",
-    executable: false,
-  },
-  {
     category: "skill",
     name: "specnaut-auto",
     suffix: null,
@@ -80,16 +73,6 @@ Deno.test("CodexHarness maps phase docs under .agents/skills/specnaut/phases/", 
     specBackend: "local",
   });
   assert(".agents/skills/specnaut/phases/specify.md" in mapped);
-});
-
-Deno.test("CodexHarness maps backlog-cmd to .agents/skills/specnaut-backlog/SKILL.md", () => {
-  const h = new CodexHarness();
-  const mapped = h.mapBundle(SAMPLE, {
-    backlogBackend: "local",
-    versionScheme: "semver",
-    specBackend: "local",
-  });
-  assert(".agents/skills/specnaut-backlog/SKILL.md" in mapped);
 });
 
 Deno.test("CodexHarness maps skill to .agents/skills/specnaut-<name>/SKILL.md", () => {

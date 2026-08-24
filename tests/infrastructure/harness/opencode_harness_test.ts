@@ -73,22 +73,6 @@ Deno.test("phase emits to .opencode/skills/specnaut/phases/<name>.md", () => {
   assertStringIncludes(bundle[dest].content, "Body content");
 });
 
-Deno.test("backlog-cmd emits to .opencode/commands/backlog.md", () => {
-  const entry: CoreBundle[number] = {
-    category: "backlog-cmd",
-    name: "backlog",
-    suffix: null,
-    content: `---\ndescription: Backlog\n---\nBody`,
-    executable: false,
-  };
-  const bundle = harness.mapBundle([entry], {
-    backlogBackend: "local",
-    versionScheme: "semver",
-    specBackend: "local",
-  });
-  assert(".opencode/commands/backlog.md" in bundle);
-});
-
 Deno.test("agent emits to .opencode/agents/specnaut-<name>.md with mode: subagent", () => {
   const bundle = harness.mapBundle([
     agentEntry("developer", "Read, Write, Edit, Grep, Glob, Bash"),

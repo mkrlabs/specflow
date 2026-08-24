@@ -8,9 +8,8 @@ Deno.test("CoreCategory is a narrow union", () => {
     "phase",
     "spec-root",
     "project-root",
-    "backlog-cmd",
   ];
-  assertEquals(values.length, 6);
+  assertEquals(values.length, 5);
 });
 
 Deno.test("CoreEntry enforces the expected shape", () => {

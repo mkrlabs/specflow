@@ -10,7 +10,6 @@ import { applySpecAutogen } from "./spec_autogen_filter.ts";
 
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {
-    case "backlog-cmd":
     case "agent":
     case "skill":
     case "backlog-skill":
@@ -59,8 +58,7 @@ export class CursorHarness implements Harness {
       if (entry.category === "agent-memory" || entry.category === "agent-doc") continue;
       const dest = destinationFor(entry);
       let content = entry.content;
-      const isSkillFile = entry.category === "backlog-cmd" ||
-        entry.category === "agent" ||
+      const isSkillFile = entry.category === "agent" ||
         entry.category === "skill" ||
         entry.category === "backlog-skill";
       if (isSkillFile) {

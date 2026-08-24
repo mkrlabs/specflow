@@ -78,14 +78,6 @@ function stringifyPermissions(perms: PermissionMap): string {
   return lines.join("\n");
 }
 
-function toOpenCodeCommandMarkdown(entry: CoreEntry): string {
-  const split = splitFrontmatter(entry.content);
-  const body = split ? split.rest.replace(/^\n+/, "") : entry.content;
-  const description = split ? frontmatterField(split.fmBody, "description") : null;
-  const fm = description !== null ? `description: ${description}` : `description: ${entry.name}`;
-  return `---\n${fm}\n---\n\n${body}`;
-}
-
 function toOpenCodeAgentMarkdown(entry: CoreEntry): string {
   const split = splitFrontmatter(entry.content);
   const body = split ? split.rest.replace(/^\n+/, "") : entry.content;
@@ -101,8 +93,6 @@ function toOpenCodeAgentMarkdown(entry: CoreEntry): string {
 
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {
-    case "backlog-cmd":
-      return `.opencode/commands/${entry.name}.md`;
     case "agent":
       return `.opencode/agents/specnaut-${entry.name}.md`;
     case "skill":
@@ -153,9 +143,6 @@ export class OpenCodeHarness implements Harness {
       const dest = destinationFor(entry);
       let content: string;
       switch (entry.category) {
-        case "backlog-cmd":
-          content = toOpenCodeCommandMarkdown(entry);
-          break;
         case "agent":
           content = toOpenCodeAgentMarkdown(entry);
           break;

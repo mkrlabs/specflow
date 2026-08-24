@@ -13,6 +13,29 @@ flow depends on the backend chosen at `specnaut init` (or the most recent
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
 
+## Dispatch
+
+`/backlog [subcommand] [args]`. Absorbed from the command shim that used to
+carry it, so the table and the `argument-hint` above cannot drift apart again.
+
+| Input | Action |
+| --- | --- |
+| _(empty)_ or `list` | Backlog overview |
+| `next` | Recommend the top 3 items, with workflow advice |
+| `add <title>` | Create an item |
+| `update <id>` | Update an existing item |
+| `estimate <id>` | Estimate complexity |
+| `status` | Dashboard summary |
+| `groom` | Full grooming pass — see `groom.md` |
+| `brief <id>` | Product-owner business brief |
+| `<number>` | Show that item |
+
+After any mutation (`add` / `update` / `groom` / `estimate`), commit the backlog
+changes — `chore(backlog): add task NNN — <short title>`, or
+`chore(backlog): update task NNN — <what changed>`. Stage only the files the
+product-owner agent reports as touched. This applies to the local backend, where
+the backlog is files in the repo; remote backends have nothing to commit.
+
 ## Which skill owns what
 
 `/backlog` owns **backlog management**. `/specnaut` owns the specification

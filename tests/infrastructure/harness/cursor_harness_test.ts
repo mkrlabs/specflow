@@ -18,13 +18,6 @@ const SAMPLE: CoreBundle = [
     executable: false,
   },
   {
-    category: "backlog-cmd",
-    name: "backlog",
-    suffix: null,
-    content: "---\ndescription: Backlog dispatcher\n---\n\n# body\n",
-    executable: false,
-  },
-  {
     category: "agent",
     name: "product-owner",
     suffix: null,
@@ -78,16 +71,6 @@ Deno.test("CursorHarness maps phase docs under .cursor/skills/specnaut/phases/",
     specBackend: "local",
   });
   assert(".cursor/skills/specnaut/phases/specify.md" in mapped);
-});
-
-Deno.test("CursorHarness maps the backlog command to .cursor/skills/specnaut-backlog/SKILL.md", () => {
-  const h = new CursorHarness();
-  const mapped = h.mapBundle(SAMPLE, {
-    backlogBackend: "local",
-    versionScheme: "semver",
-    specBackend: "local",
-  });
-  assert(".cursor/skills/specnaut-backlog/SKILL.md" in mapped);
 });
 
 Deno.test("CursorHarness maps agents to .cursor/skills/specnaut-agent-<name>/SKILL.md", () => {

@@ -218,7 +218,10 @@ Deno.test("upgrade auto-deletes a clean orphan and drops it from the lock", asyn
     assertEquals(init.code, 0);
 
     const projectDir = join(parent, "demo");
-    const orphanRel = ".claude/commands/specnaut.fake-orphan.md";
+    // Any lock-tracked path the bundle does not ship. It used to live under
+    // .claude/commands/, which #533 emptied — a fixture pointing at a directory
+    // nothing creates fails on the write, not on the behaviour under test.
+    const orphanRel = ".claude/skills/specnaut/phases/fake-orphan.md";
     const orphanAbs = join(projectDir, orphanRel);
     const orphanContent = "fake orphan content\n";
     await Deno.writeTextFile(orphanAbs, orphanContent);

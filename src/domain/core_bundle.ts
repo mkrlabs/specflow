@@ -9,7 +9,6 @@ export type CoreCategory =
   | "phase-script"
   | "spec-root"
   | "project-root"
-  | "backlog-cmd"
   | "backlog-skill"
   | "backlog-doc"
   | "backlog-script"

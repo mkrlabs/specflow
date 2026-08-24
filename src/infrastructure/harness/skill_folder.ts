@@ -7,8 +7,6 @@ import { splitFrontmatter } from "./frontmatter.ts";
  */
 export function skillFolderName(entry: CoreEntry): string {
   switch (entry.category) {
-    case "backlog-cmd":
-      return `specnaut-${entry.name}`;
     case "skill":
     case "backlog-skill":
       // Skill names that already begin with "specnaut" are emitted as-is

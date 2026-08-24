@@ -17,7 +17,6 @@ function toCopilotInstructionMarkdown(entry: CoreEntry): string {
 
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {
-    case "backlog-cmd":
     case "agent":
     case "skill":
     case "backlog-skill":
@@ -67,8 +66,7 @@ export class CopilotHarness implements Harness {
       // other harnesses skip them.
       if (entry.category === "agent-memory" || entry.category === "agent-doc") continue;
       const dest = destinationFor(entry);
-      const isInstruction = entry.category === "backlog-cmd" ||
-        entry.category === "agent" ||
+      const isInstruction = entry.category === "agent" ||
         entry.category === "skill" ||
         entry.category === "backlog-skill" ||
         entry.category === "phase";

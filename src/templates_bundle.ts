@@ -5631,84 +5631,6 @@ QA_RECOMMENDATION: <one sentence>
     skipIfExists: false,
   },
   {
-    category: "backlog-cmd",
-    name: "backlog",
-    suffix: null,
-    content: `---
-description: Manage the product backlog — list, add, update, groom, and brief tasks. All mutations route through the product-owner agent.
-argument-hint: [list|next|add|update|estimate|status|groom|brief] [args]
----
-
-## User Input
-
-\`\`\`text
-\$ARGUMENTS
-\`\`\`
-
-## Dispatch
-
-| Input pattern       | Action                                      |
-|---------------------|---------------------------------------------|
-| _(empty)_ or \`list\` | Show backlog overview                       |
-| \`next\`              | Recommend top 3 tasks with workflow advice  |
-| \`add <title>\`       | Create a new task                           |
-| \`update <id>\`       | Update an existing task                     |
-| \`estimate <id>\`     | Estimate complexity for a task              |
-| \`status\`            | Dashboard summary                           |
-| \`groom\`             | Full grooming session                       |
-| \`brief <id>\`        | Generate PO business brief                  |
-| \`<number>\`          | Show details for task NNN                   |
-
-**Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
-
-## Rules
-
-1. **Every invocation MUST go through the \`product-owner\` agent** — even
-   short-circuit cases. The agent owns the frontmatter schema, index placement,
-   and summary table.
-2. After any mutation (add / update / groom / estimate), the orchestrator
-   commits the backlog changes with a message like
-   \`chore(backlog): add task NNN — <short title>\` or
-   \`chore(backlog): update task NNN — <what changed>\`. Stage only the
-   files the product-owner agent reports as touched.
-
-## Backlog storage
-
-The product-owner agent reads and writes the backlog directly to whichever
-backend the project uses. When the backend is local Markdown:
-
-- Index: \`.specnaut/backlog.md\`
-- Task files: \`.specnaut/backlog/NNN-slug.md\`
-
-When the backend is remote (GitHub Issues + Project V2, GitLab, etc.) the
-agent talks to that backend directly — the CLI does not push or pull on
-its own.
-
-## Frontmatter schema
-
-The product-owner agent owns the canonical schema (see
-\`.claude/agents/product-owner.md\` or the equivalent path for your harness).
-Do not duplicate it here — the dispatcher defers to the agent.
-
-## Quick reference
-
-\`\`\`
-/backlog              — View the full backlog
-/backlog next         — Recommend the top 3 tasks with workflow advice
-/backlog add <title>  — Add a new task
-/backlog update <id>  — Update task status/priority
-/backlog estimate <id>— Get complexity estimate
-/backlog status       — Dashboard summary
-/backlog groom        — Full grooming session
-/backlog brief <id>   — Generate business brief
-/backlog <id>         — View task details
-\`\`\`
-`,
-    executable: false,
-    backend: null,
-    skipIfExists: false,
-  },
-  {
     category: "agent",
     name: "product-owner",
     suffix: null,
@@ -8624,6 +8546,29 @@ flow depends on the backend chosen at \`specnaut init\` (or the most recent
 \`specnaut upgrade --backlog <name>\`).
 
 **Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
+
+## Dispatch
+
+\`/backlog [subcommand] [args]\`. Absorbed from the command shim that used to
+carry it, so the table and the \`argument-hint\` above cannot drift apart again.
+
+| Input | Action |
+| --- | --- |
+| _(empty)_ or \`list\` | Backlog overview |
+| \`next\` | Recommend the top 3 items, with workflow advice |
+| \`add <title>\` | Create an item |
+| \`update <id>\` | Update an existing item |
+| \`estimate <id>\` | Estimate complexity |
+| \`status\` | Dashboard summary |
+| \`groom\` | Full grooming pass — see \`groom.md\` |
+| \`brief <id>\` | Product-owner business brief |
+| \`<number>\` | Show that item |
+
+After any mutation (\`add\` / \`update\` / \`groom\` / \`estimate\`), commit the backlog
+changes — \`chore(backlog): add task NNN — <short title>\`, or
+\`chore(backlog): update task NNN — <what changed>\`. Stage only the files the
+product-owner agent reports as touched. This applies to the local backend, where
+the backlog is files in the repo; remote backends have nothing to commit.
 
 ## Which skill owns what
 
@@ -25250,28 +25195,6 @@ team's needs.
 
 - **MCP servers** — connect external tools (GitHub, GCP, AWS, databases)
   via \`.mcp.json\`. See https://code.claude.com/docs/fr/mcp.
-`,
-      executable: false,
-    },
-    ".claude/commands/specnaut.md": {
-      content: `---
-description: Specnaut workflow router — dispatches to the specnaut skill (router phases live at .claude/skills/specnaut/phases/<phase>.md). \`/specnaut <phase> [args]\` runs a single phase.
-argument-hint: <specify|clarify|plan|tasks|analyze|implement|review|merge|constitution|checklist|groom> [args]
----
-
-## User Input
-
-\`\`\`text
-\$ARGUMENTS
-\`\`\`
-
-## Dispatch
-
-Invoke the **specnaut** skill (at \`.claude/skills/specnaut/SKILL.md\`) using the \`Skill\` tool, passing \`\$ARGUMENTS\` through verbatim. The skill's body parses the first token as the phase name (\`specify\`, \`clarify\`, \`plan\`, \`tasks\`, \`analyze\`, \`implement\`, \`review\`, \`merge\`, \`constitution\`, \`checklist\`, \`groom\`) and reads the corresponding \`phases/<phase>.md\` to execute the procedure.
-
-Empty \`\$ARGUMENTS\` → the skill prints the workflow overview and stops.
-
-This command is a thin slash-command shim so users can type \`/specnaut plan "..."\` directly. The router auto-chains the rest of the workflow by default; pass \`--manual\` to run a single phase and stop. Re-entry needs no flag — a phase whose downstream artefacts already exist runs one-shot.
 `,
       executable: false,
     },

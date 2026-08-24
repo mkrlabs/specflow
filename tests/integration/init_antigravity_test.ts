@@ -49,10 +49,10 @@ Deno.test("specnaut init --ai antigravity scaffolds an Antigravity layout", asyn
 
     const root = join(parent, "demo");
 
-    // v1.0.0: backlog command remains as a flat workflow.
+    // #533 retired the backlog command shim; the skill registers /backlog.
     assertEquals(
       await exists(join(root, ".agents/workflows/backlog.md")),
-      true,
+      false,
     );
     // Per-phase command workflows are gone post-consolidation.
     assertEquals(

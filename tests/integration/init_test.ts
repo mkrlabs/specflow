@@ -100,18 +100,18 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
     // The /backlog command keeps the flat-file format. The /specnaut
     // command is a thin slash-command shim added post-v1.0.0 so users
     // can type `/specnaut plan ...` literally (Claude-only — see F3).
-    assertEquals(await exists(join(root, ".claude/commands/backlog.md")), true);
-    assertEquals(await exists(join(root, ".claude/commands/specnaut.md")), true);
+    // #533: both command shims are retired — the skills register the names.
+    assertEquals(await exists(join(root, ".claude/commands/backlog.md")), false);
+    assertEquals(await exists(join(root, ".claude/commands/specnaut.md")), false);
     assertEquals(await exists(join(root, ".claude/agents/product-owner.md")), true);
     assertEquals(await exists(join(root, ".claude/agents/devops-sre.md")), true);
     // #409: the deprecated specnaut-auto alias no longer scaffolds.
     assertEquals(await exists(join(root, ".claude/skills/specnaut-auto/SKILL.md")), false);
 
-    // Two commands ship at the moment: backlog + specnaut router.
-    const commandsCount = (await Array.fromAsync(
-      Deno.readDir(join(root, ".claude/commands")),
-    )).length;
-    assertEquals(commandsCount, 2);
+    // #533: no commands ship at all — both shims are retired and the skills
+    // register `/backlog` and `/specnaut` from their own frontmatter. The
+    // directory itself is not created, which is what a count would miss.
+    assertEquals(await exists(join(root, ".claude/commands")), false);
     // 15 agent .md files (11 original + performance-expert #304 +
     // accessibility-expert #305 + architect-expert #321 + dependency-expert
     // #322) + 5 memory subfolders (product-owner, developer, qa-tester,

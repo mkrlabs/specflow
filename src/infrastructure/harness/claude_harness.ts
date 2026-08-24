@@ -10,8 +10,6 @@ import { ensureSkillFrontmatter } from "./skill_folder.ts";
 
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {
-    case "backlog-cmd":
-      return `.claude/commands/${entry.name}.md`;
     case "agent":
       return `.claude/agents/${entry.name}.md`;
     case "agent-memory":

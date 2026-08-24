@@ -27,7 +27,8 @@ Deno.test("ClaudeHarness.mapBundle emits the Claude tree", () => {
   // #534 retired the auto-invoke alias; the router is model-invocable itself.
   assert(!(".claude/skills/specnaut-review/SKILL.md" in mapped));
   // /backlog stays as a flat command
-  assert(".claude/commands/backlog.md" in mapped);
+  // #533 retired the command shims; /backlog is the skill.
+  assert(!(".claude/commands/backlog.md" in mapped));
   // Old per-phase skill folders are gone post-consolidation
   assert(!(".claude/skills/specnaut-plan/SKILL.md" in mapped));
   assert(!(".claude/skills/specnaut-groom/SKILL.md" in mapped));

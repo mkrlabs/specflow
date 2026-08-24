@@ -65,7 +65,6 @@ Deno.test("every backlog script is gated, and none is gated to a backend it cont
 const DOCUMENTS_ALL_BACKENDS: Record<string, string> = {
   "skill/backlog-reference-contract":
     "defines how an item is named across every backend; the local path is one row of that table",
-  "backlog-cmd/backlog": "the /backlog entry point, which routes by backend and must describe each",
   "agent/product-owner": "owns the backlog lifecycle on all three backends",
   "backlog-skill/backlog": "rendered per backend at install time rather than gated in the manifest",
 };

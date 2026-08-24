@@ -23,13 +23,6 @@ const SAMPLE: CoreBundle = [
     executable: false,
   },
   {
-    category: "backlog-cmd",
-    name: "backlog",
-    suffix: null,
-    content: "---\ndescription: Backlog dispatcher\n---\n\n# body\n",
-    executable: false,
-  },
-  {
     category: "skill",
     name: "specnaut-auto",
     suffix: null,
@@ -83,16 +76,6 @@ Deno.test("WindsurfHarness maps phase docs to sibling specnaut-<phase>.md files"
     specBackend: "local",
   });
   assert(".windsurf/workflows/specnaut-specify.md" in mapped);
-});
-
-Deno.test("WindsurfHarness maps backlog-cmd to .windsurf/workflows/specnaut-backlog.md", () => {
-  const h = new WindsurfHarness();
-  const mapped = h.mapBundle(SAMPLE, {
-    backlogBackend: "local",
-    versionScheme: "semver",
-    specBackend: "local",
-  });
-  assert(".windsurf/workflows/specnaut-backlog.md" in mapped);
 });
 
 Deno.test("WindsurfHarness maps skill to .windsurf/workflows/specnaut-<name>.md", () => {

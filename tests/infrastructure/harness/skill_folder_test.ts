@@ -11,10 +11,6 @@ function entry(category: CoreEntry["category"], name: string): CoreEntry {
   return { category, name, suffix: null, content: "", executable: false };
 }
 
-Deno.test("skillFolderName: backlog-cmd → specnaut-<name>", () => {
-  assertEquals(skillFolderName(entry("backlog-cmd", "backlog")), "specnaut-backlog");
-});
-
 Deno.test("skillFolderName: skill → specnaut-<name>", () => {
   assertEquals(skillFolderName(entry("skill", "specnaut-auto")), "specnaut-auto");
 });

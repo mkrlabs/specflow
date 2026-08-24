@@ -10,14 +10,6 @@ import { applyScheme, phaseScriptDestination } from "./scheme_filter.ts";
 import { applySpecBackend } from "./spec_backend_filter.ts";
 import { applySpecAutogen } from "./spec_autogen_filter.ts";
 
-function toAntigravityWorkflowMarkdown(entry: CoreEntry): string {
-  const split = splitFrontmatter(entry.content);
-  const body = split ? split.rest.replace(/^\n+/, "") : entry.content;
-  const description = split ? frontmatterField(split.fmBody, "description") : null;
-  const fm = description !== null ? `description: ${description}` : `description: ${entry.name}`;
-  return `---\n${fm}\n---\n\n${body}`;
-}
-
 function toAntigravityAgentMarkdown(entry: CoreEntry): string {
   const split = splitFrontmatter(entry.content);
   const fmBody = split?.fmBody ?? "";
@@ -44,8 +36,6 @@ function toAntigravityAgentMarkdown(entry: CoreEntry): string {
 
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {
-    case "backlog-cmd":
-      return `.agents/workflows/${entry.name}.md`;
     case "agent":
       return `.agents/agents/specnaut-${entry.name}.md`;
     case "skill":
@@ -96,9 +86,6 @@ export class AntigravityHarness implements Harness {
       const dest = destinationFor(entry);
       let content: string;
       switch (entry.category) {
-        case "backlog-cmd":
-          content = toAntigravityWorkflowMarkdown(entry);
-          break;
         case "agent":
           content = toAntigravityAgentMarkdown(entry);
           break;

@@ -58,7 +58,6 @@ export function workflowLength(content: string): number {
 
 function destinationFor(entry: CoreEntry): string {
   switch (entry.category) {
-    case "backlog-cmd":
     case "agent":
     case "skill":
     case "backlog-skill":

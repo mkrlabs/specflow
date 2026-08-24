@@ -60,7 +60,6 @@ export class CodexHarness implements Harness {
             executable: false,
           };
           break;
-        case "backlog-cmd":
         case "skill":
         case "backlog-skill": {
           const name = skillFolderName(entry);

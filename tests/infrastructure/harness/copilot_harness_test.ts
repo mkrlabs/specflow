@@ -19,13 +19,6 @@ const SAMPLE: CoreBundle = [
     executable: false,
   },
   {
-    category: "backlog-cmd",
-    name: "backlog",
-    suffix: null,
-    content: "---\ndescription: Backlog dispatcher\n---\n\n# body\n",
-    executable: false,
-  },
-  {
     category: "skill",
     name: "specnaut-auto",
     suffix: null,
@@ -80,16 +73,6 @@ Deno.test("CopilotHarness maps phase docs to .github/instructions/specnaut-<phas
     specBackend: "local",
   });
   assert(".github/instructions/specnaut-specify.instructions.md" in mapped);
-});
-
-Deno.test("CopilotHarness maps backlog-cmd to .github/instructions/specnaut-backlog.instructions.md", () => {
-  const h = new CopilotHarness();
-  const mapped = h.mapBundle(SAMPLE, {
-    backlogBackend: "local",
-    versionScheme: "semver",
-    specBackend: "local",
-  });
-  assert(".github/instructions/specnaut-backlog.instructions.md" in mapped);
 });
 
 Deno.test("CopilotHarness maps skill to .github/instructions/specnaut-<name>.instructions.md", () => {

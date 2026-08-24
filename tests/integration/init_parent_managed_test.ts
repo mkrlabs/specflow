@@ -110,7 +110,7 @@ Deno.test("standalone provisions normally", async () => {
     // Full agentic provisioning.
     assertEquals(await exists(join(dir, ".claude/skills/specnaut/SKILL.md")), true);
     assertEquals(await exists(join(dir, ".claude/agents/developer.md")), true);
-    assertEquals(await exists(join(dir, ".claude/commands/specnaut.md")), true);
+    assertEquals(await exists(join(dir, ".claude/commands/specnaut.md")), false);
     assertEquals(await exists(join(dir, ".specnaut/memory/constitution.md")), true);
 
     // No notice on the standalone path.
@@ -159,7 +159,7 @@ Deno.test("override forces full", async () => {
     // standalone.yml override ⇒ full provisioning despite the providing parent.
     assertEquals(await exists(join(child, ".claude/skills/specnaut/SKILL.md")), true);
     assertEquals(await exists(join(child, ".claude/agents/developer.md")), true);
-    assertEquals(await exists(join(child, ".claude/commands/specnaut.md")), true);
+    assertEquals(await exists(join(child, ".claude/commands/specnaut.md")), false);
     assert(!stdout.includes(NOTICE), "override path must not print the notice");
   } finally {
     await Deno.remove(root, { recursive: true });

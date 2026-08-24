@@ -198,11 +198,6 @@
       "source": "core/skills/qa-report-contract/SKILL.md"
     },
     {
-      "category": "backlog-cmd",
-      "name": "backlog",
-      "source": "core/commands/backlog.md"
-    },
-    {
       "category": "agent",
       "name": "product-owner",
       "source": "core/agents/product-owner.md"
@@ -1656,11 +1651,6 @@
       "harness": "claude",
       "destination": ".claude/CLAUDE.md",
       "source": "harness-specific/claude/CLAUDE.md"
-    },
-    {
-      "harness": "claude",
-      "destination": ".claude/commands/specnaut.md",
-      "source": "harness-specific/claude/commands/specnaut.md"
     },
     {
       "harness": "claude",
