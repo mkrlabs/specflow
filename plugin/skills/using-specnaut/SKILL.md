@@ -68,7 +68,7 @@ harness's equivalent — see the tool reference described below).
 | `test-reviewer` | Test-quality-only review (no architecture). |
 | `product-owner` | **Every** backlog mutation goes through this agent — no exceptions. Read-only inspection (`list.sh`, `view.sh`) can be done directly. |
 | `qa-tester` | Run the QA scenario catalogue against the released binary. |
-| `devops-sre` | Advisory pass before editing `.github/workflows/`, `install.sh`, `scripts/build.ts`, the homebrew tap, or running `/release`. |
+| `devops-sre` | Advisory pass before editing CI workflows, build or install scripts, distribution channels, or infrastructure. |
 | `specnaut-guide` | Specnaut-specific consulting on the binary, plugin, or scaffolded project state. |
 | `review-coordinator` | Orchestrates the implement → review → fix loop for `/specnaut implement`. |
 | `workflow-manager` | High-level workflow orchestration across phases. |

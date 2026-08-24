@@ -35,12 +35,12 @@ work.
 
 ## Specnaut integration
 
-Specnaut ships a bundled **`code-reviewer` agent**
-(`templates/core/agents/code-reviewer.md`) that this skill dispatches.
-The agent's system prompt covers Specnaut conventions (hexagonal
-layers, byte-identity plugin-sync contract, smoke audit, Windsurf cap,
-backlog-script conventions, …). Use it instead of `general-purpose`
-when reviewing changes inside this repo.
+Specnaut scaffolds a **`code-reviewer` agent** into this project, and
+this skill dispatches it by name. Where the file lands depends on the
+harness, so dispatch the agent rather than reading a path.
+
+Its system prompt already carries the review conventions, so use it
+instead of `general-purpose` for any review in this project.
 
 For changes that touch security surfaces, also dispatch
 `security-expert` in parallel. For test-only diffs, `test-reviewer`

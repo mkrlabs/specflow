@@ -173,14 +173,17 @@ the value.
 
 ## Pre-commit gate awareness
 
-Specnaut's pre-commit hook runs `deno fmt --check`, `deno lint`,
-`deno task bundle`, and `deno check src/main.ts` on every commit. When
-a commit step fails for one of these reasons:
+Specnaut installs no commit hook. Whatever runs on `git commit` here is
+this project's own — read `.git/hooks/pre-commit`, or the config for
+whichever manager owns it, before guessing what a failure means.
 
-- `fmt` failure → `deno fmt <file>` to fix, re-stage, re-commit
-- `bundle` regenerated → `git add src/templates_bundle.ts && git commit --amend --no-edit`
-- `lint` / `check` failure → genuine error, surface to user with the
-  exact output
+When a commit step fails on a gate rather than on your change:
+
+- **A formatter rewrote files** → re-run the formatter, re-stage, re-commit.
+- **A generated artifact was regenerated** → stage it and
+  `git commit --amend --no-edit`. It is output, not a change you made.
+- **Lint or type-check failed** → a genuine error. Surface the exact
+  output to the user; do not `--no-verify` past it.
 
 ## Pre-flight check
 

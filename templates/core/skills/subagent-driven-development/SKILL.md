@@ -183,9 +183,8 @@ spec gaps as the fix list. Re-review until ✅.
 ## Step 4 — dispatch the code-quality reviewer
 
 Only **after** spec compliance is ✅, run the code-quality review. Use
-the canonical prompt template from the `requesting-code-review` skill
-(see `templates/core/skills/requesting-code-review/SKILL.md` for the
-verbatim template). It returns Strengths / Critical / Important /
+the canonical prompt template from the `requesting-code-review` skill —
+it is scaffolded beside this one, so load it by name. It returns Strengths / Critical / Important /
 Minor / Recommendations / Assessment.
 
 - **Critical issues** → implementer fixes immediately, re-review.

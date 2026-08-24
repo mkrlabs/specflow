@@ -49,10 +49,14 @@ Examples:
 
 ## Resolving the URL
 
-The backlog backend is whatever the project configured. Each backend's
-`skills/board/scripts/<backend>/_config.sh` exports the coordinates and a
+The backlog backend is whatever the project configured.
+`.specnaut/scripts/backlog/_config.sh` exports the coordinates and an
 `item_url <number>` helper — **use that helper**; do not assemble URLs by hand
 and do not re-derive them per surface.
+
+That path is the same under every harness and every backend. Only the selected
+backend's scripts are installed, and they are installed flat — there is no
+per-backend subdirectory to substitute into, and nothing to look up.
 
 | Backend | Resolves to | From |
 |---|---|---|

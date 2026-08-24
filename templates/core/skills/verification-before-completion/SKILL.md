@@ -24,7 +24,7 @@ Mandatory invocation points:
 - Before opening a PR (CI catches some of these, but not all)
 - Before merging a PR
 - Before tagging a release (the `/release` skill already includes this
-  inline — see `templates/core/skills/release/SKILL.md`)
+  inline)
 
 If you find yourself about to type "✅ done" or report a task complete,
 **stop and run this checklist first**.
@@ -47,19 +47,23 @@ tests were intentionally removed, that's a silent skip — find it.
 
 A test that didn't run is not a test that passed.
 
-### 2. Pre-commit gates are clean
+### 2. This project's own gates are clean
 
-```bash
-deno fmt --check && deno lint && deno task bundle && deno check src/main.ts
-```
+Run the gates **this** project defines — format, lint, type-check, and
+any generated artifact. Do not assume a toolchain: read the task
+runner (`deno.json`, `package.json`, `Makefile`, `pyproject.toml`, …)
+or the CI workflow, and run what it runs.
 
-Each gate must exit 0. Specifically:
+Each gate must exit 0, and two failure shapes are not the same thing:
 
-- `deno fmt --check` — format clean (run `deno fmt <file>` to fix)
-- `deno lint` — no lint violations
-- `deno task bundle` — bundle regenerates without drift; if it
-  produces a non-empty diff, the bundle was stale (commit the regen)
-- `deno check src/main.ts` — TypeScript type-check clean
+- **A formatter or generator rewrote files.** Not an error — stage the
+  result and re-check. A generated artifact that comes back dirty was
+  stale in the commit you were about to call done.
+- **Lint or type-check failed.** A genuine error. Fix it; never pass
+  it off as noise.
+
+If you cannot find the gates, say so in the report rather than
+reporting a clean run you did not perform.
 
 ### 3. Working tree is clean (or all dirty files are intentional)
 
@@ -78,7 +82,21 @@ under the tasks you claimed to complete must now read `- [x]`. Read
 the plan file with the Read tool, search for `- [ ]` lines under your
 task's section. Any unchecked box = silent skip.
 
-### 5. Smoke coverage audit (when touching scaffolded scripts or skills)
+### 5. Self-review against the requirements
+
+Re-read the task / spec / issue you set out to satisfy. For each
+acceptance criterion or numbered requirement, name the file:line or
+the commit that addresses it. If you can't, that requirement isn't
+done.
+
+## If this project *is* the Specnaut bundle source
+
+Three extra gates, and they apply to exactly one kind of project: one
+that contains `templates/core/`. Everywhere else the conditions below
+are false by construction, so skip this section — it is here because
+Specnaut's own maintainers receive this skill the same way you did.
+
+### Smoke coverage audit (when touching scaffolded scripts or skills)
 
 If your change touched `templates/core/skills/` or
 `templates/core/skills/board/scripts/`:
@@ -91,7 +109,7 @@ Expected: `0 coverage gap(s), 0 stale assertion(s)`. A new file under
 those paths without a smoke assertion is a contract violation — add
 the assertion before claiming done.
 
-### 6. Plugin byte-identity (when touching scaffolded skills or agents)
+### Plugin byte-identity (when touching scaffolded skills or agents)
 
 If your change touched `templates/core/skills/` or
 `templates/core/agents/`, the mirror under `plugin/skills/` or
@@ -104,7 +122,7 @@ deno test --allow-read tests/plugin/plugin_sync_test.ts
 Expected: every pair in SYNC_PAIRS green. If a new file landed, add
 the SYNC_PAIR entry.
 
-### 7. Windsurf cap (when touching SKILL.md or agent prompts)
+### Windsurf cap (when touching SKILL.md or agent prompts)
 
 If your change touched any `templates/core/agents/*.md` or
 `templates/core/skills/*/SKILL.md`:
@@ -113,15 +131,12 @@ If your change touched any `templates/core/agents/*.md` or
 deno test --allow-read tests/infrastructure/harness/windsurf_harness_test.ts
 ```
 
-The Windsurf 12000-char rendered cap is hard-gated. A file that
-overruns blocks the release.
+The Windsurf 12,000-**character** rendered cap is hard-gated. A file
+that overruns blocks the release.
 
-### 8. Self-review against the requirements
-
-Re-read the task / spec / issue you set out to satisfy. For each
-acceptance criterion or numbered requirement, name the file:line or
-the commit that addresses it. If you can't, that requirement isn't
-done.
+Measure with a character count, not `wc -c`. `wc -c` counts bytes, and
+on em-dash-dense prose the two diverge by well over a percent — enough
+to read a passing file as an overrun, or the reverse.
 
 ## When a verification fails
 
@@ -138,22 +153,22 @@ otherwise say "yeah I'm pretty sure that works" without checking.
 
 ## Report shape
 
-When all 8 checks pass, the agent can report DONE with the verification
-evidence inline:
+When every check passes, report DONE with the evidence inline — the
+**number** each check produced, never the word "clean" on its own:
 
 ```
 Status: DONE
 
 Verification:
-- deno task test: 645 passed | 0 failed ✓
-- pre-commit gates: clean ✓
+- tests: 645 passed | 0 failed ✓
+- gates: fmt/lint/type-check exit 0, no artifact drift ✓
 - git status: clean ✓
 - plan checkboxes: 12/12 ticked ✓
-- audit.sh: 0 gap, 0 stale ✓
-- plugin_sync_test: all SYNC_PAIRS green ✓
-- windsurf cap: <wc -c value> chars rendered (under 12000) ✓
 - requirements: <ACa> @ <file:line> · <ACb> @ <file:line> · ... ✓
 ```
+
+A count is checkable and an adjective is not. "Tests pass" survives a
+run that collected nothing; "645 passed | 0 failed" does not.
 
 The user trusts a report shaped like this far more than a bare "done".
 
