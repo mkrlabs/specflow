@@ -53,26 +53,53 @@ function hasParentTraversal(p: string): boolean {
  * (unknown-path validation is a run-time handler concern, D7). Any
  * unparseable, empty, or structurally-wrong document degrades to
  * {@link EMPTY_PRESERVE_CONFIG} — a malformed manifest must surface a
- * warning at the handler, never abort a refresh.
+ * warning at the handler, never abort a refresh — see
+ * {@link diagnosePreserveConfig}, which is what the handler warns from.
  *
  * Entries are normalised (trim, strip leading `./`, backslash→slash),
  * with blanks dropped and duplicates removed while preserving first-seen
  * order. Non-string list entries are ignored. Entries containing a `..`
  * path segment are dropped (containment — see {@link hasParentTraversal}).
  */
-export function parsePreserveConfig(yaml: string): PreserveConfig {
+/**
+ * Why a `preserve.yml` yielded no declarations — or that it yielded some.
+ *
+ * `parsePreserveConfig` collapses every failure to `EMPTY_PRESERVE_CONFIG`,
+ * which is right for a total parser and wrong as the only signal a caller
+ * gets: "unparseable", "wrong top-level key" and "empty list" become
+ * indistinguishable from "no manifest", and a maintainer reads the silence as
+ * protection. This is the same computation, reported instead of discarded.
+ */
+export type PreserveManifestDiagnosis =
+  | { readonly kind: "ok"; readonly preserved: readonly string[] }
+  /** The file is not YAML at all. */
+  | { readonly kind: "unparseable" }
+  /**
+   * Parsed, but there is no top-level `preserved:` mapping key. A bare
+   * top-level list lands here too — this is the shape that reads as "the
+   * feature does not exist".
+   */
+  | { readonly kind: "missing-key" }
+  /** `preserved:` is present but holds no usable string entries. */
+  | { readonly kind: "no-usable-entries" };
+
+/**
+ * Classify a `preserve.yml`'s contents. {@link parsePreserveConfig} is defined
+ * in terms of this, so the two cannot drift into disagreeing about what a
+ * given file means.
+ */
+export function diagnosePreserveConfig(yaml: string): PreserveManifestDiagnosis {
   let root: unknown;
   try {
     root = parseYaml(yaml);
   } catch {
-    // Unparseable YAML is treated as "no declarations" — the handler warns.
-    return EMPTY_PRESERVE_CONFIG;
+    return { kind: "unparseable" };
   }
   if (root === null || typeof root !== "object" || Array.isArray(root)) {
-    return EMPTY_PRESERVE_CONFIG;
+    return { kind: "missing-key" };
   }
   const rawPreserved = (root as Record<string, unknown>).preserved;
-  if (!Array.isArray(rawPreserved)) return EMPTY_PRESERVE_CONFIG;
+  if (!Array.isArray(rawPreserved)) return { kind: "missing-key" };
 
   const seen = new Set<string>();
   const preserved: string[] = [];
@@ -83,8 +110,13 @@ export function parsePreserveConfig(yaml: string): PreserveConfig {
     seen.add(p);
     preserved.push(p);
   }
-  if (preserved.length === 0) return EMPTY_PRESERVE_CONFIG;
-  return { preserved };
+  if (preserved.length === 0) return { kind: "no-usable-entries" };
+  return { kind: "ok", preserved };
+}
+
+export function parsePreserveConfig(yaml: string): PreserveConfig {
+  const d = diagnosePreserveConfig(yaml);
+  return d.kind === "ok" ? { preserved: [...d.preserved] } : EMPTY_PRESERVE_CONFIG;
 }
 
 /**

@@ -400,7 +400,25 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
       const bundleDests = parentManaged
         ? Object.keys(mapped).filter((d) => !isAgenticPath(d))
         : Object.keys(mapped);
-      const cfg = await new FsPreserveStore().read(projectDir);
+      const store = new FsPreserveStore();
+      // A manifest that exists but declares nothing used to produce no output
+      // at all — identical to having no manifest, so a maintainer read the
+      // silence as protection while their files were refreshed. Advisory only:
+      // it never changes the exit code, per the store's own contract.
+      const diagnosis = await store.diagnose(projectDir);
+      if (diagnosis !== null && diagnosis.kind !== "ok") {
+        const why = diagnosis.kind === "unparseable"
+          ? "not valid YAML"
+          : diagnosis.kind === "missing-key"
+          ? "no top-level `preserved:` key (a bare list is not one either)"
+          : "`preserved:` is present but holds no usable paths";
+        console.error(
+          yellow(
+            `warn: .specnaut/preserve.yml — ${why}; nothing is being preserved`,
+          ),
+        );
+      }
+      const cfg = await store.read(projectDir);
       const { known, unknown } = resolvePreserveDeclarations(cfg, bundleDests);
       declaredKnown = known;
       for (const path of unknown) {

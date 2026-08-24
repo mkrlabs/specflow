@@ -143,6 +143,16 @@ preserved:
   - .claude/agents/developer.md
 ```
 
+The same manifest is how you **decline** a bundled file. Delete the file and declare its path:
+`upgrade` treats a declared path as preserved before it considers the file missing, so it is not
+re-added. Without the declaration, a deleted bundled file simply comes back on the next upgrade —
+deleting is not a decision the project can record any other way. `--reset-preserved` is what lifts
+it.
+
+The key is `preserved:`. A manifest with any other top-level shape — `preserve:`, a bare list,
+invalid YAML — declares nothing; `upgrade` warns and continues, so check the warning rather than
+assuming your files are held.
+
 Declared files are then kept by both `specnaut upgrade` and `specnaut init --force`, each with a
 per-file `preserved …` notice. Use `specnaut diff` to see how a preserved file has drifted from the
 evolving bundle so you can fold in upstream changes by hand, and pass `--reset-preserved` to a

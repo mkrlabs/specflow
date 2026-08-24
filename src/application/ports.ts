@@ -2,7 +2,7 @@ import type { Bundle } from "../domain/template.ts";
 import type { Release } from "../domain/release.ts";
 import type { CheckOutcome } from "../domain/check_result.ts";
 import type { InstalledLock } from "../domain/installed_lock.ts";
-import type { PreserveConfig } from "../domain/preserve_config.ts";
+import type { PreserveConfig, PreserveManifestDiagnosis } from "../domain/preserve_config.ts";
 
 export interface FsWriter {
   detectConflicts(bundle: Bundle, targetDir: string): Promise<string[]>;
@@ -100,6 +100,13 @@ export interface FsReader {
 export interface PreserveStore {
   read(projectDir: string): Promise<PreserveConfig>;
   write(projectDir: string, cfg: PreserveConfig): Promise<void>;
+  /**
+   * Why the manifest yielded what it yielded, or `null` when there is no
+   * manifest. `read` cannot answer this: it returns an empty config for an
+   * absent file and for a malformed one alike, which is what let a broken
+   * manifest read as protection.
+   */
+  diagnose(projectDir: string): Promise<PreserveManifestDiagnosis | null>;
 }
 
 /**
