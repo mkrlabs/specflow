@@ -66,7 +66,7 @@ const DOCUMENTS_ALL_BACKENDS: Record<string, string> = {
   "skill/backlog-reference-contract":
     "defines how an item is named across every backend; the local path is one row of that table",
   "agent/product-owner": "owns the backlog lifecycle on all three backends",
-  "backlog-skill/backlog": "rendered per backend at install time rather than gated in the manifest",
+  "backlog-skill/board": "rendered per backend at install time rather than gated in the manifest",
 };
 
 Deno.test("no ungated entry describes a single backend's storage layout", () => {

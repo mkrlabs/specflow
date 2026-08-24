@@ -86,20 +86,20 @@ function parsedFrontmatter(emitted: string): Record<string, unknown> {
 }
 
 Deno.test("ensureSkillFrontmatter: frontmatter without a description → parseable YAML", () => {
-  const input = "---\nname: specnaut-backlog\n---\n\n# Body\n";
-  const fm = parsedFrontmatter(ensureSkillFrontmatter(input, "specnaut-backlog"));
-  assertEquals(fm.name, "specnaut-backlog");
-  assertEquals(fm.description, "Specnaut skill: specnaut-backlog");
+  const input = "---\nname: specnaut-board\n---\n\n# Body\n";
+  const fm = parsedFrontmatter(ensureSkillFrontmatter(input, "specnaut-board"));
+  assertEquals(fm.name, "specnaut-board");
+  assertEquals(fm.description, "Specnaut skill: specnaut-board");
 });
 
 Deno.test("ensureSkillFrontmatter: an existing description is preserved verbatim", () => {
-  const input = "---\nname: specnaut-backlog\ndescription: Manage the backlog\n---\n\n# Body\n";
-  const fm = parsedFrontmatter(ensureSkillFrontmatter(input, "specnaut-backlog"));
+  const input = "---\nname: specnaut-board\ndescription: Manage the backlog\n---\n\n# Body\n";
+  const fm = parsedFrontmatter(ensureSkillFrontmatter(input, "specnaut-board"));
   assertEquals(fm.description, "Manage the backlog");
 });
 
 Deno.test("ensureSkillFrontmatter: body survives the injection", () => {
-  const emitted = ensureSkillFrontmatter("# Body\n\ntext\n", "specnaut-backlog");
+  const emitted = ensureSkillFrontmatter("# Body\n\ntext\n", "specnaut-board");
   const split = splitFrontmatter(emitted);
   assert(split, "expected frontmatter");
   assert(split.rest.includes("# Body"), "body was dropped");

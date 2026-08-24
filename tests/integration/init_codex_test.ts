@@ -56,7 +56,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
       await exists(join(root, ".agents/skills/specnaut/phases/plan.md")),
       true,
     );
-    assertEquals(await exists(join(root, ".agents/skills/specnaut-backlog/SKILL.md")), true);
+    assertEquals(await exists(join(root, ".agents/skills/specnaut-board/SKILL.md")), true);
     // #409: the deprecated specnaut-auto alias no longer scaffolds.
     assertEquals(await exists(join(root, ".agents/skills/specnaut-auto/SKILL.md")), false);
     // Old per-phase folders are gone post-consolidation.
@@ -90,10 +90,10 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     const codexGoalMd = await Deno.readTextFile(join(root, ".codex/goal.md"));
     assertEquals(codexGoalMd.includes("# Project goal prompt"), true);
     assertEquals(codexGoalMd.includes("## Default goal prompt"), true);
-    assertEquals(codexGoalMd.includes("/backlog groom"), true);
+    assertEquals(codexGoalMd.includes("/board groom"), true);
 
     // Top-level skill folders post-consolidation: specnaut router +
-    // specnaut-backlog +
+    // specnaut-board +
     // writing-plans (A1) + requesting-code-review (A3) +
     // using-specnaut bootstrap (B6) + subagent-driven-development (A2) +
     // executing-plans (A4) + verification-before-completion (A5) +

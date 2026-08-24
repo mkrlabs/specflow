@@ -6,6 +6,33 @@ import type { BackupReport, FsWriter } from "../application/ports.ts";
 
 const BACKUP_SUFFIX = ".specnaut.bak";
 
+/**
+ * Removes `dir` and each now-empty ancestor, stopping below `stopAt`.
+ *
+ * Deleting a file leaves its directory behind. For a file that simply went
+ * away that is invisible; for a *renamed* skill it is not — the emptied
+ * folder keeps the old command's name sitting in the harness's skills
+ * directory, so `upgrade` reports "removed" while the old name is still
+ * listed. `FsStagingStore.delete` has always pruned its own parents; the
+ * real tree did not, and the asymmetry is what let the ghost through.
+ *
+ * Best-effort by construction: every failure breaks the walk instead of
+ * propagating. A directory that cannot be removed is not a reason to fail
+ * an upgrade whose files are already written.
+ */
+async function pruneEmptyParents(dir: string, stopAt: string): Promise<void> {
+  let current = dir;
+  while (current !== stopAt && current.startsWith(stopAt + "/")) {
+    try {
+      for await (const _ of Deno.readDir(current)) return; // not empty — stop
+      await Deno.remove(current);
+    } catch {
+      return;
+    }
+    current = resolve(current, "..");
+  }
+}
+
 /** Whether `path` is itself a symlink — `lstat`, never `stat`. */
 async function isSymlink(path: string): Promise<boolean> {
   try {
@@ -169,6 +196,7 @@ export class DenoFsWriter implements FsWriter {
   ): Promise<BackupReport> {
     const resolved = resolve(targetDir);
     const backups: { dest: string; backupPath: string }[] = [];
+    const emptied = new Set<string>();
 
     for (const dest of paths) {
       assertSafeDestination(dest);
@@ -181,8 +209,13 @@ export class DenoFsWriter implements FsWriter {
         backups.push({ dest, backupPath: `${dest}${BACKUP_SUFFIX}` });
       } else {
         await Deno.remove(abs);
+        emptied.add(dirname(abs));
       }
     }
+
+    // After every delete, not during: two files removed from the same
+    // directory must not have the first one's prune decide for the second.
+    for (const dir of emptied) await pruneEmptyParents(dir, resolved);
 
     return { backups, skippedSkipIfExists: [] };
   }

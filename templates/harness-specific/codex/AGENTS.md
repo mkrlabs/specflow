@@ -5,7 +5,7 @@
 - **Skills**: installed skills live in `.agents/skills/`.
 - **Subagents**: Codex subagent definitions live in `.codex/agents/`
   (TOML format).
-- **Backlog**: managed via the `/backlog groom` workflow — when the
+- **Backlog**: managed via the `/board groom` workflow — when the
   project uses the local Markdown backend, see `.specnaut/backlog.md`.
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.

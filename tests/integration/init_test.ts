@@ -70,7 +70,7 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
       true,
     );
     assertEquals(
-      await exists(join(root, ".claude/skills/backlog/groom.md")),
+      await exists(join(root, ".claude/skills/board/groom.md")),
       true,
     );
     // #534: the auto-invoke alias is retired, not scaffolded.
@@ -97,7 +97,7 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
       await exists(join(root, ".claude/skills/specnaut-groom/SKILL.md")),
       false,
     );
-    // The /backlog command keeps the flat-file format. The /specnaut
+    // Neither command ships as a file. The /specnaut
     // command is a thin slash-command shim added post-v1.0.0 so users
     // can type `/specnaut plan ...` literally (Claude-only — see F3).
     // #533: both command shims are retired — the skills register the names.
@@ -109,7 +109,7 @@ Deno.test("specnaut init <name> writes a complete tree", async () => {
     assertEquals(await exists(join(root, ".claude/skills/specnaut-auto/SKILL.md")), false);
 
     // #533: no commands ship at all — both shims are retired and the skills
-    // register `/backlog` and `/specnaut` from their own frontmatter. The
+    // register `/board` and `/specnaut` from their own frontmatter. The
     // directory itself is not created, which is what a count would miss.
     assertEquals(await exists(join(root, ".claude/commands")), false);
     // 15 agent .md files (11 original + performance-expert #304 +

@@ -2,7 +2,7 @@
 # List backlog items whose board column disagrees with the issue's real state.
 #
 # This script REPORTS. It never moves a card. Detection and correction are
-# split on purpose: `/backlog groom` prints this output read-only, while
+# split on purpose: `/board groom` prints this output read-only, while
 # `/specnaut merge` pipes the DRIFTED lines into `move.sh`. A read-only core
 # cannot mutate anything from the wrong caller, and both callers get the same
 # answer to "what drifted".

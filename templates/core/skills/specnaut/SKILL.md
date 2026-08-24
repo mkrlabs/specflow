@@ -58,11 +58,11 @@ when_to_use: |
 ## Which skill owns what
 
 `/specnaut` owns the **specification** phases tied to the project, and code
-implementation, planning and review. `/backlog` owns **backlog management**.
+implementation, planning and review. `/board` owns **backlog management**.
 `/specnaut` does not own everything.
 
 The line decides where a new capability lands, not where a file happens to sit
-today. Grooming is backlog management, so it is reached only as `/backlog
+today. Grooming is backlog management, so it is reached only as `/board
 groom` — this router does not carry a `groom` verb at all. Orphan
 spec detection sits on this side and lives in `phases/auto-chain.md`, because it
 reads spec artefacts and prescribes specnaut phases.

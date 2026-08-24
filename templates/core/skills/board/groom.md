@@ -1,16 +1,16 @@
-# groom — backlog and delivery hygiene
+# groom — board and delivery hygiene
 
 Keeps the backlog and delivery pipeline flowing without human intervention.
-Reachable as **`/backlog groom`** — the only door. The `/specnaut` router
+Reachable as **`/board groom`** — the only door. The `/specnaut` router
 carries no `groom` verb.
 
-**Owned by `/backlog`** — see "Which skill owns what" in `SKILL.md`. Orphan
+**Owned by `/board`** — see "Which skill owns what" in `SKILL.md`. Orphan
 **spec** detection used to live here and does not belong to it; it moved to the
 specnaut skill's `phases/auto-chain.md`.
 
 Auto-invocable: the router advertises "groom the backlog" and "run a hygiene
 pass", and this file honours them. Also invoked explicitly, or scheduled with
-`/loop 1h /backlog groom`.
+`/loop 1h /board groom`.
 
 ## What this pass does
 

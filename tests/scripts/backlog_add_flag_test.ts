@@ -17,9 +17,9 @@ import { assert, assertEquals } from "@std/assert";
 import { fromFileUrl } from "@std/path";
 
 const BACKENDS = [
-  { name: "github", rel: "../../templates/core/skills/backlog/scripts/github/add.sh" },
-  { name: "gitlab", rel: "../../templates/core/skills/backlog/scripts/gitlab/add.sh" },
-  { name: "local", rel: "../../templates/core/skills/backlog/scripts/local/add.sh" },
+  { name: "github", rel: "../../templates/core/skills/board/scripts/github/add.sh" },
+  { name: "gitlab", rel: "../../templates/core/skills/board/scripts/gitlab/add.sh" },
+  { name: "local", rel: "../../templates/core/skills/board/scripts/local/add.sh" },
 ];
 
 function scriptPath(rel: string): string {

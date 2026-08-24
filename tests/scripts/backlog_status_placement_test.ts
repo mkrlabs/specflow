@@ -13,7 +13,7 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { fromFileUrl } from "@std/path";
 
-const GITHUB_DIR = "../../templates/core/skills/backlog/scripts/github";
+const GITHUB_DIR = "../../templates/core/skills/board/scripts/github";
 
 function scriptPath(rel: string): string {
   return fromFileUrl(new URL(rel, import.meta.url));
@@ -33,7 +33,7 @@ async function read(rel: string): Promise<string> {
  */
 async function stubbedProject(fieldListJson: string): Promise<string> {
   const tmp = await Deno.makeTempDir({ prefix: "backlog-status-" });
-  const scripts = `${tmp}/backlog/scripts/github`;
+  const scripts = `${tmp}/board/scripts/github`;
   await Deno.mkdir(scripts, { recursive: true });
   await Deno.mkdir(`${tmp}/.specnaut`, { recursive: true });
   await Deno.mkdir(`${tmp}/bin`, { recursive: true });
@@ -92,7 +92,7 @@ const BOARD_JSON = JSON.stringify(
 
 async function runDetectFields(tmp: string): Promise<{ code: number; stdout: string }> {
   const { code, stdout } = await new Deno.Command("bash", {
-    args: [`${tmp}/backlog/scripts/github/detect-fields.sh`],
+    args: [`${tmp}/board/scripts/github/detect-fields.sh`],
     env: { PATH: `${tmp}/bin:${Deno.env.get("PATH")}` },
     clearEnv: false,
     stdout: "piped",
@@ -179,9 +179,9 @@ Deno.test("github add.sh resolves ids at runtime instead of hardcoding them", as
 Deno.test("the other backends already place items at creation", async () => {
   // Placement is atomic for these, so they have no equivalent defect and were
   // deliberately left untouched.
-  const gitlab = await read("../../templates/core/skills/backlog/scripts/gitlab/add.sh");
+  const gitlab = await read("../../templates/core/skills/board/scripts/gitlab/add.sh");
   assertStringIncludes(gitlab, "Status::Backlog");
 
-  const local = await read("../../templates/core/skills/backlog/scripts/local/add.sh");
+  const local = await read("../../templates/core/skills/board/scripts/local/add.sh");
   assertStringIncludes(local, "status: Backlog");
 });

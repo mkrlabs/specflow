@@ -69,11 +69,11 @@ when_to_use: |
 ## Which skill owns what
 
 \`/specnaut\` owns the **specification** phases tied to the project, and code
-implementation, planning and review. \`/backlog\` owns **backlog management**.
+implementation, planning and review. \`/board\` owns **backlog management**.
 \`/specnaut\` does not own everything.
 
 The line decides where a new capability lands, not where a file happens to sit
-today. Grooming is backlog management, so it is reached only as \`/backlog
+today. Grooming is backlog management, so it is reached only as \`/board
 groom\` — this router does not carry a \`groom\` verb at all. Orphan
 spec detection sits on this side and lives in \`phases/auto-chain.md\`, because it
 reads spec artefacts and prescribes specnaut phases.
@@ -1347,21 +1347,21 @@ Check if \`.specnaut/extensions.yml\` exists in the project root.
   },
   {
     category: "backlog-doc",
-    name: "backlog",
+    name: "board",
     suffix: "groom.md",
-    content: `# groom — backlog and delivery hygiene
+    content: `# groom — board and delivery hygiene
 
 Keeps the backlog and delivery pipeline flowing without human intervention.
-Reachable as **\`/backlog groom\`** — the only door. The \`/specnaut\` router
+Reachable as **\`/board groom\`** — the only door. The \`/specnaut\` router
 carries no \`groom\` verb.
 
-**Owned by \`/backlog\`** — see "Which skill owns what" in \`SKILL.md\`. Orphan
+**Owned by \`/board\`** — see "Which skill owns what" in \`SKILL.md\`. Orphan
 **spec** detection used to live here and does not belong to it; it moved to the
 specnaut skill's \`phases/auto-chain.md\`.
 
 Auto-invocable: the router advertises "groom the backlog" and "run a hygiene
 pass", and this file honours them. Also invoked explicitly, or scheduled with
-\`/loop 1h /backlog groom\`.
+\`/loop 1h /board groom\`.
 
 ## What this pass does
 
@@ -3633,7 +3633,7 @@ Use when:
 - The user describes a feature and says "write a plan"
 - You hit a non-trivial change mid-task and need to step back before
   coding
-- A \`/backlog groom\` pass surfaces a Ready item that needs design before
+- A \`/board groom\` pass surfaces a Ready item that needs design before
   implementation
 
 Do **not** use when:
@@ -4975,7 +4975,7 @@ task's section. Any unchecked box = silent skip.
 ### 5. Smoke coverage audit (when touching scaffolded scripts or skills)
 
 If your change touched \`templates/core/skills/\` or
-\`templates/core/skills/backlog/scripts/\`:
+\`templates/core/skills/board/scripts/\`:
 
 \`\`\`bash
 bash .claude/skills/test-sandbox/scripts/audit.sh
@@ -5445,7 +5445,7 @@ Examples:
 ## Resolving the URL
 
 The backlog backend is whatever the project configured. Each backend's
-\`skills/backlog/scripts/<backend>/_config.sh\` exports the coordinates and a
+\`skills/board/scripts/<backend>/_config.sh\` exports the coordinates and a
 \`item_url <number>\` helper — **use that helper**; do not assemble URLs by hand
 and do not re-derive them per surface.
 
@@ -5727,7 +5727,7 @@ mutating anything.
 - Hosted board over \`/api/v1\` via the bundled \`*.sh\` wrappers. **Read
   \`columns.sh\` first** (use the board's names, never the GitHub set); react to
   moves by polling \`reconcile.sh\` → run the mapped stage hook per transition.
-  Full mechanics, mapping + rules: the \`/backlog\` skill ("Specnaut Cloud" +
+  Full mechanics, mapping + rules: the \`/board\` skill ("Specnaut Cloud" +
   "Stage reconcile"). Public API only.
 
 ## Frontmatter schema (local Markdown — mandatory)
@@ -5771,7 +5771,7 @@ frontmatter. Exit 3 = parent doesn't exist.
 
 ### Epic detection heuristic
 
-Propose decomposition on every \`/backlog add\` and during grooming.
+Propose decomposition on every \`/board add\` and during grooming.
 
 **Triggers:** phrases like "break down" / "phased" / "rewrite" /
 "end-to-end"; >5 AC bullets; scope crosses ≥2 subsystems; size L/XL.
@@ -5820,19 +5820,19 @@ Total > 7 → critical, 5–7 → high, 3–5 → medium, < 3 → low.
 
 ## Commands
 
-### \`/backlog\` or \`/backlog list\`
+### \`/board\` or \`/board list\`
 
 Display the backlog. Local: render \`.specnaut/backlog.md\` (recompose
 from task files if the index drifted). GitHub: list issues grouped by
 priority / project status.
 
-### \`/backlog next\`
+### \`/board next\`
 
 Recommend the top 3 tasks. For each: business justification, domain
 context, workflow recommendation (spec vs direct), quick-win flag (≤3
 pts), exact start command. Skip sub-tasks whose parent epic isn't ready.
 
-### \`/backlog add <title>\`
+### \`/board add <title>\`
 
 Create a new task. Local: write \`.specnaut/backlog/NNN-slug.md\` with full
 frontmatter and update \`.specnaut/backlog.md\`. GitHub: \`gh issue create\`
@@ -5843,28 +5843,28 @@ on creation (frontmatter \`parent: "#042"\` locally, sub-issue API on GitHub).
 Every created task MUST exit fully classified per the "Mandatory
 classification contract" above — same dispatch, not a follow-up.
 
-### \`/backlog update <id>\`
+### \`/board update <id>\`
 
 Update an existing task (status, priority, complexity, notes, parent link).
 Sync the index on the local backend; use \`gh issue edit\` on GitHub.
 
-### \`/backlog estimate <id>\`
+### \`/board estimate <id>\`
 
 Detailed complexity estimate. If the work exceeds one task, apply the
 "Epic detection heuristic" above.
 
-### \`/backlog status\`
+### \`/board status\`
 
 Dashboard: counts, total points, velocity, open epics with ≥1 open child.
 
-### \`/backlog groom\`
+### \`/board groom\`
 
 Full grooming — review priorities, re-estimate, flag blockers, audit
 epic / sub-task hygiene (orphaned children, parents due to close,
 sub-tasks that escaped a closed epic). Items missing a hard axis get
 classified on the spot (the classification contract applies retroactively).
 
-### \`/backlog brief <id>\`
+### \`/board brief <id>\`
 
 Generate a PO business brief for a developer: purpose, business rules,
 user stories, gotchas, acceptance criteria. If the task is in an epic,
@@ -5879,7 +5879,7 @@ otherwise it lives in the issue / task file.
 **Gate:** a brief without a Domain Model is incomplete. If you lack
 information to populate it, clarify with the user first.
 
-### \`/backlog epic <id>\`
+### \`/board epic <id>\`
 
 Show an epic with all its sub-tasks (status, complexity, owner). Useful
 before estimating epic completion or reporting progress.
@@ -5889,7 +5889,7 @@ before estimating epic completion or reporting progress.
 - **Batch platform mutations; native fields over labels.** Bulk creates /
   moves / closes / field-sets in the fewest requests (one multi-alias
   \`gh api graphql\` / REST batch), never call-by-call; native field/type
-  over a duplicate \`priority:*\`/\`size:*\` label. Detail: \`/backlog\` skill.
+  over a duplicate \`priority:*\`/\`size:*\` label. Detail: \`/board\` skill.
 - Always update \`.specnaut/backlog.md\` after any local task-file change.
 - Never delete task files — change status to \`done\` or \`deferred\`.
 - Use Fibonacci for complexity (1, 2, 3, 5, 8, 13, 21 only).
@@ -5945,7 +5945,7 @@ architecture.
    (A directory scaffolded before 2.0.0 may also carry \`spec.md\` and friends;
    read them if present, but never require them.)
 4. **Read the domain model** — \`plan.md\` § 6 (Technical context → Domain
-   model) on the spec path, or the Product Owner's \`/backlog brief\` output on
+   model) on the spec path, or the Product Owner's \`/board brief\` output on
    the direct-implementation path. If it is absent or empty, return BLOCKED
    with reason \`awaiting:product-owner-domain-brief\` and stop. Do not proceed
    without it.
@@ -6742,7 +6742,7 @@ description: >
   "explain specnaut", "quoi de neuf specnaut", "what's new in specnaut",
   or any question about the tool. Do NOT trigger on plain command
   invocations (\`specnaut init\`, \`specnaut upgrade\`, \`/specnaut plan\`,
-  \`/backlog ...\`) — those are command runs, not questions.
+  \`/board ...\`) — those are command runs, not questions.
 model: opus
 effort: high
 tools: Read, WebFetch, Grep, Glob, Bash, Agent
@@ -6941,7 +6941,7 @@ Enhanced fork of [\`specify\` CLI](https://github.com/github/spec-kit), distribu
 
 ### Backlog conventions (GitHub backend)
 
-\`Priority\` (P0–P2) and \`Size\` (XS–XL) via Project V2 native fields (\`set-field.sh\`); fall back to \`priority:*\`/\`size:*\` labels when the native field is absent. Two-step close: \`move.sh <num> Done\` then \`gh issue close --reason completed\`. \`/backlog groom\` catches items closed via paths that bypassed the move step.
+\`Priority\` (P0–P2) and \`Size\` (XS–XL) via Project V2 native fields (\`set-field.sh\`); fall back to \`priority:*\`/\`size:*\` labels when the native field is absent. Two-step close: \`move.sh <num> Done\` then \`gh issue close --reason completed\`. \`/board groom\` catches items closed via paths that bypassed the move step.
 
 ### Design principles
 
@@ -8530,15 +8530,15 @@ should survive across sessions and isn't captured elsewhere:
   },
   {
     category: "backlog-skill",
-    name: "backlog",
+    name: "board",
     suffix: null,
     content: `---
-name: backlog
-description: Manage this project's backlog — add, list, view, move, and clarify items. The backend is fixed at init time and recorded in \`.specnaut/installed.lock\`. Run \`specnaut upgrade --backlog <new>\` to switch.
+name: board
+description: Manage this project's board — the backlog and every other status column. Add, list, view, move, clarify, groom and close items, from Backlog through Done. The backend is fixed at init time and recorded in \`.specnaut/installed.lock\`. Run \`specnaut upgrade --backlog <new>\` to switch.
 argument-hint: [list|next|add|update|estimate|status|groom|brief] [args]
 ---
 
-# Backlog skill
+# Board skill
 
 Use this skill when the user says "add to backlog", "list backlog", "what's
 next?", "move task X to in-progress", or any backlog mutation. The exact
@@ -8549,7 +8549,7 @@ flow depends on the backend chosen at \`specnaut init\` (or the most recent
 
 ## Dispatch
 
-\`/backlog [subcommand] [args]\`. Absorbed from the command shim that used to
+\`/board [subcommand] [args]\`. Absorbed from the command shim that used to
 carry it, so the table and the \`argument-hint\` above cannot drift apart again.
 
 | Input | Action |
@@ -8572,7 +8572,7 @@ the backlog is files in the repo; remote backends have nothing to commit.
 
 ## Which skill owns what
 
-\`/backlog\` owns **backlog management**. \`/specnaut\` owns the specification
+\`/board\` owns **backlog management**. \`/specnaut\` owns the specification
 phases tied to the project, and code implementation, planning and review. The
 line decides where a new capability lands, not where a file happens to sit
 today.
@@ -8581,7 +8581,7 @@ today.
 
 The grooming pass — Backlog-column clarification, board drift, stale PRs — is
 specified in **\`groom.md\`, beside this file**. Read and follow it. It is the
-only copy, and \`/backlog groom\` is its only entry point — the \`/specnaut\`
+only copy, and \`/board groom\` is its only entry point — the \`/specnaut\`
 router carries no \`groom\` verb. Do not restate any of it here, and do not
 answer a grooming request from memory.
 
@@ -9381,14 +9381,14 @@ emit_section() {
   cat <<'HEADER'
 # Backlog
 
-> Managed by the Product Owner agent (\`/backlog\`). Each task is one
+> Managed by the Product Owner agent (\`/board\`). Each task is one
 > file under \`.specnaut/backlog/NNN-slug.md\` with frontmatter; this
 > index lists items grouped by status column.
 
 The 5 status columns mirror the GitHub Projects "kanban" model:
 
 - **Backlog** — needs more info, sizing, or prioritisation. The PO
-  works these on \`/backlog groom\` until they're ready.
+  works these on \`/board groom\` until they're ready.
 - **Ready** — clarified, sized, prioritised. The PO proposes these
   for development when asked "what's next".
 - **In progress** — actively being worked on (a branch is open).
@@ -9410,7 +9410,7 @@ created: ...
 ---
 \`\`\`
 
-The PO assigns size + priority during the \`/backlog groom\` pass.
+The PO assigns size + priority during the \`/board groom\` pass.
 
 ---
 
@@ -9950,7 +9950,7 @@ fi
 # List backlog items whose board column disagrees with the issue's real state.
 #
 # This script REPORTS. It never moves a card. Detection and correction are
-# split on purpose: \`/backlog groom\` prints this output read-only, while
+# split on purpose: \`/board groom\` prints this output read-only, while
 # \`/specnaut merge\` pipes the DRIFTED lines into \`move.sh\`. A read-only core
 # cannot mutate anything from the wrong caller, and both callers get the same
 # answer to "what drifted".
@@ -11118,7 +11118,7 @@ echo "✓ #\$NUM → Status::\$STATUS"
 # List backlog items whose Status:: label disagrees with the issue's real state.
 #
 # This script REPORTS. It never moves an issue. Detection and correction are
-# split on purpose: \`/backlog groom\` prints this output read-only, while
+# split on purpose: \`/board groom\` prints this output read-only, while
 # \`/specnaut merge\` pipes the DRIFTED lines into \`move.sh\`.
 #
 # Why reconcile rather than attribute: asking "which issues did my merge close"
@@ -21712,14 +21712,14 @@ with a real invariant, not an undescribed state.
     suffix: "backlog.md",
     content: `# Backlog
 
-> Managed by the Product Owner agent (\`/backlog\`). Each task is one
+> Managed by the Product Owner agent (\`/board\`). Each task is one
 > file under \`.specnaut/backlog/NNN-slug.md\` with frontmatter; this
 > index lists items grouped by status column.
 
 The 5 status columns mirror the GitHub Projects "kanban" model:
 
 - **Backlog** — needs more info, sizing, or prioritisation. The PO
-  works these on \`/backlog groom\` until they're ready.
+  works these on \`/board groom\` until they're ready.
 - **Ready** — clarified, sized, prioritised. The PO proposes these
   for development when asked "what's next".
 - **In progress** — actively being worked on (a branch is open).
@@ -21741,7 +21741,7 @@ created: ...
 ---
 \`\`\`
 
-The PO assigns size + priority during the \`/backlog groom\` pass.
+The PO assigns size + priority during the \`/board groom\` pass.
 
 ---
 
@@ -25135,7 +25135,7 @@ export const HARNESS_STATIC: Record<string, Record<string, TemplateFile>> = {
 - **Skills**: installed skills live in \`.claude/skills/\`.
 - **Specnaut commands**: custom Specnaut commands live in \`.claude/commands/\`.
 - **Agents**: specialized agents live in \`.claude/agents/\`.
-- **Backlog**: managed via \`/backlog\` — when the project uses the local
+- **Backlog**: managed via \`/board\` — when the project uses the local
   Markdown backend, see \`.specnaut/backlog.md\`.
 
 **Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
@@ -25148,7 +25148,7 @@ team's needs.
 
 - **Periodic maintenance** — \`/loop 1h\` runs the prompt in
   \`.claude/loop.md\` every hour. The bundled default delegates to the
-  \`/backlog groom\` skill (groom backlog, surface stale PRs, list orphan
+  \`/board groom\` skill (groom backlog, surface stale PRs, list orphan
   specs); edit \`loop.md\` freely to add project-specific checks. See
   https://code.claude.com/docs/fr/scheduled-tasks.
 
@@ -25337,7 +25337,7 @@ this project's hygiene needs.
 
 Run a hygiene pass on this Specnaut project:
 
-1. Invoke the \`/backlog groom\` skill — it grooms the backlog, surfaces
+1. Invoke the \`/board groom\` skill — it grooms the backlog, surfaces
    stale PRs, and flags orphan specs.
 2. If anything actionable came out of the pass, summarize it concisely
    so the human reading the loop output can decide what to do.
@@ -25348,7 +25348,7 @@ Run a hygiene pass on this Specnaut project:
 
 - **Active development**: \`/loop 1h\` — frequent grooming during a sprint.
 - **Quiet projects**: \`/loop 12h\` or \`/loop 24h\` — daily cadence.
-- **One-off check**: just \`/backlog groom\` (no loop) — runs once and exits.
+- **One-off check**: just \`/board groom\` (no loop) — runs once and exits.
 
 ## Customizing further
 
@@ -25971,7 +25971,7 @@ harness adapters (\`codex-tools.md\`, \`cursor-tools.md\`,
   skill for the dispatch pattern.
 - **Skills** invoked via \`Skill\` are listed in the harness-provided
   "available skills" registry; only use names that appear there.
-- **Slash commands** the user types (\`/specnaut plan\`, \`/backlog …\`) are
+- **Slash commands** the user types (\`/specnaut plan\`, \`/board …\`) are
   resolved by the harness to a skill invocation — Specnaut itself never
   registers raw commands outside the skill layer.
 
@@ -25998,7 +25998,7 @@ loads the right reference at session start.
 - **Skills**: installed skills live in \`.agents/skills/\`.
 - **Subagents**: Codex subagent definitions live in \`.codex/agents/\`
   (TOML format).
-- **Backlog**: managed via the \`/backlog groom\` workflow — when the
+- **Backlog**: managed via the \`/board groom\` workflow — when the
   project uses the local Markdown backend, see \`.specnaut/backlog.md\`.
 
 **Backlog references** follow the \`backlog-reference-contract\` skill — read it; never restate it here.
@@ -26034,7 +26034,7 @@ this project's hygiene needs.
 
 Run a hygiene pass on this Specnaut project:
 
-1. Invoke the \`/backlog groom\` skill — it grooms the backlog, surfaces
+1. Invoke the \`/board groom\` skill — it grooms the backlog, surfaces
    stale PRs, and flags orphan specs.
 2. If anything actionable came out of the pass, summarize it concisely
    so the human reading the result can decide what to do.

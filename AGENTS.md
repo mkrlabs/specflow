@@ -130,7 +130,7 @@ specify → clarify → plan → tasks → analyze → implement → review → 
 - Statuses: `todo | in_progress | done | deferred | blocked`.
 - **Every mutation = mandatory sync** to the remote backend (GitHub Issues + Project V2 in the
   example; to be generalized to GitLab / Bitbucket / local).
-- A **Product Owner agent** has exclusive ownership of mutations — the `/backlog` command always
+- A **Product Owner agent** has exclusive ownership of mutations — the `/board` command always
   delegates to it, even for trivial additions.
 - The PO decides **SpecKit spec vs direct implementation** based on complexity (≥ 8 pts / new entity
   / multi-layer → spec; otherwise direct).

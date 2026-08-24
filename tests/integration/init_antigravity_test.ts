@@ -49,7 +49,7 @@ Deno.test("specnaut init --ai antigravity scaffolds an Antigravity layout", asyn
 
     const root = join(parent, "demo");
 
-    // #533 retired the backlog command shim; the skill registers /backlog.
+    // #533 retired the backlog command shim; the skill registers /board.
     assertEquals(
       await exists(join(root, ".agents/workflows/backlog.md")),
       false,

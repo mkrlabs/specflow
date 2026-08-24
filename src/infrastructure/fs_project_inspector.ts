@@ -129,7 +129,7 @@ export class FsProjectInspector implements ProjectInspector {
    * Surfaces the active backlog backend and validates that the per-backend
    * config file is wired up enough to actually run. The PO will fail at
    * runtime if `backlog-config.yml` has empty required fields, so flagging
-   * here saves the user from a confusing first `/backlog add` failure.
+   * here saves the user from a confusing first `/board add` failure.
    *
    * Local backend is zero-config: a single `pass` line, no file lookup.
    */

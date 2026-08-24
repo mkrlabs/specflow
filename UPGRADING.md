@@ -1,5 +1,38 @@
 # Upgrading Specnaut
 
+## Unreleased
+
+### `/backlog` is now `/board`
+
+The skill drives all five status columns, but it was named after one of them. `/backlog close` on a
+card sitting in **In review** read as a category error, and the bundled `backlog.md` said so against
+itself: it describes "the 5 status columns" and then names the first one **Backlog**.
+
+`board` is not new vocabulary — it is the word the skill's own prose already used everywhere ("board
+drift", "reconcile the board", "any board audit"). Only the command changed to match.
+
+| Before                    | After                   |
+| :------------------------ | :---------------------- |
+| `/backlog`                | `/board`                |
+| `/backlog groom`          | `/board groom`          |
+| `.claude/skills/backlog/` | `.claude/skills/board/` |
+
+**`specnaut upgrade` does the whole migration.** The old skill files are removed, the new ones
+added, and the emptied `backlog/` directory is pruned — verified on a real upgrade from the previous
+layout: "2 added, 2 removed", no leftover folder, no manual step. A customized `SKILL.md` is
+orphan-preserved as usual and left for you to reconcile.
+
+**There is no `/backlog` alias.** Adding one would rebuild the command shim that was deleted one
+release earlier, and for the same reason it was deleted: a second surface that has to be kept in
+agreement with the skill it fronts, and drifts the moment it is not.
+
+### What did _not_ change
+
+The word "backlog" still names the set of work items, so everything storing them keeps it:
+`backlog_backend` in `.specnaut/installed.lock`, the `--backlog` and `--backlog-url` flags,
+`.specnaut/backlog.md`, `.specnaut/backlog/NNN-*.md`, `.specnaut/backlog-config.yml`, and
+`.specnaut/scripts/backlog/`. No lock migration, no flag change. Only the command you type moved.
+
 ## 2.1.x → 3.0.0
 
 ### Two agents are renamed

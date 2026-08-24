@@ -7,7 +7,7 @@ description: >
   "explain specnaut", "quoi de neuf specnaut", "what's new in specnaut",
   or any question about the tool. Do NOT trigger on plain command
   invocations (`specnaut init`, `specnaut upgrade`, `/specnaut plan`,
-  `/backlog ...`) — those are command runs, not questions.
+  `/board ...`) — those are command runs, not questions.
 model: opus
 effort: high
 tools: Read, WebFetch, Grep, Glob, Bash, Agent
@@ -206,7 +206,7 @@ Enhanced fork of [`specify` CLI](https://github.com/github/spec-kit), distribute
 
 ### Backlog conventions (GitHub backend)
 
-`Priority` (P0–P2) and `Size` (XS–XL) via Project V2 native fields (`set-field.sh`); fall back to `priority:*`/`size:*` labels when the native field is absent. Two-step close: `move.sh <num> Done` then `gh issue close --reason completed`. `/backlog groom` catches items closed via paths that bypassed the move step.
+`Priority` (P0–P2) and `Size` (XS–XL) via Project V2 native fields (`set-field.sh`); fall back to `priority:*`/`size:*` labels when the native field is absent. Two-step close: `move.sh <num> Done` then `gh issue close --reason completed`. `/board groom` catches items closed via paths that bypassed the move step.
 
 ### Design principles
 

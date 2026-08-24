@@ -50,9 +50,9 @@
     },
     {
       "category": "backlog-doc",
-      "name": "backlog",
+      "name": "board",
       "suffix": "groom.md",
-      "source": "core/skills/backlog/groom.md"
+      "source": "core/skills/board/groom.md"
     },
     {
       "category": "phase",
@@ -310,14 +310,14 @@
     },
     {
       "category": "backlog-skill",
-      "name": "backlog",
-      "source": "core/skills/backlog/SKILL.md"
+      "name": "board",
+      "source": "core/skills/board/SKILL.md"
     },
     {
       "category": "backlog-script",
       "name": "_config",
       "suffix": "_config.sh",
-      "source": "core/skills/backlog/scripts/local/_config.sh",
+      "source": "core/skills/board/scripts/local/_config.sh",
       "executable": true,
       "backend": "local"
     },
@@ -325,7 +325,7 @@
       "category": "backlog-script",
       "name": "list",
       "suffix": "list.sh",
-      "source": "core/skills/backlog/scripts/local/list.sh",
+      "source": "core/skills/board/scripts/local/list.sh",
       "executable": true,
       "backend": "local"
     },
@@ -333,7 +333,7 @@
       "category": "backlog-script",
       "name": "view",
       "suffix": "view.sh",
-      "source": "core/skills/backlog/scripts/local/view.sh",
+      "source": "core/skills/board/scripts/local/view.sh",
       "executable": true,
       "backend": "local"
     },
@@ -341,7 +341,7 @@
       "category": "backlog-script",
       "name": "add",
       "suffix": "add.sh",
-      "source": "core/skills/backlog/scripts/local/add.sh",
+      "source": "core/skills/board/scripts/local/add.sh",
       "executable": true,
       "backend": "local"
     },
@@ -349,7 +349,7 @@
       "category": "backlog-script",
       "name": "move",
       "suffix": "move.sh",
-      "source": "core/skills/backlog/scripts/local/move.sh",
+      "source": "core/skills/board/scripts/local/move.sh",
       "executable": true,
       "backend": "local"
     },
@@ -357,7 +357,7 @@
       "category": "backlog-script",
       "name": "clarify-comment",
       "suffix": "clarify-comment.sh",
-      "source": "core/skills/backlog/scripts/local/clarify-comment.sh",
+      "source": "core/skills/board/scripts/local/clarify-comment.sh",
       "executable": true,
       "backend": "local"
     },
@@ -365,7 +365,7 @@
       "category": "backlog-script",
       "name": "render-index",
       "suffix": "render-index.sh",
-      "source": "core/skills/backlog/scripts/local/render-index.sh",
+      "source": "core/skills/board/scripts/local/render-index.sh",
       "executable": true,
       "backend": "local"
     },
@@ -373,7 +373,7 @@
       "category": "backlog-script",
       "name": "propagate-parent-status",
       "suffix": "propagate-parent-status.sh",
-      "source": "core/skills/backlog/scripts/local/propagate-parent-status.sh",
+      "source": "core/skills/board/scripts/local/propagate-parent-status.sh",
       "executable": true,
       "backend": "local"
     },
@@ -381,7 +381,7 @@
       "category": "backlog-script",
       "name": "_config",
       "suffix": "_config.sh",
-      "source": "core/skills/backlog/scripts/github/_config.sh",
+      "source": "core/skills/board/scripts/github/_config.sh",
       "executable": true,
       "backend": "github"
     },
@@ -389,7 +389,7 @@
       "category": "backlog-script",
       "name": "list",
       "suffix": "list.sh",
-      "source": "core/skills/backlog/scripts/github/list.sh",
+      "source": "core/skills/board/scripts/github/list.sh",
       "executable": true,
       "backend": "github"
     },
@@ -397,7 +397,7 @@
       "category": "backlog-script",
       "name": "view",
       "suffix": "view.sh",
-      "source": "core/skills/backlog/scripts/github/view.sh",
+      "source": "core/skills/board/scripts/github/view.sh",
       "executable": true,
       "backend": "github"
     },
@@ -405,7 +405,7 @@
       "category": "backlog-script",
       "name": "add",
       "suffix": "add.sh",
-      "source": "core/skills/backlog/scripts/github/add.sh",
+      "source": "core/skills/board/scripts/github/add.sh",
       "executable": true,
       "backend": "github"
     },
@@ -413,7 +413,7 @@
       "category": "backlog-script",
       "name": "move",
       "suffix": "move.sh",
-      "source": "core/skills/backlog/scripts/github/move.sh",
+      "source": "core/skills/board/scripts/github/move.sh",
       "executable": true,
       "backend": "github"
     },
@@ -421,7 +421,7 @@
       "category": "backlog-script",
       "name": "sweep-closed",
       "suffix": "sweep-closed.sh",
-      "source": "core/skills/backlog/scripts/github/sweep-closed.sh",
+      "source": "core/skills/board/scripts/github/sweep-closed.sh",
       "executable": true,
       "backend": "github"
     },
@@ -429,7 +429,7 @@
       "category": "backlog-script",
       "name": "move-batch",
       "suffix": "move-batch.sh",
-      "source": "core/skills/backlog/scripts/github/move-batch.sh",
+      "source": "core/skills/board/scripts/github/move-batch.sh",
       "executable": true,
       "backend": "github"
     },
@@ -437,7 +437,7 @@
       "category": "backlog-script",
       "name": "clarify-comment",
       "suffix": "clarify-comment.sh",
-      "source": "core/skills/backlog/scripts/github/clarify-comment.sh",
+      "source": "core/skills/board/scripts/github/clarify-comment.sh",
       "executable": true,
       "backend": "github"
     },
@@ -445,7 +445,7 @@
       "category": "backlog-script",
       "name": "detect-fields",
       "suffix": "detect-fields.sh",
-      "source": "core/skills/backlog/scripts/github/detect-fields.sh",
+      "source": "core/skills/board/scripts/github/detect-fields.sh",
       "executable": true,
       "backend": "github"
     },
@@ -453,7 +453,7 @@
       "category": "backlog-script",
       "name": "set-field",
       "suffix": "set-field.sh",
-      "source": "core/skills/backlog/scripts/github/set-field.sh",
+      "source": "core/skills/board/scripts/github/set-field.sh",
       "executable": true,
       "backend": "github"
     },
@@ -461,7 +461,7 @@
       "category": "backlog-script",
       "name": "ensure-labels",
       "suffix": "ensure-labels.sh",
-      "source": "core/skills/backlog/scripts/github/ensure-labels.sh",
+      "source": "core/skills/board/scripts/github/ensure-labels.sh",
       "executable": true,
       "backend": "github"
     },
@@ -469,7 +469,7 @@
       "category": "backlog-script",
       "name": "cascade-check",
       "suffix": "cascade-check.sh",
-      "source": "core/skills/backlog/scripts/github/cascade-check.sh",
+      "source": "core/skills/board/scripts/github/cascade-check.sh",
       "executable": true,
       "backend": "github"
     },
@@ -477,7 +477,7 @@
       "category": "backlog-script",
       "name": "propagate-parent-status",
       "suffix": "propagate-parent-status.sh",
-      "source": "core/skills/backlog/scripts/github/propagate-parent-status.sh",
+      "source": "core/skills/board/scripts/github/propagate-parent-status.sh",
       "executable": true,
       "backend": "github"
     },
@@ -485,7 +485,7 @@
       "category": "backlog-script",
       "name": "_config",
       "suffix": "_config.sh",
-      "source": "core/skills/backlog/scripts/gitlab/_config.sh",
+      "source": "core/skills/board/scripts/gitlab/_config.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -493,7 +493,7 @@
       "category": "backlog-script",
       "name": "list",
       "suffix": "list.sh",
-      "source": "core/skills/backlog/scripts/gitlab/list.sh",
+      "source": "core/skills/board/scripts/gitlab/list.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -501,7 +501,7 @@
       "category": "backlog-script",
       "name": "view",
       "suffix": "view.sh",
-      "source": "core/skills/backlog/scripts/gitlab/view.sh",
+      "source": "core/skills/board/scripts/gitlab/view.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -509,7 +509,7 @@
       "category": "backlog-script",
       "name": "add",
       "suffix": "add.sh",
-      "source": "core/skills/backlog/scripts/gitlab/add.sh",
+      "source": "core/skills/board/scripts/gitlab/add.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -517,7 +517,7 @@
       "category": "backlog-script",
       "name": "move",
       "suffix": "move.sh",
-      "source": "core/skills/backlog/scripts/gitlab/move.sh",
+      "source": "core/skills/board/scripts/gitlab/move.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -525,7 +525,7 @@
       "category": "backlog-script",
       "name": "sweep-closed",
       "suffix": "sweep-closed.sh",
-      "source": "core/skills/backlog/scripts/gitlab/sweep-closed.sh",
+      "source": "core/skills/board/scripts/gitlab/sweep-closed.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -533,7 +533,7 @@
       "category": "backlog-script",
       "name": "clarify-comment",
       "suffix": "clarify-comment.sh",
-      "source": "core/skills/backlog/scripts/gitlab/clarify-comment.sh",
+      "source": "core/skills/board/scripts/gitlab/clarify-comment.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -541,7 +541,7 @@
       "category": "backlog-script",
       "name": "ensure-labels",
       "suffix": "ensure-labels.sh",
-      "source": "core/skills/backlog/scripts/gitlab/ensure-labels.sh",
+      "source": "core/skills/board/scripts/gitlab/ensure-labels.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -549,7 +549,7 @@
       "category": "backlog-script",
       "name": "cascade-check",
       "suffix": "cascade-check.sh",
-      "source": "core/skills/backlog/scripts/gitlab/cascade-check.sh",
+      "source": "core/skills/board/scripts/gitlab/cascade-check.sh",
       "executable": true,
       "backend": "gitlab"
     },
@@ -557,7 +557,7 @@
       "category": "backlog-script",
       "name": "_config",
       "suffix": "_config.sh",
-      "source": "core/skills/backlog/scripts/cloud/_config.sh",
+      "source": "core/skills/board/scripts/cloud/_config.sh",
       "executable": true,
       "backend": "cloud"
     },
@@ -565,7 +565,7 @@
       "category": "backlog-script",
       "name": "list",
       "suffix": "list.sh",
-      "source": "core/skills/backlog/scripts/cloud/list.sh",
+      "source": "core/skills/board/scripts/cloud/list.sh",
       "executable": true,
       "backend": "cloud"
     },
@@ -573,7 +573,7 @@
       "category": "backlog-script",
       "name": "view",
       "suffix": "view.sh",
-      "source": "core/skills/backlog/scripts/cloud/view.sh",
+      "source": "core/skills/board/scripts/cloud/view.sh",
       "executable": true,
       "backend": "cloud"
     },
@@ -581,7 +581,7 @@
       "category": "backlog-script",
       "name": "add",
       "suffix": "add.sh",
-      "source": "core/skills/backlog/scripts/cloud/add.sh",
+      "source": "core/skills/board/scripts/cloud/add.sh",
       "executable": true,
       "backend": "cloud"
     },
@@ -589,7 +589,7 @@
       "category": "backlog-script",
       "name": "move",
       "suffix": "move.sh",
-      "source": "core/skills/backlog/scripts/cloud/move.sh",
+      "source": "core/skills/board/scripts/cloud/move.sh",
       "executable": true,
       "backend": "cloud"
     },
@@ -597,7 +597,7 @@
       "category": "backlog-script",
       "name": "clarify-comment",
       "suffix": "clarify-comment.sh",
-      "source": "core/skills/backlog/scripts/cloud/clarify-comment.sh",
+      "source": "core/skills/board/scripts/cloud/clarify-comment.sh",
       "executable": true,
       "backend": "cloud"
     },
@@ -605,7 +605,7 @@
       "category": "backlog-script",
       "name": "columns",
       "suffix": "columns.sh",
-      "source": "core/skills/backlog/scripts/cloud/columns.sh",
+      "source": "core/skills/board/scripts/cloud/columns.sh",
       "executable": true,
       "backend": "cloud"
     },
@@ -613,7 +613,7 @@
       "category": "backlog-script",
       "name": "reconcile",
       "suffix": "reconcile.sh",
-      "source": "core/skills/backlog/scripts/cloud/reconcile.sh",
+      "source": "core/skills/board/scripts/cloud/reconcile.sh",
       "executable": true,
       "backend": "cloud"
     },

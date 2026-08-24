@@ -5,7 +5,7 @@
 - **Skills**: installed skills live in `.claude/skills/`.
 - **Specnaut commands**: custom Specnaut commands live in `.claude/commands/`.
 - **Agents**: specialized agents live in `.claude/agents/`.
-- **Backlog**: managed via `/backlog` — when the project uses the local
+- **Backlog**: managed via `/board` — when the project uses the local
   Markdown backend, see `.specnaut/backlog.md`.
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
@@ -18,7 +18,7 @@ team's needs.
 
 - **Periodic maintenance** — `/loop 1h` runs the prompt in
   `.claude/loop.md` every hour. The bundled default delegates to the
-  `/backlog groom` skill (groom backlog, surface stale PRs, list orphan
+  `/board groom` skill (groom backlog, surface stale PRs, list orphan
   specs); edit `loop.md` freely to add project-specific checks. See
   https://code.claude.com/docs/fr/scheduled-tasks.
 

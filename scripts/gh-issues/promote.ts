@@ -10,7 +10,7 @@
 //   5. Public thank-you comment on the issue.
 
 const REPO = "specnaut/specnaut-cli";
-const BACKLOG_DIR = ".claude/skills/backlog/scripts";
+const BACKLOG_DIR = ".claude/skills/board/scripts";
 
 const PRIORITIES = new Set(["P0", "P1", "P2", "P3"]);
 const SIZES = new Set(["XS", "S", "M", "L", "XL"]);

@@ -8,7 +8,7 @@ this project's hygiene needs.
 
 Run a hygiene pass on this Specnaut project:
 
-1. Invoke the `/backlog groom` skill — it grooms the backlog, surfaces
+1. Invoke the `/board groom` skill — it grooms the backlog, surfaces
    stale PRs, and flags orphan specs.
 2. If anything actionable came out of the pass, summarize it concisely
    so the human reading the result can decide what to do.

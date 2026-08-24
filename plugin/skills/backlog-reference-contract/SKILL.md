@@ -50,7 +50,7 @@ Examples:
 ## Resolving the URL
 
 The backlog backend is whatever the project configured. Each backend's
-`skills/backlog/scripts/<backend>/_config.sh` exports the coordinates and a
+`skills/board/scripts/<backend>/_config.sh` exports the coordinates and a
 `item_url <number>` helper — **use that helper**; do not assemble URLs by hand
 and do not re-derive them per surface.
 

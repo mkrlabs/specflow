@@ -30,8 +30,8 @@ const CHANNEL_A = ["product-owner", "developer", "workflow-manager"] as const;
 
 /** Bundled surfaces with no frontmatter preloading — they carry a pointer. */
 const CHANNEL_B_CORE: ReadonlyArray<{ category: string; name: string }> = [
-  { category: "backlog-skill", name: "backlog" },
-  { category: "backlog-doc", name: "backlog" },
+  { category: "backlog-skill", name: "board" },
+  { category: "backlog-doc", name: "board" },
   { category: "phase", name: "merge" },
   { category: "project-root", name: "root" },
   // `specify` is deliberately absent. Windsurf renders each phase as a Cascade
@@ -108,7 +108,7 @@ Deno.test("Channel B — every non-preloading surface carries the pointer", () =
 });
 
 Deno.test("groom.md's local restatement was replaced, not left beside the pointer", () => {
-  const e = entry("backlog-doc", "backlog")!;
+  const e = entry("backlog-doc", "board")!;
   assert(
     !e.content.includes('#<num> "<short title>"'),
     "groom.md must not keep its own partial statement of the rule alongside the pointer",
@@ -128,7 +128,7 @@ Deno.test("merge.md's confirmation prompt no longer names a bare number", () => 
 // Behaviour of the per-backend `item_url` helpers.
 // ---------------------------------------------------------------------------
 
-const SCRIPTS = "../../templates/core/skills/backlog/scripts";
+const SCRIPTS = "../../templates/core/skills/board/scripts";
 
 /**
  * Lays a backend's scripts out so `_config.sh` resolves a project root three
@@ -136,7 +136,7 @@ const SCRIPTS = "../../templates/core/skills/backlog/scripts";
  */
 async function backendHarness(backend: string, config: string | null): Promise<string> {
   const tmp = await Deno.makeTempDir({ prefix: `item-url-${backend}-` });
-  const dir = `${tmp}/backlog/scripts/${backend}`;
+  const dir = `${tmp}/board/scripts/${backend}`;
   await Deno.mkdir(dir, { recursive: true });
   await Deno.mkdir(`${tmp}/.specnaut`, { recursive: true });
   const src = fromFileUrl(new URL(`${SCRIPTS}/${backend}/_config.sh`, import.meta.url));
@@ -158,7 +158,7 @@ async function runItemUrl(
   backend: string,
   args: string,
 ): Promise<{ code: number; out: string }> {
-  const dir = `${tmp}/backlog/scripts/${backend}`;
+  const dir = `${tmp}/board/scripts/${backend}`;
   await Deno.writeTextFile(
     `${dir}/probe.sh`,
     `#!/usr/bin/env bash\nset -euo pipefail\n. "$(dirname "$0")/_config.sh"\n${args}\n`,
@@ -211,7 +211,7 @@ async function gitlabHarness(projectId: string, glabBody: string): Promise<strin
 }
 
 async function gitlabItemUrl(tmp: string, num: string): Promise<{ code: number; out: string }> {
-  const dir = `${tmp}/backlog/scripts/gitlab`;
+  const dir = `${tmp}/board/scripts/gitlab`;
   await Deno.writeTextFile(
     `${dir}/probe.sh`,
     `#!/usr/bin/env bash\nset -euo pipefail\n. "$(dirname "$0")/_config.sh"\nitem_url ${num}\n`,

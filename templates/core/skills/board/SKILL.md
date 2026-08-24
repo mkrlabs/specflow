@@ -1,10 +1,10 @@
 ---
-name: backlog
-description: Manage this project's backlog — add, list, view, move, and clarify items. The backend is fixed at init time and recorded in `.specnaut/installed.lock`. Run `specnaut upgrade --backlog <new>` to switch.
+name: board
+description: Manage this project's board — the backlog and every other status column. Add, list, view, move, clarify, groom and close items, from Backlog through Done. The backend is fixed at init time and recorded in `.specnaut/installed.lock`. Run `specnaut upgrade --backlog <new>` to switch.
 argument-hint: [list|next|add|update|estimate|status|groom|brief] [args]
 ---
 
-# Backlog skill
+# Board skill
 
 Use this skill when the user says "add to backlog", "list backlog", "what's
 next?", "move task X to in-progress", or any backlog mutation. The exact
@@ -15,7 +15,7 @@ flow depends on the backend chosen at `specnaut init` (or the most recent
 
 ## Dispatch
 
-`/backlog [subcommand] [args]`. Absorbed from the command shim that used to
+`/board [subcommand] [args]`. Absorbed from the command shim that used to
 carry it, so the table and the `argument-hint` above cannot drift apart again.
 
 | Input | Action |
@@ -38,7 +38,7 @@ the backlog is files in the repo; remote backends have nothing to commit.
 
 ## Which skill owns what
 
-`/backlog` owns **backlog management**. `/specnaut` owns the specification
+`/board` owns **backlog management**. `/specnaut` owns the specification
 phases tied to the project, and code implementation, planning and review. The
 line decides where a new capability lands, not where a file happens to sit
 today.
@@ -47,7 +47,7 @@ today.
 
 The grooming pass — Backlog-column clarification, board drift, stale PRs — is
 specified in **`groom.md`, beside this file**. Read and follow it. It is the
-only copy, and `/backlog groom` is its only entry point — the `/specnaut`
+only copy, and `/board groom` is its only entry point — the `/specnaut`
 router carries no `groom` verb. Do not restate any of it here, and do not
 answer a grooming request from memory.
 

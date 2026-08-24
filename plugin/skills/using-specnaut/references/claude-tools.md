@@ -34,7 +34,7 @@ harness adapters (`codex-tools.md`, `cursor-tools.md`,
   skill for the dispatch pattern.
 - **Skills** invoked via `Skill` are listed in the harness-provided
   "available skills" registry; only use names that appear there.
-- **Slash commands** the user types (`/specnaut plan`, `/backlog …`) are
+- **Slash commands** the user types (`/specnaut plan`, `/board …`) are
   resolved by the harness to a skill invocation — Specnaut itself never
   registers raw commands outside the skill layer.
 

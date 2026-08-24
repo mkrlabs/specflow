@@ -91,7 +91,7 @@ mutating anything.
 - Hosted board over `/api/v1` via the bundled `*.sh` wrappers. **Read
   `columns.sh` first** (use the board's names, never the GitHub set); react to
   moves by polling `reconcile.sh` → run the mapped stage hook per transition.
-  Full mechanics, mapping + rules: the `/backlog` skill ("Specnaut Cloud" +
+  Full mechanics, mapping + rules: the `/board` skill ("Specnaut Cloud" +
   "Stage reconcile"). Public API only.
 
 ## Frontmatter schema (local Markdown — mandatory)
@@ -135,7 +135,7 @@ frontmatter. Exit 3 = parent doesn't exist.
 
 ### Epic detection heuristic
 
-Propose decomposition on every `/backlog add` and during grooming.
+Propose decomposition on every `/board add` and during grooming.
 
 **Triggers:** phrases like "break down" / "phased" / "rewrite" /
 "end-to-end"; >5 AC bullets; scope crosses ≥2 subsystems; size L/XL.
@@ -184,19 +184,19 @@ Total > 7 → critical, 5–7 → high, 3–5 → medium, < 3 → low.
 
 ## Commands
 
-### `/backlog` or `/backlog list`
+### `/board` or `/board list`
 
 Display the backlog. Local: render `.specnaut/backlog.md` (recompose
 from task files if the index drifted). GitHub: list issues grouped by
 priority / project status.
 
-### `/backlog next`
+### `/board next`
 
 Recommend the top 3 tasks. For each: business justification, domain
 context, workflow recommendation (spec vs direct), quick-win flag (≤3
 pts), exact start command. Skip sub-tasks whose parent epic isn't ready.
 
-### `/backlog add <title>`
+### `/board add <title>`
 
 Create a new task. Local: write `.specnaut/backlog/NNN-slug.md` with full
 frontmatter and update `.specnaut/backlog.md`. GitHub: `gh issue create`
@@ -207,28 +207,28 @@ on creation (frontmatter `parent: "#042"` locally, sub-issue API on GitHub).
 Every created task MUST exit fully classified per the "Mandatory
 classification contract" above — same dispatch, not a follow-up.
 
-### `/backlog update <id>`
+### `/board update <id>`
 
 Update an existing task (status, priority, complexity, notes, parent link).
 Sync the index on the local backend; use `gh issue edit` on GitHub.
 
-### `/backlog estimate <id>`
+### `/board estimate <id>`
 
 Detailed complexity estimate. If the work exceeds one task, apply the
 "Epic detection heuristic" above.
 
-### `/backlog status`
+### `/board status`
 
 Dashboard: counts, total points, velocity, open epics with ≥1 open child.
 
-### `/backlog groom`
+### `/board groom`
 
 Full grooming — review priorities, re-estimate, flag blockers, audit
 epic / sub-task hygiene (orphaned children, parents due to close,
 sub-tasks that escaped a closed epic). Items missing a hard axis get
 classified on the spot (the classification contract applies retroactively).
 
-### `/backlog brief <id>`
+### `/board brief <id>`
 
 Generate a PO business brief for a developer: purpose, business rules,
 user stories, gotchas, acceptance criteria. If the task is in an epic,
@@ -243,7 +243,7 @@ otherwise it lives in the issue / task file.
 **Gate:** a brief without a Domain Model is incomplete. If you lack
 information to populate it, clarify with the user first.
 
-### `/backlog epic <id>`
+### `/board epic <id>`
 
 Show an epic with all its sub-tasks (status, complexity, owner). Useful
 before estimating epic completion or reporting progress.
@@ -253,7 +253,7 @@ before estimating epic completion or reporting progress.
 - **Batch platform mutations; native fields over labels.** Bulk creates /
   moves / closes / field-sets in the fewest requests (one multi-alias
   `gh api graphql` / REST batch), never call-by-call; native field/type
-  over a duplicate `priority:*`/`size:*` label. Detail: `/backlog` skill.
+  over a duplicate `priority:*`/`size:*` label. Detail: `/board` skill.
 - Always update `.specnaut/backlog.md` after any local task-file change.
 - Never delete task files — change status to `done` or `deferred`.
 - Use Fibonacci for complexity (1, 2, 3, 5, 8, 13, 21 only).

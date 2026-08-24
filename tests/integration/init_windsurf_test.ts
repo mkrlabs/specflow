@@ -50,7 +50,7 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
     const root = join(parent, "demo");
 
     // v1.0.0: router workflow + 11 sibling phase workflows +
-    // backlog + 9 agent workflows.
+    // board + 9 agent workflows.
     assertEquals(
       await exists(join(root, ".windsurf/workflows/specnaut.md")),
       true,
@@ -60,7 +60,7 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
       true,
     );
     assertEquals(
-      await exists(join(root, ".windsurf/workflows/specnaut-backlog.md")),
+      await exists(join(root, ".windsurf/workflows/specnaut-board.md")),
       true,
     );
     // #409: the deprecated specnaut-auto alias no longer scaffolds.
@@ -90,7 +90,7 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
     // backlog-reference-contract) + code-audit (#379) +
     // 5 per-axis audit skills (#380: arch-audit, sec-audit, perf-audit,
     // dep-audit, a11y-audit) + status-audit (#381) +
-    // backlog + 15 agent workflows (11 original + performance-expert #304
+    // board + 15 agent workflows (11 original + performance-expert #304
     // + accessibility-expert #305 + architect-expert #321 + dependency-expert
     // #322) = 52 (specnaut-auto removed in #409). code-audit's scope script
     // ships under .specnaut/scripts/code-audit/, not as a flattened workflow file;

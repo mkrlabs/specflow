@@ -50,7 +50,7 @@ Deno.test("specnaut init --ai copilot scaffolds a Copilot layout", async () => {
     const root = join(parent, "demo");
 
     // v1.0.0: router instruction + 11 phase instructions +
-    // backlog + 9 agent instructions.
+    // board + 9 agent instructions.
     assertEquals(
       await exists(join(root, ".github/instructions/specnaut.instructions.md")),
       true,
@@ -60,7 +60,7 @@ Deno.test("specnaut init --ai copilot scaffolds a Copilot layout", async () => {
       true,
     );
     assertEquals(
-      await exists(join(root, ".github/instructions/specnaut-backlog.instructions.md")),
+      await exists(join(root, ".github/instructions/specnaut-board.instructions.md")),
       true,
     );
     // #409: the deprecated specnaut-auto alias no longer scaffolds.
@@ -98,7 +98,7 @@ Deno.test("specnaut init --ai copilot scaffolds a Copilot layout", async () => {
     // backlog-reference-contract) + code-audit (#379) +
     // 5 per-axis audit skills (#380: arch-audit, sec-audit, perf-audit,
     // dep-audit, a11y-audit) + status-audit (#381) +
-    // backlog + 15 agents (11 original + performance-expert #304 +
+    // board + 15 agents (11 original + performance-expert #304 +
     // accessibility-expert #305 + architect-expert #321 + dependency-expert
     // #322) = 52 (specnaut-auto removed in #409). code-audit's scope script
     // ships under .specnaut/scripts/code-audit/, not as a flattened instruction file;

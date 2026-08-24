@@ -38,12 +38,12 @@ export class GithubBacklogStrategy implements BacklogBackendStrategy {
       return [
         `↳ wrote .specnaut/backlog-config.yml (${ctx!.repo} → project #${
           (ctx!.url as { kind: "github"; projectNumber: number }).projectNumber
-        }) — ready to run /backlog`,
+        }) — ready to run /board`,
         "  tip: for a richer experience, enable the GitHub MCP connector via `/mcp` in Claude Code",
       ];
     }
     return [
-      "↳ wrote .specnaut/backlog-config.yml — fill in repo + project_number before running /backlog",
+      "↳ wrote .specnaut/backlog-config.yml — fill in repo + project_number before running /board",
       "  tip: for a richer experience, enable the GitHub MCP connector via `/mcp` in Claude Code",
     ];
   }

@@ -161,7 +161,7 @@ Deno.test("isPluginCoveredPath: claude + harness-static paths NOT covered", () =
 
 Deno.test("isPluginCoveredPath: claude + backlog skill NOT covered (project-stateful)", () => {
   assertEquals(
-    isPluginCoveredPath("claude", ".claude/skills/backlog/SKILL.md"),
+    isPluginCoveredPath("claude", ".claude/skills/board/SKILL.md"),
     false,
   );
 });

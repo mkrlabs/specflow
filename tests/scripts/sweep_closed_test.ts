@@ -16,7 +16,7 @@ import { fromFileUrl } from "@std/path";
  */
 
 const SCRIPT_DIR = fromFileUrl(
-  new URL("../../templates/core/skills/backlog/scripts/github", import.meta.url),
+  new URL("../../templates/core/skills/board/scripts/github", import.meta.url),
 );
 
 type Fixture = {

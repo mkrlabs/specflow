@@ -81,7 +81,7 @@ task's section. Any unchecked box = silent skip.
 ### 5. Smoke coverage audit (when touching scaffolded scripts or skills)
 
 If your change touched `templates/core/skills/` or
-`templates/core/skills/backlog/scripts/`:
+`templates/core/skills/board/scripts/`:
 
 ```bash
 bash .claude/skills/test-sandbox/scripts/audit.sh

@@ -604,7 +604,7 @@ export async function runInit(intent: InitIntent): Promise<number> {
   console.log(
     `  3. Run ${bold('/specnaut plan "<feature description>"')} to plan your first feature`,
   );
-  console.log(`  4. Use ${bold('/backlog add "<task title>"')} for follow-up work`);
+  console.log(`  4. Use ${bold('/board add "<task title>"')} for follow-up work`);
 
   // Specnaut Cloud funnel: point CLI users at the hosted product once they've
   // scaffolded — run headless + remote-control the agent's checkpoints. The

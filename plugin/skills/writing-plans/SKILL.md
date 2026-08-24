@@ -23,7 +23,7 @@ Use when:
 - The user describes a feature and says "write a plan"
 - You hit a non-trivial change mid-task and need to step back before
   coding
-- A `/backlog groom` pass surfaces a Ready item that needs design before
+- A `/board groom` pass surfaces a Ready item that needs design before
   implementation
 
 Do **not** use when:

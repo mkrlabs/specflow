@@ -58,7 +58,7 @@ Deno.test("specnaut init --ai opencode scaffolds a complete OpenCode project lay
       await exists(join(root, ".opencode/skills/specnaut/phases/plan.md")),
       true,
     );
-    // /backlog command stays as a flat command file.
+    // #533 retired the command shim; the skill registers /board itself.
     assertEquals(
       await exists(join(root, ".opencode/commands/backlog.md")),
       false,
