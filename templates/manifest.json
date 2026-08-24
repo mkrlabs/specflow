@@ -1556,7 +1556,8 @@
       "category": "spec-root",
       "name": "specify",
       "suffix": "backlog.md",
-      "source": "core/specnaut/backlog.md"
+      "source": "core/specnaut/backlog.md",
+      "backend": "local"
     },
     {
       "category": "spec-root",

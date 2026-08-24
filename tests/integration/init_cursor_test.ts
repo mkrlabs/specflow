@@ -71,7 +71,12 @@ Deno.test("specnaut init --ai cursor scaffolds a Cursor layout", async () => {
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);
     assertEquals(await exists(join(root, "AGENTS.md")), true);
     assertEquals(await exists(join(root, "tasks/backlog.md")), false);
-    assertEquals(await exists(join(root, ".specnaut/backlog.md")), true);
+    // These inits take the DEFAULT backend, which is `cloud` — so there is no
+    // `.specnaut/backlog/NNN-slug.md` tree for this file to index. It shipped
+    // anyway until #525, giving every non-local project a second, empty source
+    // of truth for data that lives elsewhere. See init_backlog_test.ts for the
+    // local case, where it belongs.
+    assertEquals(await exists(join(root, ".specnaut/backlog.md")), false);
     // NOT emitted for cursor
     assertEquals(await exists(join(root, ".claude/")), false);
     assertEquals(await exists(join(root, "CLAUDE.md")), false);

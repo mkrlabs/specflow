@@ -55,6 +55,11 @@ Deno.test("init --backlog local renders the local backlog skill", async () => {
     assertEquals(skill.includes("BEGIN: backend="), false);
     assertEquals(skill.includes("END: backend="), false);
 
+    // The Markdown index belongs here and nowhere else: it indexes
+    // `.specnaut/backlog/NNN-slug.md`, which only the local backend creates.
+    // It used to ship to every backend (#525).
+    assertEquals(await exists(join(parent, "demo/.specnaut/backlog.md")), true);
+
     // Local backend scripts present
     assertEquals(
       await exists(join(parent, "demo/.specnaut/scripts/backlog/list.sh")),
