@@ -36,7 +36,7 @@
 #   2   non-blocking skip — missing GH_TOKEN, OR the push was denied (token
 #       lacks write access / catalog repo not provisioned). Emits ::warning::
 #       and is mapped to exit 0 in release.yml (mirrors the HOMEBREW_TAP_TOKEN /
-#       CODEX_SYNC_TOKEN pattern)
+#       MARKETPLACE_SYNC_TOKEN pattern)
 #   1   unexpected error
 set -euo pipefail
 

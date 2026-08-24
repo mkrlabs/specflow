@@ -43,7 +43,7 @@
 # step can translate it into a non-blocking skip.
 #
 # Arguments:
-#   $1 — secret name (for the warning message, e.g. CODEX_SYNC_TOKEN)
+#   $1 — secret name (for the warning message, e.g. MARKETPLACE_SYNC_TOKEN)
 require_gh_token() {
   local secret_name="${1:-GH_TOKEN}"
   if [ -z "${GH_TOKEN:-}" ] && [ -z "${DRY_RUN:-}" ]; then

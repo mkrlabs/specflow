@@ -1,4 +1,4 @@
-import { assert, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { fromFileUrl, join } from "@std/path";
 import { parse } from "@std/yaml";
 
@@ -47,7 +47,10 @@ async function alertStepScript(): Promise<string> {
  */
 async function runStep(
   failingUrlFragment: string | null,
-): Promise<{ code: number; out: string }> {
+  /** When a queried URL contains this, `gh` answers `1` instead of `0` — a
+   *  readable source with a finding, which is what makes the gate block. */
+  nonZeroUrlFragment: string | null = null,
+): Promise<{ code: number; out: string; summary: string }> {
   const dir = await Deno.makeTempDir({ prefix: "specnaut-522-" });
   try {
     const bin = join(dir, "bin");
@@ -57,6 +60,7 @@ async function runStep(
     // and the degraded warning fires for all seven, passing the wrong test for
     // the wrong reason.
     const fail = failingUrlFragment ?? "__no_such_url__";
+    const hit = nonZeroUrlFragment ?? "__no_such_finding__";
     const stub = [
       "#!/usr/bin/env bash",
       'for a in "$@"; do',
@@ -64,6 +68,9 @@ async function runStep(
       `    echo '{"message":"Resource not accessible by integration","status":"403"}'`,
       "    exit 1;;",
       "  esac",
+      "done",
+      'for a in "$@"; do',
+      `  case "$a" in *${hit}*) echo 1; exit 0;; esac`,
       "done",
       "echo 0",
       "",
@@ -88,9 +95,14 @@ async function runStep(
       stdout: "piped",
       stderr: "piped",
     }).output();
+    let summary = "";
+    try {
+      summary = await Deno.readTextFile(join(dir, "summary.md"));
+    } catch { /* the step failed before writing one */ }
     return {
       code,
       out: new TextDecoder().decode(stdout) + new TextDecoder().decode(stderr),
+      summary,
     };
   } finally {
     await Deno.remove(dir, { recursive: true });
@@ -101,7 +113,7 @@ Deno.test("an inaccessible query is named in a degraded-mode warning", async () 
   const { code, out } = await runStep("security-advisories");
   assertStringIncludes(
     out,
-    "::warning::Security preflight had no GITHUB_TOKEN access to:",
+    "::warning::Security preflight could not read:",
   );
   assertStringIncludes(out, "private_advisories");
   // ...and ONLY that one. A warning naming all seven means the stub never ran
@@ -118,7 +130,7 @@ Deno.test("an inaccessible query is named in a degraded-mode warning", async () 
 Deno.test("the warning discriminates — a healthy run stays silent", async () => {
   const { code, out } = await runStep(null);
   assert(
-    !out.includes("had no GITHUB_TOKEN access"),
+    !out.includes("could not read:"),
     `every query succeeded; the warning must not fire:\n${out}`,
   );
   assert(code === 0, `a clean run must pass, got exit ${code}:\n${out}`);
@@ -130,10 +142,39 @@ Deno.test("one failing dependabot URL is named once per label, not repeated", as
   // the source; this pins the de-duplication.
   const { out } = await runStep("dependabot");
   assertStringIncludes(out, "::warning::");
-  const warning = out.split("\n").find((l) => l.includes("had no GITHUB_TOKEN access"))!;
-  const labels = warning.split("access to:")[1].split("—")[0].trim().split(/\s+/);
+  const warning = out.split("\n").find((l) => l.includes("could not read:"))!;
+  const labels = warning.split("could not read:")[1].split(".")[0].trim().split(/\s+/);
   assert(
     new Set(labels).size === labels.length,
     `labels must be de-duplicated, got: ${labels.join(" ")}`,
   );
+});
+
+Deno.test("a blocking gate still says what it could not read", async () => {
+  // The run where this matters most, and the one that never printed it: the
+  // gate hard-fails, and the reader needs to know the decision was taken on
+  // partial information. The read-back used to sit BELOW the `exit 1` (#527).
+  const { code, out } = await runStep("security-advisories", "code-scanning");
+
+  assertEquals(code, 1, `a non-zero critical count must block:\n${out}`);
+  assertStringIncludes(out, "::error::Security preflight blocked the release");
+  assertStringIncludes(out, "::warning::Security preflight could not read:");
+  assertStringIncludes(out, "private_advisories");
+});
+
+Deno.test("an unreadable source is reported as unreadable, never as zero", async () => {
+  // `0` and "could not ask" were the same cell for the entire life of this
+  // gate, which is how it passed on three sources it had never obtained (#527).
+  const { summary } = await runStep("secret-scanning");
+
+  assertStringIncludes(summary, "| Secret scanning | unreadable |");
+  // ...while a source that WAS read still shows its number.
+  assertStringIncludes(summary, "| Code scanning — critical | 0 |");
+  assertStringIncludes(summary, "were NOT checked");
+});
+
+Deno.test("a fully readable run reports numbers and no caveat", async () => {
+  const { summary } = await runStep(null);
+  assertEquals(summary.includes("unreadable"), false, summary);
+  assertEquals(summary.includes("were NOT checked"), false, summary);
 });

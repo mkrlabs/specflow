@@ -25,7 +25,21 @@ done
 echo "  run id: $run_id"
 
 echo "▶ watching release.yml until completion"
-gh run watch "$run_id" --exit-status
+# Soft-warn, not exit. Under `set -e` a red job used to terminate postflight on
+# this line — before the asset assertion, the tap check, the marketplace check,
+# and above all the docs-site dispatch that refreshes specnaut.com/version.json.
+# The bundled specnaut-guide agent reads that file to tell users whether they
+# are behind, so a failure in a LATER, reversible publish step silently cost the
+# version feed and the tool then told everyone they were up to date.
+#
+# Everything below runs after the release has already been published, which is
+# why the rest of this script warns rather than aborts. This line is the one
+# that did not, and #523 added a new way for the job to go red after publish,
+# which made the cascade reachable. The failure still reaches the final status —
+# this is about ordering, not about hiding it.
+run_failed=0
+gh run watch "$run_id" --exit-status || run_failed=1
+[ "$run_failed" -eq 1 ] && echo "⚠ release.yml run $run_id ended red — verifying what shipped anyway"
 
 echo "▶ verifying GitHub Release exists with assets"
 asset_count="$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets | length')"
@@ -129,10 +143,19 @@ fi
 # only while it is not the final command of the script. That makes the block
 # position-dependent, and the next edit that moves it turns a green release red.
 warnings=()
+[ "$run_failed" -eq 1 ] && warnings+=("release.yml run $run_id ended red — read its log before trusting this release") || true
 [ "$homebrew_warned" -eq 1 ] && warnings+=("tap bump unverified, re-check in ~60s") || true
 [ "$docs_warned" -eq 1 ] && warnings+=("docs site stale, specnaut.com/version.json not updated") || true
 [ "$marketplace_warned" -eq 1 ] && warnings+=("marketplace catalog stale, that channel is behind") || true
 [ "$selfupdate_warned" -eq 1 ] && warnings+=("local binary not refreshed (does not affect the release)") || true
+
+# A red job is not a warning-flavoured success. The verifications above still
+# ran and their results are worth printing, but the exit code has to say no.
+if [ "$run_failed" -eq 1 ]; then
+  joined="$(printf '%s; ' "${warnings[@]}")"
+  echo "❌ postflight: release.yml failed for $TAG (${joined%; })"
+  exit 1
+fi
 
 if [ "${#warnings[@]}" -gt 0 ]; then
   # `${warnings[*]}` joins on the FIRST character of IFS only, so `IFS='; '`

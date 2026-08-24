@@ -25,15 +25,28 @@ jobs:
   security-preflight:
     runs-on: ubuntu-latest
     permissions:
-      security-events: read # secret-scanning + code-scanning alert reads
-      contents: read # dependabot alerts (separate permission family)
-    # Private security-advisories (state=triage,draft) cannot be read via
-    # GITHUB_TOKEN — `repository-advisories` is a fine-grained PAT scope,
-    # not a workflow permissions key, and adding it here silently fails
-    # the workflow parse (zero jobs, 0s run, conclusion=failure). The
-    # advisory query below 404s silently and yields 0; if pending
-    # advisories must gate releases, wire a dedicated PAT secret and
-    # override GH_TOKEN for that step only.
+      security-events: read # the ONLY one that buys anything: code-scanning alerts
+      contents: read
+    # WHAT THIS JOB CAN ACTUALLY SEE, measured on the v3.2.0 run once #522 made
+    # the degraded warning printable for the first time:
+    #
+    #   code scanning        ✓ readable via `security-events: read`
+    #   secret scanning      ✗ needs repo-admin / security-manager rights
+    #   dependabot alerts    ✗ GITHUB_TOKEN cannot read them, at any severity
+    #   private advisories   ✗ `repository-advisories` is a fine-grained PAT
+    #                          scope, not a workflow permissions key — adding it
+    #                          here fails the workflow parse outright
+    #
+    # Three of the four are structural, not a missing line in this block. The
+    # comment here used to attribute secret scanning to `security-events` and
+    # dependabot to `contents`; both were wrong, and nothing contradicted them
+    # because the warning that would have was dead code.
+    #
+    # The step no longer reports an unreadable source as `0`. A count it could
+    # not obtain is `unreadable`, is excluded from the gate decision, and is
+    # named in the summary — so a release that passes says which signals it
+    # actually checked. Wire a PAT and override GH_TOKEN for this step if the
+    # other three must gate releases (see #527).
     steps:
       - name: Query open security alerts
         env:
@@ -118,24 +131,45 @@ jobs:
           #                                form).
           critical_total=$((dep_critical + code_critical))
 
-          # Append a structured summary that the local /release session will
-          # read at postflight (step 10 of the release skill) — this is the agent triage
-          # payload.
+          # Report what was READ, not what was assumed. A source `fetch_count`
+          # could not reach yields 0, and 0 is indistinguishable from "clean" —
+          # which is how this gate passed every release on three sources it had
+          # never once obtained (#527). `unreadable` is the honest cell.
+          readable() { ! grep -qxF "$1" "$degraded_file"; }
+          cell() { if readable "$1"; then printf '%s' "$2"; else printf 'unreadable'; fi; }
+
           {
             echo "## Security alert preflight"
             echo
             echo "| Source | Open count |"
             echo "| --- | --- |"
-            echo "| Secret scanning | ${secret_open} |"
-            echo "| Dependabot — critical | ${dep_critical} |"
-            echo "| Dependabot — high | ${dep_high} |"
-            echo "| Dependabot — medium | ${dep_medium} |"
-            echo "| Code scanning — critical | ${code_critical} |"
-            echo "| Code scanning — high | ${code_high} |"
-            echo "| Pending private advisories | ${adv_pending} |"
+            echo "| Secret scanning | $(cell secret_scanning "$secret_open") |"
+            echo "| Dependabot — critical | $(cell dependabot/critical "$dep_critical") |"
+            echo "| Dependabot — high | $(cell dependabot/high "$dep_high") |"
+            echo "| Dependabot — medium | $(cell dependabot/medium "$dep_medium") |"
+            echo "| Code scanning — critical | $(cell code_scanning/critical "$code_critical") |"
+            echo "| Code scanning — high | $(cell code_scanning/high "$code_high") |"
+            echo "| Pending private advisories | $(cell private_advisories "$adv_pending") |"
             echo
-            echo "Critical total (dep + code): **${critical_total}**"
+            echo "Critical total (dep + code, readable sources only): **${critical_total}**"
+            if [ -s "$degraded_file" ]; then
+              echo
+              echo "> Sources marked \`unreadable\` were NOT checked. This preflight"
+              echo "> passing means the readable ones are clean — nothing more."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # Said BEFORE the decision, not after. The read-back used to sit below
+          # the hard-fail `exit 1`, so the single run where it matters most —
+          # the gate blocking on partial information — was the one run that
+          # never printed it (#527).
+          #
+          # Sorted and de-duplicated: the three dependabot queries share a URL,
+          # so one permission gap would otherwise name it three times.
+          if [ -s "$degraded_file" ]; then
+            missing_perms="$(sort -u "$degraded_file" | tr '\n' ' ' | sed 's/ $//')"
+            echo "::warning::Security preflight could not read: ${missing_perms}. Those sources are NOT checked and are excluded from the decision below — a pass here means the readable sources are clean, not that the repository is. Wire a PAT and override GH_TOKEN for this step if they must gate releases (#527)."
+          fi
 
           if [ "$critical_total" -gt 0 ] || [ "$secret_open" -gt 0 ] || [ "$adv_pending" -gt 0 ]; then
             echo "::error::Security preflight blocked the release. Critical/secret/advisory counts are non-zero. Resolve via the Security tab, then re-run this workflow (the tag stays valid)."
@@ -146,13 +180,6 @@ jobs:
             echo "::warning::High-severity findings open: $dep_high dependabot + $code_high code-scanning. The release proceeds; dispatch the security-expert agent locally to triage."
           fi
 
-          # Read back what the subshells recorded. Sorted and de-duplicated:
-          # the three dependabot queries share a URL, so one permission gap
-          # would otherwise name it three times.
-          if [ -s "$degraded_file" ]; then
-            missing_perms="$(sort -u "$degraded_file" | tr '\n' ' ' | sed 's/ $//')"
-            echo "::warning::Security preflight had no GITHUB_TOKEN access to: ${missing_perms} — those signals are reported as 0 (degraded mode, not a release block). Wire a dedicated PAT secret if any of these must hard-gate releases."
-          fi
 
   build:
     needs: [security-preflight]
@@ -313,8 +340,8 @@ jobs:
       #
       # `specnaut/specnaut-marketplace` below is the channel that actually
       # reaches users, and it verifies its own published catalog rather than
-      # trusting its exit code. Delete `CODEX_SYNC_TOKEN` from the repo secrets;
-      # nothing reads it any more.
+      # trusting its exit code. `CODEX_SYNC_TOKEN` was deleted from the repo
+      # secrets on 2026-08-22; nothing reads it any more.
       - name: Sync to Specnaut marketplace catalog (#281 / B5)
         if: ${{ !cancelled() && steps.release.outcome == 'success' }}
         # Bumps `.claude-plugin/marketplace.json` in
