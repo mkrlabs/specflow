@@ -56,7 +56,7 @@ run-scoped `GITHUB_TOKEN`. Neither side holds a credential for the other.
 2026-08-22. Do not re-provision them; nothing reads them, and adding one back would restore the
 shape this removed.
 
-**What this costs, and how it is paid.** Each target syncs on a 15-minute cron, so a release reaches
+**What this costs, and how it is paid.** Each target syncs on an hourly cron, so a release reaches
 them within that window rather than within seconds. `postflight.sh` dispatches both immediately
 after a release using the operator's own `gh` credentials, then reads the published formula and
 catalog back — so a normal release still publishes at once, and "dispatched" is never mistaken for

@@ -54,11 +54,26 @@ asset_count="$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets | length')"
 # `gh workflow run` exits 0 the moment GitHub ACCEPTS the request. That is not
 # evidence of anything, which is why each dispatch is followed by reading the
 # published artefact back.
+# Both channels resolve exclusively through `releases/latest`. Nothing so far
+# has checked that it points at THIS tag: `asset_count` above reads
+# `releases/tags/$TAG`, which is true of a draft or a prerelease too. If latest
+# still names the previous version, both syncs read it, print "already at
+# <old> — nothing to do", and exit 0 GREEN having published nothing. A channel
+# that ran and found nothing is indistinguishable from one that worked, so the
+# check has to happen here, before they are asked to run at all.
+echo "▶ verifying releases/latest points at $TAG"
+latest="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name' 2>/dev/null || echo "")"
+[ "$latest" = "$TAG" ] || {
+  echo "❌ releases/latest is '${latest:-<unreadable>}', not $TAG — both packaging"
+  echo "   syncs would no-op green. Mark $TAG as latest, then re-run this script."
+  exit 1
+}
+
 echo "▶ dispatching the packaging syncs (they pull; nothing is pushed to them)"
 for target in homebrew-tap specnaut-marketplace; do
   gh workflow run "sync from specnaut-cli" -R "specnaut/$target" >/dev/null 2>&1 \
     && echo "  dispatched $target" \
-    || echo "  ⚠ could not dispatch $target — its cron will pick this up within 15 min"
+    || echo "  ⚠ could not dispatch $target — its cron will pick this up within the hour"
 done
 
 echo "▶ verifying Homebrew tap formula bumped to ${TAG#v}"
@@ -67,16 +82,20 @@ echo "▶ verifying Homebrew tap formula bumped to ${TAG#v}"
 # actually matters is what the published file declares. Soft-warn: the sync is
 # asynchronous by design, and the release has already shipped by this point.
 homebrew_warned=0
-for attempt in 1 2 3 4 5 6; do
+# 12 attempts, not 6: every recorded run of this sync so far took the "already
+# at <version> — nothing to do" early exit, so the real bump path — one API read,
+# four asset downloads, a rewrite, a commit and a push — has never been timed.
+# 50s of sleep would have reported a warning on a completely healthy first run.
+for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
   formula="$(gh api repos/specnaut/homebrew-tap/contents/Formula/specnaut.rb \
     --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || true)"
   case "$formula" in
     *"version \"${TAG#v}\""*) break ;;
   esac
-  [ "$attempt" -eq 6 ] && homebrew_warned=1 || sleep 10
+  [ "$attempt" -eq 12 ] && homebrew_warned=1 || sleep 10
 done
 if [ "$homebrew_warned" -eq 1 ]; then
-  echo "⚠ tap formula does not declare ${TAG#v} yet — its sync runs on a 15-min cron"
+  echo "⚠ tap formula does not declare ${TAG#v} yet — its sync runs on an hourly cron"
 fi
 
 # The docs site derives `version.json` from the latest CLI release at *build*
@@ -129,9 +148,18 @@ fi
 # now exits non-zero when it cannot prove it published.
 marketplace_warned=0
 echo "▶ verifying the marketplace catalog was published"
-catalog_version="$(gh api repos/specnaut/specnaut-marketplace/contents/.claude-plugin/marketplace.json \
-  --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
-  | jq -r '.plugins[0].version' 2>/dev/null || true)"
+# Its own retry loop. This read used to be single-shot, and the only slack it
+# had was however long the docs poll above happened to spend — which collapses
+# to nothing when that poll's dispatch fails fast. A verification whose timing
+# budget is an accident of an unrelated step's failure mode is not one.
+catalog_version=""
+for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  catalog_version="$(gh api repos/specnaut/specnaut-marketplace/contents/.claude-plugin/marketplace.json \
+    --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
+    | jq -r '.plugins[0].version' 2>/dev/null || true)"
+  [ "$catalog_version" = "${TAG#v}" ] && break
+  [ "$attempt" -eq 12 ] || sleep 10
+done
 if [ "$catalog_version" = "${TAG#v}" ]; then
   echo "  catalog lists ${TAG#v}"
 else

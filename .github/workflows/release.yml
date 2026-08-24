@@ -236,8 +236,11 @@ jobs:
             exit 1
           fi
           # 5. Hard fail if .codex-plugin/plugin.json version drifts.
-          # The Codex marketplace fork is bumped lockstep with every
-          # tag; drift here would publish a stale marketplace listing.
+          # Codex users install directly from this repository, so the
+          # manifest must match the binary it ships beside. The fork this
+          # used to name was deleted 2026-08-22 and publishes nothing —
+          # the gate is still right, its old reason was not, and a gate
+          # defended by a false reason is one somebody deletes.
           CODEX_VERSION=$(jq -r .version .codex-plugin/plugin.json)
           if [ "$BIN_VERSION" != "$CODEX_VERSION" ]; then
             echo "::error::.codex-plugin/plugin.json version ($CODEX_VERSION) does not match deno.json version ($BIN_VERSION). Re-run scripts/bump-version.ts."
@@ -310,6 +313,13 @@ jobs:
           # (#521). `postflight.sh` still asserts `asset_count >= 10` as the
           # second net; this is the gate upstream of it.
           fail_on_unmatched_files: true
+          # Both packaging channels resolve exclusively through
+          # `releases/latest`. Whether a new release becomes latest is an
+          # upstream default here, unpinned — and a release that is not latest
+          # makes both syncs read the PREVIOUS version, report "nothing to do"
+          # and exit green having published nothing. Pinned, so the thing two
+          # distribution channels depend on is stated rather than inherited.
+          make_latest: true
       # NOTHING IS PUSHED FROM HERE ANY MORE.
       #
       # Two steps used to live at this point: a Homebrew tap bump and a
