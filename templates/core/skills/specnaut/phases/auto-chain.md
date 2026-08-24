@@ -181,11 +181,25 @@ Run it when asked to audit the spec pipeline, and from a grooming pass when the
 project keeps specs locally.
 
 Walk `.specnaut/specs/` (if present) and surface any feature directory
-that is missing the next expected artefact:
+that is missing the next expected artefact.
 
-- Has `spec.md` but no `plan.md` → flag as "needs `/specnaut plan`".
+**Current-pipeline artefacts** — a 3.x feature produces these in this order:
+
 - Has `plan.md` but no `tasks.md` → flag as "needs `/specnaut tasks`".
 - Has `tasks.md` but no `installed` markers in commits → flag as
   "needs `/specnaut implement`".
+
+**Legacy, pre-3.x only** — kept deliberately, not an oversight:
+
+- Has `spec.md` but no `plan.md` → flag as "needs `/specnaut plan`".
+
+  **3.x writes no `spec.md`.** The artefact was removed in 2.0.0 and no phase
+  produces one, so this rule can only ever match a feature directory left
+  behind by a 1.x project. It stays because projects are told to keep
+  `.specnaut/specs/**` as historical records, and a pre-migration spec that
+  never got a plan is exactly the thing worth surfacing. Do not read it as
+  evidence that the current pipeline emits `spec.md`, and do not delete it as
+  dead code — `tests/templates/removed_artefacts_test.ts` carries a matching
+  allowlist entry recording the same decision.
 
 This is also read-only; never delete or modify spec files.
