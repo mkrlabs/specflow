@@ -102,7 +102,7 @@ If your change touched `templates/core/skills/` or
 `templates/core/skills/board/scripts/`:
 
 ```bash
-bash .claude/skills/test-sandbox/scripts/audit.sh
+bash scripts/smoke/audit.sh
 ```
 
 Expected: `0 coverage gap(s), 0 stale assertion(s)`. A new file under

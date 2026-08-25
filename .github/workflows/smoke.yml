@@ -1,0 +1,74 @@
+name: smoke
+
+# ─── Why this workflow's trigger differs from every other one here ───────
+# ci.yml and adoption_lint.yml fire on pushes to `main` and on pull requests.
+# This one fires on pushes to ANY branch, and that is deliberate.
+#
+# Features land in this repository by a local `git merge --ff-only` — a pull
+# request is the opt-in exception, not the rule (see the workspace CLAUDE.md).
+# So the branch push is the LAST moment a gate can still prevent a break
+# instead of reporting one. A `main`-only trigger would mean every smoke
+# failure is discovered after the commit it describes is already on `main`,
+# which is a detector, not a gate.
+#
+# `pull_request` is kept for the `--pr` path, and so a fork PR is covered.
+on:
+  push:
+  pull_request:
+
+# ─── The invariant this job rests on — do not "simplify" it away ─────────
+# Every step below executes CONTRIBUTOR-AUTHORED code: the scripts run
+# `deno run --allow-all src/main.ts` against the checked-out tree, which on a
+# fork pull request is the contributor's tree. That is acceptable only
+# because the job has nothing worth stealing:
+#
+#   1. `pull_request`, never `pull_request_target`. The latter would check
+#      out the base tree but run with the base repo's write-capable token and
+#      full access to secrets — next to arbitrary contributor code. If you
+#      ever need this job to post a comment, do it from a SEPARATE workflow
+#      triggered on `workflow_run`; do not change this trigger.
+#   2. `permissions: contents: read`, declared here rather than inherited.
+#      The repository default is already read-only, but that is a GitHub-side
+#      toggle with no representation in this repo — declaring it makes the
+#      grant a reviewed artefact instead of a setting nobody re-checks.
+#   3. No secrets are referenced, and none should be. This repository has
+#      none at all (the packaging targets pull from the public Releases API
+#      instead — see release.yml). Provisioning one for an unrelated need
+#      would silently convert this job into "runs untrusted code next to a
+#      credential".
+#
+# Read those three together: each is one line, and each is one line away
+# from being reversed.
+permissions:
+  contents: read
+
+# A hang costs the job's timeout, not the script's. smoke-picker.sh drives a
+# PTY with scripted keystrokes and has hung before — for 25 seconds locally,
+# but against GitHub's 360-minute default that is a queue nobody can clear.
+# The suite runs in ~10s warm; 10 minutes is a wide margin that still fails
+# fast. The per-script timeout inside smoke-picker.sh is a different
+# guarantee — it names the culprit — and both are kept.
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # audit.sh diffs the newest v*.*.* tag against HEAD. A shallow
+          # checkout has neither the tags nor the history, and the audit
+          # exits 2 rather than reporting anything.
+          fetch-depth: 0
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run the smoke suite and the coverage audit
+        # run-all.sh re-bundles first: `specnaut init` scaffolds from the
+        # generated src/templates_bundle.ts, not from templates/ on disk, so
+        # without that step the suite would assert against the committed
+        # bundle and go green on a change it never saw.
+        run: bash scripts/smoke/run-all.sh

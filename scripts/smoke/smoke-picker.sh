@@ -31,13 +31,19 @@ import os, pty, select, sys, time
 PROJECT_DIR = os.environ["PROJECT_DIR"]
 MAIN_TS = os.environ["MAIN_TS"]
 ARGS = ["deno", "run", "--allow-all", MAIN_TS, "init", "--here", "--no-git"]
-# 2× down + enter (codex harness), then 2× down + enter for the github
-# backend. Since #406 the backlog picker order is [cloud, local, github,
-# gitlab] with cloud as the recommended default (index 0), so github now sits
-# two arrow-downs below the initial cursor (cloud → local → github).
-# Then enter to accept the scheme picker default (added in #257 — SemVer/date
-# detection runs after the backend selection, before the URL prompt), and
-# enter to skip the kanban URL prompt (added in #147).
+# The keystrokes below must cover EVERY interactive step of `init`, in order.
+# When a step is added upstream and this list is not, the extra prompt gets no
+# input, init blocks forever, and every later assertion fails against a
+# project that was never written — which reads like five product defects
+# instead of one missing "\r". That has now happened twice (#257, and the
+# spec picker below). If you add a prompt to init, add a keystroke here.
+#
+#   1. harness picker         2× down + enter  → Codex CLI
+#   2. backlog backend        2× down + enter  → GitHub Issues
+#      (#406 order: cloud, local, github, gitlab — cloud is the default)
+#   3. versioning scheme      enter            → default   (#257)
+#   4. spec storage           enter            → default   ← was missing
+#   5. kanban URL prompt      enter            → skip      (#147)
 SCRIPT = [
     (0.5, b"\x1b[B"),
     (0.2, b"\x1b[B"),
@@ -45,6 +51,7 @@ SCRIPT = [
     (0.5, b"\x1b[B"),
     (0.2, b"\x1b[B"),
     (0.3, b"\r"),
+    (0.5, b"\r"),
     (0.5, b"\r"),
     (0.5, b"\r"),
 ]
@@ -55,7 +62,11 @@ if pid == 0:
     os.execvp(ARGS[0], ARGS)
 
 captured = bytearray()
-deadline = time.time() + 25.0
+# A hang must fail fast and SAY it hung. The previous version burned 25s and
+# then reported four assertion failures about a missing .specnaut/ directory,
+# which points at the product rather than at this script.
+TIMEOUT = float(os.environ.get("PICKER_TIMEOUT", "20"))
+deadline = time.time() + TIMEOUT
 script = list(SCRIPT)
 next_at = time.time() + (script[0][0] if script else 0)
 while time.time() < deadline:
@@ -81,40 +92,60 @@ while time.time() < deadline:
         break
 
 os.close(fd)
+if time.time() >= deadline:
+    captured.extend(b"\n__SMOKE_PICKER_TIMEOUT__\n")
 sys.stdout.buffer.write(bytes(captured))
 PYEOF
 )"
 
 
+# The capture is a raw PTY buffer: ANSI/OSC control sequences, and on a public
+# repository the CI log is world-readable and served raw. Strip the escapes and
+# cap the tail before any of it becomes a failure detail — smoke-hooks.sh:108
+# already has the right instinct with `head -1`.
+detail() { printf '%s' "$out" | sed $'s/\x1b\[[0-9;?]*[A-Za-z]//g' | tail -25; }
+
+# The hang check comes FIRST: when init never completed, every assertion below
+# fails for that one reason, and reporting them as five findings is how a
+# missing keystroke reads like a product defect.
+if printf '%s' "$out" | grep -q "__SMOKE_PICKER_TIMEOUT__"; then
+  fail "init never completed — the keystroke script is short a step" \
+       "add the missing prompt to SCRIPT; see the numbered list in this file"
+fi
+
 echo "$out" | grep -q "Choose your AI harness" \
   && pass "harness picker prompt rendered" \
-  || fail "harness prompt missing" "$out"
+  || fail "harness prompt missing" "$(detail)"
 
 echo "$out" | grep -q "❯ Codex CLI" \
   && pass "highlight reached Codex CLI after 2 arrow-downs" \
-  || fail "❯ never reached Codex CLI" "$out"
+  || fail "❯ never reached Codex CLI" "$(detail)"
 
 echo "$out" | grep -q "Choose your backlog backend" \
   && pass "backlog picker prompt rendered" \
-  || fail "backlog prompt missing" "$out"
+  || fail "backlog prompt missing" "$(detail)"
 
-# Since #406: Specnaut Cloud is listed first, marked recommended (default),
-# with a one-line benefit note above the menu.
+# Since #406: Specnaut Cloud is listed first and marked recommended (default).
 echo "$out" | grep -q "Specnaut Cloud.*recommended (default)" \
   && pass "Specnaut Cloud marked recommended (default)" \
-  || fail "Cloud not marked recommended (default)" "$out"
+  || fail "Cloud not marked recommended (default)" "$(detail)"
 
-echo "$out" | grep -q "hosted online Kanban" \
-  && pass "Cloud benefit note rendered above the menu" \
-  || fail "Cloud benefit note missing" "$out"
+# This slot used to assert a separate "hosted online Kanban" benefit note.
+# That note no longer exists — it was folded into the backend's display name,
+# which the check above already covers. Rather than delete the assertion, it
+# now covers the SPEC PICKER: the step whose addition is what broke this
+# script, and which had no assertion of its own.
+echo "$out" | grep -q "Choose where your specs are stored" \
+  && pass "spec-storage picker prompt rendered" \
+  || fail "spec-storage picker missing" "$(detail)"
 
 echo "$out" | grep -q "❯ GitHub Issues" \
   && pass "highlight reached GitHub backend after two arrow-downs (new cloud-first order)" \
-  || fail "❯ never reached GitHub backend" "$out"
+  || fail "❯ never reached GitHub backend" "$(detail)"
 
 echo "$out" | grep -q "Open the project in Codex CLI" \
   && pass "init resolved harness = Codex CLI (selected harness honored)" \
-  || fail "init did not pick Codex CLI" "$out"
+  || fail "init did not pick Codex CLI" "$(detail)"
 
 [ -f "$DIR/.specnaut/backlog-config.yml" ] \
   && pass "backlog-config.yml written (github backend honored)" \
