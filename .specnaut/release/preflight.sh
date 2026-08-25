@@ -33,24 +33,28 @@ done
 [ "$conclusion" = "success" ] || { echo "❌ CI not green on $sha (got: ${conclusion:-no-completed-run-after-5min})"; exit 1; }
 
 echo "▶ smoke audit"
-# The audit owns its own verdict now: its exit code IS the answer
-# (see .specnaut/specs/022-smoke-suite-ci/plan.md §5 R5).
-#
-# This block used to re-derive pass/fail by grepping the audit's stdout for
-# `N coverage gap`, because audit.sh exited 0 regardless of findings. That was
-# two spellings of one rule with the CALLER holding the authoritative one — and
-# a caller that must parse a report to learn whether it failed is a caller that
-# will eventually parse it wrong.
-#
-# The standalone-clone skip is DELETED rather than narrowed. The scripts live in
-# this repository now, so there is no clone shape in which they are absent; the
-# skip could only ever have hidden a real failure. `smoke.yml` runs the same
-# script on every push, so this is no longer the only place it fires either.
-if ! bash scripts/smoke/audit.sh; then
-  echo "❌ smoke audit is red — fix the findings, or allow-list a coverage gap"
-  echo "   with a written reason in scripts/smoke/coverage-allowlist.txt."
-  exit 1
-fi
+# The audit owns its own verdict: its exit code IS the answer (plan.md §5 R5).
+# This caller must not re-derive it by parsing the report.
+# Branch on WHICH non-zero. `if ! …` treated every failure as a coverage
+# verdict, so a tagless or shallow clone — audit.sh exits 2 when it cannot
+# resolve a baseline — aborted the release under "fix the findings", advice
+# for a condition that had not occurred. Wrong diagnosis at the worst moment.
+audit_rc=0
+bash scripts/smoke/audit.sh || audit_rc=$?
+case "$audit_rc" in
+  0) ;;
+  1)
+    echo "❌ smoke audit is red — fix the findings, or allow-list a coverage gap"
+    echo "   with a written reason in scripts/smoke/coverage-allowlist.txt."
+    exit 1
+    ;;
+  *)
+    echo "❌ smoke audit could not RUN (exit $audit_rc) — this is not a findings"
+    echo "   verdict. 2 = no v*.*.* tag or unresolvable baseline (a shallow or"
+    echo "   tagless clone); 3 = --src-root is not a git work tree."
+    exit 1
+    ;;
+esac
 
 echo "▶ deno task bundle (re-sync)"
 deno task bundle

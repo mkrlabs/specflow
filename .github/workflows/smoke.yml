@@ -36,6 +36,13 @@ on:
 #      instead — see release.yml). Provisioning one for an unrelated need
 #      would silently convert this job into "runs untrusted code next to a
 #      credential".
+#   4. `persist-credentials: false` on the checkout. Otherwise the action
+#      writes a live job-scoped GITHUB_TOKEN into .git/config INSIDE the
+#      workspace that the next step runs contributor code against. Today
+#      `contents: read` caps what that token can do — but that block is then
+#      the sole control, and adding `packages: write` for an unrelated need
+#      would make this critical with no diff to the checkout step. Nothing
+#      here authenticates, so turning it off costs nothing.
 #
 # Read those three together: each is one line, and each is one line away
 # from being reversed.
@@ -59,6 +66,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          # See invariant 4 in the header. No step here authenticates.
+          persist-credentials: false
           # audit.sh diffs the newest v*.*.* tag against HEAD. A shallow
           # checkout has neither the tags nor the history, and the audit
           # exits 2 rather than reporting anything.

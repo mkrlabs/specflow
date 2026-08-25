@@ -7,7 +7,7 @@ set -euo pipefail
 
 NAME="${1:?usage: smoke-hooks.sh <name>}"
 . "$(dirname "$0")/_common.sh"
-DIR="$CLI/sandbox/$NAME"
+DIR="$(scenario_dir "$NAME")"
 
 # Trap-based cleanup: wipe the scenario directory on every exit path
 # (success OR failure) so the sandbox/ tree never accumulates orphans.
@@ -22,11 +22,14 @@ cd "$DIR"
 echo "═══ protect-generated.sh ═══"
 
 # Lock edit → soft warn, exit 0
+# `ec=$?` on its own line is unreachable under `set -e`: a non-zero hook makes
+# the ASSIGNMENT non-zero, errexit fires, and the script dies before $? is read
+# — so ec was always 0 by the time the assertion ran. Capturing the status
+# inside the substitution is the idiom this file already uses below.
 out=$(echo '{"tool_input":{"file_path":"/x/.specnaut/installed.lock"}}' \
-  | bash .claude/hooks/protect-generated.sh 2>&1)
-ec=$?
-[ "$ec" = "0" ] && pass "exit code 0 on lock edit (soft warn)" \
-  || fail "non-zero exit on lock edit" "ec=$ec"
+  | bash .claude/hooks/protect-generated.sh 2>&1; echo "ec=$?")
+echo "$out" | grep -q "ec=0" && pass "exit code 0 on lock edit (soft warn)" \
+  || fail "non-zero exit on lock edit" "$out"
 echo "$out" | grep -q "warn:" \
   && pass "warning emitted on lock edit" \
   || fail "missing warning text" "$out"
@@ -81,23 +84,25 @@ echo "$last" | grep -q '"agent":"unknown"' \
 echo
 echo "═══ check-backlog-prereqs.sh (local backend) ═══"
 
-out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1)
-ec=$?
-[ "$ec" = "0" ] && pass "exit 0 on local backend" \
-  || fail "non-zero exit" "ec=$ec"
-[ -z "$out" ] && pass "silent on local backend (no warn)" \
-  || fail "unexpected output on local backend" "$out"
+# Capturing the status inside the substitution appends an `ec=N` line, so the
+# hook's OWN output is everything except that last line. Asserting silence
+# against the raw capture would compare against a string that is never empty.
+out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?")
+hook_out="$(printf '%s' "$out" | sed '$d')"
+echo "$out" | grep -q "ec=0" && pass "exit 0 on local backend" \
+  || fail "non-zero exit" "$out"
+[ -z "$hook_out" ] && pass "silent on local backend (no warn)" \
+  || fail "unexpected output on local backend" "$hook_out"
 
 echo
 echo "═══ check-backlog-prereqs.sh (github backend, gh present) ═══"
 # Patch the lock to simulate the github backend
 sed -i.bak 's/backlog_backend: local/backlog_backend: github/' \
   .specnaut/installed.lock
-out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1)
-ec=$?
+out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?")
 mv .specnaut/installed.lock.bak .specnaut/installed.lock
-[ "$ec" = "0" ] && pass "exit 0 on github backend" \
-  || fail "non-zero exit" "ec=$ec"
+echo "$out" | grep -q "ec=0" && pass "exit 0 on github backend" \
+  || fail "non-zero exit" "$out"
 # If gh is installed + auth'd, no warning. If not, warning. Either is OK
 # as long as exit 0 and no crash.
 echo "(github-backend output: $(echo "$out" | head -1))"

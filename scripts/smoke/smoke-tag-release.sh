@@ -22,7 +22,7 @@ run_init() {
   local subname scheme dir
   subname="$1"
   scheme="$2"
-  dir="$CLI/sandbox/${NAME}-${subname}"
+  dir="$(scenario_dir "${NAME}-${subname}")"
   bash "$SMOKE_DIR/bootstrap-empty.sh" "${NAME}-${subname}" >/dev/null
   (cd "$dir" && deno run --allow-all "$CLI/src/main.ts" \
     init --here --no-git --ai claude --backlog local --scheme "$scheme" \
@@ -31,7 +31,7 @@ run_init() {
 
 echo "═══ #227  scheme=semver scaffold ═══"
 run_init "semver" "semver"
-cd "$CLI/sandbox/${NAME}-semver"
+cd "$(scenario_dir "${NAME}-semver")"
 
 check "phase doc tag-version.md scaffolded" \
   '[ -f .claude/skills/specnaut/phases/tag-version.md ]'
@@ -85,7 +85,7 @@ cd "$CLI"
 echo
 echo "═══ #227  scheme=date scaffold ═══"
 run_init "date" "date"
-cd "$CLI/sandbox/${NAME}-date"
+cd "$(scenario_dir "${NAME}-date")"
 
 check "tag.sh contains date-scheme logic" \
   'grep -q "letter suffix exhausted" .specnaut/scripts/release/tag.sh && grep -q "date-based validation" .specnaut/scripts/release/tag.sh'
@@ -96,7 +96,7 @@ check "tag.sh does NOT keep BEGIN/END scheme markers (rewrite stripped them)" \
 check "lock records version_scheme: date" \
   'grep -q "version_scheme: date" .specnaut/installed.lock'
 check "release.sh is stack-agnostic across schemes (byte-equal between scaffolds)" \
-  'diff -q .specnaut/scripts/release/release.sh "$CLI/sandbox/${NAME}-semver/.specnaut/scripts/release/release.sh"'
+  'diff -q .specnaut/scripts/release/release.sh "$(scenario_dir "${NAME}-semver")/.specnaut/scripts/release/release.sh"'
 
 cd "$CLI"
 

@@ -195,6 +195,12 @@ today.
 | **R11** What a valid scenario name is                                 | `scripts/smoke/_common.sh`, one allowlist                                                                                     | A check inside `clean.sh`; a caller trusting its own argument — `clean.sh:15` is `rm -rf "$CLI/sandbox/$1"`                                                                                  |
 | **R12** That the smoke suite is a CLI-repository concern              | `apps/specnaut-cli/scripts/smoke/` — the location itself                                                                      | A copy kept at the monorepo root "for the skill"; a monorepo workflow running the same scripts against the submodule pointer                                                                 |
 
+**R3, as built, is one authority plus a detector.** `audit.sh` enumerates the scripts on disk rather
+than reading `SUITE_FILES`, then fails if the two disagree. That is not the second list the row
+forbids: the enumeration has no authority of its own, and the reconcile is what turns "somebody
+added a smoke and never wired it in" from a silent omission into a finding. Recorded here because a
+future reader would otherwise be right to "fix" the glob back out.
+
 **Binding on the implementer.** R1/R2 were two rows for one question in the audited draft, and R2's
 wording admitted a reading that breaks the meta-test. They are now one home with one injected
 override. The only thing that stays at the monorepo root is the `test-sandbox` **skill document**,

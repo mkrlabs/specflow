@@ -24,6 +24,12 @@
 #       rather than passing in silence — and is not fatal by itself
 #   3c. the allowlist escape actually works AND actually flips the verdict —
 #       an untested escape hatch is how a gate quietly stops gating
+#   3d. a stale allowlist entry — one whose file is gone — is reported, so
+#       the allowlist cannot outlive what it excuses
+#   3e. the exit codes that mean "could not run" (2, 3) are distinct from the
+#       one that means "found things" (1); .specnaut/release/preflight.sh
+#       branches on that difference and would otherwise blame a shallow clone
+#       for coverage gaps
 #   4. the EXIT CODE is the verdict: 0 on a clean tree, non-zero with
 #      findings. The old version wrapped the call in `|| true` and grepped
 #      only stdout, so it passed identically whether audit.sh exited 0, 1 or
@@ -157,6 +163,29 @@ set -euo pipefail
 EOF
 chmod +x "$SYNTH_SMOKE/smoke-stale.sh"
 
+# --- Assertion 3d: a stale allowlist entry ------------------------------
+cat > "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/agents/this-file-was-deleted-long-ago.md  excuses a file that no longer exists
+EOF
+set +e
+staleallow_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+staleallow_rc=$?
+set -e
+rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
+
+# --- Assertion 3e: "could not run" is not "found things" ----------------
+set +e
+bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since v99.99.99-does-not-exist >/dev/null 2>&1
+baseline_rc=$?
+# A directory that EXISTS but is in no git work tree. Anything under $SANDBOX
+# is inside the synthetic repo, and a path that does not exist exits 1 from
+# the flag validation — neither would reach the exit-3 branch.
+notgit_dir="$(mktemp -d)"
+bash "$SMOKE_DIR/audit.sh" --src-root "$notgit_dir" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE >/dev/null 2>&1
+notgit_rc=$?
+rmdir "$notgit_dir"
+set -e
+
 echo "$out"
 echo
 echo "── assertions ──"
@@ -192,10 +221,30 @@ else
   fail "audit exited $clean_rc on a clean tree" "$(tail -6 <<<"$clean_out")"
 fi
 
-if [ "$rc" -ne 0 ]; then
-  pass "audit exits non-zero with findings (exit $rc) — the verdict is the exit code"
+# Exactly 1, not merely non-zero: 2 and 3 mean "could not run", and a test
+# that accepts any non-zero would go green on an audit that never ran.
+if [ "$rc" -eq 1 ]; then
+  pass "audit exits 1 with findings — the verdict is the exit code"
 else
-  fail "audit exited 0 WITH findings" "the exit code is not the verdict; preflight would pass a red audit"
+  fail "audit exited $rc WITH findings, expected 1" "1 means findings; 2 and 3 mean it could not run"
+fi
+
+if grep -q "prune this allowlist entry" <<<"$staleallow_out" && [ "$staleallow_rc" -ne 0 ]; then
+  pass "an allowlist entry whose file is gone is reported and fatal"
+else
+  fail "stale allowlist entry not reported" "the allowlist can outlive what it excuses"
+fi
+
+if [ "$baseline_rc" -eq 2 ]; then
+  pass "an unresolvable baseline exits 2, not 1 (could-not-run, not findings)"
+else
+  fail "unresolvable baseline exited $baseline_rc, expected 2" "preflight would blame a shallow clone for coverage gaps"
+fi
+
+if [ "$notgit_rc" -eq 3 ]; then
+  pass "a non-git --src-root exits 3, not 1"
+else
+  fail "non-git src-root exited $notgit_rc, expected 3" "could-not-run is being reported as findings"
 fi
 
 if grep -q "templates/core/statusline/config.md" <<<"$out"; then
@@ -223,7 +272,11 @@ else
   fail "allow-listed gap still exited $allow_rc" "the escape hatch does not actually work"
 fi
 
-if [ "$noreason_rc" -ne 0 ]; then
+# Asserted on the REPORT, not only on the exit code. audit.sh reaches
+# non-zero here by two independent routes — the gap staying fatal, and the
+# reasonless entry being itself a finding — so `rc != 0` would still pass if
+# allow_reason regressed to accept an empty reason. Pin the gap count.
+if grep -qE "^  1 coverage gap\(s\)$" <<<"$noreason_out" && [ "$noreason_rc" -ne 0 ]; then
   pass "an allowlist entry with NO reason does not grant an exemption"
 else
   fail "a reasonless allowlist entry silenced the gap" \

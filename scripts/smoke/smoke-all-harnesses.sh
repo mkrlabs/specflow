@@ -51,19 +51,20 @@ for h in "${HARNESSES[@]}"; do
 
   # `init --here` runs against the empty project; backend stays local
   # (zero-config — no `backlog-config.yml` to worry about per harness).
-  if ! (cd "$CLI/sandbox/$variant" && deno run --allow-all "$CLI/src/main.ts" \
+  variant_dir="$(scenario_dir "$variant")"
+  if ! (cd "$variant_dir" && deno run --allow-all "$CLI/src/main.ts" \
     init --here --no-git --ai "$h" --backlog local >/dev/null 2>&1); then
     fail "$h" "init exited non-zero"
     continue
   fi
 
   expected="$(expected_root_for "$h")"
-  if [ ! -d "$CLI/sandbox/$variant/$expected" ]; then
+  if [ ! -d "$variant_dir/$expected" ]; then
     fail "$h" "expected root $expected/ missing"
     continue
   fi
 
-  lock="$CLI/sandbox/$variant/.specnaut/installed.lock"
+  lock="$variant_dir/.specnaut/installed.lock"
   if [ ! -f "$lock" ]; then
     fail "$h" ".specnaut/installed.lock missing"
     continue
@@ -89,7 +90,12 @@ done
 #   shipped in v1.2.1).
 check_helper() {
   local harness="$1" path="$2" anchor="$3"
-  local file="$CLI/sandbox/$NAME-$harness/$path"
+  # Declared and assigned separately: `local x="$(cmd)"` makes the local
+  # builtin swallow the substitution's exit status, so a rejected scenario
+  # name would be masked here rather than aborting.
+  local dir file
+  dir="$(scenario_dir "$NAME-$harness")"
+  file="$dir/$path"
   if [ ! -f "$file" ]; then
     fail "$harness helper" "$path missing"
     return

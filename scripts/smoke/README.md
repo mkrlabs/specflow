@@ -7,6 +7,7 @@ they scaffold throwaway projects under `sandbox/` with the working-tree binary a
 bash scripts/smoke/run-all.sh              # the whole suite + the audit
 bash scripts/smoke/run-all.sh --list       # suite membership
 bash scripts/smoke/run-all.sh --only smoke-hooks.sh
+bash scripts/smoke/run-all.sh --no-bundle    # skip the re-bundle — rarely right
 bash scripts/smoke/audit.sh                # coverage + staleness only
 ```
 
@@ -33,7 +34,9 @@ and the interactive scenarios exist for that machine.
 ## Audit heuristics
 
 `audit.sh` compares the working tree against the newest `v*.*.*` tag and reports five things. It
-exits non-zero on the first three.
+exits **1** on any of the first four — the table below marks which. Exit **2** means it could not
+resolve a baseline (a shallow or tagless clone) and **3** that `--src-root` is not a git work tree;
+neither is a findings verdict, and `.specnaut/release/preflight.sh` branches on that difference.
 
 | Finding                    | What it means                                                                                                                              |
 | :------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -62,6 +65,8 @@ quietly become a dumping ground.
 
 - Scenarios live in `sandbox/<name>/`, which is gitignored. They are wiped on every exit path.
 - The scripts run `deno run --allow-all src/main.ts` — the working tree, not an installed binary.
+- `--no-bundle` skips that re-bundle. It is the only flag that changes what the suite asserts
+  against, which is why it is almost never the right one.
 - `run-all.sh` runs `deno task bundle` first and restores the file afterwards. `specnaut init`
   scaffolds from the generated `src/templates_bundle.ts`, so a suite that skips that step asserts
   against a stale artefact and goes green on a change it never saw.

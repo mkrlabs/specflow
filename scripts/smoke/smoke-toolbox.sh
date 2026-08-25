@@ -108,4 +108,47 @@ for pair in "bootstrap-empty.sh:SANDBOX_DIR" "bootstrap-vite.sh:SANDBOX_DIR" "sm
   fi
 done
 
+echo
+echo "═══ run-all.sh's own argument handling ═══"
+
+if bash "$SMOKE_DIR/run-all.sh" --only definitely-not-a-script.sh >/dev/null 2>&1; then
+  fail "run-all.sh --only accepted a script not in the suite" "it would run nothing and exit 0"
+else
+  pass "run-all.sh --only rejects a script not in the suite"
+fi
+
+if [ "$(bash "$SMOKE_DIR/run-all.sh" --list)" = "$SUITE_FILES" ]; then
+  pass "run-all.sh --list is SUITE_FILES verbatim (no second copy)"
+else
+  fail "run-all.sh --list disagrees with SUITE_FILES" "membership has two spellings"
+fi
+
+echo
+echo "═══ audit.sh notices a script the suite does not run ═══"
+# This is the one guard nothing could reach: audit.sh only runs its membership
+# check when scanning its DEFAULT directory, and smoke-audit.sh always points
+# it at a synthetic one. So the check that would have validated adding this
+# very file to SUITE_FILES had no test of its own.
+drift_probe="$SMOKE_DIR/smoke-zzz-drift-probe.sh"
+cleanup_probe() { rm -f "$drift_probe"; }
+trap cleanup_probe EXIT
+printf '#!/usr/bin/env bash\n# transient probe for the membership check\n' > "$drift_probe"
+set +e
+drift_out="$(bash "$SMOKE_DIR/audit.sh" 2>&1)"
+drift_rc=$?
+set -e
+cleanup_probe
+trap - EXIT
+
+if grep -q "smoke-zzz-drift-probe.sh exists but is not in SUITE_FILES" <<<"$drift_out"; then
+  pass "audit names a script on disk that SUITE_FILES omits"
+else
+  fail "membership drift not reported" "a smoke could exist and never run"
+fi
+if [ "$drift_rc" -ne 0 ]; then
+  pass "membership drift is fatal, not advisory"
+else
+  fail "membership drift exited 0" "a script nobody runs would ship as covered"
+fi
+
 finish "TOOLBOX"

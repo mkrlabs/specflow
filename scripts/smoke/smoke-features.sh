@@ -13,7 +13,7 @@ set -euo pipefail
 
 NAME="${1:?usage: smoke-features.sh <name>}"
 . "$(dirname "$0")/_common.sh"
-DIR="$CLI/sandbox/$NAME"
+DIR="$(scenario_dir "$NAME")"
 
 # Trap-based cleanup: wipe the scenario directory on every exit path
 # (success OR failure) so the sandbox/ tree never accumulates orphans.

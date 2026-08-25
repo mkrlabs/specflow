@@ -8,7 +8,7 @@ set -euo pipefail
 NAME="${1:?usage: run-init.sh <name> <harness>}"
 HARNESS="${2:?usage: run-init.sh <name> <harness>}"
 . "$(dirname "$0")/_common.sh"
-SANDBOX_DIR="$CLI/sandbox/$NAME"
+SANDBOX_DIR="$(scenario_dir "$NAME")"
 
 if [ ! -d "$SANDBOX_DIR" ]; then
   echo "error: sandbox/$NAME does not exist — run bootstrap-vite.sh or bootstrap-empty.sh first" >&2
