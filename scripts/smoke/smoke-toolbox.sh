@@ -151,4 +151,67 @@ else
   fail "membership drift exited 0" "a script nobody runs would ship as covered"
 fi
 
+echo
+echo "═══ smoke_code_lines: a comment is not an assertion ═══"
+# The accuracy of the strip has no natural witness. audit.sh's real-tree
+# verdict and smoke-audit.sh's comment-only scenario BOTH pass under the
+# naive `sed 's/#.*$//'`, so without these checks 023-R3 would ship with
+# zero coverage. That is why they exist and why the negative half below
+# matters as much as the positive one.
+#
+# This file is the toolbox's own meta-test, so it is the right home for
+# testing a _common.sh helper. Its `rm -rf` sweep above deliberately does
+# NOT use that helper — see plan.md §8.
+cl_fixture="$(mktemp)"
+cat > "$cl_fixture" <<'FIXTURE'
+# a whole-line comment naming victim-a.sh
+    # an indented comment naming victim-b.sh
+kept_trailing="survivor-c.sh"   # comment naming victim-d.sh
+expansion="${rt#prefix/}survivor-e.sh"
+banner_line='echo "=== #180  survivor-f.sh --parent flag ==="'
+FIXTURE
+cl_out="$(smoke_code_lines "$cl_fixture")"
+
+# Positive half: real code carrying a hash survives. Both shapes were
+# measured on this suite — 16 parameter expansions and the banner lines.
+for survivor in survivor-c.sh survivor-e.sh survivor-f.sh; do
+  if grep -qF "$survivor" <<<"$cl_out"; then
+    pass "smoke_code_lines keeps real code: $survivor"
+  else
+    fail "smoke_code_lines destroyed real code: $survivor" \
+         "a hash that is quoted, or not preceded by whitespace, does not start a comment"
+  fi
+done
+
+# Negative half: without it, a helper that returned its input unchanged
+# would pass everything above.
+for victim in victim-a.sh victim-b.sh victim-d.sh; do
+  if grep -qF "$victim" <<<"$cl_out"; then
+    fail "smoke_code_lines kept a comment: $victim" "a comment would still vouch for a file"
+  else
+    pass "smoke_code_lines removes the comment naming $victim"
+  fi
+done
+
+# The two properties callers rely on (023-R2).
+if [ "$(wc -l < "$cl_fixture")" = "$(printf '%s\n' "$cl_out" | wc -l)" ]; then
+  pass "smoke_code_lines preserves line numbering"
+else
+  fail "smoke_code_lines changed the line count" "a caller reporting file:line would misreport it"
+fi
+
+cl_prefix_bad=0
+while IFS= read -r pair; do
+  orig="${pair%%$(printf '\034')*}"
+  out="${pair#*$(printf '\034')}"
+  case "$orig" in "$out"*) ;; *) cl_prefix_bad=$((cl_prefix_bad + 1)) ;; esac
+done < <(paste -d"$(printf '\034')" "$cl_fixture" <(printf '%s\n' "$cl_out"))
+if [ "$cl_prefix_bad" -eq 0 ]; then
+  pass "smoke_code_lines removes a suffix, never an interior span"
+else
+  fail "smoke_code_lines cut out an interior span on $cl_prefix_bad line(s)" \
+       "the fail-closed guarantee rests on every output line being a prefix of its input"
+fi
+rm -f "$cl_fixture"
+
 finish "TOOLBOX"
