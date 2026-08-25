@@ -166,13 +166,21 @@ SURFACES=(
   'templates/core/specnaut/templates/*|smoke-features.sh|scaffold-template'
   'templates/core/specnaut/backlog.md|smoke-backlog-local.sh|specnaut-root-doc'
   'templates/core/specnaut/logs/README.md|smoke-features.sh|specnaut-root-doc'
+  # Harness-specific artefacts. The pathspec ignored this whole tree until
+  # #551 — twelve shipped files, including all three bundled hooks, that the
+  # coverage scan had never once looked at while its success line claimed
+  # otherwise.
+  'templates/harness-specific/*/hooks/*|smoke-hooks.sh|bundled-hook'
+  'templates/harness-specific/*/scripts/*|smoke-features.sh|harness-script'
+  'templates/harness-specific/*/*|smoke-features.sh smoke-all-harnesses.sh|harness-file'
 )
 
 # `core.quotePath=false`: by default git renders a non-ASCII path as an escaped,
 # double-quoted string, which matches no glob in SURFACES and left through the
 # unmapped bucket — a green gate over a file nothing asserts on (#549).
 CHANGED=$(git -C "$SRC_ROOT" -c core.quotePath=false diff --name-only --diff-filter=AMR "$SINCE..HEAD" -- \
-  'templates/core/' 'templates/manifest.json' 'src/cli/' 2>/dev/null || true)
+  'templates/core/' 'templates/harness-specific/' 'templates/manifest.json' 'src/cli/' \
+  2>/dev/null || true)
 
 # --- Coverage-gap allowlist (plan.md §5 R13) ----------------------------
 ALLOWLIST="$SMOKE_DIR/coverage-allowlist.txt"
@@ -218,6 +226,23 @@ allow_reason() {
 # the line this suite has declined to cross every time it has come up.
 coverage_token() {
   case "$1" in
+    templates/harness-specific/*)
+      # The runtime path, not the basename: CLAUDE.md, AGENTS.md and
+      # settings.json all exist elsewhere in the bundle, so a basename token
+      # matches assertions about a different file — the collapse #547 removed
+      # for SKILL.md and #549 for logs/README.md, a third time.
+      _rest="${1#templates/harness-specific/}"
+      case "$_rest" in
+        claude/*)  echo ".claude/${_rest#claude/}" ;;
+        codex/*)   echo ".codex/${_rest#codex/}" ;;
+        # cursor nests its rules a level deeper than the source tree does,
+        # so a mechanical `.cursor/<rest>` token names a path that is never
+        # written and can never match an assertion.
+        cursor/specify-rules.mdc) echo ".cursor/rules/specify-rules.mdc" ;;
+        cursor/*)  echo ".cursor/${_rest#cursor/}" ;;
+        *)         echo "$_rest" ;;
+      esac
+      ;;
     templates/core/specnaut/logs/*)
       # `README.md` as a token matches assertions about OTHER READMEs — the
       # same collapse #547 removed for SKILL.md, one directory over. Emit the
@@ -490,8 +515,6 @@ echo "## Unmapped surface"
 echo
 if [ "$unmapped_count" -eq 0 ]; then
   echo "  ✓ every changed file the pathspec collects fell under a mapped glob"
-  echo "    (scope: templates/core/, templates/manifest.json, src/cli/ —"
-  echo "     templates/harness-specific/ is NOT scanned — 12 shipped files, tracked)"
 else
   printf '%s' "$unmapped_list"
   echo "      ↳ no glob in the SURFACES map matches these, so NOTHING was"

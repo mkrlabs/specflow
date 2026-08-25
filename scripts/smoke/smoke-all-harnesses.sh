@@ -75,6 +75,23 @@ for h in "${HARNESSES[@]}"; do
     continue
   fi
 
+  # #551 — a harness-only artefact can only be asserted where that harness is
+  # actually installed. smoke-features.sh inits a CLAUDE project, so cursor's
+  # rules file could never appear there, and this is the only smoke that inits
+  # every harness. It went unasserted because the coverage scan did not collect
+  # templates/harness-specific/ at all, so nothing ever reported it missing.
+  # Inside the loop on purpose: the EXIT trap removes each variant tree.
+  if [ "$h" = "cursor" ]; then
+    if [ -f "$variant_dir/.cursor/rules/specify-rules.mdc" ]; then
+      pass "cursor: .cursor/rules/specify-rules.mdc scaffolded"
+      grep -q "alwaysApply: true" "$variant_dir/.cursor/rules/specify-rules.mdc" \
+        && pass "cursor: the rules file applies without being asked for" \
+        || fail "cursor: rules file does not set alwaysApply" "a rule nobody loads is not a rule"
+    else
+      fail "cursor: specify-rules.mdc missing" "$variant_dir/.cursor/rules/"
+    fi
+  fi
+
   pass "$h: scaffold ok ($expected/ + lock declares harness=$h)"
 done
 

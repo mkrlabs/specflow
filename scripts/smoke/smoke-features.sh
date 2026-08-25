@@ -640,6 +640,22 @@ check "and the rule itself exists where it is supposed to live" \
   'grep -q "Never a number alone" .claude/skills/backlog-reference-contract/SKILL.md'
 
 echo
+echo "═══ #551  the harness-specific tree the scan never looked at ═══"
+# Three of the twelve files under templates/harness-specific/ had no assertion
+# at all — they were invisible because the diff pathspec never collected that
+# tree, so nothing ever reported them missing.
+check "the security-guidance context file scaffolds" \
+  '[ -f .claude/claude-security-guidance.md ]'
+check "and states that it sharpens the checklist rather than replacing it" \
+  'grep -q "it cannot switch parts of it" .claude/claude-security-guidance.md'
+check "the per-edit pattern file scaffolds" \
+  '[ -f .claude/security-patterns.yaml ]'
+check "and promises deterministic matching, with no model call" \
+  'grep -q "no model call" .claude/security-patterns.yaml'
+check "and fires each rule once per file per session, not on every edit" \
+  'grep -q "once per" .claude/security-patterns.yaml'
+
+echo
 echo "═══ #23  a silent review seat fails the gate ═══"
 # The not-run state has ONE representation and it is arithmetic: a prose note
 # beside an all-zero block reads as clean to whatever sums it. Every assertion
