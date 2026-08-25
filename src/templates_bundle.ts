@@ -981,6 +981,11 @@ did not report and stop. Findings-based routing cannot catch this — a seat
 that never ran produces no findings to route and no cell to fill, so without
 this check a lost seat reads as a quiet pass all the way to merge.
 
+A seat can be short here for two reasons now: it returned no block, or it
+returned a **clean** one naming no evidence from the diff, which the
+coordinator counts as zero. This check needs no change to catch the second —
+that is the point of the state being a number rather than a prose note.
+
 Re-dispatching the missing seat with a **narrower** brief is the normal remedy
 and does not need permission. Repeating the same brief is not.
 
@@ -5599,6 +5604,7 @@ REVIEW_SCOPE: <reviewer name or gate scope>
 REVIEW_VERDICT: pass | fail | needs_followup
 SEATS_EXPECTED: <integer>
 SEATS_REPORTED: <integer>
+EVIDENCE: <what you actually inspected — paths, comma-separated | NONE>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>
@@ -5619,7 +5625,37 @@ RECOMMENDATION: <one sentence — what the next actor should do>
   reviewer emits \`1\`/\`1\`, or \`1\`/\`0\` when it is declaring itself unable.
 - \`REVIEW_VERDICT: needs_followup\` when only Medium/Low findings remain.
 - Every count is an explicit integer, including \`0\`.
+- **Every field in the format appears inside the block.** Mentioning a field in
+  prose beside the block has not emitted it — the block is the whole
+  machine-readable surface, and a parenthetical after it is invisible to
+  whatever parses the run. Observed: a coordinator aggregating correctly, with
+  \`SEATS_EXPECTED\` / \`SEATS_REPORTED\` / \`EVIDENCE\` in a sentence underneath.
 - Verdict and counts must never contradict.
+
+## \`EVIDENCE\` — what a clean verdict has to name
+
+\`SEATS_REPORTED\` is a seat's own account of itself. Nothing in the arithmetic
+above stops a seat from emitting \`1\`/\`1\` with all-zero counts and an empty
+report; it aggregates as a clean pass and the coordinator, counting blocks,
+cannot tell it from a real one.
+
+- \`EVIDENCE\` names what the seat inspected. On a **clean** report — every
+  severity count \`0\` — it MUST name at least one path from the diff under
+  review. A clean verdict is a claim about specific files, so it names them.
+- A clean report whose \`EVIDENCE\` is **absent, empty, or \`NONE\`** is \`NOT RUN\`.
+  The coordinator counts that seat as \`0\` towards \`SEATS_REPORTED\` whatever the
+  seat wrote, and the verdict comes out \`fail\` from the same arithmetic as a
+  missing block. This is the one field a seat's own count does not override.
+- A report **with findings** needs no \`EVIDENCE\` beyond the findings, which
+  already name their locations. Emit the field anyway; it costs one line.
+
+**The limit this leaves, stated so the next reader inherits it rather than
+rediscovering it.** \`EVIDENCE\` is still written by the seat. What changes is
+that the coordinator now holds a claim it can check — the paths either are in
+the diff or they are not — instead of a number nobody can check. A seat that
+copies real paths out of the diff and reviews none of them still passes. This
+mechanism answers *did it look at all*, never *did it look well*, and no
+amount of contract text will make it answer the second.
 `,
     executable: false,
     backend: null,
@@ -6160,6 +6196,9 @@ Emit exactly one \`REVIEW SUMMARY\` block per the preloaded
 REVIEW SUMMARY
 REVIEW_SCOPE: review gate (aggregated across code-reviewer, security-expert, test-reviewer)
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: <integer — required seats for this diff>
+SEATS_REPORTED: <integer — seats that reported AND, when clean, showed evidence>
+EVIDENCE: <the union of the seats' EVIDENCE | NONE>
 CRITICAL_COUNT: <integer — summed across seats>
 HIGH_COUNT: <integer — summed across seats>
 MEDIUM_COUNT: <integer — summed across seats>
@@ -6184,14 +6223,35 @@ skipped seat is not a missing one.
 - **Count it.** \`SEATS_EXPECTED\` is the number of required seats;
   \`SEATS_REPORTED\` counts those that returned a block with their own
   \`SEATS_REPORTED: 1\`. An **absent block** counts as zero. A **well-formed
-  block that omits the field** counts as **one** — that means a seat older
-  than this contract, not a seat that did not look, and treating it as zero
-  would fail every honest review the moment one seat lags. The verdict then comes
+  block that omits \`SEATS_REPORTED\`** counts as **one** — that means a seat
+  older than this contract, not a seat that did not look, and treating it as
+  zero would fail every honest review the moment one seat lags. The verdict then comes
   out \`fail\` from the contract's own arithmetic rather than from a prose rule
   fighting the count rule — which is what made the first version of this
   section emit \`fail\` beside \`HIGH_COUNT: 0\` and contradict itself.
 - Name it in \`TOP_ISSUES\` on its own line — a review that quietly loses a seat
   is the defect this project keeps finding everywhere else.
+
+### A clean seat report is checked against the diff, not taken on its word
+
+Everything above counts blocks. A seat emitting \`1\`/\`1\` with all-zero counts
+and an empty report is indistinguishable from one that looked — which moves the
+trust boundary rather than removing it. So a **clean** report (every severity
+count \`0\`) gets one check that does not go through the seat's own count:
+
+- Read its \`EVIDENCE\` field and check it against **the diff you already hold**.
+  At least one named path must be in that diff.
+- \`EVIDENCE\` absent, empty, \`NONE\`, or naming nothing from the diff → that seat
+  is \`NOT RUN\`. Count it as **zero** towards \`SEATS_REPORTED\` regardless of the
+  \`1\` it wrote, name it in \`TOP_ISSUES\` as \`NOT RUN: clean verdict, no
+  evidence\`, and let the verdict fall out of the same arithmetic as a missing
+  block.
+- A seat **with findings** is exempt. Its findings name their own locations,
+  and demanding a second list would fail honest reports over a formatting miss.
+
+This checks *whether a seat looked*, never whether it looked well. A seat that
+copies real paths out of the diff still passes — the limit is stated at the end
+of \`review-findings-contract\`.
 - If you substitute your own checking for the missing seat, **label it as
   yours**. Coordinator verification is not a seat report, and presenting it as
   one hides exactly what the reader needs to know.
@@ -6273,6 +6333,7 @@ REVIEW_SCOPE: code-reviewer
 REVIEW_VERDICT: pass | fail | needs_followup
 SEATS_EXPECTED: 1
 SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
+EVIDENCE: <the paths you inspected, comma-separated — required when every count is 0>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>
@@ -6369,8 +6430,9 @@ nothing.** Both are reported the same way — through the block — because a
 prose note beside an all-zero block reads as clean to whatever sums it:
 
 - **Found nothing after looking.** \`SEATS_EXPECTED: 1\`, \`SEATS_REPORTED: 1\`,
-  zero counts, and a line beginning \`no findings — checks performed:\` naming
-  what you inspected. That is a pass.
+  zero counts, and \`EVIDENCE:\` naming the paths you inspected. The evidence is
+  **not optional here**: the coordinator checks it against the diff and counts a
+  clean verdict with none as \`NOT RUN\`, whatever the \`1\` beside it says.
 - **Could not look.** The same block with \`SEATS_REPORTED: 0\`,
   \`REVIEW_VERDICT: fail\`, and \`TOP_ISSUES:\` opening \`NOT RUN: <reason>\`. The
   zero is what makes it a failed gate arithmetically rather than by
@@ -6589,8 +6651,9 @@ Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
 (\`REVIEW_SCOPE: test-reviewer\`, \`REVIEW_VERDICT: pass | fail | needs_followup\`,
 \`SEATS_EXPECTED: 1\` and \`SEATS_REPORTED\` (\`1\` when you reviewed, \`0\` when you
-could not — the field is how the gate tells those apart),
-the four severity counts, \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the
+could not — the field is how the gate tells those apart), \`EVIDENCE\` naming the
+paths you inspected (**required** when every count is \`0\`: a clean verdict with
+no evidence is counted as \`NOT RUN\`), the four severity counts, \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the
 \`WORKFLOW STATUS\` block per \`workflow-contract\`.
 `,
     executable: false,
@@ -7499,7 +7562,9 @@ Same \`FINDING\` structure as code-reviewer, followed by exactly one
 (\`REVIEW_SCOPE: performance-expert\`,
 \`REVIEW_VERDICT: pass | fail | needs_followup\`,
 \`SEATS_EXPECTED: 1\` and \`SEATS_REPORTED\` (\`1\` when you reviewed, \`0\` when you
-could not — the field is how the gate tells those apart), the four severity counts,
+could not — the field is how the gate tells those apart), \`EVIDENCE\` naming the
+paths you inspected (**required** when every count is \`0\`: a clean verdict with
+no evidence is counted as \`NOT RUN\`), the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. Audit-mode (Mode 2) emits neither block.
 `,
@@ -7725,7 +7790,9 @@ Same \`FINDING\` structure as code-reviewer, followed by exactly one
 (\`REVIEW_SCOPE: accessibility-expert\`,
 \`REVIEW_VERDICT: pass | fail | needs_followup\`,
 \`SEATS_EXPECTED: 1\` and \`SEATS_REPORTED\` (\`1\` when you reviewed, \`0\` when you
-could not — the field is how the gate tells those apart), the four severity counts,
+could not — the field is how the gate tells those apart), \`EVIDENCE\` naming the
+paths you inspected (**required** when every count is \`0\`: a clean verdict with
+no evidence is counted as \`NOT RUN\`), the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. Audit-mode (Mode 2) emits neither block.
 `,
@@ -7972,6 +8039,7 @@ REVIEW_SCOPE: architect-expert
 REVIEW_VERDICT: pass | fail | needs_followup
 SEATS_EXPECTED: 1
 SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
+EVIDENCE: <the paths you inspected, comma-separated — required when every count is 0>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>
@@ -8250,6 +8318,7 @@ REVIEW_SCOPE: dependency-expert
 REVIEW_VERDICT: pass | fail | needs_followup
 SEATS_EXPECTED: 1
 SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
+EVIDENCE: <the paths you inspected, comma-separated — required when every count is 0>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>

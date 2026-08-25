@@ -58,6 +58,9 @@ Emit exactly one `REVIEW SUMMARY` block per the preloaded
 REVIEW SUMMARY
 REVIEW_SCOPE: review gate (aggregated across code-reviewer, security-expert, test-reviewer)
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: <integer — required seats for this diff>
+SEATS_REPORTED: <integer — seats that reported AND, when clean, showed evidence>
+EVIDENCE: <the union of the seats' EVIDENCE | NONE>
 CRITICAL_COUNT: <integer — summed across seats>
 HIGH_COUNT: <integer — summed across seats>
 MEDIUM_COUNT: <integer — summed across seats>
@@ -82,14 +85,35 @@ skipped seat is not a missing one.
 - **Count it.** `SEATS_EXPECTED` is the number of required seats;
   `SEATS_REPORTED` counts those that returned a block with their own
   `SEATS_REPORTED: 1`. An **absent block** counts as zero. A **well-formed
-  block that omits the field** counts as **one** — that means a seat older
-  than this contract, not a seat that did not look, and treating it as zero
-  would fail every honest review the moment one seat lags. The verdict then comes
+  block that omits `SEATS_REPORTED`** counts as **one** — that means a seat
+  older than this contract, not a seat that did not look, and treating it as
+  zero would fail every honest review the moment one seat lags. The verdict then comes
   out `fail` from the contract's own arithmetic rather than from a prose rule
   fighting the count rule — which is what made the first version of this
   section emit `fail` beside `HIGH_COUNT: 0` and contradict itself.
 - Name it in `TOP_ISSUES` on its own line — a review that quietly loses a seat
   is the defect this project keeps finding everywhere else.
+
+### A clean seat report is checked against the diff, not taken on its word
+
+Everything above counts blocks. A seat emitting `1`/`1` with all-zero counts
+and an empty report is indistinguishable from one that looked — which moves the
+trust boundary rather than removing it. So a **clean** report (every severity
+count `0`) gets one check that does not go through the seat's own count:
+
+- Read its `EVIDENCE` field and check it against **the diff you already hold**.
+  At least one named path must be in that diff.
+- `EVIDENCE` absent, empty, `NONE`, or naming nothing from the diff → that seat
+  is `NOT RUN`. Count it as **zero** towards `SEATS_REPORTED` regardless of the
+  `1` it wrote, name it in `TOP_ISSUES` as `NOT RUN: clean verdict, no
+  evidence`, and let the verdict fall out of the same arithmetic as a missing
+  block.
+- A seat **with findings** is exempt. Its findings name their own locations,
+  and demanding a second list would fail honest reports over a formatting miss.
+
+This checks *whether a seat looked*, never whether it looked well. A seat that
+copies real paths out of the diff still passes — the limit is stated at the end
+of `review-findings-contract`.
 - If you substitute your own checking for the missing seat, **label it as
   yours**. Coordinator verification is not a seat report, and presenting it as
   one hides exactly what the reader needs to know.

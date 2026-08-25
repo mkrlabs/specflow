@@ -49,6 +49,7 @@ REVIEW_SCOPE: code-reviewer
 REVIEW_VERDICT: pass | fail | needs_followup
 SEATS_EXPECTED: 1
 SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
+EVIDENCE: <the paths you inspected, comma-separated — required when every count is 0>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>

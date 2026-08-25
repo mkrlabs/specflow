@@ -663,8 +663,20 @@ echo "═══ #23  a silent review seat fails the gate ═══"
 # rule beneath a heading used to leave two of these green.
 check "the seat caps Step 0 so the budget reaches the files" \
   'grep -q "at most four reads in Step 0" .claude/agents/security-expert.md'
-check "a clean verdict has a shape of its own" \
-  'grep -qF "no findings — checks performed:" .claude/agents/security-expert.md'
+# monorepo#28 re-anchored this. It used to pin the literal
+# `no findings — checks performed:`, which existed on ONE seat — the per-agent
+# convention that made a coordinator-side check impossible to write. The shape
+# now lives in the contract as `EVIDENCE`, so the assertion sweeps every seat
+# instead of naming the one that happened to have it.
+check "a clean verdict has a shape of its own, on every seat" \
+  'for a in accessibility-expert architect-expert code-reviewer dependency-expert \
+            performance-expert security-expert test-reviewer review-coordinator; do
+     grep -qF "EVIDENCE" ".claude/agents/$a.md" || exit 1
+   done'
+check "the contract, not an agent, defines what a clean verdict names" \
+  'grep -qF "EVIDENCE" .claude/skills/review-findings-contract/SKILL.md'
+check "and it states the limit the check leaves behind" \
+  'grep -qF "did it look at all" .claude/skills/review-findings-contract/SKILL.md'
 check "and could-not-look is reported as a COUNT, not only as prose" \
   'grep -qF "SEATS_REPORTED: 0" .claude/agents/security-expert.md'
 check "the seat is forbidden from saying NOT RUN without the count" \

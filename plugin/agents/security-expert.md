@@ -74,8 +74,9 @@ nothing.** Both are reported the same way — through the block — because a
 prose note beside an all-zero block reads as clean to whatever sums it:
 
 - **Found nothing after looking.** `SEATS_EXPECTED: 1`, `SEATS_REPORTED: 1`,
-  zero counts, and a line beginning `no findings — checks performed:` naming
-  what you inspected. That is a pass.
+  zero counts, and `EVIDENCE:` naming the paths you inspected. The evidence is
+  **not optional here**: the coordinator checks it against the diff and counts a
+  clean verdict with none as `NOT RUN`, whatever the `1` beside it says.
 - **Could not look.** The same block with `SEATS_REPORTED: 0`,
   `REVIEW_VERDICT: fail`, and `TOP_ISSUES:` opening `NOT RUN: <reason>`. The
   zero is what makes it a failed gate arithmetically rather than by

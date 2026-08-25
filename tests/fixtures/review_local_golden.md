@@ -76,6 +76,11 @@ did not report and stop. Findings-based routing cannot catch this — a seat
 that never ran produces no findings to route and no cell to fill, so without
 this check a lost seat reads as a quiet pass all the way to merge.
 
+A seat can be short here for two reasons now: it returned no block, or it
+returned a **clean** one naming no evidence from the diff, which the
+coordinator counts as zero. This check needs no change to catch the second —
+that is the point of the state being a number rather than a prose note.
+
 Re-dispatching the missing seat with a **narrower** brief is the normal remedy
 and does not need permission. Repeating the same brief is not.
 

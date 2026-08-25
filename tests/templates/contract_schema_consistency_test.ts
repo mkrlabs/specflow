@@ -51,6 +51,8 @@ const SCHEMA_MARKERS: Record<string, string[]> = {
     "**and** `SEATS_REPORTED == SEATS_EXPECTED`.",
     "**or** `SEATS_REPORTED < SEATS_EXPECTED`.",
     "Verdict and counts must never contradict.",
+    "EVIDENCE",
+    "A clean report whose `EVIDENCE` is **absent, empty, or `NONE`** is `NOT RUN`.",
   ],
   "qa-report-contract": [
     "QA SUMMARY",

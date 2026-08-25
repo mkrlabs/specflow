@@ -200,6 +200,8 @@ Same `FINDING` structure as code-reviewer, followed by exactly one
 (`REVIEW_SCOPE: performance-expert`,
 `REVIEW_VERDICT: pass | fail | needs_followup`,
 `SEATS_EXPECTED: 1` and `SEATS_REPORTED` (`1` when you reviewed, `0` when you
-could not — the field is how the gate tells those apart), the four severity counts,
+could not — the field is how the gate tells those apart), `EVIDENCE` naming the
+paths you inspected (**required** when every count is `0`: a clean verdict with
+no evidence is counted as `NOT RUN`), the four severity counts,
 `TOP_ISSUES`, `RECOMMENDATION`), then the `WORKFLOW STATUS` block per
 `workflow-contract`. Audit-mode (Mode 2) emits neither block.
