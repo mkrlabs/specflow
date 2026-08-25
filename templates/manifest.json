@@ -663,6 +663,22 @@
     },
     {
       "category": "backlog-script",
+      "name": "move",
+      "suffix": "cascade-check.sh",
+      "source": "core/skills/board/scripts/cloud/cascade-check.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
+      "name": "move",
+      "suffix": "parent-of.sh",
+      "source": "core/skills/board/scripts/cloud/parent-of.sh",
+      "executable": true,
+      "backend": "cloud"
+    },
+    {
+      "category": "backlog-script",
       "name": "clarify-comment",
       "suffix": "clarify-comment.sh",
       "source": "core/skills/board/scripts/cloud/clarify-comment.sh",

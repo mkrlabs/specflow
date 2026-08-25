@@ -310,52 +310,40 @@ fi
 EPIC_ISSUE=""
 EPIC_BRANCH=""
 if [ -n "$LINKED_ISSUE" ]; then
-    _backend=""
-    if [ -f "$REPO_ROOT/.specnaut/installed.lock" ]; then
-        _backend=$(sed -n 's/^backlog_backend:[[:space:]]*//p' "$REPO_ROOT/.specnaut/installed.lock" | head -1)
-    fi
     _parent_sh="$REPO_ROOT/.specnaut/scripts/backlog/parent-of.sh"
     _cascade_sh="$REPO_ROOT/.specnaut/scripts/backlog/cascade-check.sh"
 
-    case "$_backend" in
-        github | gitlab)
-            if [ ! -x "$_parent_sh" ] || [ ! -x "$_cascade_sh" ]; then
-                # "The scripts are missing" — an install problem, fixable here.
-                echo "# no backlog parent-of.sh / cascade-check.sh installed — epic detection did NOT run; treating issue $LINKED_ISSUE as standalone" >&2
-            else
-                _p_rc=0
-                _p_out=$(bash "$_parent_sh" "$LINKED_ISSUE" 2>&1) || _p_rc=$?
-                case "$_p_rc" in
-                    0)
-                        EPIC_ISSUE="$_p_out"
-                        echo "# issue $LINKED_ISSUE is a child of epic #$EPIC_ISSUE — the branch belongs to the epic" >&2
-                        ;;
-                    10)
-                        _c_rc=0
-                        bash "$_cascade_sh" "$LINKED_ISSUE" >/dev/null 2>&1 || _c_rc=$?
-                        if [ "$_c_rc" -eq 11 ]; then
-                            EPIC_ISSUE="$LINKED_ISSUE"
-                            echo "# issue $LINKED_ISSUE is an epic with open children — one branch for the whole epic" >&2
-                        else
-                            echo "# issue $LINKED_ISSUE has no parent and no open children — standalone, unchanged" >&2
-                        fi
-                        ;;
-                    *)
-                        echo "# could not resolve the parent of issue $LINKED_ISSUE (exit $_p_rc): $_p_out" >&2
-                        echo "# treating it as standalone — the branch is created either way" >&2
-                        ;;
-                esac
-            fi
-            ;;
-        *)
-            # AC 14. "This backend cannot answer" is NOT "no script installed".
-            # The first is a capability gap with a ticket; the second is an
-            # install that can be repaired. Reporting a missing capability as a
-            # routine install gap is how the epic path would silently never
-            # activate on the default backend.
-            echo "# the '${_backend:-unknown}' backlog backend ships no sub-issue enumerator, so epic detection did NOT run (see cli#563) — treating issue $LINKED_ISSUE as standalone" >&2
-            ;;
-    esac
+    # #563 shipped both enumerators for every backend, so there is no longer a
+    # backend that cannot answer. The branch that distinguished "this backend
+    # ships no enumerator" from "no script installed" is GONE rather than left
+    # standing unreachable — an unreachable branch is a second shape of the
+    # same rule, and the next reader has to work out which one is live.
+    if [ ! -x "$_parent_sh" ] || [ ! -x "$_cascade_sh" ]; then
+        echo "# no backlog parent-of.sh / cascade-check.sh installed — epic detection did NOT run; treating issue $LINKED_ISSUE as standalone" >&2
+    else
+        _p_rc=0
+        _p_out=$(bash "$_parent_sh" "$LINKED_ISSUE" 2>&1) || _p_rc=$?
+        case "$_p_rc" in
+            0)
+                EPIC_ISSUE="$_p_out"
+                echo "# issue $LINKED_ISSUE is a child of epic #$EPIC_ISSUE — the branch belongs to the epic" >&2
+                ;;
+            10)
+                _c_rc=0
+                bash "$_cascade_sh" "$LINKED_ISSUE" >/dev/null 2>&1 || _c_rc=$?
+                if [ "$_c_rc" -eq 11 ]; then
+                    EPIC_ISSUE="$LINKED_ISSUE"
+                    echo "# issue $LINKED_ISSUE is an epic with open children — one branch for the whole epic" >&2
+                else
+                    echo "# issue $LINKED_ISSUE has no parent and no open children — standalone, unchanged" >&2
+                fi
+                ;;
+            *)
+                echo "# could not resolve the parent of issue $LINKED_ISSUE (exit $_p_rc): $_p_out" >&2
+                echo "# treating it as standalone — the branch is created either way" >&2
+                ;;
+        esac
+    fi
 fi
 
 # When this invocation belongs to an epic, reuse the epic's existing branch

@@ -152,6 +152,11 @@ SURFACES=(
   'templates/core/skills/board/scripts/github/*|smoke-backlog-github.sh|github-backlog-script'
   'templates/core/skills/board/scripts/gitlab/*|smoke-backlog-gitlab.sh|gitlab-backlog-script'
   'templates/core/skills/board/scripts/local/*|smoke-backlog-local.sh|local-backlog-script'
+  # #563: this directory had NO glob and NO smoke, so every script the
+  # cloud backend ships was asserted on by nothing — and the coverage scan
+  # could not report it, because an unclaimed directory is invisible to a
+  # map keyed on claims.
+  'templates/core/skills/board/scripts/cloud/*|smoke-backlog-cloud.sh|cloud-backlog-script'
   'templates/core/hooks/*|smoke-hooks.sh|bundled-hook'
   'templates/core/specnaut/scripts/*/*|smoke-features.sh|specnaut-helper-script'
   'templates/core/specnaut/LABELS.md|smoke-features.sh smoke-backlog-github.sh smoke-backlog-gitlab.sh|labels-doc'

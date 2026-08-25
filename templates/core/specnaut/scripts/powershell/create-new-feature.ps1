@@ -310,43 +310,34 @@ if ($branchName.Length -gt $maxBranchLength) {
 $epicIssue = ''
 $epicBranch = ''
 if ($Issue -gt 0) {
-    $backend = ''
-    $lockPath = Join-Path $repoRoot '.specnaut/installed.lock'
-    if (Test-Path $lockPath) {
-        $line = Select-String -LiteralPath $lockPath -Pattern '^backlog_backend:\s*(.+)$' | Select-Object -First 1
-        if ($line) { $backend = $line.Matches[0].Groups[1].Value.Trim() }
-    }
     $parentSh = Join-Path $repoRoot '.specnaut/scripts/backlog/parent-of.sh'
     $cascadeSh = Join-Path $repoRoot '.specnaut/scripts/backlog/cascade-check.sh'
 
-    if ($backend -eq 'github' -or $backend -eq 'gitlab') {
-        if (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
-            [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - epic detection did NOT run; treating issue $Issue as standalone")
-        } elseif (-not (Test-Path $parentSh) -or -not (Test-Path $cascadeSh)) {
-            [Console]::Error.WriteLine("# no backlog parent-of.sh / cascade-check.sh installed - epic detection did NOT run; treating issue $Issue as standalone")
-        } else {
-            $parentOut = & bash $parentSh $Issue 2>&1
-            $parentRc = $LASTEXITCODE
-            if ($parentRc -eq 0) {
-                $epicIssue = "$parentOut".Trim()
-                [Console]::Error.WriteLine("# issue $Issue is a child of epic #$epicIssue - the branch belongs to the epic")
-            } elseif ($parentRc -eq 10) {
-                & bash $cascadeSh $Issue *> $null
-                if ($LASTEXITCODE -eq 11) {
-                    $epicIssue = "$Issue"
-                    [Console]::Error.WriteLine("# issue $Issue is an epic with open children - one branch for the whole epic")
-                } else {
-                    [Console]::Error.WriteLine("# issue $Issue has no parent and no open children - standalone, unchanged")
-                }
-            } else {
-                [Console]::Error.WriteLine("# could not resolve the parent of issue $Issue (exit $parentRc): $parentOut")
-                [Console]::Error.WriteLine("# treating it as standalone - the branch is created either way")
-            }
-        }
+    # #563 shipped both enumerators for every backend, so the branch that told
+    # "this backend ships no enumerator" from "no script installed" is GONE
+    # rather than left standing unreachable.
+    if (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
+        [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - epic detection did NOT run; treating issue $Issue as standalone")
+    } elseif (-not (Test-Path $parentSh) -or -not (Test-Path $cascadeSh)) {
+        [Console]::Error.WriteLine("# no backlog parent-of.sh / cascade-check.sh installed - epic detection did NOT run; treating issue $Issue as standalone")
     } else {
-        # AC 14. "This backend cannot answer" is NOT "no script installed".
-        $shown = if ($backend) { $backend } else { 'unknown' }
-        [Console]::Error.WriteLine("# the '$shown' backlog backend ships no sub-issue enumerator, so epic detection did NOT run (see cli#563) - treating issue $Issue as standalone")
+        $parentOut = & bash $parentSh $Issue 2>&1
+        $parentRc = $LASTEXITCODE
+        if ($parentRc -eq 0) {
+            $epicIssue = "$parentOut".Trim()
+            [Console]::Error.WriteLine("# issue $Issue is a child of epic #$epicIssue - the branch belongs to the epic")
+        } elseif ($parentRc -eq 10) {
+            & bash $cascadeSh $Issue *> $null
+            if ($LASTEXITCODE -eq 11) {
+                $epicIssue = "$Issue"
+                [Console]::Error.WriteLine("# issue $Issue is an epic with open children - one branch for the whole epic")
+            } else {
+                [Console]::Error.WriteLine("# issue $Issue has no parent and no open children - standalone, unchanged")
+            }
+        } else {
+            [Console]::Error.WriteLine("# could not resolve the parent of issue $Issue (exit $parentRc): $parentOut")
+            [Console]::Error.WriteLine("# treating it as standalone - the branch is created either way")
+        }
     }
 }
 

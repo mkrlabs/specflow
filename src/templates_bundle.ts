@@ -12615,21 +12615,46 @@ echo "\$RESP" | jq -r --argjson cols "\$COLS" '
     suffix: "add.sh",
     content: `#!/usr/bin/env bash
 # Create a task on the Specnaut Cloud board.
-# Usage: add.sh "<title>" [body]
+#
+# Usage: add.sh "<title>" [body] [--parent <num>]
+#
+# \`--parent\` makes the new task a sub-task of an existing one, in the same
+# shape as the local and github versions. It travels as \`parentNumber\` on the
+# versioned public contract — by number, never by an internal identifier.
 set -euo pipefail
 
+PARENT=""
+ARGS=()
 while [ \$# -gt 0 ]; do
   case "\$1" in
     -h | --help)
-      echo 'usage: add.sh "<title>" [body]'
+      echo 'usage: add.sh "<title>" [body] [--parent <num>]'
       exit 0
       ;;
-    *) break ;;
+    --parent)
+      if [ "\$#" -lt 2 ]; then
+        echo 'usage: add.sh "<title>" [body] [--parent <num>]' >&2
+        exit 2
+      fi
+      PARENT="\$2"
+      case "\$PARENT" in
+        '' | *[!0-9]*)
+          echo "not a task number: '\$PARENT'" >&2
+          exit 2
+          ;;
+      esac
+      shift 2
+      ;;
+    *)
+      ARGS+=("\$1")
+      shift
+      ;;
   esac
 done
+set -- \${ARGS[@]+"\${ARGS[@]}"}
 
 if [ "\$#" -lt 1 ]; then
-  echo 'usage: add.sh "<title>" [body]' >&2
+  echo 'usage: add.sh "<title>" [body] [--parent <num>]' >&2
   exit 2
 fi
 TITLE="\$1"
@@ -12638,8 +12663,10 @@ BODY="\${2:-}"
 # shellcheck source=./_config.sh
 . "\$(dirname "\$0")/_config.sh"
 
-PAYLOAD=\$(jq -n --arg k "\$PROJECT_KEY" --arg t "\$TITLE" --arg b "\$BODY" \\
-  '{ projectKey: \$k, title: \$t } + (if \$b == "" then {} else { body: \$b } end)')
+PAYLOAD=\$(jq -n --arg k "\$PROJECT_KEY" --arg t "\$TITLE" --arg b "\$BODY" --arg p "\$PARENT" \\
+  '{ projectKey: \$k, title: \$t }
+   + (if \$b == "" then {} else { body: \$b } end)
+   + (if \$p == "" then {} else { parentNumber: (\$p | tonumber) } end)')
 
 RESP=\$(curl -fsS -X POST "\$API_BASE/tasks" \\
   -H "Authorization: Bearer \$API_TOKEN" \\
@@ -12694,6 +12721,171 @@ else
   echo "✗ move failed: \$RESP" >&2
   exit 1
 fi
+`,
+    executable: true,
+    backend: "cloud",
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-script",
+    name: "move",
+    suffix: "cascade-check.sh",
+    content: `#!/usr/bin/env bash
+# Verify that a parent task is safe to close — every sub-task must already sit
+# in the board's terminal column. Cloud-backend twin, same exit contract as the
+# github script so callers need no per-backend branching.
+#
+# Usage:   cascade-check.sh <task-number>
+# Exit:    0  no open children — safe to close
+#          11 at least one child is still open — close blocked
+#          12 the parent is already in the terminal column — nothing to gate
+#          3  the parent does not exist, or the lookup failed
+#          2  usage error
+#
+# --- Which column means "done" -------------------------------------------
+# The hosted board's columns are the project's own: an order and a name, and
+# nothing that declares one terminal. So this takes the LAST column by order
+# and NAMES IT on every run.
+#
+# That naming is the whole safety of the convention. A board that grew a
+# column after its done column would otherwise silently stop gating, and an
+# epic would close over unfinished children with no sign anything was wrong.
+# Announced, a wrong target is visible in the first line of output.
+set -euo pipefail
+
+# shellcheck source=./_config.sh
+. "\$(dirname "\$0")/_config.sh"
+
+if [ "\$#" -lt 1 ]; then
+  echo 'usage: cascade-check.sh <task-number>' >&2
+  exit 2
+fi
+NUM="\$1"
+case "\$NUM" in
+  '' | *[!0-9]*) echo "not a task number: '\$NUM'" >&2; exit 2 ;;
+esac
+
+AUTH=(-H "Authorization: Bearer \$API_TOKEN")
+
+rc=0
+COLS=\$(curl -fsS "\$API_BASE/columns?projectKey=\$PROJECT_KEY" "\${AUTH[@]}") || rc=\$?
+if [ "\$rc" -ne 0 ] || [ -z "\$COLS" ]; then
+  echo "✗ could not read the board's columns" >&2
+  exit 3
+fi
+
+TERMINAL_ID=\$(printf '%s' "\$COLS" | jq -r '.columns | sort_by(.order) | last | .id // empty')
+TERMINAL_NAME=\$(printf '%s' "\$COLS" | jq -r '.columns | sort_by(.order) | last | .name // empty')
+TERMINAL_ORDER=\$(printf '%s' "\$COLS" | jq -r '.columns | sort_by(.order) | last | .order')
+COLUMN_COUNT=\$(printf '%s' "\$COLS" | jq -r '.columns | length')
+if [ -z "\$TERMINAL_ID" ]; then
+  echo "✗ the board reports no columns — nothing to gate against" >&2
+  exit 3
+fi
+echo "  terminal column: \\"\$TERMINAL_NAME\\" (order \$TERMINAL_ORDER of \$COLUMN_COUNT)"
+
+rc=0
+PARENT=\$(curl -fsS "\$API_BASE/tasks?projectKey=\$PROJECT_KEY&number=\$NUM" "\${AUTH[@]}") || rc=\$?
+if [ "\$rc" -ne 0 ] || [ -z "\$PARENT" ]; then
+  echo "✗ task #\$NUM not found on the board (or the lookup failed)" >&2
+  exit 3
+fi
+
+PARENT_COL=\$(printf '%s' "\$PARENT" | jq -r '.task.columnId // empty')
+if [ "\$PARENT_COL" = "\$TERMINAL_ID" ]; then
+  echo "ℹ #\$NUM is already in \\"\$TERMINAL_NAME\\" — nothing to gate"
+  exit 12
+fi
+
+# One request for every child. The contract enumerates by parent number, so
+# this never costs one call per child.
+rc=0
+KIDS=\$(curl -fsS "\$API_BASE/tasks?projectKey=\$PROJECT_KEY&parentNumber=\$NUM" "\${AUTH[@]}") || rc=\$?
+if [ "\$rc" -ne 0 ] || [ -z "\$KIDS" ]; then
+  echo "✗ could not enumerate the children of #\$NUM" >&2
+  exit 3
+fi
+
+OPEN_LIST=\$(printf '%s' "\$KIDS" | jq -r --arg term "\$TERMINAL_ID" --argjson cols "\$COLS" '
+  (\$cols.columns | map({ (.id): .name }) | add) as \$names
+  | .tasks // []
+  | map(select(.columnId != \$term))
+  | .[] | "  - #\\(.number) — \\(.title) [in \\"\\(\$names[.columnId] // "—")\\"]"
+')
+OPEN=\$(printf '%s' "\$OPEN_LIST" | grep -c '^  - ' || true)
+
+if [ "\$OPEN" -gt 0 ]; then
+  echo "✗ #\$NUM has \$OPEN open child task(s) — close them first"
+  printf '%s\\n' "\$OPEN_LIST"
+  exit 11
+fi
+
+echo "✓ #\$NUM safe to close (no open children)"
+exit 0
+`,
+    executable: true,
+    backend: "cloud",
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-script",
+    name: "move",
+    suffix: "parent-of.sh",
+    content: `#!/usr/bin/env bash
+# Resolve a task's parent epic, if it has one. Cloud-backend twin.
+#
+# Usage:   parent-of.sh <task-number>
+# Stdout:  the parent's number, on exit 0. Nothing otherwise.
+# Exit:    0  it is a sub-task — the parent's number is on stdout
+#          10 it has no parent, and that is not an error
+#          3  the task does not exist, or the lookup failed
+#          2  usage error
+#
+# Exit 10 is its own code so a caller can tell "no parent" from "could not
+# ask". Collapsing them makes a standalone task and a failed lookup
+# indistinguishable, and the caller branches the same way on each.
+#
+# Uses the versioned public HTTP contract only, by task NUMBER. No internal
+# identifier of the hosted board appears here or ever should.
+set -euo pipefail
+
+# shellcheck source=./_config.sh
+. "\$(dirname "\$0")/_config.sh"
+
+if [ "\$#" -lt 1 ]; then
+  echo 'usage: parent-of.sh <task-number>' >&2
+  exit 2
+fi
+NUM="\$1"
+case "\$NUM" in
+  '' | *[!0-9]*) echo "not a task number: '\$NUM'" >&2; exit 2 ;;
+esac
+
+AUTH=(-H "Authorization: Bearer \$API_TOKEN")
+
+# Branch on curl's EXIT STATUS, not on empty output: an error body is still
+# output, and treating it as "no parent" is the one confusion this script
+# exists to prevent. \`|| rc=\$?\` because under \`set -e\` a failing command
+# substitution in an assignment aborts before the next line runs.
+rc=0
+RESP=\$(curl -fsS "\$API_BASE/tasks?projectKey=\$PROJECT_KEY&number=\$NUM" "\${AUTH[@]}") || rc=\$?
+if [ "\$rc" -ne 0 ] || [ -z "\$RESP" ]; then
+  echo "✗ task #\$NUM not found on the board (or the lookup failed)" >&2
+  exit 3
+fi
+
+PARENT=\$(printf '%s' "\$RESP" | jq -r '.task.parentNumber // empty')
+[ -n "\$PARENT" ] || exit 10
+
+case "\$PARENT" in
+  *[!0-9]*)
+    echo "✗ task #\$NUM has a parentNumber this script cannot read: \$PARENT" >&2
+    exit 3
+    ;;
+esac
+
+echo "\$PARENT"
+exit 0
 `,
     executable: true,
     backend: "cloud",
@@ -24712,52 +24904,40 @@ fi
 EPIC_ISSUE=""
 EPIC_BRANCH=""
 if [ -n "\$LINKED_ISSUE" ]; then
-    _backend=""
-    if [ -f "\$REPO_ROOT/.specnaut/installed.lock" ]; then
-        _backend=\$(sed -n 's/^backlog_backend:[[:space:]]*//p' "\$REPO_ROOT/.specnaut/installed.lock" | head -1)
-    fi
     _parent_sh="\$REPO_ROOT/.specnaut/scripts/backlog/parent-of.sh"
     _cascade_sh="\$REPO_ROOT/.specnaut/scripts/backlog/cascade-check.sh"
 
-    case "\$_backend" in
-        github | gitlab)
-            if [ ! -x "\$_parent_sh" ] || [ ! -x "\$_cascade_sh" ]; then
-                # "The scripts are missing" — an install problem, fixable here.
-                echo "# no backlog parent-of.sh / cascade-check.sh installed — epic detection did NOT run; treating issue \$LINKED_ISSUE as standalone" >&2
-            else
-                _p_rc=0
-                _p_out=\$(bash "\$_parent_sh" "\$LINKED_ISSUE" 2>&1) || _p_rc=\$?
-                case "\$_p_rc" in
-                    0)
-                        EPIC_ISSUE="\$_p_out"
-                        echo "# issue \$LINKED_ISSUE is a child of epic #\$EPIC_ISSUE — the branch belongs to the epic" >&2
-                        ;;
-                    10)
-                        _c_rc=0
-                        bash "\$_cascade_sh" "\$LINKED_ISSUE" >/dev/null 2>&1 || _c_rc=\$?
-                        if [ "\$_c_rc" -eq 11 ]; then
-                            EPIC_ISSUE="\$LINKED_ISSUE"
-                            echo "# issue \$LINKED_ISSUE is an epic with open children — one branch for the whole epic" >&2
-                        else
-                            echo "# issue \$LINKED_ISSUE has no parent and no open children — standalone, unchanged" >&2
-                        fi
-                        ;;
-                    *)
-                        echo "# could not resolve the parent of issue \$LINKED_ISSUE (exit \$_p_rc): \$_p_out" >&2
-                        echo "# treating it as standalone — the branch is created either way" >&2
-                        ;;
-                esac
-            fi
-            ;;
-        *)
-            # AC 14. "This backend cannot answer" is NOT "no script installed".
-            # The first is a capability gap with a ticket; the second is an
-            # install that can be repaired. Reporting a missing capability as a
-            # routine install gap is how the epic path would silently never
-            # activate on the default backend.
-            echo "# the '\${_backend:-unknown}' backlog backend ships no sub-issue enumerator, so epic detection did NOT run (see cli#563) — treating issue \$LINKED_ISSUE as standalone" >&2
-            ;;
-    esac
+    # #563 shipped both enumerators for every backend, so there is no longer a
+    # backend that cannot answer. The branch that distinguished "this backend
+    # ships no enumerator" from "no script installed" is GONE rather than left
+    # standing unreachable — an unreachable branch is a second shape of the
+    # same rule, and the next reader has to work out which one is live.
+    if [ ! -x "\$_parent_sh" ] || [ ! -x "\$_cascade_sh" ]; then
+        echo "# no backlog parent-of.sh / cascade-check.sh installed — epic detection did NOT run; treating issue \$LINKED_ISSUE as standalone" >&2
+    else
+        _p_rc=0
+        _p_out=\$(bash "\$_parent_sh" "\$LINKED_ISSUE" 2>&1) || _p_rc=\$?
+        case "\$_p_rc" in
+            0)
+                EPIC_ISSUE="\$_p_out"
+                echo "# issue \$LINKED_ISSUE is a child of epic #\$EPIC_ISSUE — the branch belongs to the epic" >&2
+                ;;
+            10)
+                _c_rc=0
+                bash "\$_cascade_sh" "\$LINKED_ISSUE" >/dev/null 2>&1 || _c_rc=\$?
+                if [ "\$_c_rc" -eq 11 ]; then
+                    EPIC_ISSUE="\$LINKED_ISSUE"
+                    echo "# issue \$LINKED_ISSUE is an epic with open children — one branch for the whole epic" >&2
+                else
+                    echo "# issue \$LINKED_ISSUE has no parent and no open children — standalone, unchanged" >&2
+                fi
+                ;;
+            *)
+                echo "# could not resolve the parent of issue \$LINKED_ISSUE (exit \$_p_rc): \$_p_out" >&2
+                echo "# treating it as standalone — the branch is created either way" >&2
+                ;;
+        esac
+    fi
 fi
 
 # When this invocation belongs to an epic, reuse the epic's existing branch
@@ -26232,43 +26412,34 @@ if (\$branchName.Length -gt \$maxBranchLength) {
 \$epicIssue = ''
 \$epicBranch = ''
 if (\$Issue -gt 0) {
-    \$backend = ''
-    \$lockPath = Join-Path \$repoRoot '.specnaut/installed.lock'
-    if (Test-Path \$lockPath) {
-        \$line = Select-String -LiteralPath \$lockPath -Pattern '^backlog_backend:\\s*(.+)\$' | Select-Object -First 1
-        if (\$line) { \$backend = \$line.Matches[0].Groups[1].Value.Trim() }
-    }
     \$parentSh = Join-Path \$repoRoot '.specnaut/scripts/backlog/parent-of.sh'
     \$cascadeSh = Join-Path \$repoRoot '.specnaut/scripts/backlog/cascade-check.sh'
 
-    if (\$backend -eq 'github' -or \$backend -eq 'gitlab') {
-        if (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
-            [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - epic detection did NOT run; treating issue \$Issue as standalone")
-        } elseif (-not (Test-Path \$parentSh) -or -not (Test-Path \$cascadeSh)) {
-            [Console]::Error.WriteLine("# no backlog parent-of.sh / cascade-check.sh installed - epic detection did NOT run; treating issue \$Issue as standalone")
-        } else {
-            \$parentOut = & bash \$parentSh \$Issue 2>&1
-            \$parentRc = \$LASTEXITCODE
-            if (\$parentRc -eq 0) {
-                \$epicIssue = "\$parentOut".Trim()
-                [Console]::Error.WriteLine("# issue \$Issue is a child of epic #\$epicIssue - the branch belongs to the epic")
-            } elseif (\$parentRc -eq 10) {
-                & bash \$cascadeSh \$Issue *> \$null
-                if (\$LASTEXITCODE -eq 11) {
-                    \$epicIssue = "\$Issue"
-                    [Console]::Error.WriteLine("# issue \$Issue is an epic with open children - one branch for the whole epic")
-                } else {
-                    [Console]::Error.WriteLine("# issue \$Issue has no parent and no open children - standalone, unchanged")
-                }
-            } else {
-                [Console]::Error.WriteLine("# could not resolve the parent of issue \$Issue (exit \$parentRc): \$parentOut")
-                [Console]::Error.WriteLine("# treating it as standalone - the branch is created either way")
-            }
-        }
+    # #563 shipped both enumerators for every backend, so the branch that told
+    # "this backend ships no enumerator" from "no script installed" is GONE
+    # rather than left standing unreachable.
+    if (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
+        [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - epic detection did NOT run; treating issue \$Issue as standalone")
+    } elseif (-not (Test-Path \$parentSh) -or -not (Test-Path \$cascadeSh)) {
+        [Console]::Error.WriteLine("# no backlog parent-of.sh / cascade-check.sh installed - epic detection did NOT run; treating issue \$Issue as standalone")
     } else {
-        # AC 14. "This backend cannot answer" is NOT "no script installed".
-        \$shown = if (\$backend) { \$backend } else { 'unknown' }
-        [Console]::Error.WriteLine("# the '\$shown' backlog backend ships no sub-issue enumerator, so epic detection did NOT run (see cli#563) - treating issue \$Issue as standalone")
+        \$parentOut = & bash \$parentSh \$Issue 2>&1
+        \$parentRc = \$LASTEXITCODE
+        if (\$parentRc -eq 0) {
+            \$epicIssue = "\$parentOut".Trim()
+            [Console]::Error.WriteLine("# issue \$Issue is a child of epic #\$epicIssue - the branch belongs to the epic")
+        } elseif (\$parentRc -eq 10) {
+            & bash \$cascadeSh \$Issue *> \$null
+            if (\$LASTEXITCODE -eq 11) {
+                \$epicIssue = "\$Issue"
+                [Console]::Error.WriteLine("# issue \$Issue is an epic with open children - one branch for the whole epic")
+            } else {
+                [Console]::Error.WriteLine("# issue \$Issue has no parent and no open children - standalone, unchanged")
+            }
+        } else {
+            [Console]::Error.WriteLine("# could not resolve the parent of issue \$Issue (exit \$parentRc): \$parentOut")
+            [Console]::Error.WriteLine("# treating it as standalone - the branch is created either way")
+        }
     }
 }
 

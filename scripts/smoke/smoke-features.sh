@@ -145,9 +145,14 @@ check "create-new-feature.sh detects an epic from the board link (#553)" \
   'grep -qF "parent-of.sh" .specnaut/scripts/bash/create-new-feature.sh'
 check "the PowerShell twin does too (#553 AC5)" \
   'grep -qF "parent-of.sh" .specnaut/scripts/powershell/create-new-feature.ps1'
-check "a backend with no enumerator is its own outcome, not 'not installed' (#553 AC14)" \
-  'grep -qF "ships no sub-issue enumerator" .specnaut/scripts/bash/create-new-feature.sh &&
-   grep -qF "ships no sub-issue enumerator" .specnaut/scripts/powershell/create-new-feature.ps1'
+# #563 AC 4 retired this. #553 needed a branch telling "this backend ships no
+# enumerator" from "no script installed", because two backends could not
+# answer. All four can now, so the branch is REMOVED rather than left standing
+# unreachable — an unreachable branch is a second shape of the same rule. The
+# assertion is inverted to hold that: it must be gone from both twins.
+check "the cannot-enumerate branch is gone, not unreachable (#563 AC4)" \
+  '! grep -qF "ships no sub-issue enumerator" .specnaut/scripts/bash/create-new-feature.sh &&
+   ! grep -qF "ships no sub-issue enumerator" .specnaut/scripts/powershell/create-new-feature.ps1'
 check "a missing install is reported separately (#553 AC12)" \
   'grep -qF "epic detection did NOT run" .specnaut/scripts/bash/create-new-feature.sh'
 check "the epic branch is found via feature.json, not by parsing a name (#553 AC6/D2)" \
