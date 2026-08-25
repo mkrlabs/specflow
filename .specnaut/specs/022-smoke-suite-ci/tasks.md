@@ -192,15 +192,15 @@ brownfield scenario end to end.
 - [x] T031 [US4] Add the `--real` opt-in to `bootstrap-vite.sh`, pinned to an exact `create-vite`
       version — never `@latest` (FR-012). No smoke script passes it; only the `qa-tester` fidelity
       path does
-- [ ] T032 [P] [US4] [MONO] Rewrite
+- [x] T032 [P] [US4] [MONO] Rewrite
       `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/test-sandbox/SKILL.md` as a facade:
       **one** entry point (`cd apps/specnaut-cli && bash scripts/smoke/run-all.sh`) plus
       `run-all.sh --list`, replacing all 28 path references (finding A9). Per constitution § VIII,
       do not restate a harness count or a script count
-- [ ] T033 [P] [US4] [MONO] Update the 2 invocation paths in
+- [x] T033 [P] [US4] [MONO] Update the 2 invocation paths in
       `/Users/kevin/Sites/specnaut-monorepo/.claude/agents/qa-tester.md` (`:172`, `:315`) and
       document `--real` as the fidelity option
-- [ ] T034 [P] [US4] [MONO] Update
+- [x] T034 [P] [US4] [MONO] Update
       `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/writing-plans/SKILL.md:208` and
       `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/verification-before-completion/SKILL.md:87`
 
@@ -229,26 +229,26 @@ brownfield scenario end to end.
 - [x] T040 Mirror T039 byte-identically into
       `apps/specnaut-cli/plugin/skills/verification-before-completion/SKILL.md`, then run
       `deno task bundle` to regenerate `src/templates_bundle.ts`
-- [ ] T041 Run the full suite green: `bash apps/specnaut-cli/scripts/smoke/run-all.sh` — all 9
+- [x] T041 Run the full suite green: `bash apps/specnaut-cli/scripts/smoke/run-all.sh` — all 9
       scripts, zero red checks (FR-011). Eight are green today; `smoke-picker` is the ninth
-- [ ] T042 Run `deno task fmt:check`, `deno task lint`, `deno task check`, `deno task test` — 1413
+- [x] T042 Run `deno task fmt:check`, `deno task lint`, `deno task check`, `deno task test` — 1413
       tests must stay green, and `ci.yml:22-35` must not find a stale bundle
 - [ ] T043 **The reproduction FR-013 requires**: on a throwaway commit, break one assertion, push
       the branch, confirm CI goes red and the log names it. Then revert. Record the run URL in
       plan.md § 4 under SC-006
 - [ ] T044 Measure SC-004 on the first green CI run — the cold-runner wall-clock — and record it in
       plan.md § 4. The 7 s figure in § 1 is warm-cache and is explicitly not the baseline
-- [ ] T045 [MONO] Delete `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/test-sandbox/scripts/`
+- [x] T045 [MONO] Delete `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/test-sandbox/scripts/`
       entirely
-- [ ] T046 [MONO] Rewrite
+- [x] T046 [MONO] Rewrite
       `/Users/kevin/Sites/specnaut-monorepo/.claude/agents/product-owner/memory/reference_submodule_has_no_dotclaude.md`
       — finding A10. It is `type: reference`, read by agents as **current fact**, and `:17`
       hardcodes an absolute workspace path that this change falsifies. It is not a dated record
-- [ ] T047 [MONO] Add a closing line to
+- [x] T047 [MONO] Add a closing line to
       `/Users/kevin/Sites/specnaut-monorepo/.claude/agents/product-owner/memory/pattern_a_guard_belongs_on_the_repo_it_guards.md`
       recording that the pattern it describes was acted on. Leave the two `architect-advisor`
       memories alone — they are dated notes
-- [ ] T048 Prove FR-010: `grep -rn "test-sandbox/scripts" /Users/kevin/Sites/specnaut-monorepo/`
+- [x] T048 Prove FR-010: `grep -rn "test-sandbox/scripts" /Users/kevin/Sites/specnaut-monorepo/`
       returns only intentional historical mentions (the 2 `architect-advisor` memories and the 2
       `docs/superpowers/` design records). All 56 other lines across 16 files are accounted for
 - [ ] T049 Land the CLI half:
