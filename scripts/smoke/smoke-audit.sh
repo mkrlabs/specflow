@@ -388,4 +388,15 @@ else
        "the token must not be the bare skill name — smoke-features.sh:591 is this shape"
 fi
 
+# Pinned as a COUNT, the way 3f is. Both greps above match substrings that the
+# non-fatal "Unmapped surface" section also prints, so they would stay green if
+# skills stopped being coverage-scanned at all — the section would name the same
+# paths for a different reason.
+if grep -qE "^  4 coverage gap\(s\)$" <<<"$skills_out"; then
+  pass "both planted skills are counted as gaps, not merely named somewhere"
+else
+  fail "gap count is not 4 with two skills planted" \
+       "$(grep -E 'coverage gap' <<<"$skills_out" | head -1)"
+fi
+
 finish "SMOKE-AUDIT"

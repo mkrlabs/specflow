@@ -238,3 +238,44 @@ chased.
 - **The `SURFACES` map keeps three fields.** The token rule lives in the function, not in a fourth
   field, because `${rest##*|}` takes the last field and would silently turn `kind` into the token
   for all 11 entries. That parse change is not worth carrying for one surface.
+
+## FR-007, reversed during implementation
+
+FR-007 asked that the skill name be derived as exactly one path segment, after the security seat
+showed that `case` globs match `/` and `templates/core/skills/a/b/SKILL.md` therefore reaches the
+skills branch.
+
+**The implementation does not do that, deliberately.** No name is extracted — only a token — so a
+nested path yields `skills/a/b/SKILL.md`, which is exact rather than wrong. Truncating it to one
+segment would produce a token that matches a _different_ file, which is the defect this feature
+removes. The requirement was written assuming a name would be pulled out and reused; it is not.
+
+## Review cycle
+
+`review-coordinator`: **needs_followup** — 0 CRITICAL, 0 HIGH, 6 MEDIUM, 9 LOW. All three seats
+reported (`test-reviewer` on a second dispatch). The mechanism was found correct and regression-free
+at all five baselines; the finding was against the **assertions**, and it was the right one.
+
+**Four of the thirteen were vacuous against a gutted target** — precisely what §12's Q1 answer said
+must not happen. Verified by hand and then by execution:
+
+- `a11y`, `dep` and `perf` carried their scope flags in `argument-hint:` and their axis keyword in
+  the frontmatter `description:`, so truncating those three files to five lines left **every**
+  assertion green. `arch` and `sec` passed the test only because their keywords happen to sit in the
+  body. Fixed by scoping both greps below the frontmatter and adding the shared behavioural promise
+  the five actually make. Re-verified by gutting: 9 failures where there were 0.
+- `number, title` matched only the router's `description:` line, so the whole Format and Rules body
+  of the contract was deletable green. Re-anchored on the canonical rendering.
+- `Never a number alone` was asserted **only in the negative** — that _board_ must not restate it.
+  Deleting the rule from the product made the suite greener. The positive half now exists.
+- The `alias-example` allowlist entry's written reason was false: it claimed no smoke could assert
+  on the file, while one already asserted its absence. The entry is gone; the assertion names the
+  runtime path, so the token has a real assertion behind it rather than an exemption.
+
+Also adopted: scenario 3g now pins the **gap count**, because both its greps match substrings the
+non-fatal Unmapped-surface section prints too, and would have stayed green if skills stopped being
+coverage-scanned at all.
+
+**Carried, not fixed:** `git diff --name-only` quotes non-ASCII paths, so a skill directory with an
+accent misses every `SURFACES` glob and leaves through the non-fatal unmapped bucket — a green gate
+over an uncovered skill. It is older than this change and affects every surface, not just skills.

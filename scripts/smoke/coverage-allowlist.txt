@@ -18,4 +18,3 @@
 #
 # Example (not active — the leading # makes it a comment):
 # templates/core/skills/foo/SKILL.md  deferred to #123, assertion lands with the backend
-templates/core/skills/alias-example/SKILL.md  source-only reference for the alias_of + overlays convention; deliberately not bundled, so it has no runtime path any smoke could assert on

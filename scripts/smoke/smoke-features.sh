@@ -592,6 +592,10 @@ check "the board skill points at the backlog-reference-contract" \
   'grep -q "backlog-reference-contract" .claude/skills/board/SKILL.md'
 check "the board skill does not restate the rule (single canonical copy)" \
   '! grep -q "Never a number alone" .claude/skills/board/SKILL.md'
+# The negative alone made deleting the rule from the product turn the suite
+# GREENER. A rule asserted only by its absence elsewhere is not asserted.
+check "and the rule itself exists where it is supposed to live" \
+  'grep -q "Never a number alone" .claude/skills/backlog-reference-contract/SKILL.md'
 
 echo
 echo "═══ #547  the thirteen skills nothing asserted on ═══"
@@ -602,27 +606,34 @@ echo "═══ #547  the thirteen skills nothing asserted on ═══"
 # back through the door marked done.
 
 # --- the five per-axis audits share a scope contract ---------------------
+# `body` strips the frontmatter: everything below the second `---`. Without it
+# the scope assertion is satisfied by the `argument-hint:` line alone, so all
+# five skills could be truncated to five lines with every check still green —
+# found in review, and it is the exact failure this feature exists to prevent.
+body() { awk 'BEGIN{c=0} /^---$/{c++; next} c>=2' "$1"; }
 for axis in a11y arch dep perf sec; do
   check "$axis-audit scaffolded" \
     "[ -f .claude/skills/$axis-audit/SKILL.md ]"
   check "$axis-audit frontmatter declares its own name" \
     "head -5 .claude/skills/$axis-audit/SKILL.md | grep -q 'name: $axis-audit'"
-  check "$axis-audit offers all three scopes (--path/--range/--diff)" \
-    "grep -q -- '--path' .claude/skills/$axis-audit/SKILL.md && grep -q -- '--range' .claude/skills/$axis-audit/SKILL.md && grep -q -- '--diff' .claude/skills/$axis-audit/SKILL.md"
+  check "$axis-audit documents all three scopes in its body, not just its frontmatter" \
+    "body .claude/skills/$axis-audit/SKILL.md > /tmp/_ax.txt && grep -q -- '--path' /tmp/_ax.txt && grep -q -- '--range' /tmp/_ax.txt && grep -q -- '--diff' /tmp/_ax.txt"
+  check "$axis-audit dispatches one expert and never a team" \
+    "grep -q 'never a team, never' .claude/skills/$axis-audit/SKILL.md"
 done
 # Literal paths for the coverage token (024-R1) — the loop above interpolates
 # $axis and so is invisible to it, the same reason the phase block at the top
 # of this file spells its filenames out.
 check "a11y-audit .claude/skills/a11y-audit/SKILL.md audits against WCAG 2.1 AA" \
-  'grep -q "WCAG 2.1 AA" .claude/skills/a11y-audit/SKILL.md'
+  'body .claude/skills/a11y-audit/SKILL.md | grep -q "WCAG 2.1 AA"'
 check "arch-audit .claude/skills/arch-audit/SKILL.md names hex-layer drift" \
-  'grep -q "hex-layer" .claude/skills/arch-audit/SKILL.md'
+  'body .claude/skills/arch-audit/SKILL.md | grep -q "hex-layer"'
 check "dep-audit .claude/skills/dep-audit/SKILL.md names typosquats" \
-  'grep -q "typosquats" .claude/skills/dep-audit/SKILL.md'
+  'body .claude/skills/dep-audit/SKILL.md | grep -q "typosquats"'
 check "perf-audit .claude/skills/perf-audit/SKILL.md names N+1 queries" \
-  'grep -qF "N+1" .claude/skills/perf-audit/SKILL.md'
+  'body .claude/skills/perf-audit/SKILL.md | grep -qF "N+1"'
 check "sec-audit .claude/skills/sec-audit/SKILL.md names SSRF" \
-  'grep -q "SSRF" .claude/skills/sec-audit/SKILL.md'
+  'body .claude/skills/sec-audit/SKILL.md | grep -q "SSRF"'
 
 # --- the five output contracts define a named machine-readable block -----
 check "workflow-contract .claude/skills/workflow-contract/SKILL.md is not user-invocable" \
@@ -637,8 +648,11 @@ check "qa-report-contract .claude/skills/qa-report-contract/SKILL.md requires a 
   'grep -q "QA_VERDICT:" .claude/skills/qa-report-contract/SKILL.md && grep -q "BUGS_FOUND:" .claude/skills/qa-report-contract/SKILL.md'
 check "handoff-protocol .claude/skills/handoff-protocol/SKILL.md carries a payload and its open risks" \
   'grep -q "PAYLOAD:" .claude/skills/handoff-protocol/SKILL.md && grep -q "OPEN_RISKS:" .claude/skills/handoff-protocol/SKILL.md'
-check "backlog-reference-contract .claude/skills/backlog-reference-contract/SKILL.md requires number and title" \
-  'grep -q "number, title" .claude/skills/backlog-reference-contract/SKILL.md'
+# "number, title" matched only the frontmatter description, so the entire
+# Format and Rules body was deletable with this green. Anchored on the
+# canonical rendering instead.
+check "backlog-reference-contract .claude/skills/backlog-reference-contract/SKILL.md defines the canonical rendering" \
+  'grep -qF "[#<number> — <title>](<url>)" .claude/skills/backlog-reference-contract/SKILL.md'
 check "backlog-reference-contract bans a bare number" \
   'grep -q "bare .#42. is opaque" .claude/skills/backlog-reference-contract/SKILL.md'
 
@@ -657,7 +671,7 @@ check "status-audit .claude/skills/status-audit/SKILL.md reads the agent ledger"
 # reference showing the alias_of + overlays frontmatter convention, meant to
 # be copied. A runtime assertion about it could only ever be false, so its
 # coverage is carried by a reasoned allowlist entry instead (022-R13).
-check "alias-example is a source-only reference and does NOT scaffold" \
+check "alias-example .claude/skills/alias-example/SKILL.md is source-only and does NOT scaffold" \
   '[ ! -e .claude/skills/alias-example ]'
 
 finish "FEATURES"
