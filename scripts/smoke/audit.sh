@@ -155,9 +155,24 @@ SURFACES=(
   'templates/core/hooks/*|smoke-hooks.sh|bundled-hook'
   'templates/core/specnaut/scripts/*/*|smoke-features.sh|specnaut-helper-script'
   'templates/core/specnaut/LABELS.md|smoke-features.sh smoke-backlog-github.sh smoke-backlog-gitlab.sh|labels-doc'
+  # Categories that ship and were claimed by no glob. Explicit, NOT
+  # `templates/core/specnaut/*.md` or `skills/*/*.md`: `case` globs traverse
+  # `/`, so those swallow the whole scaffolded memory tree and turn 150
+  # documents into gaps against a smoke that never claimed them.
+  'templates/core/root/*|smoke-features.sh smoke-all-harnesses.sh|project-root-file'
+  'templates/core/skills/board/scripts/cloud/*|smoke-backlog-cloud.sh|cloud-backlog-script'
+  'templates/core/skills/using-specnaut/references/*|smoke-features.sh|skill-reference'
+  'templates/core/skills/code-audit/scripts/*|smoke-features.sh|skill-script'
+  'templates/core/skills/board/groom.md|smoke-features.sh|skill-doc'
+  'templates/core/specnaut/templates/*|smoke-features.sh|scaffold-template'
+  'templates/core/specnaut/backlog.md|smoke-backlog-local.sh|specnaut-root-doc'
+  'templates/core/specnaut/logs/README.md|smoke-features.sh|specnaut-root-doc'
 )
 
-CHANGED=$(git -C "$SRC_ROOT" diff --name-only --diff-filter=AMR "$SINCE..HEAD" -- \
+# `core.quotePath=false`: by default git renders a non-ASCII path as an escaped,
+# double-quoted string, which matches no glob in SURFACES and left through the
+# unmapped bucket — a green gate over a file nothing asserts on (#549).
+CHANGED=$(git -C "$SRC_ROOT" -c core.quotePath=false diff --name-only --diff-filter=AMR "$SINCE..HEAD" -- \
   'templates/core/' 'templates/manifest.json' 'src/cli/' 2>/dev/null || true)
 
 # --- Coverage-gap allowlist (plan.md §5 R13) ----------------------------
@@ -245,16 +260,34 @@ else
       esac
     done
     if [ -z "$matched_glob" ]; then
-      # This used to `continue` in silence, which is how a required gate ends
-      # up printing "every surface change has a matching smoke assertion"
-      # about a category it has never heard of. Reported and counted — but
-      # deliberately NOT fatal: a new category with no recourse would block
-      # legitimate work, and the defect here is invisibility, not the gap.
+      # Reported, counted, and FATAL (#549, Kevin's call over the recommendation
+      # to keep it advisory). It used to `continue` in silence, then became
+      # non-fatal on the reasoning that "a new category with no recourse would
+      # block legitimate work". That premise was false: the recourse is the one
+      # an uncovered mapped file already has — an allow-list entry carrying a
+      # written reason, which 022-R13 refuses to accept without one.
+      #
+      # Cost accepted: a genuinely new category of shipped file blocks until
+      # someone maps it or writes down why it is exempt. Cost refused: a file
+      # nothing asserts on leaving through a green gate, which is how a
+      # non-ASCII path escaped this scan entirely.
+      # Named category exemptions, in code rather than the allow-list because
+      # that file matches exact paths and these are whole trees — a hundred
+      # entries would make it the dumping ground 022-R13 exists to prevent.
       case "$f" in
         # manifest.json is the bundle's own category index, not a user-facing
         # surface — it changes on essentially every release and no smoke could
         # meaningfully "cover" it.
         templates/manifest.json) ;;
+        # The scaffolded knowledge base is copied verbatim and read by agents,
+        # never executed. A smoke can assert the tree arrives; asserting each
+        # document's prose is a category error.
+        templates/core/specnaut/memory/*) ;;
+        # Product source. The pathspec collects src/cli/ on purpose (#544 — CLI
+        # changes were invisible here), but the smoke suite tests SCAFFOLDED
+        # output, not this repository's TypeScript; the 1400-test deno suite is
+        # what covers that.
+        src/cli/*) ;;
         *)
           # Everything else the pathspec above collected. It used to say
           # `templates/core/*` here, which silently excluded `src/cli/` — a
@@ -438,8 +471,9 @@ if [ "$unmapped_count" -eq 0 ]; then
   echo "  ✓ every changed file under templates/core/ fell under a mapped surface"
 else
   printf '%s' "$unmapped_list"
-  echo "      ↳ no glob in the SURFACES map matches these, so NOTHING was asserted"
-  echo "        about them. Not fatal — but a green run does not cover them."
+  echo "      ↳ no glob in the SURFACES map matches these, so NOTHING was"
+  echo "        asserted about them. Map them in SURFACES, or allow-list each"
+  echo "        with a written reason — an entry without one is ignored."
 fi
 
 # --- Allowlist staleness (plan.md §5 R13) -------------------------------
@@ -487,13 +521,13 @@ echo "  $gaps_count coverage gap(s)"
 [ "$allowed_count" -gt 0 ] && echo "  $allowed_count allow-listed gap(s) (not fatal)"
 echo "  $stale_count stale assertion(s)"
 echo "  $stale_allow_count stale allowlist entr(y/ies)"
-echo "  $unmapped_count unmapped surface change(s) (not fatal)"
+echo "  $unmapped_count unmapped surface change(s)"
 drift_count="$(printf '%s' "$membership_drift" | grep -c '^  - ' || true)"
 echo "  $drift_count suite-membership drift(s)"
 echo
 # The exit code IS the verdict (plan.md §5 R5). No caller re-derives it.
 if [ "$gaps_count" -gt 0 ] || [ "$stale_count" -gt 0 ] || [ "$stale_allow_count" -gt 0 ] \
-   || [ "$drift_count" -gt 0 ]; then
+   || [ "$drift_count" -gt 0 ] || [ "$unmapped_count" -gt 0 ]; then
   echo "Add the missing assertions, prune the stale ones, or allow-list a gap"
   echo "with a written reason in $(basename "$ALLOWLIST"), then re-run."
   echo "(audit.sh never edits smoke scripts autonomously — that is on you.)"

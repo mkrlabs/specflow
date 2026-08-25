@@ -247,6 +247,41 @@ set +e
 skills_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
 set -e
 
+# --- Assertion 3h: a non-ASCII path is mapped like any other -------------
+# #549. git renders a path containing non-ASCII bytes as an escaped, quoted
+# string, so it matched no glob in SURFACES and left through the "Unmapped
+# surface" bucket — which was not fatal. A file nothing asserts on, on a green
+# gate. The fix is `-c core.quotePath=false`; this pins that the file lands in
+# the COVERAGE scan, not in the unmapped one.
+mkdir -p templates/core/agents
+printf -- '---\nname: accented\n---\n' > "templates/core/agents/agént-café.md"
+git add -A
+git commit -q -m "plant an agent whose name is not ASCII"
+set +e
+nonascii_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+set -e
+
+# --- Assertion 3i: an unmapped file is fatal, and 022-R13 still governs ----
+# The allow-list is the escape hatch for the new fatal class, and an entry
+# without a written reason is not an entry — the same refusal that already
+# applies to coverage gaps.
+mkdir -p templates/core/nosuchcategory
+echo "shipped, claimed by no glob" > templates/core/nosuchcategory/thing.md
+git add -A
+git commit -q -m "plant a category the SURFACES map has never heard of"
+set +e
+unmapped_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+unmapped_rc=$?
+set -e
+cat > "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/nosuchcategory/thing.md
+EOF
+set +e
+unmapped_noreason_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+unmapped_noreason_rc=$?
+set -e
+rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
+
 echo "$out"
 echo
 echo "── assertions ──"
@@ -429,6 +464,30 @@ if grep -qE "^  4 coverage gap\(s\)$" <<<"$skills_out"; then
 else
   fail "gap count is not 4 with two skills planted" \
        "$(grep -E 'coverage gap' <<<"$skills_out" | head -1)"
+fi
+
+if grep -qF "agént-café.md" <<<"$nonascii_out"; then
+  pass "a non-ASCII path is seen by the scan at all (#549)"
+else
+  fail "a non-ASCII path was invisible" "git quotes it unless core.quotePath=false"
+fi
+if grep -A20 "## Coverage scan" <<<"$nonascii_out" | grep -qF "agént-café.md"; then
+  pass "and it is judged by the COVERAGE scan, not swallowed as unmapped"
+else
+  fail "the non-ASCII file did not reach the coverage scan" \
+       "$(grep -B1 -A3 'Unmapped surface' <<<"$nonascii_out" | head -5)"
+fi
+
+if [ "$unmapped_rc" -ne 0 ] && grep -qF "nosuchcategory/thing.md" <<<"$unmapped_out"; then
+  pass "a changed file no glob claims is fatal, not advisory"
+else
+  fail "an unmapped category did not fail the audit" "rc=$unmapped_rc"
+fi
+if [ "$unmapped_noreason_rc" -ne 0 ]; then
+  pass "allow-listing it WITHOUT a reason does not excuse it (022-R13)"
+else
+  fail "a reasonless allowlist entry silenced an unmapped file" \
+       "the escape hatch became a mute button"
 fi
 
 finish "SMOKE-AUDIT"
