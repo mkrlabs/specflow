@@ -99,6 +99,19 @@ check "epic-commits.md carries the Epic trailer and the width-agnostic parse (#5
    grep -qF "T(\\d+)" .claude/skills/specnaut/phases/epic-commits.md'
 check "epic-commits.md names no test tool (constitution: stack-agnostic)" \
   '! grep -qiE "jest|vitest|playwright|pytest|rspec|junit" .claude/skills/specnaut/phases/epic-commits.md'
+# #557 — merge.md routes by history rule, and the epic path does not squash.
+# Each of these is a sentence a later edit would plausibly "simplify" away.
+check "merge.md asks the BRANCH which rule applies, not the board (#557)" \
+  'grep -qF "Epic: #" .claude/skills/specnaut/phases/merge.md &&
+   grep -qF "log <base>..HEAD" .claude/skills/specnaut/phases/merge.md'
+check "merge.md says an epic branch is NOT squashed (#557)" \
+  'grep -qF "The epic branch is not squashed" .claude/skills/specnaut/phases/merge.md'
+check "merge.md keeps one merge decision for the whole epic (#557)" \
+  'grep -qF "not one per child" .claude/skills/specnaut/phases/merge.md'
+check "merge.md says a failing full tier is repaired, not escalated (#557)" \
+  'grep -qF "hand the epic back" .claude/skills/specnaut/phases/merge.md'
+check "merge-squash.md no longer reads as an absolute over both paths (#557)" \
+  'grep -qF "not \"either kind of branch\"" .claude/skills/specnaut/phases/merge-squash.md'
 check "companion doc quality-gates.md scaffolded (#555)" \
   '[ -f .claude/skills/specnaut/phases/quality-gates.md ]'
 check "gates.yml scaffolded with both tiers declared empty (#555)" \

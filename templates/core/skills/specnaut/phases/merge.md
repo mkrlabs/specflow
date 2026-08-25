@@ -34,8 +34,18 @@ wanted pull requests will say so.
 2. Run `git status --porcelain` — abort if the working tree is dirty.
 3. Run `git fetch origin <base>` and verify the current branch is up-to-date with `origin/<base>`
    (fast-forward or rebase first if behind).
-4. **Squash by scope** — load `phases/merge-squash.md`. This phase performs the squash; it does not check
-   that somebody else did it, and it does not ask permission to do its own job.
+4. **Decide which history rule applies, then apply it.** Ask the branch, not the board:
+
+   ```
+   git log <base>..HEAD --format=%B | grep -m1 '^Epic: #'
+   ```
+
+   - **A match — this is an epic branch.** Follow "An epic branch merges flat" below. Do **not**
+     squash.
+   - **No match — standalone.** Load `phases/merge-squash.md` and follow it.
+
+   This phase performs whichever applies; it does not check that somebody else did it, and it does
+   not ask permission to do its own job.
 5. **`--pr` only** — push the feature branch, open the pull request against `<base>`, and **stop
    here**. First run `gh pr view <n> --json closingIssuesReferences` and name any issue the
    body references but that list omits — mentioned, not closed. Report only. Then: report the PR URL and end. Nothing below this line applies, because nothing has merged
@@ -115,16 +125,35 @@ Read `phases/merge-squash.md` and follow it. It carries the scope table, the fou
 the verification that is not optional, and the `--pr` clause. Nothing was cut in the move — the
 rules live there in full, and this phase performs them.
 
-## The full gate tier, once
+## An epic branch merges flat
 
-Before merging an **epic** branch to the default branch, run the **full** gate
-tier exactly once — `.specnaut/scripts/bash/run-gate.sh full`, or its
-PowerShell twin. Never per child; that is the fast tier's job and it already
-ran. `phases/quality-gates.md` carries what each tier is for and what happens
-when one fails.
+One merge decision for the whole epic, at the end — not one per child. That is the cost #552 exists
+to remove, and it is removed here: the loop never calls this phase, and this phase is reached once.
 
-A project that has declared no gates keeps today's behaviour: the run reports
-that the tier is not declared and continues.
+**The epic branch is not squashed.** Its history is already what a squash would be trying to
+produce: one commit per child, in dependency order, each carrying its child's own issue number and
+an `Epic:` trailer (`phases/epic-commits.md`). Collapsing it would destroy exactly the readable
+history the loop just built, and would attribute every child's work to one id.
+
+So **on an epic branch the scope is the task**: one commit per child, and children never merge
+together however related two of them look. `git merge --ff-only` at step 7 preserves that; the
+forge's "Squash and merge" button destroys it, on this path as on the other.
+
+### The full gate tier, once
+
+Before the merge, run the **full** tier exactly once —
+`.specnaut/scripts/bash/run-gate.sh full`, or its PowerShell twin. Never per child: that is the
+fast tier's job and it already ran, per child, as each commit was written. `phases/quality-gates.md`
+carries what each tier is for.
+
+A project that has declared no gates keeps today's behaviour: the run reports that the tier is not
+declared and continues.
+
+**If the full tier fails, fix it on the branch and run it again.** Attribute the failure to the
+child at fault and commit the fix against that child; then re-run the tier. This does **not**
+abandon the merge and does **not** hand the epic back — the whole point of one merge decision is
+that a late failure is repaired, not escalated. What becomes of that fixup commit, so the branch
+still reads as one commit per child, is the fold procedure; it is not this section's to describe.
 
 ## Output
 

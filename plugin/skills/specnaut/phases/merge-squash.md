@@ -47,7 +47,12 @@ legitimately halts here is a file you cannot classify — name those files, say 
   - **Modified** — something wrote to the tree during the squash. Find out what before going
     further; an agent still holding the worktree is the usual answer, and it must be stopped first.
 
-### The squash happens either way
+### The squash happens either way — on this path
+
+"Either way" means **either `--pr` or local**, not "either kind of branch". Since #557 there are two
+history rules, and this file governs only the standalone one; an epic branch does not squash at all
+and `merge.md` routes it elsewhere before this file is ever loaded. The sentence below is the one
+most likely to be read in isolation, so it says which "either" it means.
 
 Squash by scope runs on the `--pr` path too, before the branch is pushed — so the pull request
 carries the same readable history the local path would have produced. Then **do not use the forge's
