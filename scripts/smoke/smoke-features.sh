@@ -67,7 +67,7 @@ check ".claude/commands/ is not created at all (#533)" \
   '[ ! -e .claude/commands ]'
 check "router .claude/skills/specnaut/SKILL.md present" \
   '[ -f .claude/skills/specnaut/SKILL.md ]'
-for phase in plan plan-audits tasks implement review merge merge-squash epic-commits quality-gates constitution tag-version release-version; do
+for phase in plan plan-audits tasks implement review merge merge-squash epic-commits quality-gates epic-fixups constitution tag-version release-version; do
   check ".claude/skills/specnaut/phases/$phase.md present" \
     "[ -f .claude/skills/specnaut/phases/$phase.md ]"
 done
@@ -99,6 +99,34 @@ check "epic-commits.md carries the Epic trailer and the width-agnostic parse (#5
    grep -qF "T(\\d+)" .claude/skills/specnaut/phases/epic-commits.md'
 check "epic-commits.md names no test tool (constitution: stack-agnostic)" \
   '! grep -qiE "jest|vitest|playwright|pytest|rspec|junit" .claude/skills/specnaut/phases/epic-commits.md'
+# #559 — a fixup folds into ITS OWN child, and the fold is verified here
+# rather than borrowed from squash-by-scope, which governs the other path and
+# since #558 lives in another file entirely. AC 7 is the load-bearing one.
+check "companion doc epic-fixups.md scaffolded (#559)" \
+  '[ -f .claude/skills/specnaut/phases/epic-fixups.md ]'
+check "merge.md folds fixups before merging an epic (#559)" \
+  'grep -qF "phases/epic-fixups.md" .claude/skills/specnaut/phases/merge.md'
+check "a fixup is written against its own child, not matched afterwards (#559)" \
+  'grep -qF "git commit --fixup=" .claude/skills/specnaut/phases/epic-fixups.md'
+check "the fold verifies the tree did not move (#559 AC5)" \
+  'grep -qF "byte-identical" .claude/skills/specnaut/phases/epic-fixups.md'
+# Prose wraps. A phrase that reads as one sentence is several lines in the
+# file, and a line-based grep misses it — three assertions today have failed
+# for exactly that, on this ticket and on #557 and #561 before it. Newlines
+# are flattened first, through a here-string rather than a pipe: `grep -q`
+# exits early, and under `pipefail` that SIGPIPEs the producer and decides
+# the assertion on the writer's death instead of the content (#550).
+check "and it says so for THIS procedure, not by inheritance (#559 AC7)" \
+  'grep -qF "does not reach here" <<<"$(tr "\n" " " < .claude/skills/specnaut/phases/epic-fixups.md)"'
+check "the fold verifies the worktree is empty afterwards (#559 AC6)" \
+  'grep -qF "git status --short" .claude/skills/specnaut/phases/epic-fixups.md'
+check "a surviving fixup! is a finding, not something to fold by eye (#559)" \
+  'grep -qF "folding it by" .claude/skills/specnaut/phases/epic-fixups.md'
+check "the fold does not read diff exit 2 as \"they differ\" (#559)" \
+  'flat="$(tr "\n" " " < .claude/skills/specnaut/phases/epic-fixups.md)";
+   grep -qF "is not \"they differ\"" <<<"$flat" &&
+   grep -qF "check for exit" <<<"$flat"'
+
 # #557 — merge.md routes by history rule, and the epic path does not squash.
 # Each of these is a sentence a later edit would plausibly "simplify" away.
 check "merge.md asks the BRANCH which rule applies, not the board (#557)" \

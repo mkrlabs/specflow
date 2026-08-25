@@ -149,11 +149,17 @@ carries what each tier is for.
 A project that has declared no gates keeps today's behaviour: the run reports that the tier is not
 declared and continues.
 
-**If the full tier fails, fix it on the branch and run it again.** Attribute the failure to the
-child at fault and commit the fix against that child; then re-run the tier. This does **not**
-abandon the merge and does **not** hand the epic back — the whole point of one merge decision is
-that a late failure is repaired, not escalated. What becomes of that fixup commit, so the branch
-still reads as one commit per child, is the fold procedure; it is not this section's to describe.
+**If the full tier fails, fix it on the branch and run it again.** Commit the fix as
+`git commit --fixup=<that child's commit>`, then re-run the tier. This does **not** abandon the
+merge and does **not** hand the epic back — the whole point of one merge decision is that a late
+failure is repaired, not escalated.
+
+### Fold the fixups before merging
+
+A child fixed after its commit was written — here, or earlier when its fast gate failed — leaves a
+`fixup!` commit on the branch. Load `phases/epic-fixups.md` and follow it: the fixups fold into
+their own children, and three checks confirm the tree did not move, the worktree is clean, and the
+branch is one commit per child in order. Do not merge past a failed fold.
 
 ## Output
 
