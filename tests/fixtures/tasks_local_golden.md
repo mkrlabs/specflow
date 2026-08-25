@@ -7,6 +7,11 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+**An epic is one `tasks.md`.** Its breakdown is the child list in dependency
+order; a child may hold several `T` entries and still produce one commit. That
+`T00N` counter is **not** the one a commit's scope position carries — see
+`phases/epic-loop.md`.
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before tasks generation)**:

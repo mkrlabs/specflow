@@ -51,6 +51,18 @@ echo
 echo "═══ #180  cascade-check.sh present + executable ═══"
 check "cascade-check.sh present + executable" \
   '[ -x .specnaut/scripts/backlog/cascade-check.sh ]'
+
+echo
+echo "═══ #553  parent-of.sh — the gitlab twin ═══"
+check "parent-of.sh present + executable (#553)" \
+  '[ -x .specnaut/scripts/backlog/parent-of.sh ]'
+check "it reads the parent:: scoped label, gitlab's link (#553)" \
+  'grep -qF "parent::#" .specnaut/scripts/backlog/parent-of.sh'
+check "no parent and could-not-ask are DIFFERENT exit codes (#553)" \
+  'grep -qF "exit 10" .specnaut/scripts/backlog/parent-of.sh &&
+   grep -qF "exit 3" .specnaut/scripts/backlog/parent-of.sh'
+check "it branches on glab exit status, not on empty stdout (#553)" \
+  'grep -qF "api_rc" .specnaut/scripts/backlog/parent-of.sh'
 check "cascade-check.sh queries the parent::#NNN scoped label" \
   'grep -q "parent::#" .specnaut/scripts/backlog/cascade-check.sh'
 check "cascade-check.sh exits 11 when children block close" \

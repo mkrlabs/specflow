@@ -178,18 +178,13 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
         ```
     - If no hooks are registered or `.specnaut/extensions.yml` does not exist, skip silently
 
-## Committing an epic's children
+## An epic runs as a loop, not as one implementation
 
-When the item being worked is an **epic with open sub-issues**, every child
-produces exactly one commit and the subject line is what makes it placeable.
-Read `phases/epic-commits.md` and follow it. On a standalone item nothing here
-applies — commit as usual.
-
-After each child's commit, run the **fast** gate tier —
-`.specnaut/scripts/bash/run-gate.sh fast`, or its PowerShell twin. What it
-contains is the project's to declare; see `phases/quality-gates.md`. A child
-that fails it is fixed in place and the gate re-runs; the loop does not hand
-back.
+When the item being worked is an **epic with open sub-issues**, read
+`phases/epic-loop.md` and follow it: one commit per child on the epic's
+branch, the fast gate after each, and no return to the user between children.
+It carries the commit format and the gate tiers by reference. On a standalone
+item none of it applies — implement and commit as usual.
 
 ## Ending this phase — freeze, then INVOKE `review`, same turn
 

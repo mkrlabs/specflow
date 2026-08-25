@@ -67,7 +67,7 @@ check ".claude/commands/ is not created at all (#533)" \
   '[ ! -e .claude/commands ]'
 check "router .claude/skills/specnaut/SKILL.md present" \
   '[ -f .claude/skills/specnaut/SKILL.md ]'
-for phase in plan plan-audits tasks implement review merge merge-squash epic-commits quality-gates epic-fixups merge-close constitution tag-version release-version; do
+for phase in plan plan-audits tasks implement review merge merge-squash epic-commits quality-gates epic-fixups merge-close epic-loop constitution tag-version release-version; do
   check ".claude/skills/specnaut/phases/$phase.md present" \
     "[ -f .claude/skills/specnaut/phases/$phase.md ]"
 done
@@ -92,13 +92,52 @@ check "merge-squash.md kept the rule that makes a squash safe (#558)" \
   'grep -qF "byte-identical" .claude/skills/specnaut/phases/merge-squash.md'
 check "companion doc epic-commits.md scaffolded (#556)" \
   '[ -f .claude/skills/specnaut/phases/epic-commits.md ]'
-check "implement.md routes to it for an epic (#556)" \
-  'grep -qF "phases/epic-commits.md" .claude/skills/specnaut/phases/implement.md'
+# #554 consolidated implement.md's two epic pointers into one, so the route
+# to the commit format is now implement -> epic-loop -> epic-commits. Asserted
+# as the whole CHAIN rather than one hop: a broken middle link would leave the
+# original one-hop check green while nothing reached the format at all.
+check "an epic reaches the commit format: implement -> epic-loop -> epic-commits (#556)" \
+  'P=.claude/skills/specnaut/phases;
+   grep -qF "phases/epic-loop.md" "$P/implement.md" &&
+   grep -qF "phases/epic-commits.md" "$P/epic-loop.md" &&
+   [ -f "$P/epic-commits.md" ]'
 check "epic-commits.md carries the Epic trailer and the width-agnostic parse (#556)" \
   'grep -qF "Epic: #" .claude/skills/specnaut/phases/epic-commits.md &&
    grep -qF "T(\\d+)" .claude/skills/specnaut/phases/epic-commits.md'
 check "epic-commits.md names no test tool (constitution: stack-agnostic)" \
   '! grep -qiE "jest|vitest|playwright|pytest|rspec|junit" .claude/skills/specnaut/phases/epic-commits.md'
+# #554 — the loop itself. Four phase docs learned that an epic is one unit,
+# and the loop's rules live in one companion so the four cannot drift.
+check "companion doc epic-loop.md scaffolded (#554)" \
+  '[ -f .claude/skills/specnaut/phases/epic-loop.md ]'
+check "implement.md runs an epic as a loop (#554)" \
+  'grep -qF "phases/epic-loop.md" .claude/skills/specnaut/phases/implement.md'
+check "plan.md makes an epic ONE plan with ONE stop (#554 AC9/AC10)" \
+  'flat="$(tr "\n" " " < .claude/skills/specnaut/phases/plan.md)";
+   grep -qF "An epic is one plan" <<<"$flat" && grep -qF "not one per" <<<"$flat"'
+check "tasks.md makes an epic ONE tasks.md (#554 AC8)" \
+  'grep -qF "An epic is one" .claude/skills/specnaut/phases/tasks.md'
+check "review.md stops only on the LAST child (#554 AC12/AC13)" \
+  'flat="$(tr "\n" " " < .claude/skills/specnaut/phases/review.md)";
+   grep -qF "does not stop the run" <<<"$flat" &&
+   grep -qF "last child" <<<"$flat"'
+check "the loop iterates sub-issues, not tasks.md entries (#554 AC8/D3)" \
+  'grep -qF "Board sub-issues, one per commit" .claude/skills/specnaut/phases/epic-loop.md'
+check "it re-reads the child list each iteration (#554 AC11/D5)" \
+  'grep -qF "added mid-flight" .claude/skills/specnaut/phases/epic-loop.md'
+check "resume reads commits, never issue state (#554 AC16/AC17)" \
+  'flat="$(tr "\n" " " < .claude/skills/specnaut/phases/epic-loop.md)";
+   grep -qF "no state file" <<<"$flat" &&
+   grep -qF "not use issue state as a progress signal" <<<"$flat"'
+check "a child's card goes In progress then In review, never Done here (#554 AC15/D17)" \
+  'flat="$(tr "\n" " " < .claude/skills/specnaut/phases/epic-loop.md)";
+   grep -qF "Move its card to In review" <<<"$flat" &&
+   grep -qF "it is not Done" <<<"$flat"'
+check "the loop never returns to the user between children (#554 AC3)" \
+  'grep -qF "does not return to the user between children" .claude/skills/specnaut/phases/epic-loop.md'
+check "the two T counters are named as different counters (#554 AC18)" \
+  'grep -qF "not the same counter" .claude/skills/specnaut/phases/epic-loop.md'
+
 # #553 — one branch per epic. Both twins, and the two degradation outcomes
 # that AC 14 requires to be distinguishable: a missing install is fixable
 # here, a backend with no enumerator is a capability gap with a ticket.
@@ -195,8 +234,11 @@ check "run-gate.sh scaffolded + executable (#555)" \
   '[ -x .specnaut/scripts/bash/run-gate.sh ]'
 check "run-gate.ps1 twin scaffolded (#555)" \
   '[ -f .specnaut/scripts/powershell/run-gate.ps1 ]'
-check "implement.md runs the fast tier per child (#555)" \
-  'grep -qF "run-gate.sh fast" .claude/skills/specnaut/phases/implement.md'
+check "an epic reaches the fast tier: implement -> epic-loop -> run-gate (#555)" \
+  'P=.claude/skills/specnaut/phases;
+   grep -qF "phases/epic-loop.md" "$P/implement.md" &&
+   grep -qF "run-gate.sh fast" "$P/epic-loop.md" &&
+   grep -qF "phases/quality-gates.md" "$P/epic-loop.md"'
 check "merge.md runs the full tier once, never per child (#555)" \
   'grep -qF "run-gate.sh full" .claude/skills/specnaut/phases/merge.md &&
    grep -qF "Never per child" .claude/skills/specnaut/phases/merge.md'

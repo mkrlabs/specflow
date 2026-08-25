@@ -75,6 +75,17 @@ failure to find things.
 the last review found *something* is not a reason — it is always true, and a loop
 with no exit criterion does not terminate.
 
+## An epic's children — only the last review is a stop
+
+On an epic branch this phase runs once per child, inside the loop
+(`phases/epic-loop.md`). **A child's review does not stop the run.** Findings
+go to the lead, who triages, fixes, commits against that child and moves on in
+the same turn.
+
+**The last child's review is the stop** — the single user-facing checkpoint
+before the merge. Everything below applies to it exactly as written; the
+earlier children's reviews are reported and carried, not held.
+
 ## Phase 3b — A missing seat stops the run
 
 Before the report: if the aggregated block has `SEATS_REPORTED <

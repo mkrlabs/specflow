@@ -117,6 +117,7 @@ export const PLUGIN_COVERED_PATHS_CLAUDE: ReadonlyArray<string> = [
     "quality-gates",
     "epic-fixups",
     "merge-close",
+    "epic-loop",
     "review",
     "merge",
     "merge-squash",

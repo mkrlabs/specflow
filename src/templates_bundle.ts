@@ -79,11 +79,12 @@ spec detection sits on this side and lives in \`phases/auto-chain.md\`, because 
 reads spec artefacts and prescribes specnaut phases.
 
 \`phases/plan-audits.md\`, \`phases/merge-squash.md\`, \`phases/epic-commits.md\`,
-\`phases/quality-gates.md\`, \`phases/epic-fixups.md\`, \`phases/merge-close.md\` and
-\`phases/auto-chain.md\` are **contract docs, not routable phases** — \`plan\` loads the first at its
+\`phases/quality-gates.md\`, \`phases/epic-fixups.md\`, \`phases/merge-close.md\`,
+\`phases/epic-loop.md\` and \`phases/auto-chain.md\` are **contract docs, not routable phases** — \`plan\` loads the first at its
 step 6, \`merge\` loads the second at its step 4, \`implement\` loads the third when the item is an epic,
 \`implement\` and \`merge\` share the fourth, \`merge\` loads the fifth before an epic merge and the sixth
-after any push, and the router loads the seventh when it chains. Naming any of them as a phase prints the index and stops.
+after any push, \`implement\` loads the seventh on an epic, and the router loads the eighth when it
+chains. Naming any of them as a phase prints the index and stops.
 
 Chainable phases are: \`plan\`, \`tasks\`, \`implement\`, \`review\`. The others (\`merge\`, \`constitution\`,
 \`tag-version\`, \`release-version\`, \`audit <axis>\`) are one-shot regardless of chain mode.
@@ -332,6 +333,10 @@ opinion**.
 
 ### 6. 🔒 The two audits — MANDATORY, and they audit the PLAN, not the code
 
+**An epic is one plan.** If the item has open sub-issues, write **one**
+\`plan.md\` covering every child — one decision table, one stop — not one per
+child. \`phases/epic-loop.md\` has the rest.
+
 Read \`phases/plan-audits.md\` and follow it. It dispatches \`architect-expert\` and
 \`security-expert\` on \`plan.md\` **in the same message**, before a single line is written, and it
 carries the eight questions they are asked and the rule that their findings land **in \`plan.md\`**.
@@ -474,6 +479,11 @@ questions, in this order:
 \`\`\`
 
 You **MUST** consider the user input before proceeding (if not empty).
+
+**An epic is one \`tasks.md\`.** Its breakdown is the child list in dependency
+order; a child may hold several \`T\` entries and still produce one commit. That
+\`T00N\` counter is **not** the one a commit's scope position carries — see
+\`phases/epic-loop.md\`.
 
 ## Pre-Execution Checks
 
@@ -873,18 +883,13 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
         \`\`\`
     - If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
 
-## Committing an epic's children
+## An epic runs as a loop, not as one implementation
 
-When the item being worked is an **epic with open sub-issues**, every child
-produces exactly one commit and the subject line is what makes it placeable.
-Read \`phases/epic-commits.md\` and follow it. On a standalone item nothing here
-applies — commit as usual.
-
-After each child's commit, run the **fast** gate tier —
-\`.specnaut/scripts/bash/run-gate.sh fast\`, or its PowerShell twin. What it
-contains is the project's to declare; see \`phases/quality-gates.md\`. A child
-that fails it is fixed in place and the gate re-runs; the loop does not hand
-back.
+When the item being worked is an **epic with open sub-issues**, read
+\`phases/epic-loop.md\` and follow it: one commit per child on the epic's
+branch, the fast gate after each, and no return to the user between children.
+It carries the commit format and the gate tiers by reference. On a standalone
+item none of it applies — implement and commit as usual.
 
 ## Ending this phase — freeze, then INVOKE \`review\`, same turn
 
@@ -1350,6 +1355,114 @@ a repository drift apart while both look healthy.
   },
   {
     category: "phase",
+    name: "epic-loop",
+    suffix: "epic-loop.md",
+    content: `# The epic loop — one branch, one commit per child, one merge
+
+Loaded by \`phases/implement.md\` when the item being worked is an **epic with
+open sub-issues**. \`plan\` and \`tasks\` treat an epic as one unit too; the short
+version of why is in each of them, and the whole of it is here.
+
+Nothing in this file applies to a standalone item. A standalone item is one
+commit and one merge, exactly as before — this is an additional path, not a
+replacement.
+
+## What the loop iterates
+
+**Board sub-issues, one per commit.** One child = one sub-issue = one commit.
+
+\`tasks.md\` is the decomposition *inside* a child: several \`T00N\` entries may
+belong to one sub-issue and still produce a single commit. It is not the loop's
+unit and never was — a loop over \`tasks.md\` entries would commit several times
+per child and break the one-to-one match resume depends on.
+
+\`#553\` has already put the whole epic on one branch and moved the epic's card
+to In progress. This phase never creates a branch.
+
+## One plan, one tasks, one stop
+
+**One \`plan\` for the whole epic** — one decision table covering every child,
+not one per child. **One \`tasks.md\`**, whose breakdown is the child list in
+dependency order. And **exactly one \`plan\` stop**, for the epic.
+
+That last one is the point of the whole exercise. N children used to mean N
+stops arriving after each child's work was already done, which is the most
+expensive moment to interrupt anyone: the context is spent and the answer is
+almost always yes.
+
+## The loop
+
+For each child, in dependency order:
+
+1. **Move its card to In progress.** Its own card, not the epic's — the epic
+   moved when the branch was created.
+2. **Implement it**, following \`tasks.md\` for the entries that belong to it.
+3. **Commit it** — one commit, per \`phases/epic-commits.md\`. The scope position
+   carries \`T<NN>\`, the child's ordinal in the epic's dependency order, minted
+   here by this loop.
+4. **Run the fast gate tier** — \`.specnaut/scripts/bash/run-gate.sh fast\`, or
+   its PowerShell twin. \`phases/quality-gates.md\` says what it is for.
+   A child that fails it is **fixed in place**: fix, re-run the gate for that
+   child, carry on. It is not an escalation and it does not hand back.
+5. **Move its card to In review.** Its commit is written; it is not Done, and
+   its issue is not closed. Both of those happen at the epic's merge (#560).
+6. **Next child.**
+
+**The loop does not return to the user between children.** Not for a review
+finding, not for a failed fast gate, not to confirm the next child. The one
+user-facing checkpoint is the last child's review.
+
+**Re-read the open-children list at each iteration.** A child added mid-flight
+is picked up if it arrives before its turn. Freezing the list when the loop
+starts is a decision to ignore work somebody added on purpose.
+
+**A child's commit contains only that child's work.** Do not accumulate an
+uncommitted tree across children — if two children's changes land in one
+commit, the match resume depends on is gone and no amount of later tidying
+brings it back.
+
+## Reviews inside the loop
+
+A child's review **never stops the loop**. Findings go to the lead, who
+triages, fixes, commits against that child and moves on **in the same turn**.
+
+**The last child's review is the stop** — the single checkpoint before the
+merge, and the one the whole chain has been saving up for.
+
+## Resuming, without a state file
+
+The loop is interrupted often: a session ends, a machine sleeps, somebody
+closes the terminal. There is **no state file** — resume reconstructs from git
+and the board:
+
+1. Read the commits already on the branch.
+2. Match each to its sub-issue through the commit convention. The match is
+   one-to-one because the ordinal is the child's position in dependency order.
+3. **Resume at the first child with no commit.**
+
+**Do not use issue state as a progress signal.** Child issues stay open for the
+entire loop by design (D10) — "open" says nothing about whether the work is
+done, and a resume that trusted it would redo every child. What is finished is
+what has a commit. That is the only reading.
+
+If a commit matches no sub-issue, or a child matches two, **stop and say so.**
+That is the case the no-state-file decision was taken on the assumption would
+not happen; if it does, it is worth knowing rather than working around.
+
+## The two \`T\` counters are not the same counter
+
+\`tasks.md\` mints \`T001\`, \`T002\`, … in execution order across the whole epic.
+The commit scope position carries \`T01\`, \`T02\`, … over the **sub-issues**. A
+reader will assume they are one counter unless told, so say which is which
+whenever either appears. \`phases/epic-commits.md\` carries the format and the
+parse.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "phase",
     name: "review",
     suffix: "review.md",
     content: `
@@ -1428,6 +1541,17 @@ failure to find things.
 **MEDIUM and LOW go to the backlog and the branch ships.** Re-reviewing because
 the last review found *something* is not a reason — it is always true, and a loop
 with no exit criterion does not terminate.
+
+## An epic's children — only the last review is a stop
+
+On an epic branch this phase runs once per child, inside the loop
+(\`phases/epic-loop.md\`). **A child's review does not stop the run.** Findings
+go to the lead, who triages, fixes, commits against that child and moves on in
+the same turn.
+
+**The last child's review is the stop** — the single user-facing checkpoint
+before the merge. Everything below applies to it exactly as written; the
+earlier children's reviews are reported and carried, not held.
 
 ## Phase 3b — A missing seat stops the run
 

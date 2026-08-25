@@ -129,6 +129,10 @@ opinion**.
 
 ### 6. 🔒 The two audits — MANDATORY, and they audit the PLAN, not the code
 
+**An epic is one plan.** If the item has open sub-issues, write **one**
+`plan.md` covering every child — one decision table, one stop — not one per
+child. `phases/epic-loop.md` has the rest.
+
 Read `phases/plan-audits.md` and follow it. It dispatches `architect-expert` and
 `security-expert` on `plan.md` **in the same message**, before a single line is written, and it
 carries the eight questions they are asked and the rule that their findings land **in `plan.md`**.

@@ -56,6 +56,12 @@
     },
     {
       "category": "phase",
+      "name": "epic-loop",
+      "suffix": "epic-loop.md",
+      "source": "core/skills/specnaut/phases/epic-loop.md"
+    },
+    {
+      "category": "phase",
       "name": "review",
       "suffix": "review.md",
       "source": "core/skills/specnaut/phases/review.md"
