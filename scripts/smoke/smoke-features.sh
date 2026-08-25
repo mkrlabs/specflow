@@ -661,6 +661,17 @@ check "which seats are required is defined, not left to judgement" \
   'grep -q "Required seats, so the word is not left" .claude/agents/review-coordinator.md'
 check "a skipped seat is distinguished from a missing one" \
   'grep -q "skipped seat is not a missing one" .claude/agents/review-coordinator.md'
+# A SWEEP, not a case. The contract gained two fields and six of the eight
+# seats kept describing the old block — an honest review would then have
+# counted six seats as not-reporting. Third instance in two days of an
+# enumeration stopping one short, so this counts every seat rather than
+# naming the ones that were wrong at the time.
+check "every review seat names the seat-count fields, not just the ones fixed" \
+  'n=0; for a in .claude/agents/*expert.md .claude/agents/code-reviewer.md .claude/agents/test-reviewer.md .claude/agents/review-coordinator.md; do grep -q "REVIEW_VERDICT" "$a" || continue; grep -q "SEATS_EXPECTED" "$a" || n=$((n+1)); done; [ "$n" -eq 0 ]'
+check "a stale seat block does not fail an honest gate" \
+  'grep -q "counts as .*one" .claude/agents/review-coordinator.md'
+check "the coordinator's own restatement carries the third trigger too" \
+  'grep -qF "SEATS_REPORTED < SEATS_EXPECTED" .claude/agents/review-coordinator.md'
 check "the coordinator may not present its own checking as a seat report" \
   'grep -qF "Coordinator verification is not a seat report" .claude/agents/review-coordinator.md'
 # AC4 — the option deliberately NOT taken. Without an assertion, deleting the

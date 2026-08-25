@@ -6186,7 +6186,10 @@ skipped seat is not a missing one.
 - Mark it \`NOT RUN\` in the per-seat roll-up, with what you know about why.
 - **Count it.** \`SEATS_EXPECTED\` is the number of required seats;
   \`SEATS_REPORTED\` counts those that returned a block with their own
-  \`SEATS_REPORTED: 1\`. An absent block counts as zero. The verdict then comes
+  \`SEATS_REPORTED: 1\`. An **absent block** counts as zero. A **well-formed
+  block that omits the field** counts as **one** — that means a seat older
+  than this contract, not a seat that did not look, and treating it as zero
+  would fail every honest review the moment one seat lags. The verdict then comes
   out \`fail\` from the contract's own arithmetic rather than from a prose rule
   fighting the count rule — which is what made the first version of this
   section emit \`fail\` beside \`HIGH_COUNT: 0\` and contradict itself.
@@ -6199,10 +6202,12 @@ skipped seat is not a missing one.
   legitimate result, so an automatic retry taxes every clean review. If you do
   re-dispatch, narrow the brief rather than repeating it.
 
-\`REVIEW_VERDICT: pass\` only when every required seat reported and aggregated
-\`CRITICAL_COUNT == 0\` and
-\`HIGH_COUNT == 0\`; \`fail\` when either is > 0; \`needs_followup\` when only
-Medium/Low remain. Then emit the \`WORKFLOW STATUS\` block per \`workflow-contract\`
+\`REVIEW_VERDICT: pass\` only when every required seat reported **and**
+aggregated \`CRITICAL_COUNT == 0\` **and** \`HIGH_COUNT == 0\`; \`fail\` when either
+count is > 0 **or** \`SEATS_REPORTED < SEATS_EXPECTED\`; \`needs_followup\` when
+only Medium/Low remain. The third trigger is named here on purpose: without
+it this restatement leaves an all-zero run with a missing seat carrying no
+verdict at all, and a reader following only this paragraph has to invent one. Then emit the \`WORKFLOW STATUS\` block per \`workflow-contract\`
 and, when handing the gate result back, the \`HANDOFF\` block per
 \`handoff-protocol\`.
 
@@ -6269,6 +6274,8 @@ After the findings, emit exactly one \`REVIEW SUMMARY\` block per the preloaded
 REVIEW SUMMARY
 REVIEW_SCOPE: code-reviewer
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: 1
+SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>
@@ -6584,6 +6591,8 @@ referenced against the implementation files they cover.
 Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
 (\`REVIEW_SCOPE: test-reviewer\`, \`REVIEW_VERDICT: pass | fail | needs_followup\`,
+\`SEATS_EXPECTED: 1\` and \`SEATS_REPORTED\` (\`1\` when you reviewed, \`0\` when you
+could not — the field is how the gate tells those apart),
 the four severity counts, \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the
 \`WORKFLOW STATUS\` block per \`workflow-contract\`.
 `,
@@ -7491,7 +7500,9 @@ material for the PO to triage.
 Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
 (\`REVIEW_SCOPE: performance-expert\`,
-\`REVIEW_VERDICT: pass | fail | needs_followup\`, the four severity counts,
+\`REVIEW_VERDICT: pass | fail | needs_followup\`,
+\`SEATS_EXPECTED: 1\` and \`SEATS_REPORTED\` (\`1\` when you reviewed, \`0\` when you
+could not — the field is how the gate tells those apart), the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. Audit-mode (Mode 2) emits neither block.
 `,
@@ -7715,7 +7726,9 @@ backlog material for the PO to triage.
 Same \`FINDING\` structure as code-reviewer, followed by exactly one
 \`REVIEW SUMMARY\` block per the preloaded \`review-findings-contract\`
 (\`REVIEW_SCOPE: accessibility-expert\`,
-\`REVIEW_VERDICT: pass | fail | needs_followup\`, the four severity counts,
+\`REVIEW_VERDICT: pass | fail | needs_followup\`,
+\`SEATS_EXPECTED: 1\` and \`SEATS_REPORTED\` (\`1\` when you reviewed, \`0\` when you
+could not — the field is how the gate tells those apart), the four severity counts,
 \`TOP_ISSUES\`, \`RECOMMENDATION\`), then the \`WORKFLOW STATUS\` block per
 \`workflow-contract\`. Audit-mode (Mode 2) emits neither block.
 `,
@@ -7960,6 +7973,8 @@ After the findings, emit exactly one \`REVIEW SUMMARY\` block per the preloaded
 REVIEW SUMMARY
 REVIEW_SCOPE: architect-expert
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: 1
+SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>
@@ -8236,6 +8251,8 @@ After the findings, emit exactly one \`REVIEW SUMMARY\` block per the preloaded
 REVIEW SUMMARY
 REVIEW_SCOPE: dependency-expert
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: 1
+SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>

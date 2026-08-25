@@ -231,6 +231,8 @@ After the findings, emit exactly one `REVIEW SUMMARY` block per the preloaded
 REVIEW SUMMARY
 REVIEW_SCOPE: architect-expert
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: 1
+SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>

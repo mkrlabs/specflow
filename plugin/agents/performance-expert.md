@@ -198,6 +198,8 @@ material for the PO to triage.
 Same `FINDING` structure as code-reviewer, followed by exactly one
 `REVIEW SUMMARY` block per the preloaded `review-findings-contract`
 (`REVIEW_SCOPE: performance-expert`,
-`REVIEW_VERDICT: pass | fail | needs_followup`, the four severity counts,
+`REVIEW_VERDICT: pass | fail | needs_followup`,
+`SEATS_EXPECTED: 1` and `SEATS_REPORTED` (`1` when you reviewed, `0` when you
+could not — the field is how the gate tells those apart), the four severity counts,
 `TOP_ISSUES`, `RECOMMENDATION`), then the `WORKFLOW STATUS` block per
 `workflow-contract`. Audit-mode (Mode 2) emits neither block.
