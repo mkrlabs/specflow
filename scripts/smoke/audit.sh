@@ -167,7 +167,10 @@ SURFACES=(
   'templates/core/root/*|smoke-features.sh smoke-all-harnesses.sh|project-root-file'
   'templates/core/skills/using-specnaut/references/*|smoke-features.sh|skill-reference'
   'templates/core/skills/code-audit/scripts/*|smoke-features.sh|skill-script'
-  'templates/core/skills/board/groom.md|smoke-features.sh|skill-doc'
+  # #562 split two contracts out of the board skill. The map used to name
+  # `groom.md` alone, so a sibling doc added beside it was UNMAPPED — nothing
+  # asserted about it and nothing said so. A glob covers the next one too.
+  'templates/core/skills/board/*.md|smoke-backlog-github.sh|board-skill-doc'
   'templates/core/specnaut/templates/*|smoke-features.sh|scaffold-template'
   'templates/core/specnaut/backlog.md|smoke-backlog-local.sh|specnaut-root-doc'
   'templates/core/specnaut/logs/README.md|smoke-features.sh|specnaut-root-doc'

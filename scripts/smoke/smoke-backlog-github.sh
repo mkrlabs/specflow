@@ -142,8 +142,28 @@ check "PO agent: every \"no start date set\" sits beside its STARTDATE_FIELD_ID 
   'gated_warning .claude/agents/product-owner.md "no start date set" STARTDATE_FIELD_ID'
 check "groom step 3a says what to do when the fields are absent" \
   'grep -qF "Both IDs empty" .claude/skills/board/groom.md'
+# #562 split the report contract out of groom.md into groom-report.md. These
+# assertions follow the TEXT, not the file name — an assertion keyed on a
+# location silently stops covering anything the moment its subject moves, and
+# it reads as a passing check right up until someone notices.
 check "groom report template repeats the condition, so it cannot reintroduce the line" \
-  'awk "/Roadmap dates missing \\(GitHub backend, soft\\)/{f=1} f&&/TARGETDATE_FIELD_ID/{ok=1} END{exit !ok}" .claude/skills/board/groom.md'
+  'awk "/Roadmap dates missing \\(GitHub backend, soft\\)/{f=1} f&&/TARGETDATE_FIELD_ID/{ok=1} END{exit !ok}" .claude/skills/board/groom-report.md'
+check "groom report: every \"no target date set\" sits beside its TARGETDATE_FIELD_ID gate" \
+  'gated_warning .claude/skills/board/groom-report.md "no target date set" TARGETDATE_FIELD_ID'
+check "groom report: every \"no start date set\" sits beside its STARTDATE_FIELD_ID gate" \
+  'gated_warning .claude/skills/board/groom-report.md "no start date set" STARTDATE_FIELD_ID'
+check "groom points at the report contract rather than restating it" \
+  'grep -qF "groom-report.md" .claude/skills/board/groom.md'
+# #562 split the cloud auto-generation guidance out of the board SKILL.md,
+# which is what took the emitted Windsurf workflow 539 characters past the
+# vendor cap. The doc ships on every backend; only the pointer to it is
+# conditional.
+check "spec-autogen contract ships beside the board skill" \
+  'test -f .claude/skills/board/spec-autogen.md'
+check "spec-autogen keeps the never-fatal rule — a failed spec-gen must not lose the task" \
+  'tr "\n" " " < .claude/skills/board/spec-autogen.md | grep -qF "Never fatal to task creation"'
+check "spec-autogen says the retry path, not just that it is retryable" \
+  'tr "\n" " " < .claude/skills/board/spec-autogen.md | grep -qF "the task stays created"'
 check "groom documents detect-fields.sh emitting the date field IDs" \
   'grep -qF "TARGETDATE_FIELD_ID" .claude/skills/board/groom.md'
 

@@ -948,6 +948,24 @@ check "workflow-contract .claude/skills/workflow-contract/SKILL.md is not user-i
   'grep -q "user-invocable: false" .claude/skills/workflow-contract/SKILL.md'
 check "workflow-contract defines the WORKFLOW STATUS block and its DONE_CRITERIA_MET key" \
   'grep -q "WORKFLOW STATUS" .claude/skills/workflow-contract/SKILL.md && grep -q "DONE_CRITERIA_MET:" .claude/skills/workflow-contract/SKILL.md'
+# #562 — three sections split out of seats that had no duplication left to
+# reclaim. Each must ship, be preloaded rather than user-invoked, and still
+# carry the sentence it was split out to protect.
+check "alert-triage-contract ships and is preloaded, not user-invocable" \
+  'grep -q "user-invocable: false" .claude/skills/alert-triage-contract/SKILL.md'
+check "alert-triage-contract keeps the constrained Bash allowlist intact" \
+  'tr "\n" " " < .claude/skills/alert-triage-contract/SKILL.md | grep -qF "granted ONLY for the \`gh api\` calls listed below"'
+check "security-expert preloads alert-triage-contract" \
+  'grep -q "^skills:.*alert-triage-contract" .claude/agents/security-expert.md'
+check "backlog-frontmatter ships and is preloaded, not user-invocable" \
+  'grep -q "user-invocable: false" .claude/skills/backlog-frontmatter/SKILL.md'
+check "product-owner preloads backlog-frontmatter" \
+  'grep -q "^skills:.*backlog-frontmatter" .claude/agents/product-owner.md'
+check "specnaut-facts ships and is preloaded, not user-invocable" \
+  'grep -q "user-invocable: false" .claude/skills/specnaut-facts/SKILL.md'
+check "specnaut-guide preloads specnaut-facts" \
+  'grep -q "^skills:.*specnaut-facts" .claude/agents/specnaut-guide.md'
+
 check "review-findings-contract .claude/skills/review-findings-contract/SKILL.md is not user-invocable" \
   'grep -q "user-invocable: false" .claude/skills/review-findings-contract/SKILL.md'
 check "review-findings-contract requires a verdict and a CRITICAL count" \
