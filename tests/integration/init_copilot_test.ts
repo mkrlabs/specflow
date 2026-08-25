@@ -100,14 +100,14 @@ Deno.test("specnaut init --ai copilot scaffolds a Copilot layout", async () => {
     // dep-audit, a11y-audit) + status-audit (#381) +
     // board + 15 agents (11 original + performance-expert #304 +
     // accessibility-expert #305 + architect-expert #321 + dependency-expert
-    // #322) = 53 (specnaut-auto removed in #409; merge-squash added in #558). code-audit's scope script
+    // #322) = 54 (specnaut-auto removed in #409; merge-squash #558 + epic-commits #556 added). code-audit's scope script
     // ships under .specnaut/scripts/code-audit/, not as a flattened instruction file;
     // status-audit's schema doc ships to .specnaut/logs/README.md, also not
     // flattened here.
     const instructionsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".github/instructions")),
     )).length;
-    assertEquals(instructionsCount, 53);
+    assertEquals(instructionsCount, 54);
 
     // Shared (cross-harness)
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);

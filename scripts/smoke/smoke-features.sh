@@ -67,7 +67,7 @@ check ".claude/commands/ is not created at all (#533)" \
   '[ ! -e .claude/commands ]'
 check "router .claude/skills/specnaut/SKILL.md present" \
   '[ -f .claude/skills/specnaut/SKILL.md ]'
-for phase in plan plan-audits tasks implement review merge constitution tag-version release-version; do
+for phase in plan plan-audits tasks implement review merge merge-squash epic-commits constitution tag-version release-version; do
   check ".claude/skills/specnaut/phases/$phase.md present" \
     "[ -f .claude/skills/specnaut/phases/$phase.md ]"
 done
@@ -80,6 +80,25 @@ check "phase doc plan-audits.md scaffolded (#456)" \
   '[ -f .claude/skills/specnaut/phases/plan-audits.md ]'
 check "plan-audits.md dispatches BOTH auditors (#456)" \
   'grep -q "architect-expert" .claude/skills/specnaut/phases/plan-audits.md && grep -q "security-expert" .claude/skills/specnaut/phases/plan-audits.md'
+# Companion docs, named literally for the audit's basename scan — the
+# interpolated loop above hides them from `grep -qF`. Both exist because
+# their host phase ran out of room under the 12,000-character Windsurf cap:
+# merge.md was at 11,960 (#558), implement.md at 11,377 (#556).
+check "companion doc merge-squash.md scaffolded (#558)" \
+  '[ -f .claude/skills/specnaut/phases/merge-squash.md ]'
+check "merge.md routes to it rather than carrying the rules (#558)" \
+  'grep -qF "phases/merge-squash.md" .claude/skills/specnaut/phases/merge.md'
+check "merge-squash.md kept the rule that makes a squash safe (#558)" \
+  'grep -qF "byte-identical" .claude/skills/specnaut/phases/merge-squash.md'
+check "companion doc epic-commits.md scaffolded (#556)" \
+  '[ -f .claude/skills/specnaut/phases/epic-commits.md ]'
+check "implement.md routes to it for an epic (#556)" \
+  'grep -qF "phases/epic-commits.md" .claude/skills/specnaut/phases/implement.md'
+check "epic-commits.md carries the Epic trailer and the width-agnostic parse (#556)" \
+  'grep -qF "Epic: #" .claude/skills/specnaut/phases/epic-commits.md &&
+   grep -qF "T(\\d+)" .claude/skills/specnaut/phases/epic-commits.md'
+check "epic-commits.md names no test tool (constitution: stack-agnostic)" \
+  '! grep -qiE "jest|vitest|playwright|pytest|rspec|junit" .claude/skills/specnaut/phases/epic-commits.md'
 check "phase doc constitution.md scaffolded" \
   '[ -f .claude/skills/specnaut/phases/constitution.md ]'
 check "removed phases do NOT scaffold (#455)" \

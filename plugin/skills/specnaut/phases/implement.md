@@ -178,6 +178,13 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
         ```
     - If no hooks are registered or `.specnaut/extensions.yml` does not exist, skip silently
 
+## Committing an epic's children
+
+When the item being worked is an **epic with open sub-issues**, every child
+produces exactly one commit and the subject line is what makes it placeable.
+Read `phases/epic-commits.md` and follow it. On a standalone item nothing here
+applies — commit as usual.
+
 ## Ending this phase — freeze, then INVOKE `review`, same turn
 
 **An implementation that has not been through review is not finished.** `review` is this phase's
