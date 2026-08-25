@@ -171,6 +171,46 @@ Deno.test("WindsurfHarness emits no workflow exceeding the Cascade cap", () => {
   }
 });
 
+Deno.test("the emitted workflow set is the same on every install combination", () => {
+  // A size assertion is satisfied by DELETION. Three ways to pass one without
+  // shortening anything: drop the file (a backend filter returning null), move
+  // its destination (the size loop filters on the `.windsurf/workflows/`
+  // prefix), or iterate nothing. None of them is hypothetical — this repository
+  // just shipped a workflow 539 characters over the vendor cap because the
+  // guard was looking at half the parameter space.
+  //
+  // So: the set of emitted paths must be IDENTICAL across every combination,
+  // and non-empty. A file dropped on one backend shows up here as a set
+  // difference rather than as a quietly smaller measurement.
+  const h = new WindsurfHarness();
+  let expected: string[] | null = null;
+  let expectedFrom = "";
+  for (const opts of everyBundleOption()) {
+    const paths = Object.keys(h.mapBundle(CORE_BUNDLE, opts))
+      .filter((p) => p.startsWith(".windsurf/workflows/"))
+      .sort();
+    const where = `backlog=${opts.backlogBackend} scheme=${opts.versionScheme} ` +
+      `spec=${opts.specBackend} autogen=${opts.specAutogen}`;
+    if (expected === null) {
+      expected = paths;
+      expectedFrom = where;
+      // Non-vacuity. Without this the whole test passes over an empty set,
+      // which is exactly the "iterate nothing" failure it is meant to catch.
+      assert(paths.length > 50, `only ${paths.length} workflows emitted on ${where}`);
+      continue;
+    }
+    const missing = expected.filter((p) => !paths.includes(p));
+    const extra = paths.filter((p) => !expected!.includes(p));
+    assertEquals(
+      [missing, extra],
+      [[], []],
+      `the emitted workflow set differs on ${where} vs ${expectedFrom} — ` +
+        `missing here: ${missing.join(", ") || "none"}; ` +
+        `extra here: ${extra.join(", ") || "none"}`,
+    );
+  }
+});
+
 Deno.test("workflowLength counts characters, not UTF-16 code units", () => {
   // The distinction only shows on astral-plane characters, which is exactly
   // when a length assertion quietly starts measuring something else.
