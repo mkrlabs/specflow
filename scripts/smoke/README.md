@@ -79,11 +79,11 @@ it discards several hundred lines of real code against the genuine comments it i
 
 **Known limit, stated plainly:** heredoc bodies are **not recognised**. The scan resets on every
 line and holds no notion of an open heredoc, so **a `#` inside a heredoc body is scored exactly as
-if the line were shell** — as the start of a comment when whitespace precedes it and it sits
-outside quotes *on that line*, and as ordinary text otherwise. This suite embeds `.gitignore`, CSS,
-Markdown and Python inside heredocs, where a `#` is not a shell comment at all, so such a line can
-be truncated. The damage is bounded to the one line, and it falls in the safe direction: a
-truncated line can lose a coverage match, never invent one.
+if the line were shell** — as the start of a comment when whitespace precedes it and it sits outside
+quotes _on that line_, and as ordinary text otherwise. This suite embeds `.gitignore`, CSS, Markdown
+and Python inside heredocs, where a `#` is not a shell comment at all, so such a line can be
+truncated. The damage is bounded to the one line, and it falls in the safe direction: a truncated
+line can lose a coverage match, never invent one.
 
 ### What identifies a changed file
 
