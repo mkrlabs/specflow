@@ -30,9 +30,9 @@ a second spelling discovered at review is a plan violation, not a style note.
 asserting script reaches `bootstrap-*.sh` and `clean.sh` through `$SCRIPT_DIR`, so a partial move
 is not available (plan.md § 6, invariant).
 
-- [ ] T001 Create `apps/specnaut-cli/scripts/smoke/` and copy all 16 `.sh` files from `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/test-sandbox/scripts/` into it, preserving the executable bit
-- [ ] T002 Verify the copy is byte-identical for all 16 files (`diff -r` against the source directory) and record the count in the commit body — a silent 15-of-16 is the failure this task exists to exclude
-- [ ] T003 [P] Confirm `sandbox/` is already gitignored in `apps/specnaut-cli/.gitignore` (it is, line 9) so no scenario tree can be committed from the new location
+- [X] T001 Create `apps/specnaut-cli/scripts/smoke/` and copy all 16 `.sh` files from `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/test-sandbox/scripts/` into it, preserving the executable bit
+- [X] T002 Verify the copy is byte-identical for all 16 files (`diff -r` against the source directory) and record the count in the commit body — a silent 15-of-16 is the failure this task exists to exclude
+- [X] T003 [P] Confirm `sandbox/` is already gitignored in `apps/specnaut-cli/.gitignore` (it is, line 9) so no scenario tree can be committed from the new location
 
 **Checkpoint**: the scripts exist in their new home and still resolve nothing correctly yet.
 
@@ -43,15 +43,15 @@ is not available (plan.md § 6, invariant).
 **⚠️ No user story work can begin until this phase is complete.** Everything below depends on
 path resolution having exactly one home.
 
-- [ ] T004 Create `apps/specnaut-cli/scripts/smoke/_common.sh` exporting `CLI`, `SRC_ROOT`, `SMOKE_DIR` — **home of decision R1**. Derive `CLI` from the script's own location two levels up; never from the caller's cwd, and never with a `../../../..` climb
-- [ ] T005 Add the `SUITE_FILES` list to `_common.sh` — **home of decision R3**, the single answer to "which scripts constitute the suite". Consumed by `run-all.sh` (T013) and by both of `audit.sh`'s scans (T019)
-- [ ] T006 Add `pass()` / `fail()` / the failure counter / the end banner to `_common.sh` — **home of decision R4**. One format, so `run-all.sh` has one thing to read and FR-013 has one shape to satisfy
-- [ ] T007 Add the scenario-name allowlist to `_common.sh` — **home of decision R11**. `case "$NAME" in *[!A-Za-z0-9._-]*|""|.|..) die ;; esac`. This is finding S4: `clean.sh:15` is `rm -rf "$CLI/sandbox/$1"` and T013 adds the first programmatic caller
-- [ ] T008 Constrain `_common.sh` to **bash 3.2** — no `declare -A`, no `mapfile`, no `${var,,}` (plan.md § 6, finding A11). `smoke-all-harnesses.sh:19-21` already pays this cost deliberately; a `_common.sh` written to bash 4 passes CI and breaks US2/US4 on macOS
-- [ ] T009 Rewire all 15 scripts carrying `ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"` + `CLI="$ROOT/apps/specnaut-cli"` to source `_common.sh` instead, in `apps/specnaut-cli/scripts/smoke/`
-- [ ] T010 Replace the two `cd "$ROOT"` calls in `apps/specnaut-cli/scripts/smoke/smoke-tag-release.sh:92,110` with `cd "$CLI"` — their only purpose is leaving the sandbox directory
-- [ ] T011 Replace the nine private `pass`/`fail`/counter blocks with the `_common.sh` harness from T006, one script at a time, in `apps/specnaut-cli/scripts/smoke/smoke-*.sh`
-- [ ] T012 Prove FR-001 mechanically: `grep -n '\.\./\.\./\.\./\.\.\|apps/specnaut-cli' apps/specnaut-cli/scripts/smoke/*.sh` returns nothing
+- [X] T004 Create `apps/specnaut-cli/scripts/smoke/_common.sh` exporting `CLI`, `SRC_ROOT`, `SMOKE_DIR` — **home of decision R1**. Derive `CLI` from the script's own location two levels up; never from the caller's cwd, and never with a `../../../..` climb
+- [X] T005 Add the `SUITE_FILES` list to `_common.sh` — **home of decision R3**, the single answer to "which scripts constitute the suite". Consumed by `run-all.sh` (T013) and by both of `audit.sh`'s scans (T019)
+- [X] T006 Add `pass()` / `fail()` / the failure counter / the end banner to `_common.sh` — **home of decision R4**. One format, so `run-all.sh` has one thing to read and FR-013 has one shape to satisfy
+- [X] T007 Add the scenario-name allowlist to `_common.sh` — **home of decision R11**. `case "$NAME" in *[!A-Za-z0-9._-]*|""|.|..) die ;; esac`. This is finding S4: `clean.sh:15` is `rm -rf "$CLI/sandbox/$1"` and T013 adds the first programmatic caller
+- [X] T008 Constrain `_common.sh` to **bash 3.2** — no `declare -A`, no `mapfile`, no `${var,,}` (plan.md § 6, finding A11). `smoke-all-harnesses.sh:19-21` already pays this cost deliberately; a `_common.sh` written to bash 4 passes CI and breaks US2/US4 on macOS
+- [X] T009 Rewire all 15 scripts carrying `ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"` + `CLI="$ROOT/apps/specnaut-cli"` to source `_common.sh` instead, in `apps/specnaut-cli/scripts/smoke/`
+- [X] T010 Replace the two `cd "$ROOT"` calls in `apps/specnaut-cli/scripts/smoke/smoke-tag-release.sh:92,110` with `cd "$CLI"` — their only purpose is leaving the sandbox directory
+- [X] T011 Replace the nine private `pass`/`fail`/counter blocks with the `_common.sh` harness from T006, one script at a time, in `apps/specnaut-cli/scripts/smoke/smoke-*.sh`
+- [X] T012 Prove FR-001 mechanically: `grep -n '\.\./\.\./\.\./\.\.\|apps/specnaut-cli' apps/specnaut-cli/scripts/smoke/*.sh` returns nothing
 
 **Checkpoint**: every script resolves its own paths from one home, in bash 3.2, with one reporting
 format. User stories can now proceed.
