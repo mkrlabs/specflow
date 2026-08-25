@@ -25,9 +25,10 @@ scripts actually on disk. A script that exists but is not listed is a finding, n
 
 **`audit.sh`** — the coverage gate. **`smoke-audit.sh`** — its meta-test.
 
-## `_common.sh` owns four decisions
+## `_common.sh` owns five decisions
 
-Path resolution, suite membership, the assertion harness, and what a valid scenario name is. Source
+Path resolution, suite membership, the assertion harness, what a valid scenario name is, and what counts
+as code in a smoke script. Source
 it; never re-derive any of them locally. It is written for **bash 3.2**, because macOS ships that
 and the interactive scenarios exist for that machine.
 
@@ -47,11 +48,39 @@ neither is a findings verdict, and `.specnaut/release/preflight.sh` branches on 
 | **Unmapped surface**       | A changed file under `templates/core/` that no glob claims. Reported and counted, **not** fatal — the defect is invisibility, not the gap. |
 
 The surface map lives in the `SURFACES` array in `audit.sh`; each entry is
-`<glob>|<smoke-script-list>|<kind>`. The stale scan walks every file in `SCAN_FILES`, extracts each
+`<glob>|<smoke-script-list>|<kind>`. The stale scan walks the smoke scripts it enumerates from the
+smoke directory itself — there is no second list to keep in step — extracts each
 `.claude/…` / `.specnaut/…` token, and maps it back to a candidate under `templates/core/` or
 `templates/harness-specific/<harness>/`. Runtime-only paths (`installed.lock`, `specs/`, `logs/`, …)
 are skipped explicitly, and a path a smoke only ever asserts the **absence** of is not stale — that
 is the correct assertion for a deliberately removed artefact.
+
+### What counts as a mention
+
+A basename found **only inside a comment does not count as coverage**. A comment resolves nothing and
+asserts nothing, and a comment saying a file is deliberately uncovered would otherwise vouch for it.
+The rule is about what a script *does*, not what it mentions.
+
+`_common.sh`'s `smoke_code_lines()` is the single home for that decision, and both guards that need
+it — the coverage match here and `run-all.sh`'s boundary check — ask it rather than carrying their
+own expression. It tracks single and double quotes and cuts at the first **unquoted** `#` that
+begins a word.
+
+Two properties the callers depend on, and the reason the rule is not simply `sed 's/#.*$//'`:
+
+- **It removes a suffix, never an interior span.** Every output line is a prefix of its input, so a
+  fixed-string search can lose a match but never invent one. Coverage detection therefore fails
+  **closed** by construction — the direction a gate must fail in.
+- **Line numbering is preserved.** Lines are blanked, never dropped, so a caller reporting
+  `file:line` still reports the right one.
+
+The naive expression cuts at the *first* `#` on a line, and shell puts one inside `${var#prefix}`
+and inside every `echo "═══ #180  add.sh …"` banner this suite writes. Measured over these scripts
+it discards several hundred lines of real code against the genuine comments it is meant to remove.
+
+**Known limit, stated rather than implied:** the scan resets on every line, so heredoc bodies are
+not analysed. This suite embeds `.gitignore`, CSS, Markdown and Python inside heredocs, where a `#`
+is not a shell comment; it is scored as one, and the damage is bounded to that line.
 
 The audit reports; it never edits a smoke script.
 

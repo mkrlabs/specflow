@@ -216,9 +216,14 @@ cat >> "$SYNTH_SMOKE/smoke-features.sh" <<'EOF'
 EOF
 git add -A
 git commit -q -m "plant a file mentioned only in a comment"
+#
+# The exit code is deliberately NOT captured here. This run is non-zero for
+# the planted stale assertion whatever the coverage logic does, so an
+# assertion on it would pass with the defect still in place — the vacuous
+# shape #546 exists to remove from this file. The gap COUNT below is the
+# assertion that can fail.
 set +e
 commentonly_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
-commentonly_rc=$?
 set -e
 
 echo "$out"
