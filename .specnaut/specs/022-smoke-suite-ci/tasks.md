@@ -185,11 +185,11 @@ under an unmapped path (e.g. `templates/core/statusline/`) → named under `## U
 **Independent test**: run the skill's documented entry point from a monorepo session and complete a
 brownfield scenario end to end.
 
-- [ ] T030 [US4] Rewrite `apps/specnaut-cli/scripts/smoke/bootstrap-vite.sh` to write the brownfield
+- [x] T030 [US4] Rewrite `apps/specnaut-cli/scripts/smoke/bootstrap-vite.sh` to write the brownfield
       tree itself by default — offline, deterministic, no registry call (Q3, finding S1, FR-012).
       Reproduce Vite's `.gitignore` faithfully: it is what the brownfield `.gitignore`-merge
       scenario asserts against
-- [ ] T031 [US4] Add the `--real` opt-in to `bootstrap-vite.sh`, pinned to an exact `create-vite`
+- [x] T031 [US4] Add the `--real` opt-in to `bootstrap-vite.sh`, pinned to an exact `create-vite`
       version — never `@latest` (FR-012). No smoke script passes it; only the `qa-tester` fidelity
       path does
 - [ ] T032 [P] [US4] [MONO] Rewrite

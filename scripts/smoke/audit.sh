@@ -26,9 +26,9 @@
 # held the authoritative one. A caller that must parse a report to learn
 # whether it failed is a caller that will eventually parse it wrong.
 #
-# Heuristics live in `.claude/skills/test-sandbox/SKILL.md` ("Audit
-# heuristics") so the rules and the script can drift together but are
-# documented in exactly one place.
+# Heuristics live in `scripts/smoke/README.md` ("Audit heuristics"), beside
+# this script. They used to live in the monorepo-root test-sandbox skill,
+# which meant a clone of this repository had the gate but not its rules.
 set -euo pipefail
 
 # Path resolution has one home (plan.md §5 R1); this script's source tree is
