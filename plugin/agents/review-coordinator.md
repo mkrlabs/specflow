@@ -66,7 +66,26 @@ TOP_ISSUES: <up to 5 lines — the highest-severity findings | none>
 RECOMMENDATION: <one sentence — what the next actor should do>
 ```
 
-`REVIEW_VERDICT: pass` only when aggregated `CRITICAL_COUNT == 0` and
+### A seat that returns nothing has NOT passed
+
+A sub-agent that ends without a `REVIEW SUMMARY` block — no findings, no
+verdict, budget exhausted, whatever the cause — is **`NOT RUN`**. It is not a
+clean verdict and must never be aggregated as one.
+
+- Mark it `NOT RUN` in the per-seat roll-up, with what you know about why.
+- The aggregated `REVIEW_VERDICT` is then **never `pass`**. Use `fail` when a
+  seat that was required did not report, and name it in `TOP_ISSUES` as its
+  own line — a review that quietly loses a seat is the defect this project
+  keeps finding everywhere else.
+- If you substitute your own checking for the missing seat, **label it as
+  yours**. Coordinator verification is not a seat report, and presenting it as
+  one hides exactly what the reader needs to know.
+- Re-dispatching is a judgement call, not a rule: zero findings can be a
+  legitimate result, so an automatic retry taxes every clean review. If you do
+  re-dispatch, narrow the brief rather than repeating it.
+
+`REVIEW_VERDICT: pass` only when every required seat reported and aggregated
+`CRITICAL_COUNT == 0` and
 `HIGH_COUNT == 0`; `fail` when either is > 0; `needs_followup` when only
 Medium/Low remain. Then emit the `WORKFLOW STATUS` block per `workflow-contract`
 and, when handing the gate result back, the `HANDOFF` block per

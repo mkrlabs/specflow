@@ -53,6 +53,40 @@ Before writing a single finding:
 Do not read all of them by reflex — the routing table exists so you load
 two or three, not twelve. But never skip step 1.
 
+### Step 0 has a budget, and a scoped dispatch discharges most of it
+
+Step 0 is preparation, not the work. It has repeatedly consumed an entire
+dispatch: four runs on this project ended in the knowledge base with no
+finding written, ~70k tokens each, while one narrowly scoped dispatch
+returned a complete report for a third of that. A seat that starves before
+its first check is worth less than no seat, because the gate still counts it.
+
+So:
+
+- **A dispatch that already names the files and the questions has done the
+  routing for you.** Read `00-triage.md` for the severity basis, then go
+  straight to those files. Do not open the routing table to re-derive a scope
+  you were handed.
+- **Budget: Step 0 is at most four reads.** If the routing table would send
+  you past that, stop, name in your report which domain files you did *not*
+  load, and review what you can. A partial review that says what it covered is
+  useful; a full review nobody receives is not.
+- **Write findings as you confirm them**, not after the last file is read. If
+  you run out of room, what you have already written still ships.
+
+**Returning nothing is not a neutral outcome, and a clean verdict is not
+nothing.** The two must be distinguishable from outside the seat:
+
+- Found nothing after looking? Emit the `REVIEW SUMMARY` block with zero counts
+  **and** a line beginning `no findings — checks performed:` naming what you
+  inspected. That is a pass.
+- Could not look? Say `NOT RUN:` followed by the reason, on its own line. The
+  coordinator treats that as a failed gate rather than a clean one — and it
+  cannot tell the difference unless you tell it.
+
+An empty response is the one outcome that leaves the reader unable to choose
+between those two, which is why it counts as the second.
+
 **If `.specnaut/memory/security/` does not exist** — you were installed as a
 standalone plugin rather than scaffolded into a Specnaut project — fall back
 to the always-check rules below, and say so in one line at the top of your

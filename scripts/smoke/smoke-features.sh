@@ -532,6 +532,21 @@ echo "═══ #188  /specnaut merge auto-closes the linked backlog issue ═�
 # grepped "IMPL_PLAN" and "--json", which match this script's own help text and
 # its JSON output keys — replacing the copy with `touch` would have left every
 # assertion green while shipping an empty plan.md to every user.
+echo
+echo "═══ #23  a silent review seat fails the gate ═══"
+check "security-expert.md caps its startup so the budget reaches the files" \
+  'grep -q "Step 0 is at most four reads" .claude/agents/security-expert.md'
+check "security-expert.md gives a clean verdict a shape of its own" \
+  'grep -q "no findings — checks performed:" .claude/agents/security-expert.md'
+check "and a distinct one for could-not-look" \
+  'grep -q "NOT RUN:" .claude/agents/security-expert.md'
+check "review-coordinator.md refuses to aggregate a silent seat as a pass" \
+  'grep -q "A seat that returns nothing has NOT passed" .claude/agents/review-coordinator.md'
+check "review-coordinator.md requires every seat to have reported before pass" \
+  'grep -q "only when every required seat reported" .claude/agents/review-coordinator.md'
+check "and forbids presenting its own checking as a seat report" \
+  'grep -q "Coordinator verification is not a seat report" .claude/agents/review-coordinator.md'
+
 # #549: this file was reported covered by an assertion whose subject was a
 # different README entirely.
 check "the status ledger README documents the JSONL it describes" \

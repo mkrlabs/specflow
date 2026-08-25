@@ -6152,7 +6152,26 @@ TOP_ISSUES: <up to 5 lines — the highest-severity findings | none>
 RECOMMENDATION: <one sentence — what the next actor should do>
 \`\`\`
 
-\`REVIEW_VERDICT: pass\` only when aggregated \`CRITICAL_COUNT == 0\` and
+### A seat that returns nothing has NOT passed
+
+A sub-agent that ends without a \`REVIEW SUMMARY\` block — no findings, no
+verdict, budget exhausted, whatever the cause — is **\`NOT RUN\`**. It is not a
+clean verdict and must never be aggregated as one.
+
+- Mark it \`NOT RUN\` in the per-seat roll-up, with what you know about why.
+- The aggregated \`REVIEW_VERDICT\` is then **never \`pass\`**. Use \`fail\` when a
+  seat that was required did not report, and name it in \`TOP_ISSUES\` as its
+  own line — a review that quietly loses a seat is the defect this project
+  keeps finding everywhere else.
+- If you substitute your own checking for the missing seat, **label it as
+  yours**. Coordinator verification is not a seat report, and presenting it as
+  one hides exactly what the reader needs to know.
+- Re-dispatching is a judgement call, not a rule: zero findings can be a
+  legitimate result, so an automatic retry taxes every clean review. If you do
+  re-dispatch, narrow the brief rather than repeating it.
+
+\`REVIEW_VERDICT: pass\` only when every required seat reported and aggregated
+\`CRITICAL_COUNT == 0\` and
 \`HIGH_COUNT == 0\`; \`fail\` when either is > 0; \`needs_followup\` when only
 Medium/Low remain. Then emit the \`WORKFLOW STATUS\` block per \`workflow-contract\`
 and, when handing the gate result back, the \`HANDOFF\` block per
@@ -6295,6 +6314,40 @@ Before writing a single finding:
 
 Do not read all of them by reflex — the routing table exists so you load
 two or three, not twelve. But never skip step 1.
+
+### Step 0 has a budget, and a scoped dispatch discharges most of it
+
+Step 0 is preparation, not the work. It has repeatedly consumed an entire
+dispatch: four runs on this project ended in the knowledge base with no
+finding written, ~70k tokens each, while one narrowly scoped dispatch
+returned a complete report for a third of that. A seat that starves before
+its first check is worth less than no seat, because the gate still counts it.
+
+So:
+
+- **A dispatch that already names the files and the questions has done the
+  routing for you.** Read \`00-triage.md\` for the severity basis, then go
+  straight to those files. Do not open the routing table to re-derive a scope
+  you were handed.
+- **Budget: Step 0 is at most four reads.** If the routing table would send
+  you past that, stop, name in your report which domain files you did *not*
+  load, and review what you can. A partial review that says what it covered is
+  useful; a full review nobody receives is not.
+- **Write findings as you confirm them**, not after the last file is read. If
+  you run out of room, what you have already written still ships.
+
+**Returning nothing is not a neutral outcome, and a clean verdict is not
+nothing.** The two must be distinguishable from outside the seat:
+
+- Found nothing after looking? Emit the \`REVIEW SUMMARY\` block with zero counts
+  **and** a line beginning \`no findings — checks performed:\` naming what you
+  inspected. That is a pass.
+- Could not look? Say \`NOT RUN:\` followed by the reason, on its own line. The
+  coordinator treats that as a failed gate rather than a clean one — and it
+  cannot tell the difference unless you tell it.
+
+An empty response is the one outcome that leaves the reader unable to choose
+between those two, which is why it counts as the second.
 
 **If \`.specnaut/memory/security/\` does not exist** — you were installed as a
 standalone plugin rather than scaffolded into a Specnaut project — fall back
