@@ -148,6 +148,20 @@ check "groom documents detect-fields.sh emitting the date field IDs" \
   'grep -qF "TARGETDATE_FIELD_ID" .claude/skills/board/groom.md'
 
 echo
+echo "═══ #553  parent-of.sh — cascade-check read from the other end ═══"
+check "parent-of.sh present + executable (#553)" \
+  '[ -x .specnaut/scripts/backlog/parent-of.sh ]'
+check "it reads parent_issue_url, the field that actually exists (#553)" \
+  'grep -qF "parent_issue_url" .specnaut/scripts/backlog/parent-of.sh'
+check "no parent and could-not-ask are DIFFERENT exit codes (#553)" \
+  'grep -qF "exit 10" .specnaut/scripts/backlog/parent-of.sh &&
+   grep -qF "exit 3" .specnaut/scripts/backlog/parent-of.sh'
+check "it branches on gh exit status, not on empty stdout (#553)" \
+  'grep -qF "api_rc" .specnaut/scripts/backlog/parent-of.sh'
+check "SKILL.md documents parent-of.sh and its exit 10 (#553)" \
+  'flat="$(tr "\n" " " < .claude/skills/board/SKILL.md)";
+   grep -qF "parent-of.sh" <<<"$flat" && grep -qF "exits **10**" <<<"$flat"'
+
 echo "═══ #158  semantic labels bootstrap (ensure-labels.sh) ═══"
 check "ensure-labels.sh present + executable" \
   '[ -x .specnaut/scripts/backlog/ensure-labels.sh ]'

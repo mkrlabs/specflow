@@ -99,6 +99,26 @@ check "epic-commits.md carries the Epic trailer and the width-agnostic parse (#5
    grep -qF "T(\\d+)" .claude/skills/specnaut/phases/epic-commits.md'
 check "epic-commits.md names no test tool (constitution: stack-agnostic)" \
   '! grep -qiE "jest|vitest|playwright|pytest|rspec|junit" .claude/skills/specnaut/phases/epic-commits.md'
+# #553 — one branch per epic. Both twins, and the two degradation outcomes
+# that AC 14 requires to be distinguishable: a missing install is fixable
+# here, a backend with no enumerator is a capability gap with a ticket.
+check "create-new-feature.sh detects an epic from the board link (#553)" \
+  'grep -qF "parent-of.sh" .specnaut/scripts/bash/create-new-feature.sh'
+check "the PowerShell twin does too (#553 AC5)" \
+  'grep -qF "parent-of.sh" .specnaut/scripts/powershell/create-new-feature.ps1'
+check "a backend with no enumerator is its own outcome, not 'not installed' (#553 AC14)" \
+  'grep -qF "ships no sub-issue enumerator" .specnaut/scripts/bash/create-new-feature.sh &&
+   grep -qF "ships no sub-issue enumerator" .specnaut/scripts/powershell/create-new-feature.ps1'
+check "a missing install is reported separately (#553 AC12)" \
+  'grep -qF "epic detection did NOT run" .specnaut/scripts/bash/create-new-feature.sh'
+check "the epic branch is found via feature.json, not by parsing a name (#553 AC6/D2)" \
+  'grep -qF "feature.json" .specnaut/scripts/bash/create-new-feature.sh &&
+   ! grep -qE "epic[-_]|EPIC_PREFIX" .specnaut/scripts/bash/create-new-feature.sh'
+check "the EPIC card moves, never the child's (#553 AC9/AC10)" \
+  'grep -qF "was NOT moved" .specnaut/scripts/bash/create-new-feature.sh'
+check "no new flag was introduced (#553 AC7/D1)" \
+  '! grep -qE -- "--epic" .specnaut/scripts/bash/create-new-feature.sh'
+
 # #560 — an epic merge closes N children AND the epic, and moves N+1 cards.
 # The order is derived, not chosen: sweep-closed.sh reports a Done card whose
 # issue is open as REOPENED, so moving the card first manufactures the exact

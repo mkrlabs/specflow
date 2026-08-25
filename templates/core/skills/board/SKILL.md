@@ -403,6 +403,14 @@ unsafe, exits 0 when all children are closed. The PO must run it before
 `gh issue close` / `glab issue close`. The local backend uses an
 inline grep equivalent.
 
+**Finding a child's parent:** `parent-of.sh <num>` (github + gitlab) is
+`cascade-check.sh` read from the other end — given a child it prints its
+parent's number and exits 0, exits **10** when the item has no parent, and
+exits 3 when it could not ask. Those last two are separate codes on purpose:
+"this is a standalone item" and "the lookup failed" would otherwise be
+indistinguishable, and a caller branches the same way on each. Branch creation
+uses it to put a whole epic on one branch.
+
 **Auto-detection:** the bundled `product-owner` agent proactively
 detects epic-worthy requests (>5 AC bullets, scope crosses ≥2
 subsystems, trigger phrases like "break down" / "phased" / "as an

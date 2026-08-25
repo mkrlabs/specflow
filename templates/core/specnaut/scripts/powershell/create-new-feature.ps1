@@ -299,6 +299,83 @@ if ($branchName.Length -gt $maxBranchLength) {
     Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
 }
 
+# --- Epic detection: one branch per epic, never one per child -------------
+# PowerShell twin of the bash block. Same contract, same messages, same
+# never-fails-the-run rule. See the bash script for why detection is
+# automatic (D1) and why the branch name is unchanged (D2).
+#
+# The backlog helpers ship as bash only, so this needs a bash on PATH - and
+# where there is none, that is stated rather than skipped, exactly as the
+# card move below does.
+$epicIssue = ''
+$epicBranch = ''
+if ($Issue -gt 0) {
+    $backend = ''
+    $lockPath = Join-Path $repoRoot '.specnaut/installed.lock'
+    if (Test-Path $lockPath) {
+        $line = Select-String -LiteralPath $lockPath -Pattern '^backlog_backend:\s*(.+)$' | Select-Object -First 1
+        if ($line) { $backend = $line.Matches[0].Groups[1].Value.Trim() }
+    }
+    $parentSh = Join-Path $repoRoot '.specnaut/scripts/backlog/parent-of.sh'
+    $cascadeSh = Join-Path $repoRoot '.specnaut/scripts/backlog/cascade-check.sh'
+
+    if ($backend -eq 'github' -or $backend -eq 'gitlab') {
+        if (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
+            [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - epic detection did NOT run; treating issue $Issue as standalone")
+        } elseif (-not (Test-Path $parentSh) -or -not (Test-Path $cascadeSh)) {
+            [Console]::Error.WriteLine("# no backlog parent-of.sh / cascade-check.sh installed - epic detection did NOT run; treating issue $Issue as standalone")
+        } else {
+            $parentOut = & bash $parentSh $Issue 2>&1
+            $parentRc = $LASTEXITCODE
+            if ($parentRc -eq 0) {
+                $epicIssue = "$parentOut".Trim()
+                [Console]::Error.WriteLine("# issue $Issue is a child of epic #$epicIssue - the branch belongs to the epic")
+            } elseif ($parentRc -eq 10) {
+                & bash $cascadeSh $Issue *> $null
+                if ($LASTEXITCODE -eq 11) {
+                    $epicIssue = "$Issue"
+                    [Console]::Error.WriteLine("# issue $Issue is an epic with open children - one branch for the whole epic")
+                } else {
+                    [Console]::Error.WriteLine("# issue $Issue has no parent and no open children - standalone, unchanged")
+                }
+            } else {
+                [Console]::Error.WriteLine("# could not resolve the parent of issue $Issue (exit $parentRc): $parentOut")
+                [Console]::Error.WriteLine("# treating it as standalone - the branch is created either way")
+            }
+        }
+    } else {
+        # AC 14. "This backend cannot answer" is NOT "no script installed".
+        $shown = if ($backend) { $backend } else { 'unknown' }
+        [Console]::Error.WriteLine("# the '$shown' backlog backend ships no sub-issue enumerator, so epic detection did NOT run (see cli#563) - treating issue $Issue as standalone")
+    }
+}
+
+# Reuse the epic's existing branch rather than minting a second one. The link
+# is .specnaut/feature.json, at a fixed path and committed on the branch - so
+# this reads git, parses no branch name and introduces no state file.
+if ($epicIssue -and $hasGit) {
+    $current = (& git rev-parse --abbrev-ref HEAD 2>$null)
+    foreach ($b in (& git for-each-ref --format='%(refname:short)' refs/heads 2>$null)) {
+        $fj = & git show "${b}:.specnaut/feature.json" 2>$null
+        if (-not $fj) { continue }
+        try { $li = ($fj | ConvertFrom-Json).linked_issue } catch { continue }
+        if ("$li" -eq $epicIssue) { $epicBranch = $b; break }
+    }
+    if ($epicBranch) {
+        if ($epicBranch -eq $current) {
+            [Console]::Error.WriteLine("# already on the epic's branch '$epicBranch' - reusing it, no branch created")
+        } else {
+            [Console]::Error.WriteLine("# epic #$epicIssue already has branch '$epicBranch' - reusing it, no branch created")
+        }
+    } else {
+        [Console]::Error.WriteLine("# epic #$epicIssue has no branch yet - creating one for it")
+    }
+}
+
+# Overriding here, after the name was computed, keeps the standalone path
+# byte-for-byte unchanged: nothing above this line knows an epic exists.
+if ($epicBranch) { $branchName = $epicBranch }
+
 $featureDir = Join-Path $specsDir $branchName
 $specFile = Join-Path $featureDir 'plan.md'
 
@@ -387,17 +464,23 @@ if (-not $DryRun) {
     if ($Issue -le 0) {
         [Console]::Error.WriteLine("# no -Issue given, so no backlog item was moved")
     } else {
+        # On an epic, the card that moves is the EPIC's (D15). A child's card
+        # moves when the loop reaches it, not here.
+        $moveTarget = if ($epicIssue) { $epicIssue } else { "$Issue" }
         $moveSh = Join-Path $repoRoot '.specnaut/scripts/backlog/move.sh'
         if (-not (Test-Path $moveSh)) {
-            [Console]::Error.WriteLine("# no backlog move.sh installed - issue $Issue NOT moved; move it by hand")
+            [Console]::Error.WriteLine("# no backlog move.sh installed - issue $moveTarget NOT moved; move it by hand")
         } elseif (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
-            [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - issue $Issue NOT moved")
+            [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - issue $moveTarget NOT moved")
         } else {
-            $moveOut = & bash $moveSh $Issue 'In progress' 2>&1
+            $moveOut = & bash $moveSh $moveTarget 'In progress' 2>&1
             if ($LASTEXITCODE -eq 0) {
                 [Console]::Error.WriteLine("# $moveOut")
+                if ($epicIssue -and $epicIssue -ne "$Issue") {
+                    [Console]::Error.WriteLine("# child issue $Issue was NOT moved - its card moves when the loop reaches it")
+                }
             } else {
-                [Console]::Error.WriteLine("# could not move issue $Issue to In progress: $moveOut")
+                [Console]::Error.WriteLine("# could not move issue $moveTarget to In progress: $moveOut")
                 [Console]::Error.WriteLine("# the branch was created; the board was NOT updated")
             }
         }

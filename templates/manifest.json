@@ -505,6 +505,14 @@
     },
     {
       "category": "backlog-script",
+      "name": "cascade-check",
+      "suffix": "parent-of.sh",
+      "source": "core/skills/board/scripts/github/parent-of.sh",
+      "executable": true,
+      "backend": "github"
+    },
+    {
+      "category": "backlog-script",
       "name": "propagate-parent-status",
       "suffix": "propagate-parent-status.sh",
       "source": "core/skills/board/scripts/github/propagate-parent-status.sh",
@@ -580,6 +588,14 @@
       "name": "cascade-check",
       "suffix": "cascade-check.sh",
       "source": "core/skills/board/scripts/gitlab/cascade-check.sh",
+      "executable": true,
+      "backend": "gitlab"
+    },
+    {
+      "category": "backlog-script",
+      "name": "cascade-check",
+      "suffix": "parent-of.sh",
+      "source": "core/skills/board/scripts/gitlab/parent-of.sh",
       "executable": true,
       "backend": "gitlab"
     },
