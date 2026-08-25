@@ -26,6 +26,8 @@ ${bold("Usage:")}
                                       List the organizations your account belongs to
   specnaut cloud board [--api-url <url>]
                                       Show the linked project's board (tasks grouped by column)
+  specnaut cloud token [--api-url <url>]
+                                      Print a fresh access token on stdout (for scripts)
   specnaut --version, -v              Print version
   specnaut --help, -h                 Show this help
 
@@ -33,8 +35,9 @@ ${bold("Flags (for init):")}
   --here              Scaffold into the current directory instead of creating a new one
   --no-git            Skip "git init" detection and prompt
   --ai <name>         Target AI harness: claude (default) | cursor | codex | windsurf | copilot | opencode | antigravity
-  --backlog <name>    Backlog backend: local (default) | github | gitlab | cloud
-                      (cloud: run "specnaut cloud login" after init to authenticate + link a project)
+  --backlog <name>    Backlog backend: cloud (default) | local | github | gitlab
+                      (non-interactive runs take the default, and cloud needs
+                       "specnaut cloud login" before the backlog works)
   --backlog-url <url> Kanban / project URL (e.g. https://github.com/orgs/<org>/projects/<N>)
                       Required for github/gitlab in non-interactive mode; pre-fills .specnaut/backlog-config.yml
   --backlog-repo <r>  GitHub repo override <owner>/<name>; falls back to "git remote get-url origin"

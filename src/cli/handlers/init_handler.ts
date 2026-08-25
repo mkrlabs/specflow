@@ -22,6 +22,7 @@ import {
   BACKLOG_STRATEGIES,
   findBacklogStrategy,
 } from "../../domain/backlog_strategies/registry.ts";
+import { harnessCommands } from "../../infrastructure/harness/harness_commands.ts";
 import {
   type ParsedKanbanURL,
   parseKanbanURL,
@@ -590,21 +591,43 @@ export async function runInit(intent: InitIntent): Promise<number> {
   console.log(green(`✓ wrote ${result.filesWritten} files${mergedSuffix}`));
 
   await writeBacklogConfigStub(targetDir, backlogBackend, kanbanUrl, githubRepo);
+  // Named for the harness the user just chose, not for Claude. See
+  // `harness_commands.ts` — the previous version printed `/specnaut plan` and
+  // `/board add` everywhere, and both are wrong on most harnesses.
+  const cmd = harnessCommands(aiKey);
   console.log("\nNext steps:");
-  console.log(
-    `  1. Open the project in ${harness.displayName}, then run ${
-      bold("/specnaut constitution")
-    } to scaffold your project's guiding principles`,
-  );
-  console.log(
-    `  2. Edit ${bold("AGENTS.md")} and refine ${
-      bold(".specnaut/memory/constitution.md")
-    } for your stack`,
-  );
-  console.log(
-    `  3. Run ${bold('/specnaut plan "<feature description>"')} to plan your first feature`,
-  );
-  console.log(`  4. Use ${bold('/board add "<task title>"')} for follow-up work`);
+  if (cmd.board === null) {
+    // Copilot applies `.github/instructions/` by context; there is nothing to type.
+    console.log(
+      `  1. Open the project in ${harness.displayName} — Specnaut's instructions ` +
+        `apply automatically from ${bold(".github/instructions/")}`,
+    );
+    console.log(
+      `  2. Edit ${bold("AGENTS.md")} and refine ${
+        bold(".specnaut/memory/constitution.md")
+      } for your stack`,
+    );
+    console.log(
+      `  3. Ask your agent to plan a feature — it will follow the Specnaut chain`,
+    );
+  } else {
+    console.log(
+      `  1. Open the project in ${harness.displayName}, then run ${
+        bold(cmd.phase("constitution"))
+      } to scaffold your project's guiding principles`,
+    );
+    console.log(
+      `  2. Edit ${bold("AGENTS.md")} and refine ${
+        bold(".specnaut/memory/constitution.md")
+      } for your stack`,
+    );
+    console.log(
+      `  3. Run ${bold(`${cmd.phase("plan")} "<feature description>"`)} to plan your first feature`,
+    );
+    console.log(
+      `  4. Use ${bold(`${cmd.board} add "<task title>"`)} for follow-up work`,
+    );
+  }
 
   // Specnaut Cloud funnel: point CLI users at the hosted product once they've
   // scaffolded — run headless + remote-control the agent's checkpoints. The

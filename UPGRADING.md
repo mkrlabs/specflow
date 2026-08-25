@@ -18,13 +18,17 @@ drift", "reconcile the board", "any board audit"). Only the command changed to m
 | `.claude/skills/backlog/` | `.claude/skills/board/` |
 
 **`specnaut upgrade` does the whole migration.** The old skill files are removed, the new ones
-added, and the emptied `backlog/` directory is pruned — verified on a real upgrade from the previous
-layout: "2 added, 2 removed", no leftover folder, no manual step. A customized `SKILL.md` is
-orphan-preserved as usual and left for you to reconcile.
+added, and the emptied `backlog/` directory is pruned — no leftover folder, no manual step. A
+customized `SKILL.md` is orphan-preserved and left for you to reconcile.
 
-**There is no `/backlog` alias.** Adding one would rebuild the command shim that was deleted one
-release earlier, and for the same reason it was deleted: a second surface that has to be kept in
-agreement with the skill it fronts, and drifts the moment it is not.
+Upgrading from 3.2.0 reports **2 added, 5 removed**. The five are the two board skill files under
+their old name, the two command shims below, and the retired `groom` router phase — so
+`.claude/commands/` disappears during _this_ upgrade. That is expected; commit it.
+
+**There is no `/backlog` alias.** The `.claude/commands/` shims were removed in the same development
+cycle and reach you in this release; adding an alias now would rebuild one, for the reason they were
+deleted: a second surface that has to be kept in agreement with the skill it fronts, and drifts the
+moment it is not.
 
 ### What did _not_ change
 
