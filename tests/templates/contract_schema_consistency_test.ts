@@ -46,8 +46,10 @@ const SCHEMA_MARKERS: Record<string, string[]> = {
   "review-findings-contract": [
     "REVIEW SUMMARY",
     "REVIEW_VERDICT: pass | fail | needs_followup",
-    "`REVIEW_VERDICT: pass` only when `CRITICAL_COUNT == 0` **and** `HIGH_COUNT == 0`.",
-    "`REVIEW_VERDICT: fail` when `CRITICAL_COUNT > 0` **or** `HIGH_COUNT > 0`.",
+    "SEATS_EXPECTED",
+    "SEATS_REPORTED",
+    "**and** `SEATS_REPORTED == SEATS_EXPECTED`.",
+    "**or** `SEATS_REPORTED < SEATS_EXPECTED`.",
     "Verdict and counts must never contradict.",
   ],
   "qa-report-contract": [

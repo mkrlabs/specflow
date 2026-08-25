@@ -23,6 +23,8 @@ replaces it.
 REVIEW SUMMARY
 REVIEW_SCOPE: <reviewer name or gate scope>
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: <integer>
+SEATS_REPORTED: <integer>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>
@@ -33,8 +35,14 @@ RECOMMENDATION: <one sentence — what the next actor should do>
 
 ## Rules
 
-- `REVIEW_VERDICT: pass` only when `CRITICAL_COUNT == 0` **and** `HIGH_COUNT == 0`.
-- `REVIEW_VERDICT: fail` when `CRITICAL_COUNT > 0` **or** `HIGH_COUNT > 0`.
+- `REVIEW_VERDICT: pass` only when `CRITICAL_COUNT == 0` **and** `HIGH_COUNT == 0`
+  **and** `SEATS_REPORTED == SEATS_EXPECTED`.
+- `REVIEW_VERDICT: fail` when `CRITICAL_COUNT > 0` **or** `HIGH_COUNT > 0`
+  **or** `SEATS_REPORTED < SEATS_EXPECTED`.
+- **A seat that could not review is not a seat that reported.** The two counts
+  exist so that "nobody looked" has an arithmetic representation, instead of
+  being a prose note beside an all-zero block that reads as clean. A single
+  reviewer emits `1`/`1`, or `1`/`0` when it is declaring itself unable.
 - `REVIEW_VERDICT: needs_followup` when only Medium/Low findings remain.
 - Every count is an explicit integer, including `0`.
 - Verdict and counts must never contradict.

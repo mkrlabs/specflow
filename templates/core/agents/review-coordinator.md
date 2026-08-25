@@ -72,11 +72,21 @@ A sub-agent that ends without a `REVIEW SUMMARY` block — no findings, no
 verdict, budget exhausted, whatever the cause — is **`NOT RUN`**. It is not a
 clean verdict and must never be aggregated as one.
 
+**Required seats, so the word is not left to a reader's judgement:**
+`code-reviewer` and `security-expert`, always. `test-reviewer` is required
+**only when the diff contains test files** — when it does not, it is not
+spawned and it is not counted in `SEATS_EXPECTED`. That is `SKIPPED`, and a
+skipped seat is not a missing one.
+
 - Mark it `NOT RUN` in the per-seat roll-up, with what you know about why.
-- The aggregated `REVIEW_VERDICT` is then **never `pass`**. Use `fail` when a
-  seat that was required did not report, and name it in `TOP_ISSUES` as its
-  own line — a review that quietly loses a seat is the defect this project
-  keeps finding everywhere else.
+- **Count it.** `SEATS_EXPECTED` is the number of required seats;
+  `SEATS_REPORTED` counts those that returned a block with their own
+  `SEATS_REPORTED: 1`. An absent block counts as zero. The verdict then comes
+  out `fail` from the contract's own arithmetic rather than from a prose rule
+  fighting the count rule — which is what made the first version of this
+  section emit `fail` beside `HIGH_COUNT: 0` and contradict itself.
+- Name it in `TOP_ISSUES` on its own line — a review that quietly loses a seat
+  is the defect this project keeps finding everywhere else.
 - If you substitute your own checking for the missing seat, **label it as
   yours**. Coordinator verification is not a seat report, and presenting it as
   one hides exactly what the reader needs to know.

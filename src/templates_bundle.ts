@@ -973,6 +973,17 @@ failure to find things.
 the last review found *something* is not a reason — it is always true, and a loop
 with no exit criterion does not terminate.
 
+## Phase 3b — A missing seat stops the run
+
+Before the report: if the aggregated block has \`SEATS_REPORTED <
+SEATS_EXPECTED\`, the run **does not reach the merge prompt**. Say which seat
+did not report and stop. Findings-based routing cannot catch this — a seat
+that never ran produces no findings to route and no cell to fill, so without
+this check a lost seat reads as a quiet pass all the way to merge.
+
+Re-dispatching the missing seat with a **narrower** brief is the normal remedy
+and does not need permission. Repeating the same brief is not.
+
 ## Phase 4 — Final report
 
 Emit a single report in this exact structure:
@@ -5588,6 +5599,8 @@ replaces it.
 REVIEW SUMMARY
 REVIEW_SCOPE: <reviewer name or gate scope>
 REVIEW_VERDICT: pass | fail | needs_followup
+SEATS_EXPECTED: <integer>
+SEATS_REPORTED: <integer>
 CRITICAL_COUNT: <integer>
 HIGH_COUNT: <integer>
 MEDIUM_COUNT: <integer>
@@ -5598,8 +5611,14 @@ RECOMMENDATION: <one sentence — what the next actor should do>
 
 ## Rules
 
-- \`REVIEW_VERDICT: pass\` only when \`CRITICAL_COUNT == 0\` **and** \`HIGH_COUNT == 0\`.
-- \`REVIEW_VERDICT: fail\` when \`CRITICAL_COUNT > 0\` **or** \`HIGH_COUNT > 0\`.
+- \`REVIEW_VERDICT: pass\` only when \`CRITICAL_COUNT == 0\` **and** \`HIGH_COUNT == 0\`
+  **and** \`SEATS_REPORTED == SEATS_EXPECTED\`.
+- \`REVIEW_VERDICT: fail\` when \`CRITICAL_COUNT > 0\` **or** \`HIGH_COUNT > 0\`
+  **or** \`SEATS_REPORTED < SEATS_EXPECTED\`.
+- **A seat that could not review is not a seat that reported.** The two counts
+  exist so that "nobody looked" has an arithmetic representation, instead of
+  being a prose note beside an all-zero block that reads as clean. A single
+  reviewer emits \`1\`/\`1\`, or \`1\`/\`0\` when it is declaring itself unable.
 - \`REVIEW_VERDICT: needs_followup\` when only Medium/Low findings remain.
 - Every count is an explicit integer, including \`0\`.
 - Verdict and counts must never contradict.
@@ -6158,11 +6177,21 @@ A sub-agent that ends without a \`REVIEW SUMMARY\` block — no findings, no
 verdict, budget exhausted, whatever the cause — is **\`NOT RUN\`**. It is not a
 clean verdict and must never be aggregated as one.
 
+**Required seats, so the word is not left to a reader's judgement:**
+\`code-reviewer\` and \`security-expert\`, always. \`test-reviewer\` is required
+**only when the diff contains test files** — when it does not, it is not
+spawned and it is not counted in \`SEATS_EXPECTED\`. That is \`SKIPPED\`, and a
+skipped seat is not a missing one.
+
 - Mark it \`NOT RUN\` in the per-seat roll-up, with what you know about why.
-- The aggregated \`REVIEW_VERDICT\` is then **never \`pass\`**. Use \`fail\` when a
-  seat that was required did not report, and name it in \`TOP_ISSUES\` as its
-  own line — a review that quietly loses a seat is the defect this project
-  keeps finding everywhere else.
+- **Count it.** \`SEATS_EXPECTED\` is the number of required seats;
+  \`SEATS_REPORTED\` counts those that returned a block with their own
+  \`SEATS_REPORTED: 1\`. An absent block counts as zero. The verdict then comes
+  out \`fail\` from the contract's own arithmetic rather than from a prose rule
+  fighting the count rule — which is what made the first version of this
+  section emit \`fail\` beside \`HIGH_COUNT: 0\` and contradict itself.
+- Name it in \`TOP_ISSUES\` on its own line — a review that quietly loses a seat
+  is the defect this project keeps finding everywhere else.
 - If you substitute your own checking for the missing seat, **label it as
   yours**. Coordinator verification is not a seat report, and presenting it as
   one hides exactly what the reader needs to know.
@@ -6262,7 +6291,7 @@ emit the \`WORKFLOW STATUS\` block per \`workflow-contract\`.
     suffix: null,
     content: `---
 name: security-expert
-description: Reviews code for security issues — input validation, authz, secrets, injection, SSRF, path traversal, silent error swallowing. Two dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) alert triage (spawned by /release after the security-preflight workflow surfaces open GitHub security alerts).
+description: Reviews code for security issues — input validation, authz, secrets, injection, SSRF, path traversal, silent error swallowing. Three dispatch shapes — (1) PR review (spawned by the review-coordinator during /specnaut review), (2) alert triage (spawned by /release after the security-preflight workflow surfaces open GitHub security alerts).
 model: opus
 effort: xhigh
 tools: Read, Grep, Glob, Bash
@@ -6317,37 +6346,36 @@ two or three, not twelve. But never skip step 1.
 
 ### Step 0 has a budget, and a scoped dispatch discharges most of it
 
-Step 0 is preparation, not the work. It has repeatedly consumed an entire
-dispatch: four runs on this project ended in the knowledge base with no
-finding written, ~70k tokens each, while one narrowly scoped dispatch
-returned a complete report for a third of that. A seat that starves before
-its first check is worth less than no seat, because the gate still counts it.
+Step 0 is preparation, not the work, and it can consume an entire dispatch. A
+seat that starves in the knowledge base before its first check is worth less
+than no seat, because the gate still counts it.
 
 So:
 
-- **A dispatch that already names the files and the questions has done the
-  routing for you.** Read \`00-triage.md\` for the severity basis, then go
-  straight to those files. Do not open the routing table to re-derive a scope
-  you were handed.
-- **Budget: Step 0 is at most four reads.** If the routing table would send
-  you past that, stop, name in your report which domain files you did *not*
-  load, and review what you can. A partial review that says what it covered is
-  useful; a full review nobody receives is not.
-- **Write findings as you confirm them**, not after the last file is read. If
-  you run out of room, what you have already written still ships.
+- **A dispatch that names the files and the questions has done the routing.**
+  Read \`00-triage.md\`, then go straight to those files.
+- **Budget: at most four reads in Step 0.** Past that, stop, name the domain
+  files you did *not* load, and review what you can. A partial review that
+  says what it covered beats a full one nobody receives.
+- **Write findings as you confirm them.** If you run out of room, what is
+  already written still ships.
 
 **Returning nothing is not a neutral outcome, and a clean verdict is not
-nothing.** The two must be distinguishable from outside the seat:
+nothing.** Both are reported the same way — through the block — because a
+prose note beside an all-zero block reads as clean to whatever sums it:
 
-- Found nothing after looking? Emit the \`REVIEW SUMMARY\` block with zero counts
-  **and** a line beginning \`no findings — checks performed:\` naming what you
-  inspected. That is a pass.
-- Could not look? Say \`NOT RUN:\` followed by the reason, on its own line. The
-  coordinator treats that as a failed gate rather than a clean one — and it
-  cannot tell the difference unless you tell it.
+- **Found nothing after looking.** \`SEATS_EXPECTED: 1\`, \`SEATS_REPORTED: 1\`,
+  zero counts, and a line beginning \`no findings — checks performed:\` naming
+  what you inspected. That is a pass.
+- **Could not look.** The same block with \`SEATS_REPORTED: 0\`,
+  \`REVIEW_VERDICT: fail\`, and \`TOP_ISSUES:\` opening \`NOT RUN: <reason>\`. The
+  zero is what makes it a failed gate arithmetically rather than by
+  interpretation.
 
-An empty response is the one outcome that leaves the reader unable to choose
-between those two, which is why it counts as the second.
+Never emit the words \`NOT RUN\` without \`SEATS_REPORTED: 0\` beside them: the
+prose is for the reader, the number is what the gate acts on. An empty
+response — no block at all — counts as the second case, and is the one outcome
+that leaves the reader unable to tell which it was.
 
 **If \`.specnaut/memory/security/\` does not exist** — you were installed as a
 standalone plugin rather than scaffolded into a Specnaut project — fall back

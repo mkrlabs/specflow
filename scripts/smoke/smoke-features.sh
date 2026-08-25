@@ -532,21 +532,6 @@ echo "═══ #188  /specnaut merge auto-closes the linked backlog issue ═�
 # grepped "IMPL_PLAN" and "--json", which match this script's own help text and
 # its JSON output keys — replacing the copy with `touch` would have left every
 # assertion green while shipping an empty plan.md to every user.
-echo
-echo "═══ #23  a silent review seat fails the gate ═══"
-check "security-expert.md caps its startup so the budget reaches the files" \
-  'grep -q "Step 0 is at most four reads" .claude/agents/security-expert.md'
-check "security-expert.md gives a clean verdict a shape of its own" \
-  'grep -q "no findings — checks performed:" .claude/agents/security-expert.md'
-check "and a distinct one for could-not-look" \
-  'grep -q "NOT RUN:" .claude/agents/security-expert.md'
-check "review-coordinator.md refuses to aggregate a silent seat as a pass" \
-  'grep -q "A seat that returns nothing has NOT passed" .claude/agents/review-coordinator.md'
-check "review-coordinator.md requires every seat to have reported before pass" \
-  'grep -q "only when every required seat reported" .claude/agents/review-coordinator.md'
-check "and forbids presenting its own checking as a seat report" \
-  'grep -q "Coordinator verification is not a seat report" .claude/agents/review-coordinator.md'
-
 # #549: this file was reported covered by an assertion whose subject was a
 # different README entirely.
 check "the status ledger README documents the JSONL it describes" \
@@ -655,6 +640,40 @@ check "and the rule itself exists where it is supposed to live" \
   'grep -q "Never a number alone" .claude/skills/backlog-reference-contract/SKILL.md'
 
 echo
+echo "═══ #23  a silent review seat fails the gate ═══"
+# The not-run state has ONE representation and it is arithmetic: a prose note
+# beside an all-zero block reads as clean to whatever sums it. Every assertion
+# here anchors on a behavioural sentence, never on a heading — deleting the
+# rule beneath a heading used to leave two of these green.
+check "the seat caps Step 0 so the budget reaches the files" \
+  'grep -q "at most four reads in Step 0" .claude/agents/security-expert.md'
+check "a clean verdict has a shape of its own" \
+  'grep -qF "no findings — checks performed:" .claude/agents/security-expert.md'
+check "and could-not-look is reported as a COUNT, not only as prose" \
+  'grep -qF "SEATS_REPORTED: 0" .claude/agents/security-expert.md'
+check "the seat is forbidden from saying NOT RUN without the count" \
+  'grep -q "Never emit the words .NOT RUN. without" .claude/agents/security-expert.md'
+check "the contract can express that nobody looked" \
+  'grep -q "SEATS_EXPECTED" .claude/skills/review-findings-contract/SKILL.md && grep -q "SEATS_REPORTED" .claude/skills/review-findings-contract/SKILL.md'
+check "and a missing seat fails by arithmetic, not by interpretation" \
+  'grep -qF "SEATS_REPORTED < SEATS_EXPECTED" .claude/skills/review-findings-contract/SKILL.md'
+check "which seats are required is defined, not left to judgement" \
+  'grep -q "Required seats, so the word is not left" .claude/agents/review-coordinator.md'
+check "a skipped seat is distinguished from a missing one" \
+  'grep -q "skipped seat is not a missing one" .claude/agents/review-coordinator.md'
+check "the coordinator may not present its own checking as a seat report" \
+  'grep -qF "Coordinator verification is not a seat report" .claude/agents/review-coordinator.md'
+# AC4 — the option deliberately NOT taken. Without an assertion, deleting the
+# refusal is invisible and an automatic retry creeps back in.
+check "no automatic re-dispatch: zero findings stays a legitimate result" \
+  'grep -q "zero findings can be a" .claude/agents/review-coordinator.md'
+# The consumer of the gate. Without this the coordinator can say fail and the
+# chain still reaches the merge prompt.
+check "the review phase stops the run when a seat did not report" \
+  'grep -qF "SEATS_REPORTED <" .claude/skills/specnaut/phases/review.md'
+check "and re-dispatching narrower is allowed, repeating the brief is not" \
+  'grep -qF "Repeating the same brief is not" .claude/skills/specnaut/phases/review.md'
+
 echo "═══ #547  the thirteen skills nothing asserted on ═══"
 # These shipped covered by an audit that could not fail: every skill's file
 # is named SKILL.md, so its basename identified nothing. Each assertion below

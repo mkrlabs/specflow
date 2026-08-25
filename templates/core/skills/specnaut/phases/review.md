@@ -75,6 +75,17 @@ failure to find things.
 the last review found *something* is not a reason — it is always true, and a loop
 with no exit criterion does not terminate.
 
+## Phase 3b — A missing seat stops the run
+
+Before the report: if the aggregated block has `SEATS_REPORTED <
+SEATS_EXPECTED`, the run **does not reach the merge prompt**. Say which seat
+did not report and stop. Findings-based routing cannot catch this — a seat
+that never ran produces no findings to route and no cell to fill, so without
+this check a lost seat reads as a quiet pass all the way to merge.
+
+Re-dispatching the missing seat with a **narrower** brief is the normal remedy
+and does not need permission. Repeating the same brief is not.
+
 ## Phase 4 — Final report
 
 Emit a single report in this exact structure:
