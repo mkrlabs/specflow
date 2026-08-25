@@ -129,13 +129,14 @@ guard that says so is the one that failed on it first.
 
 ## 3. Requirements
 
-- **FR-001**: The reserved headroom is a **named constant** declared once, beside
-  `WINDSURF_WORKFLOW_MAX_CHARS` in `src/infrastructure/harness/windsurf_harness.ts`, with the reason
-  written next to it: why this number, and what it is meant to buy. It also carries **one sentence
-  saying why a number no production code reads lives in production source** — because the reserve's
-  justification _is_ the cap's own comment ("the vendor documents no failure mode above 12,000"),
-  and splitting the number from its reason is worse than a test-only export. Precedent: the file
-  already exports `workflowLength`, which no `src/` caller uses.
+- **FR-001**: The reserved headroom is **300 characters**, giving a budget of **11,700** — a **named
+  constant** declared once, beside `WINDSURF_WORKFLOW_MAX_CHARS` in
+  `src/infrastructure/harness/windsurf_harness.ts`, with the reason written next to it: why this
+  number, and what it is meant to buy. It also carries **one sentence saying why a number no
+  production code reads lives in production source** — because the reserve's justification _is_ the
+  cap's own comment ("the vendor documents no failure mode above 12,000"), and splitting the number
+  from its reason is worse than a test-only export. Precedent: the file already exports
+  `workflowLength`, which no `src/` caller uses.
 - **FR-001b**: Only the **budget** is exported. The reserve stays module-private, so no call site
   can spell `MAX - RESERVE` and SC-005 is enforced by the module boundary rather than by discipline.
 - **FR-002**: The emitted-workflow guard asserts against the **budget**, not the cap.
@@ -175,11 +176,13 @@ guard that says so is the one that failed on it first.
   a test-support module importing it — **not** the Windsurf harness. `BundleOptions` is consumed by
   all seven harnesses; the parameter space is a property of the port, not of one adapter. Windsurf
   owns the _cap_, not the _parameter space_.
-- **FR-005**: Exactly one assertion **decides** the Windsurf size limit. Any other size check either
-  asks that decision or is removed. `tests/templates/expert_mechanisms_test.ts:143` is the second
-  decider today: it measures `agent(seat).length` — the raw bundle source of three seats, in UTF-16
-  code units, without the harness's frontmatter wrapper. Whichever way it goes, the reason is
-  written down.
+- **FR-005**: Exactly one assertion **decides** the Windsurf size limit, and it is the one in
+  `tests/infrastructure/harness/windsurf_harness_test.ts`. The second decider,
+  `tests/templates/expert_mechanisms_test.ts:143`, is **removed** — settled 2026-08-25. Its stale
+  truncation rationale (S6) is removed in the same commit, not left behind to be cited again.
+  `tests/templates/expert_mechanisms_test.ts:143` is the second decider today: it measures
+  `agent(seat).length` — the raw bundle source of three seats, in UTF-16 code units, without the
+  harness's frontmatter wrapper. Whichever way it goes, the reason is written down.
 - **FR-006**: The new assertion is **observed failing** against a file deliberately pushed into the
   reserve band, and what was observed is recorded in the commit body. Green on the current tree is
   not evidence.
@@ -418,10 +421,10 @@ The last column is the one that decides it. A reserve is only worth what the _ne
 at 500 the eighth file has 56 characters of room, which is the state this ticket exists to end,
 arriving one file further down the list.
 
-| Question                                                                                                                  | Answer                          | Date |
-| :------------------------------------------------------------------------------------------------------------------------ | :------------------------------ | :--- |
-| What should the reserved headroom be?                                                                                     | _(pending — asked at the stop)_ |      |
-| Does `tests/templates/expert_mechanisms_test.ts:143` fold into the one decider, or stay as a deliberately separate check? | _(pending — asked at the stop)_ |      |
+| Question                                                                                                                  | Answer                                                                                                                                                                                                                                                                                                                                                                                                                                        | Date       |
+| :------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------- |
+| What should the reserved headroom be?                                                                                     | **300 characters — budget 11,700.** It catches exactly the same seven files a 500 reserve does, at 60% of the cut; the extra 200 characters a 500 reserve buys would be paid for by cutting deeper into the files the security audit had just named as dangerous to cut. A 200 reserve leaves `implement.md` with 82 characters of real slack — less than the reserve itself, which makes the reserve a fiction from the very next file down. | 2026-08-25 |
+| Does `tests/templates/expert_mechanisms_test.ts:143` fold into the one decider, or stay as a deliberately separate check? | **Deleted.** One assertion decides. What Windsurf reads is the emitted workflow; the raw bundle source never lands in `.windsurf/workflows/`, so that site was measuring something that does not ship — in the wrong unit, over 3 seats instead of 58 files, on 1 combination instead of 32. The surviving guard already covers those three seats properly. Its stale truncation rationale (S6) goes with it in the same commit.              | 2026-08-25 |
 
 Both audits added weight to the second question. The architect (A8) predicts the two measures
 diverge on the first astral character and someone then trims a real instruction to satisfy a test
