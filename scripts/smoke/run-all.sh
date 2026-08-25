@@ -123,8 +123,15 @@ fi
 # --- Re-bundle, and put it back afterwards ------------------------------
 BUNDLE="$CLI/src/templates_bundle.ts"
 if [ "$DO_BUNDLE" -eq 1 ]; then
-  BUNDLE_BAK="$(mktemp)"
-  cp "$BUNDLE" "$BUNDLE_BAK"
+  # This script is `set -uo pipefail` with NO `-e`, so a failed mktemp would
+  # leave BUNDLE_BAK empty, `cp "$BUNDLE" ""` would fail, execution would
+  # continue, and the trap would become `cp '' <bundle>` — failing at exit,
+  # after `finish` has already printed ALL CHECKS PASSED and set the code.
+  # The restore is the one thing here that touches a TRACKED file, so it does
+  # not get to fail quietly.
+  BUNDLE_BAK="$(mktemp)" || BUNDLE_BAK=""
+  [ -n "$BUNDLE_BAK" ] || die "could not create a bundle backup — refusing to regenerate over a tracked file"
+  cp "$BUNDLE" "$BUNDLE_BAK" || die "could not back up $BUNDLE"
   # shellcheck disable=SC2064
   trap "cp '$BUNDLE_BAK' '$BUNDLE'; rm -f '$BUNDLE_BAK'" EXIT
   echo "▶ deno task bundle (so the suite reads the working tree, not the committed bundle)"

@@ -99,8 +99,24 @@ done < <(grep -n 'rm -rf' "$SMOKE_DIR"/*.sh \
 
 # And the variables the sweep allow-lists must themselves come from
 # scenario_dir — otherwise the allow-list above is the hiding place.
-for pair in "bootstrap-empty.sh:SANDBOX_DIR" "bootstrap-vite.sh:SANDBOX_DIR" "smoke-audit.sh:SANDBOX" "clean.sh:target" "compare-harnesses.sh:variant_dir"; do
+# DERIVED from the sweep's own hits, not a literal list. Keyed by file, this
+# check could not see a NEW script using `rm -rf "$SANDBOX"` with a hand-built
+# assignment: the sweep passed it on the variable name, and the provenance loop
+# never looked at it because its filename was not written here. The allow-list
+# above and the provenance check below now enumerate the same population.
+pairs="$(grep -n 'rm -rf' "$SMOKE_DIR"/*.sh \
+           | grep -v '/_common\.sh:' | grep -v '/smoke-toolbox\.sh:' \
+           | grep -vE ':[0-9]+:[[:space:]]*#' \
+           | sed -E 's|^.*/([^/:]+):[0-9]+:.*rm -rf "\$([A-Za-z_][A-Za-z0-9_]*)".*$|\1:\2|' \
+           | grep -E '^[^:]+:[A-Za-z_]' | sort -u || true)"
+for pair in $pairs; do
   f="${pair%%:*}"; v="${pair##*:}"
+  # SANDBOX_ROOT is not built per-scenario: _common.sh derives it from
+  # BASH_SOURCE, so no argument reaches it and there is nothing for
+  # scenario_dir to validate. Deriving the list rather than writing it out
+  # surfaced it, which is the derivation working — the exemption is stated
+  # here instead of being invisible in a literal list nobody re-reads.
+  [ "$v" = "SANDBOX_ROOT" ] && continue
   if grep -qE "^[[:space:]]*(local )?$v=\"?\\\$\(scenario_dir" "$SMOKE_DIR/$f"; then
     pass "$f builds \$$v through scenario_dir"
   else

@@ -8,6 +8,13 @@
 # ─── Why the default is a local fixture ──────────────────────────────────
 # This script used to run `npm create vite@latest` unconditionally. That put
 # an unpinned third-party package — fetched at run time and executed — inside
+# The pin bounds the ROOT package only. `npm create vite@9.2.0` is
+# `npm exec create-vite@9.2.0`: no lockfile applies, so the transitive tree
+# floats, and registry integrity is trust-on-first-use rather than
+# verification. The fetch runs install lifecycle scripts with the
+# maintainer's privileges. Reachable only by passing --real by hand — no
+# caller in this repository does, CI included — which is why the risk is
+# accepted rather than removed.
 # a gate that now runs on every push. Two consequences, and the second is the
 # one that decided it:
 #
