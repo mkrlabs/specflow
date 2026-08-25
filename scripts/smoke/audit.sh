@@ -294,7 +294,7 @@ else
         echo "audit.sh: cannot read $s — it vouches for nothing" >&2
         continue
       fi
-      if grep -qF "$base" <<<"$code"; then
+      if grep -qF -- "$base" <<<"$code"; then
         covered=1
         break
       fi
@@ -463,6 +463,11 @@ if [ -f "$ALLOWLIST" ]; then
     case "$line" in ''|'#'*) continue ;; esac
     entry="${line%%[[:space:]]*}"
     reason="$(printf '%s' "${line#"$entry"}" | sed 's/^[[:space:]]*//')"
+    if [ -z "$entry" ]; then
+      echo "  - a line with no path (leading whitespace?) — ignored, and it excuses nothing"
+      stale_allow_count=$((stale_allow_count + 1))
+      continue
+    fi
     if [ -z "$reason" ]; then
       echo "  - $entry is allow-listed with no reason — ignored, so the gap is still fatal"
       stale_allow_count=$((stale_allow_count + 1))

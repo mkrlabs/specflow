@@ -81,6 +81,30 @@ it discards several hundred lines of real code against the genuine comments it i
 not analysed. This suite embeds `.gitignore`, CSS, Markdown and Python inside heredocs, where a `#`
 is not a shell comment; it is scored as one, and the damage is bounded to that line.
 
+### What identifies a changed file
+
+Coverage is decided by grepping the mapped smoke for a **token** derived from the changed file. For
+almost every surface that token is the basename, and that is deliberate rather than tolerated: the
+smokes assert in loops, and their lists are written out with literal names _so this grep can find
+them_ — see the notes at the top of the backlog smokes and above the phase block in
+`smoke-features.sh`. Matching the runtime path a source file scaffolds to would be invisible to
+those loops, and was measured reporting false gaps on a fifth of a release window's changes.
+
+One surface is different. Every skill's file is named `SKILL.md`, a string this suite contains many
+times over, so a basename token was constant-true across all of them and skills could ship asserted
+on by nothing. There the token is the runtime path suffix, `skills/<name>/SKILL.md`. **Not** the
+bare skill name: a skill can be named inside an assertion whose subject is a _different_ file, and
+the bare name would count that as coverage.
+
+**What this measures is a mention, not an assertion.** A smoke that merely spells a path satisfies
+the scan; whether it asserts anything about that file is not checked, and cannot be without parsing
+the smoke — a line this suite has declined to cross every time it has come up. Treat a green
+coverage scan as "somebody named this file", not as "somebody tested it".
+
+A file with no runtime path at all — a source-only reference meant to be copied rather than
+scaffolded — cannot be covered by any assertion. That belongs in `coverage-allowlist.txt` with its
+reason, like any other gap the maintainer accepts.
+
 The audit reports; it never edits a smoke script.
 
 ## Deferring an assertion
