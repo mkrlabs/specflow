@@ -68,56 +68,10 @@ wanted pull requests will say so.
     from your side — the commits ARE on the base branch, everything looks right, and only the human
     sees the wrong branch name in their prompt.
 
-11. **Close the linked backlog issue** (only if push happened and `feature.json.linked_issue` is set):
-    1. Read `.specnaut/feature.json`. Extract `linked_issue` (`jq -r '.linked_issue // empty'`).
-       If absent / null / empty, skip the rest of step 11 silently — no backlog backend wiring
-       to act on.
-    2. Detect the backend by checking `.specnaut/installed.lock` (`backlog_backend: <local|github|gitlab>`)
-       or, equivalently, the presence of `.specnaut/backlog-config.yml` (github/gitlab) vs
-       `.specnaut/backlog.md` (local).
-    3. **github + gitlab only** — run `bash .specnaut/scripts/backlog/cascade-check.sh <linked_issue>`.
-       Exit 11 means the parent has open sub-issues; do NOT close. Report the open children to the
-       user and stop (the issue stays in `In progress` / `Ready` until the children are closed).
-    4. Ask the user to confirm, naming the item per the `backlog-reference-contract`
-       skill — number, title, and a resolved link, never a bare number. The user is being
-       asked to authorise an action on an item they must be able to identify. On `no`, skip the
-       rest of step 11 — leave the column flip to a future run or to a manual `move.sh`.
-    5. On `yes`, run `bash .specnaut/scripts/backlog/move.sh <linked_issue> Done`. This is the
-       mechanical column flip — `move.sh` is idempotent and the working contract permits the merge
-       phase to call it directly (the PO retains exclusive ownership of the close + comment, not
-       the column move).
-    6. **github + gitlab only** — dispatch the `product-owner` subagent with the prompt:
-       "The branch for issue #<linked_issue> just landed on `main`. The mechanical move to Done has
-       already been done via `move.sh`. Please run the second half of the two-step close: post
-       a close comment on the issue referencing the merged commit range `<first-sha>..<last-sha>`
-       (from step 8's summary), then `gh issue close <linked_issue> --reason completed`. Confirm
-       with a one-line report." This keeps the audit comment under PO ownership and surfaces the
-       `docs audit` line from the PO's close-step contract.
-    7. **local backend only** — `move.sh <id> Done` already flipped the frontmatter; no second
-       step needed. The local backlog has no separate "issue" object beyond the file itself.
-
-    Backward-compat: feature trees without `linked_issue` (created before this field existed)
-    skip step 11 silently. A feature delivered across several branches — the last one has not
-    landed yet — the user answers `no` in step 11.4 and re-runs `/specnaut merge` on the last one.
-
-12. **Reconcile the board** (only if push happened; github + gitlab backends only).
-    Run `bash .specnaut/scripts/backlog/sweep-closed.sh --passes 2` — its header
-    explains the second pass. It reports; it moves nothing.
-
-    - Collect every `DRIFTED <number>` and move them in **one** call:
-      `bash .specnaut/scripts/backlog/move-batch.sh Done <n> <n> …` (github) or a
-      `move.sh` per item (gitlab). A card it reports as absent from the project is
-      reported and skipped — one bad card never aborts the rest, and nothing here
-      may fail the merge, which has already happened.
-    - For each `REOPENED <number>` line, **report it and move nothing.** `Ready` vs
-      `In progress` is not guessable, and guessing wrong is worse than saying so.
-    - Quote the script's **summary line** in the report, not your own count.
-
-    Step 11 only ever sees `feature.json.linked_issue`; a `Closes #N` in a commit
-    body, a web-UI close or another agent's close is invisible to it. This step asks
-    the board whether it agrees with the repository, rather than asking the merge
-    what it believes it closed — the second question is answerable without being
-    true.
+11. **Close what shipped, and reconcile the board** — only if the push happened. Load
+    `phases/merge-close.md` and follow it. It covers both paths: one item and one card on the
+    standalone path, N children plus the epic on an epic branch, and the reconcile sweep that asks
+    the board whether it agrees with the repository.
 
 ## Squash by scope
 
@@ -163,13 +117,18 @@ branch is one commit per child in order. Do not merge past a failed fold.
 
 ## Output
 
+Every backlog item this report names is named per the `backlog-reference-contract` skill — number,
+title, and a resolved link, never a bare number. The reader uses this report to check the work, and
+a bare number is not checkable.
+
+
 A structured report with: files merged, commits merged, whether the user chose to push, and — when
-step 11 ran — whether the linked issue was closed (and via which backend), or skipped (and why:
+the close ran — whether the linked issue was closed (and via which backend), or skipped (and why:
 no `linked_issue`, user declined, or `cascade-check` blocked the close). It must also quote
 the branch `HEAD` is on after the merge, from `git rev-parse --abbrev-ref HEAD` — a merge report
 that claims success without naming the branch is unverifiable.
 
-When step 12 ran, quote `sweep-closed.sh`'s summary line verbatim and list any card it moved and
+When the reconcile ran, quote `sweep-closed.sh`'s summary line verbatim and list any card it moved and
 any `REOPENED` it reported. Report the summary even when nothing moved: "drifted 0" is the evidence
 that the board was checked, and omitting it makes a checked board indistinguishable from a skipped
 step.

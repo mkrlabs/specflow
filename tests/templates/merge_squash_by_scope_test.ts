@@ -40,6 +40,11 @@ function mergePhase(): CoreEntry {
   return e;
 }
 
+Deno.test("merge.md still routes to the close step it no longer contains", () => {
+  const { content } = mergePhase();
+  assertStringIncludes(content, "phases/merge-close.md");
+});
+
 Deno.test("merge.md still routes to the squash rules it no longer contains", () => {
   // The load-bearing half of the extraction. A companion doc nobody loads is
   // a deletion, and the pointer is the only thing that makes the move a move.
@@ -101,8 +106,17 @@ Deno.test("a merge ends on the base branch, verified rather than assumed", () =>
   assertStringIncludes(content, "a finding, not an obstacle");
 });
 
+function closeDoc(): CoreEntry {
+  const e = CORE_BUNDLE.find((x) => x.category === "phase" && x.name === "merge-close");
+  if (!e) throw new Error("missing merge-close phase entry");
+  return e;
+}
+
+// #560 moved the close + reconcile block into a companion, for the same reason
+// #558 moved squash-by-scope: `merge.md` had 945 characters of headroom and the
+// epic path needed more than that. Re-anchored verbatim, not relaxed.
 Deno.test("merge keeps the backlog close step intact", () => {
-  const { content } = mergePhase();
+  const { content } = closeDoc();
   assertStringIncludes(content, "Close the linked backlog issue");
   assertStringIncludes(content, "cascade-check.sh");
   assertStringIncludes(content, "linked_issue");

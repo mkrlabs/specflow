@@ -50,6 +50,12 @@
     },
     {
       "category": "phase",
+      "name": "merge-close",
+      "suffix": "merge-close.md",
+      "source": "core/skills/specnaut/phases/merge-close.md"
+    },
+    {
+      "category": "phase",
       "name": "review",
       "suffix": "review.md",
       "source": "core/skills/specnaut/phases/review.md"

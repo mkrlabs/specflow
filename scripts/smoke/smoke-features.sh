@@ -67,7 +67,7 @@ check ".claude/commands/ is not created at all (#533)" \
   '[ ! -e .claude/commands ]'
 check "router .claude/skills/specnaut/SKILL.md present" \
   '[ -f .claude/skills/specnaut/SKILL.md ]'
-for phase in plan plan-audits tasks implement review merge merge-squash epic-commits quality-gates epic-fixups constitution tag-version release-version; do
+for phase in plan plan-audits tasks implement review merge merge-squash epic-commits quality-gates epic-fixups merge-close constitution tag-version release-version; do
   check ".claude/skills/specnaut/phases/$phase.md present" \
     "[ -f .claude/skills/specnaut/phases/$phase.md ]"
 done
@@ -99,6 +99,31 @@ check "epic-commits.md carries the Epic trailer and the width-agnostic parse (#5
    grep -qF "T(\\d+)" .claude/skills/specnaut/phases/epic-commits.md'
 check "epic-commits.md names no test tool (constitution: stack-agnostic)" \
   '! grep -qiE "jest|vitest|playwright|pytest|rspec|junit" .claude/skills/specnaut/phases/epic-commits.md'
+# #560 — an epic merge closes N children AND the epic, and moves N+1 cards.
+# The order is derived, not chosen: sweep-closed.sh reports a Done card whose
+# issue is open as REOPENED, so moving the card first manufactures the exact
+# state an existing tool is built to flag.
+check "companion doc merge-close.md scaffolded (#560)" \
+  '[ -f .claude/skills/specnaut/phases/merge-close.md ]'
+check "merge.md routes to it after a push (#560)" \
+  'grep -qF "phases/merge-close.md" .claude/skills/specnaut/phases/merge.md'
+check "the epic path closes every child AND the epic (#560 AC1)" \
+  'grep -qF "N children" .claude/skills/specnaut/phases/merge-close.md'
+check "the issue closes BEFORE the card moves, and says why (#560 AC4)" \
+  'flat="$(tr "\n" " " < .claude/skills/specnaut/phases/merge-close.md)";
+   grep -qF "close the issue first, then move the card" <<<"$flat" &&
+   grep -qF "REOPENED" <<<"$flat"'
+check "cascade-check still gates the parent close (#560 AC2)" \
+  'grep -qF "cascade-check.sh <epic>" .claude/skills/specnaut/phases/merge-close.md'
+check "children are enumerated from the branch, not from memory (#560)" \
+  'grep -qF "did not ship" .claude/skills/specnaut/phases/merge-close.md'
+check "the report names every item, not a count (#560 AC5)" \
+  'flat="$(tr "\n" " " < .claude/skills/specnaut/phases/merge-close.md)";
+   grep -qF "One line per issue closed" <<<"$flat" &&
+   grep -qF "could not move and why" <<<"$flat"'
+check "nothing closes when the merge did not push (#560 AC6)" \
+  'grep -qF "only when the push" .claude/skills/specnaut/phases/merge-close.md'
+
 # #559 — a fixup folds into ITS OWN child, and the fold is verified here
 # rather than borrowed from squash-by-scope, which governs the other path and
 # since #558 lives in another file entirely. AC 7 is the load-bearing one.
@@ -658,10 +683,17 @@ check "create-new-feature.sh exposes --issue flag" \
   'grep -q -- "--issue" .specnaut/scripts/bash/create-new-feature.sh'
 check "plan.md persists linked_issue into feature.json" \
   'grep -q "linked_issue" .claude/skills/specnaut/phases/plan.md'
-check "merge.md reads feature.json.linked_issue and closes the loop" \
-  'grep -q "linked_issue" .claude/skills/specnaut/phases/merge.md'
-check "merge.md dispatches the PO for the close comment" \
-  'grep -q "product-owner" .claude/skills/specnaut/phases/merge.md'
+# Both re-anchored by #560: the close block moved to the merge-close
+# companion, so this is where feature.json is read and the PO is dispatched.
+# merge.md keeps a routing assertion instead — a companion nobody loads is a
+# deletion, and that is the half the move created.
+check "the close step reads feature.json.linked_issue and closes the loop" \
+  'grep -q "linked_issue" .claude/skills/specnaut/phases/merge-close.md'
+check "the close step dispatches the PO for the close comment" \
+  'grep -q "product-owner" .claude/skills/specnaut/phases/merge-close.md'
+check "merge.md routes to the close step rather than carrying it" \
+  'grep -qF "phases/merge-close.md" .claude/skills/specnaut/phases/merge.md &&
+   ! grep -q "product-owner" .claude/skills/specnaut/phases/merge.md'
 
 echo
 echo "═══ Developer agent doctrine — Domain Model gate (PR #249) ═══"

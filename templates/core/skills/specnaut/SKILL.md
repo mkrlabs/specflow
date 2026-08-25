@@ -68,10 +68,11 @@ spec detection sits on this side and lives in `phases/auto-chain.md`, because it
 reads spec artefacts and prescribes specnaut phases.
 
 `phases/plan-audits.md`, `phases/merge-squash.md`, `phases/epic-commits.md`,
-`phases/quality-gates.md`, `phases/epic-fixups.md` and `phases/auto-chain.md` are **contract docs, not routable phases** — `plan` loads the first at its
+`phases/quality-gates.md`, `phases/epic-fixups.md`, `phases/merge-close.md` and
+`phases/auto-chain.md` are **contract docs, not routable phases** — `plan` loads the first at its
 step 6, `merge` loads the second at its step 4, `implement` loads the third when the item is an epic,
-`implement` and `merge` share the fourth, `merge` loads the fifth before an epic merge, and the
-router loads the sixth when it chains. Naming any of them as a phase prints the index and stops.
+`implement` and `merge` share the fourth, `merge` loads the fifth before an epic merge and the sixth
+after any push, and the router loads the seventh when it chains. Naming any of them as a phase prints the index and stops.
 
 Chainable phases are: `plan`, `tasks`, `implement`, `review`. The others (`merge`, `constitution`,
 `tag-version`, `release-version`, `audit <axis>`) are one-shot regardless of chain mode.

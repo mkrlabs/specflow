@@ -33,6 +33,10 @@ const CHANNEL_B_CORE: ReadonlyArray<{ category: string; name: string }> = [
   { category: "backlog-skill", name: "board" },
   { category: "backlog-doc", name: "board" },
   { category: "phase", name: "merge" },
+  // #560 moved the close and reconcile block out of `merge.md` into this
+  // companion, which is where items are actually named now. Both are listed:
+  // `merge.md` still specifies the report, and this file does the naming.
+  { category: "phase", name: "merge-close" },
   { category: "project-root", name: "root" },
   // `specify` is deliberately absent. Windsurf renders each phase as a Cascade
   // workflow capped at 12 000 characters, and specify.md already sits ~40 chars
