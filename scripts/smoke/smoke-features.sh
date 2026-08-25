@@ -521,6 +521,21 @@ echo "═══ #188  /specnaut merge auto-closes the linked backlog issue ═�
 # specnaut-monorepo#25 — the chain used to hold exactly ONE board write, at
 # merge, so a card could sit in the intake column through a whole
 # implementation. These pin the other end of it.
+# #546 AC9 — two coverage gaps that predate #547 (measured at exactly two
+# before it). Each names something the script promises, not that its file
+# exists: #547 established that a presence check satisfies the coverage token
+# and closes none of the hole.
+check "setup-plan.sh scaffolds the plan from plan-template" \
+  'grep -q "plan-template" .specnaut/scripts/bash/setup-plan.sh'
+check "setup-plan.sh writes to IMPL_PLAN rather than a path of its own" \
+  'grep -q "IMPL_PLAN" .specnaut/scripts/bash/setup-plan.sh'
+check "setup-plan.sh offers the --json contract its callers parse" \
+  'grep -q -- "--json" .specnaut/scripts/bash/setup-plan.sh'
+check "setup-plan.ps1 scaffolds from the same template (twins stay in step)" \
+  'grep -q "plan-template" .specnaut/scripts/powershell/setup-plan.ps1'
+check "setup-plan.ps1 writes to IMPL_PLAN too" \
+  'grep -q "IMPL_PLAN" .specnaut/scripts/powershell/setup-plan.ps1'
+
 check "create-new-feature.sh moves the linked item to In progress" \
   'grep -q "In progress" .specnaut/scripts/bash/create-new-feature.sh'
 check "create-new-feature.sh reports when nothing was moved" \

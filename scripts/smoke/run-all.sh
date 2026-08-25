@@ -101,13 +101,17 @@ for f in "$SMOKE_DIR"/*.sh; do
   fi
   n="$(grep -c "$BOUNDARY_RE" <<<"$code" || true)"
   if [ "$n" -gt 0 ]; then
-    echo "❌ $(basename "$f") resolves $n path(s) outside this repository"
+    fail "$(basename "$f") resolves $n path(s) outside this repository" \
+         "the suite must run from a bare clone of this repository (FR-001)"
     boundary_hits=$((boundary_hits + n))
   fi
 done
 if [ "$boundary_hits" -gt 0 ]; then
-  echo "   The suite must run from a bare clone of this repository (FR-001)."
-  exit 1
+  # Through the suite's own contract (022-R4), not a bare `exit`. `finish`
+  # follows `fail` immediately and on purpose: `fail` does not exit, and
+  # continuing here would run `deno task bundle` and the whole suite against a
+  # tree this check has just declared out of bounds.
+  finish "SUITE"
 fi
 
 # --- Re-bundle, and put it back afterwards ------------------------------

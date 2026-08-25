@@ -103,13 +103,29 @@ out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?"
 mv .specnaut/installed.lock.bak .specnaut/installed.lock
 echo "$out" | grep -q "ec=0" && pass "exit 0 on github backend" \
   || fail "non-zero exit" "$out"
-# If gh is installed + auth'd, no warning. If not, warning. Either is OK
-# as long as exit 0 and no crash.
-echo "(github-backend output: $(echo "$out" | head -1))"
+# The disjunction the comment used to shrug at is queryable, so it is asserted
+# rather than echoed. "Either is OK" plus a bare echo is a green line that
+# checks nothing — the shape this whole ticket is about.
+if command -v gh >/dev/null 2>&1; then
+  echo "$out" | grep -q "gh CLI not found" \
+    && fail "warned about a missing gh that is installed" "$out" \
+    || pass "no missing-gh warning when gh is on PATH"
+else
+  echo "$out" | grep -q "gh CLI not found" \
+    && pass "warns that gh is missing when it is" \
+    || fail "gh is absent and the hook said nothing" "$out"
+fi
 
 echo
 echo "═══ no lock present (e.g. uninitialised project) ═══"
-mv .specnaut/installed.lock /tmp/spec-lock-backup-$$
+# Moved aside INSIDE the scenario tree, not into /tmp. The EXIT trap at the
+# top of this file already removes that tree, so an abort between the two
+# moves leaks nothing — and no second trap is added, because bash replaces
+# rather than appends and that would silently drop the cleanup.
+# /tmp/spec-lock-backup-$$ was also PID-predictable in a world-writable
+# directory: across filesystems `mv` degrades to copy+unlink and follows a
+# destination symlink.
+mv .specnaut/installed.lock .installed.lock.aside
 out=$(echo '{"tool_input":{"file_path":"/x/.specnaut/installed.lock"}}' \
   | bash .claude/hooks/protect-generated.sh 2>&1; echo "ec=$?")
 echo "$out" | grep -q "ec=0" \
@@ -119,6 +135,6 @@ out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?"
 echo "$out" | grep -q "ec=0" \
   && pass "check-backlog-prereqs exits 0 with no lock" \
   || fail "check-backlog-prereqs crashed" "$out"
-mv /tmp/spec-lock-backup-$$ .specnaut/installed.lock
+mv .installed.lock.aside .specnaut/installed.lock
 
 finish "HOOKS"

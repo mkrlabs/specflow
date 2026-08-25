@@ -26,7 +26,8 @@ fi
 # Python driver: forks a PTY-attached child running specnaut init,
 # scripts arrow-down/enter keystrokes, captures all output.
 out="$(PROJECT_DIR="$DIR" MAIN_TS="$CLI/src/main.ts" python3 - <<'PYEOF'
-import os, pty, select, sys, time
+import os
+import signal, pty, select, sys, time
 
 PROJECT_DIR = os.environ["PROJECT_DIR"]
 MAIN_TS = os.environ["MAIN_TS"]
@@ -92,7 +93,15 @@ while time.time() < deadline:
         break
 
 os.close(fd)
-if time.time() >= deadline:
+timed_out = time.time() >= deadline
+if timed_out:
+    # Reap before returning: the child is still running on this path, and the
+    # caller's EXIT trap rm -rf's the tree it may still be writing into.
+    try:
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)
+    except (ProcessLookupError, ChildProcessError):
+        pass
     captured.extend(b"\n__SMOKE_PICKER_TIMEOUT__\n")
 sys.stdout.buffer.write(bytes(captured))
 PYEOF
@@ -111,6 +120,11 @@ detail() { printf '%s' "$out" | sed $'s/\x1b\[[0-9;?]*[A-Za-z]//g' | tail -25; }
 if printf '%s' "$out" | grep -q "__SMOKE_PICKER_TIMEOUT__"; then
   fail "init never completed — the keystroke script is short a step" \
        "add the missing prompt to SCRIPT; see the numbered list in this file"
+  # Short-circuit. `fail` does not exit, so every assertion below used to run
+  # and fail for this one cause — one missing keystroke reported as ten
+  # findings, which reads like a product defect instead of a script defect.
+  # The comment above has said this for a while; the code did not do it.
+  finish "PICKER"
 fi
 
 echo "$out" | grep -q "Choose your AI harness" \

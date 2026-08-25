@@ -276,6 +276,23 @@ else
 fi
 
 # The contract this file exists to guard (plan.md §5 R5, FR-004/FR-005).
+# AC4: clean_out's only reader used to be the `fail` diagnostic below, which
+# runs only once this assertion has already decided. A diagnostic is not a
+# reader. Assert the clean REPORT, not just the clean exit code.
+# The clean scenario runs at the baseline with nothing planted, so the coverage
+# scan takes its no-changes branch — NOT the "every surface change has a
+# matching smoke assertion" branch, which needs a non-empty diff. Asserting the
+# wrong one of the two is how this check first failed; the two lines are not
+# interchangeable and the distinction is the report's, not this file's.
+if grep -qE "^  ✓ no user-visible surface changes since " <<<"$clean_out" \
+   && grep -qE "^  0 coverage gap\(s\)$" <<<"$clean_out" \
+   && grep -qE "^  0 stale assertion\(s\)$" <<<"$clean_out"; then
+  pass "a clean tree SAYS it is clean, in the report and not only in the exit code"
+else
+  fail "the clean report did not say what a clean tree looks like" \
+       "$(grep -E 'coverage gap|stale assertion|surface change' <<<"$clean_out" | head -3)"
+fi
+
 if [ "$clean_rc" -eq 0 ]; then
   pass "audit exits 0 on a clean tree"
 else
@@ -326,11 +343,23 @@ else
   fail "src/cli/ change fell through in silence" "the unmapped section had its own blind spot"
 fi
 
+# Anchored to the PER-FILE line. `grep -q "allow-listed"` was satisfied by the
+# summary line `N allow-listed gap(s) (not fatal)` just as readily, so the
+# assertion survived the per-file report disappearing entirely.
 if grep -qE "^  0 coverage gap\(s\)$" <<<"$allow_out" \
-   && grep -q "allow-listed" <<<"$allow_out"; then
-  pass "an allow-listed gap with a reason is cleared and shown as allow-listed"
+   && grep -qE "^  ~ templates/core/agents/new-fake-agent\.md \(allow-listed\)$" <<<"$allow_out"; then
+  pass "an allow-listed gap with a reason is cleared and named per file"
 else
   fail "the allowlist did not clear the gap" "$(grep -E 'coverage gap' <<<"$allow_out" | head -2)"
+fi
+
+# AC3 — the recorded REASON is read. Carrying it is the entire point of 022-R13
+# and audit.sh prints it, but nothing had ever looked at the text.
+if grep -qE "^      reason: deferred on purpose, for the meta-test$" <<<"$allow_out"; then
+  pass "the allowlist entry's written reason is echoed back verbatim"
+else
+  fail "the recorded reason was not reported" \
+       "an entry may as well carry no reason if the report never shows it (022-R13)"
 fi
 
 if [ "$allow_rc" -eq 0 ]; then
@@ -350,12 +379,15 @@ else
        "$(grep -E 'coverage gap' <<<"$noreason_out" | head -1)"
 fi
 
-# A finding must not be inferable only from stdout: assert the two agree.
-if [ "$clean_rc" -eq 0 ] && [ "$rc" -ne 0 ]; then
-  pass "exit code and report agree in both directions"
-else
-  fail "exit code and report disagree" "clean_rc=$clean_rc findings_rc=$rc"
-fi
+# DELETED: an assertion named "exit code and report agree in both directions",
+# written as `[ "$clean_rc" -eq 0 ] && [ "$rc" -ne 0 ]`. It was the conjunction
+# of two assertions that already stand above it — "audit exits 0 on a clean
+# tree" and "audit exits 1 with findings", the second of which is strictly
+# stronger than `-ne 0`. It read no report and could not fail on its own.
+#
+# Not rewritten to pin report content, because an assertion that cannot fail is
+# worse than an absent one: it is counted. Do not reinstate it — if you want the
+# agreement checked, the two assertions above are where it lives.
 
 if grep -q "comment-only-agent.md" <<<"$commentonly_out"; then
   pass "a basename occurring only in a comment is NOT coverage (#545)"
