@@ -27,10 +27,9 @@ scripts actually on disk. A script that exists but is not listed is a finding, n
 
 ## `_common.sh` owns five decisions
 
-Path resolution, suite membership, the assertion harness, what a valid scenario name is, and what counts
-as code in a smoke script. Source
-it; never re-derive any of them locally. It is written for **bash 3.2**, because macOS ships that
-and the interactive scenarios exist for that machine.
+Path resolution, suite membership, the assertion harness, what a valid scenario name is, and what
+counts as code in a smoke script. Source it; never re-derive any of them locally. It is written for
+**bash 3.2**, because macOS ships that and the interactive scenarios exist for that machine.
 
 ## Audit heuristics
 
@@ -49,17 +48,17 @@ neither is a findings verdict, and `.specnaut/release/preflight.sh` branches on 
 
 The surface map lives in the `SURFACES` array in `audit.sh`; each entry is
 `<glob>|<smoke-script-list>|<kind>`. The stale scan walks the smoke scripts it enumerates from the
-smoke directory itself — there is no second list to keep in step — extracts each
-`.claude/…` / `.specnaut/…` token, and maps it back to a candidate under `templates/core/` or
+smoke directory itself — there is no second list to keep in step — extracts each `.claude/…` /
+`.specnaut/…` token, and maps it back to a candidate under `templates/core/` or
 `templates/harness-specific/<harness>/`. Runtime-only paths (`installed.lock`, `specs/`, `logs/`, …)
 are skipped explicitly, and a path a smoke only ever asserts the **absence** of is not stale — that
 is the correct assertion for a deliberately removed artefact.
 
 ### What counts as a mention
 
-A basename found **only inside a comment does not count as coverage**. A comment resolves nothing and
-asserts nothing, and a comment saying a file is deliberately uncovered would otherwise vouch for it.
-The rule is about what a script *does*, not what it mentions.
+A basename found **only inside a comment does not count as coverage**. A comment resolves nothing
+and asserts nothing, and a comment saying a file is deliberately uncovered would otherwise vouch for
+it. The rule is about what a script _does_, not what it mentions.
 
 `_common.sh`'s `smoke_code_lines()` is the single home for that decision, and both guards that need
 it — the coverage match here and `run-all.sh`'s boundary check — ask it rather than carrying their
@@ -74,7 +73,7 @@ Two properties the callers depend on, and the reason the rule is not simply `sed
 - **Line numbering is preserved.** Lines are blanked, never dropped, so a caller reporting
   `file:line` still reports the right one.
 
-The naive expression cuts at the *first* `#` on a line, and shell puts one inside `${var#prefix}`
+The naive expression cuts at the _first_ `#` on a line, and shell puts one inside `${var#prefix}`
 and inside every `echo "═══ #180  add.sh …"` banner this suite writes. Measured over these scripts
 it discards several hundred lines of real code against the genuine comments it is meant to remove.
 
