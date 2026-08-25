@@ -291,6 +291,53 @@ unmapped_reason_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-
 set -e
 rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
 
+# --- Assertion 3j: fatality, ISOLATED -----------------------------------
+# 3i above cannot fail on fatality: its run is non-zero for five coverage gaps
+# and a planted stale assertion whatever the unmapped class does, and its grep
+# matches the report the pre-fix ADVISORY build printed too. Deleting the
+# fatality clause from audit.sh left the whole meta-test green — reproduced.
+#
+# This run clears every other finding class so the unmapped file is the only
+# one left, then flips only its allow-list reason. If unmapped stops being
+# fatal, the first half goes green and this assertion fails.
+rm -f "$SYNTH_SMOKE/smoke-stale.sh"
+# 3g's appended assertion references .claude/skills/board/SKILL.md, which has
+# no source counterpart in this synthetic tree — a stale assertion that would
+# keep the isolated run non-zero for a reason unrelated to the class under
+# test. Give it its source; the same assertion then covers it.
+mkdir -p templates/core/skills/board
+printf -- '---\nname: board\n---\nmentioned-elsewhere\n' > templates/core/skills/board/SKILL.md
+git add -A
+git commit -q -m "give the board reference a source, so the isolated run is isolated"
+cat > "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/agents/new-fake-agent.md  isolated run: not the class under test
+templates/core/agents/comment-only-agent.md  isolated run: not the class under test
+templates/core/agents/agént-café.md  isolated run: not the class under test
+templates/core/skills/lonely-skill/SKILL.md  isolated run: not the class under test
+templates/core/skills/mentioned-elsewhere/SKILL.md  isolated run: not the class under test
+templates/core/statusline/config.md  isolated run: not the class under test
+EOF
+set +e
+iso_fatal_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+iso_fatal_rc=$?
+set -e
+cat >> "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/nosuchcategory/thing.md  and now the class under test, excused
+EOF
+set +e
+iso_clear_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+iso_clear_rc=$?
+printf '%s
+' "$iso_clear_out" | sed -n '/## Summary/,$p' >&2
+set -e
+rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
+cat > "$SYNTH_SMOKE/smoke-stale.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f .claude/agents/baseline-deleted-agent.md ] || { echo "stale ref"; exit 1; }
+EOF
+chmod +x "$SYNTH_SMOKE/smoke-stale.sh"
+
 echo "$out"
 echo
 echo "── assertions ──"
@@ -517,6 +564,21 @@ if grep -qE "^  1 unmapped surface change\(s\)" <<<"$unmapped_reason_out" \
 else
   fail "a reasoned allowlist entry did not excuse the unmapped file" \
        "$(grep -E 'unmapped surface change|allow-listed' <<<"$unmapped_reason_out" | head -2)"
+fi
+
+# The pair, and only the pair, can fail on fatality.
+if [ "$iso_fatal_rc" -ne 0 ] && grep -qE "^  0 coverage gap\(s\)$" <<<"$iso_fatal_out" \
+   && grep -qE "^  1 unmapped surface change\(s\)$" <<<"$iso_fatal_out"; then
+  pass "an unmapped file is fatal when it is the ONLY finding (#549)"
+else
+  fail "unmapped alone did not fail the audit" \
+       "rc=$iso_fatal_rc; $(grep -E 'coverage gap|unmapped surface' <<<"$iso_fatal_out" | head -2)"
+fi
+if [ "$iso_clear_rc" -eq 0 ]; then
+  pass "and adding its written reason is what clears the verdict"
+else
+  fail "a reasoned allowlist entry did not clear the isolated run" \
+       "rc=$iso_clear_rc; $(grep -E 'coverage gap|unmapped' <<<"$iso_clear_out" | head -2)"
 fi
 
 finish "SMOKE-AUDIT"
