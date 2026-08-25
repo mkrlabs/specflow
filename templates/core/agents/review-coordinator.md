@@ -54,6 +54,15 @@ Emit exactly one `REVIEW SUMMARY` block per the preloaded
 `review-findings-contract`. Its counts are the SUM of every seat's findings
 (after de-duplication); its verdict is derived from those aggregated counts:
 
+**This block is restated here on purpose, unlike every other seat's** (#565).
+Every field carries aggregation semantics the contract does not and should not
+carry — `summed across seats`, `the union of the seats' EVIDENCE`, and a
+`SEATS_REPORTED` that counts seats which reported **and, when clean, showed
+evidence**. A bare reference would lose all of it. The verdict rule below keeps
+the contract's `SEATS_REPORTED == SEATS_EXPECTED` clause and adds the two
+aggregation triggers; if the contract's rule ever changes, this is the one file
+that must be reconciled by hand.
+
 ```
 REVIEW SUMMARY
 REVIEW_SCOPE: review gate (aggregated across code-reviewer, security-expert, test-reviewer)
