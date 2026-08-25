@@ -64,14 +64,21 @@ The PO will:
      - `P1` — must-have for the next sprint or release
      - `P2` — important but deferrable; standard work
      - `P3` — nice-to-have / long horizon; pick up when slack appears
-  3a. **Set Roadmap dates (soft).** GitHub backend only — Roadmap view inputs:
-     - **Target date** when promoting Backlog → Ready (`set-field.sh <num> TargetDate <YYYY-MM-DD>`).
-       Use a best-estimate planned-delivery date; revise when scope shifts.
-     - **Start date** when moving Ready → In Progress (`set-field.sh <num> StartDate <YYYY-MM-DD>`).
-       Today's date when picking up the work.
-     - **Estimate** (optional) story-point or day count (`set-field.sh <num> Estimate <N>`).
-     Missing dates do NOT block; they emit a warn-only line in the final
-     report (see "⚠ Roadmap dates missing" below).
+  3a. **Set Roadmap dates — soft, and only if the board has the fields.**
+     GitHub backend only. Date / Estimate are *optional* Project V2 fields the
+     user adds themselves; a board carrying only `Status` / `Priority` / `Size`
+     is ordinary, not misconfigured. **Gate first** on the once-per-run
+     `detect-fields.sh`, which emits `TARGETDATE_FIELD_ID=` /
+     `STARTDATE_FIELD_ID=` / `ESTIMATE_FIELD_ID=` **empty** when the field is
+     absent:
+     - **Both IDs empty → skip this step entirely.** Set nothing, warn nothing,
+       omit the "⚠ Roadmap dates missing" section. Never report a value as
+       unset when it cannot be set at all.
+     - **Field present** — `set-field.sh <num> TargetDate <YYYY-MM-DD>` on
+       Backlog → Ready (best-estimate delivery date), `StartDate` on
+       Ready → In Progress (today), `Estimate <N>` optional. A missing *value*
+       on a field that exists never blocks: it emits a `⚠ no target date set`
+       / `⚠ no start date set` line in the final report and the run moves on.
   4. **Decide the outcome:**
      - **Promote to `Ready`** when the body is clear, both labels are
        applied, AND no scope decisions remain.
@@ -94,12 +101,6 @@ The PO will:
   the PO MUST capture the failure reason and surface it under "⚠ size /
   priority missing" in the final report — silent skip is a contract
   violation.
-
-  Step 3a (Roadmap dates) is **soft** — never blocking. When the PO
-  promotes Backlog → Ready or moves Ready → In Progress, it SHOULD set
-  the appropriate date; when it doesn't (because the date is genuinely
-  unknown), it surfaces a `⚠ no target date set` or `⚠ no start date set`
-  line in the final report and moves on.
 
 The PO must respect the standard backlog skill — do not bypass its
 scripts.
@@ -128,29 +129,24 @@ Use the bundled scripts at `.specnaut/scripts/backlog/`:
 
 - `detect-fields.sh` — emits eval-friendly env lines listing the
   `Priority` / `Size` field IDs and option IDs (case-insensitive name
-  match). Run **once per groom run**, not per ticket.
+  match), plus `STARTDATE_FIELD_ID` / `TARGETDATE_FIELD_ID` /
+  `ESTIMATE_FIELD_ID` — **empty when the board carries no such field**,
+  which is the gate step 3a reads. Run **once per groom run**, not per
+  ticket.
 - `set-field.sh <issue> <Priority|Size> <value>` — writes the field if
-  present. Exit codes:
-  - `0` → wrote the field, do not apply a label for this dimension.
-  - `10` → no such native field (e.g. user added neither `Priority` nor
-    `Size` to their project). Caller MUST apply the corresponding label
-    (`priority:P2` / `size:M`) instead.
-  - `11` → field exists but the value option is missing (only
-    `priority:P3` today). Caller MUST apply the matching label.
-  - `12` → issue is not on the project. Caller MUST report the
-    discrepancy under "⚠ size / priority missing" — neither path can
-    persist the value.
+  present. Exit `0` wrote it (do NOT also label); `10` no such field and
+  `11` no such option (only `priority:P3` today) — caller MUST apply the
+  matching label instead; `12` issue not on the project — caller MUST
+  report it under "⚠ size / priority missing", since neither path can
+  persist the value.
 
-**Label fallback** (for exit code `10` / `11` only):
+**Label fallback** (exit `10` / `11` only) — `gh label list`, then
+`gh label create "<name>" --color <hex> --description "<desc>"` if absent,
+then `gh issue edit <num> --add-label …` (`--remove-label` to swap on a
+re-groom). All `--repo <owner>/<repo>`. Suggested colors:
 
-- `gh label list --repo <owner>/<repo>` to enumerate existing labels.
-- `gh label create "<name>" --color <hex> --description "<desc>" --repo <owner>/<repo>`
-  to create one if absent. Suggested colors:
-  - `size:XS` `#c2e0c6` · `size:S` `#bfdadc` · `size:M` `#bfd4f2` · `size:L` `#d4c5f9` · `size:XL` `#f9d0c4`
-  - `priority:P0` `#b60205` · `priority:P1` `#d93f0b` · `priority:P2` `#fbca04` · `priority:P3` `#0e8a16`
-- `gh issue edit <num> --add-label "size:M" --add-label "priority:P2" --repo <owner>/<repo>`
-  to apply (use `--remove-label` to swap a previously-assigned label
-  when re-grooming).
+- `size:XS` `#c2e0c6` · `size:S` `#bfdadc` · `size:M` `#bfd4f2` · `size:L` `#d4c5f9` · `size:XL` `#f9d0c4`
+- `priority:P0` `#b60205` · `priority:P1` `#d93f0b` · `priority:P2` `#fbca04` · `priority:P3` `#0e8a16`
 
 ##### GitLab backend
 
@@ -234,7 +230,9 @@ Per-ticket:
   ↳ <backlog-reference> — Ready since <date>, no target date set
   ↳ <backlog-reference> — In progress, no start date set
   ↳ ...
-  (omit this whole section when no dates are missing)
+  (omit this whole section when TARGETDATE_FIELD_ID / STARTDATE_FIELD_ID from
+   detect-fields.sh is empty — the board has no such field, so nothing is
+   missing — and when the fields exist but no dates are missing)
 
 Stale PRs:  <S> open PRs idle > 48h
 Orphan specs: <O> spec directories missing the next artefact

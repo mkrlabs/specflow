@@ -63,6 +63,43 @@ check "SKILL.md documents set-field exit code 11 fallback contract" \
   'grep -q "10/11/12" .claude/skills/board/SKILL.md'
 
 echo
+# --- #561  a warning must be gated on the field existing --------------------
+# Date / Estimate are OPTIONAL Project V2 fields the user adds to their own
+# board. Instructing the PO to warn "no target date set" unconditionally
+# reports a value as unset on boards where it cannot be set at all — noise on
+# every item, forever.
+#
+# A "the file mentions TARGETDATE_FIELD_ID somewhere" check would pass on a
+# file whose gate sits three sections away from an ungated warning, so this
+# asserts PROXIMITY: every occurrence of the warning string must have the gate
+# variable within +/- WINDOW lines.
+#
+# The zero-occurrence branch exits 2 deliberately. Without it, deleting the
+# warning outright would satisfy the check — an assertion that cannot fail,
+# which is the class cli#550 exists to hunt.
+gated_warning() {
+  awk -v warn="$2" -v gate="$3" -v w="${4:-12}" '
+    { line[NR] = $0 }
+    END {
+      hits = 0; bad = 0
+      for (i = 1; i <= NR; i++) {
+        if (index(line[i], warn) == 0) continue
+        hits++
+        lo = i - w; if (lo < 1) lo = 1
+        hi = i + w; if (hi > NR) hi = NR
+        ok = 0
+        for (j = lo; j <= hi; j++) if (index(line[j], gate) > 0) { ok = 1; break }
+        if (!ok) { printf "ungated \"%s\" at line %d\n", warn, i > "/dev/stderr"; bad++ }
+      }
+      if (hits == 0) {
+        printf "vacuous: \"%s\" occurs nowhere\n", warn > "/dev/stderr"
+        exit 2
+      }
+      exit (bad ? 1 : 0)
+    }
+  ' "$1"
+}
+
 echo "═══ #264  Roadmap dates + Estimate (set-field/detect-fields) ═══"
 check "set-field.sh usage advertises StartDate axis (#264)" \
   'grep -q "StartDate" .specnaut/scripts/backlog/set-field.sh'
@@ -92,6 +129,23 @@ check "groom phase mentions Roadmap dates step (#264)" \
   'grep -q "Roadmap dates" .claude/skills/board/groom.md'
 check "groom phase report surfaces Roadmap-dates-missing warning (#264)" \
   'grep -qE "no target date set|no start date set" .claude/skills/board/groom.md'
+
+echo
+echo "═══ #561  the date warnings are gated on the field existing ═══"
+check "groom: every \"no target date set\" sits beside its TARGETDATE_FIELD_ID gate" \
+  'gated_warning .claude/skills/board/groom.md "no target date set" TARGETDATE_FIELD_ID'
+check "groom: every \"no start date set\" sits beside its STARTDATE_FIELD_ID gate" \
+  'gated_warning .claude/skills/board/groom.md "no start date set" STARTDATE_FIELD_ID'
+check "PO agent: every \"no target date set\" sits beside its TARGETDATE_FIELD_ID gate" \
+  'gated_warning .claude/agents/product-owner.md "no target date set" TARGETDATE_FIELD_ID'
+check "PO agent: every \"no start date set\" sits beside its STARTDATE_FIELD_ID gate" \
+  'gated_warning .claude/agents/product-owner.md "no start date set" STARTDATE_FIELD_ID'
+check "groom step 3a says what to do when the fields are absent" \
+  'grep -qF "Both IDs empty" .claude/skills/board/groom.md'
+check "groom report template repeats the condition, so it cannot reintroduce the line" \
+  'awk "/Roadmap dates missing \\(GitHub backend, soft\\)/{f=1} f&&/TARGETDATE_FIELD_ID/{ok=1} END{exit !ok}" .claude/skills/board/groom.md'
+check "groom documents detect-fields.sh emitting the date field IDs" \
+  'grep -qF "TARGETDATE_FIELD_ID" .claude/skills/board/groom.md'
 
 echo
 echo "═══ #158  semantic labels bootstrap (ensure-labels.sh) ═══"

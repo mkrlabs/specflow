@@ -45,18 +45,21 @@ backlog item you touch MUST exit with **four hard axes + three soft**
    Optional on mono-domain projects, but the `## Domain Model` block in every
    brief MUST carry a `Bounded context:` field. Tickets touching ≥ 2 contexts →
    apply the "Epic detection heuristic" with reason "cross-bounded-context".
-6. **Target date** (soft, GitHub only) — set on Backlog → Ready (Roadmap end).
-   ISO 8601 (`YYYY-MM-DD`). Missing on Ready / In progress → `⚠ no target date
-   set`, never a block.
-7. **Start date** (soft, GitHub only) — set on Ready → In Progress. ISO 8601.
-   Missing on In progress → `⚠ no start date set`, never a block.
+6. **Target date** (soft, GitHub only) — Backlog → Ready (Roadmap end), ISO
+   8601. **Gated:** `detect-fields.sh` emits `TARGETDATE_FIELD_ID` *empty* when
+   the board has no such field — an ordinary board, so the axis does not
+   exist: set and say nothing. Unset on Ready / In progress →
+   `⚠ no target date set`, never a block.
+7. **Start date** (soft, GitHub only) — Ready → In Progress, ISO 8601. Same
+   gate on `STARTDATE_FIELD_ID`; empty → silent. Unset on In progress →
+   `⚠ no start date set`, never a block.
 
 **Estimate** (story points / days; numeric Project V2 field) stays optional —
 set it if the team uses point-based velocity, else skip (no warning on miss).
 
 Persistence per backend:
 
-- **GitHub** — use `set-field.sh <issue> <Priority|Size|IssueType|StartDate|TargetDate|Estimate> <value>`; exit `0` OK, `10`/`11` fall back to a label (Priority/Size only; date/Estimate failures skip silently and emit the soft warning where applicable), `12` = issue not on project. Run `detect-fields.sh` once per groom. Never dual-write field + matching label.
+- **GitHub** — use `set-field.sh <issue> <Priority|Size|IssueType|StartDate|TargetDate|Estimate> <value>`; exit `0` OK, `10`/`11` fall back to a label (Priority/Size only; on a date/Estimate axis `10` = field absent → skip, warn nothing), `12` = issue not on project. Run `detect-fields.sh` once per groom. Never dual-write field + matching label.
 - **GitLab** — scoped labels via `glab` (`priority::P1`, `size::M`, `type::feature`). Date / Estimate axes are GitHub-only (Roadmap view); GitLab has no equivalent in this scope.
 - **Local Markdown** — `priority:` / `complexity:` / `category:` frontmatter. No labels. Date / Estimate are not tracked on local backends (no Roadmap view to feed).
 
@@ -112,8 +115,8 @@ created: YYYY-MM-DD
 ---
 ```
 
-`parent: "#NNN"` is the local-Markdown sub-task convention — grep-friendly.
-A missing or `null` `parent:` means a top-level task or an epic.
+`parent: "#NNN"` is the local-Markdown sub-task convention (grep-friendly);
+missing or `null` means a top-level task or an epic, legacy tasks included.
 
 ## Epic concept
 
@@ -254,14 +257,10 @@ before estimating epic completion or reporting progress.
   moves / closes / field-sets in the fewest requests (one multi-alias
   `gh api graphql` / REST batch), never call-by-call; native field/type
   over a duplicate `priority:*`/`size:*` label. Detail: `/board` skill.
-- Always update `.specnaut/backlog.md` after any local task-file change.
 - Never delete task files — change status to `done` or `deferred`.
-- Use Fibonacci for complexity (1, 2, 3, 5, 8, 13, 21 only).
-- Justify every priority change.
 - Respect dependencies — don't recommend blocked tasks.
 - Respect epic semantics — never close a parent while children remain open.
 - Persisted artifacts in English; chat replies in the user's language.
-- Missing `parent:` on legacy tasks is treated as `parent: null`.
 
 ## Tech-debt intake protocol
 

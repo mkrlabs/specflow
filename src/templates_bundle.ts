@@ -1431,14 +1431,21 @@ The PO will:
      - \`P1\` — must-have for the next sprint or release
      - \`P2\` — important but deferrable; standard work
      - \`P3\` — nice-to-have / long horizon; pick up when slack appears
-  3a. **Set Roadmap dates (soft).** GitHub backend only — Roadmap view inputs:
-     - **Target date** when promoting Backlog → Ready (\`set-field.sh <num> TargetDate <YYYY-MM-DD>\`).
-       Use a best-estimate planned-delivery date; revise when scope shifts.
-     - **Start date** when moving Ready → In Progress (\`set-field.sh <num> StartDate <YYYY-MM-DD>\`).
-       Today's date when picking up the work.
-     - **Estimate** (optional) story-point or day count (\`set-field.sh <num> Estimate <N>\`).
-     Missing dates do NOT block; they emit a warn-only line in the final
-     report (see "⚠ Roadmap dates missing" below).
+  3a. **Set Roadmap dates — soft, and only if the board has the fields.**
+     GitHub backend only. Date / Estimate are *optional* Project V2 fields the
+     user adds themselves; a board carrying only \`Status\` / \`Priority\` / \`Size\`
+     is ordinary, not misconfigured. **Gate first** on the once-per-run
+     \`detect-fields.sh\`, which emits \`TARGETDATE_FIELD_ID=\` /
+     \`STARTDATE_FIELD_ID=\` / \`ESTIMATE_FIELD_ID=\` **empty** when the field is
+     absent:
+     - **Both IDs empty → skip this step entirely.** Set nothing, warn nothing,
+       omit the "⚠ Roadmap dates missing" section. Never report a value as
+       unset when it cannot be set at all.
+     - **Field present** — \`set-field.sh <num> TargetDate <YYYY-MM-DD>\` on
+       Backlog → Ready (best-estimate delivery date), \`StartDate\` on
+       Ready → In Progress (today), \`Estimate <N>\` optional. A missing *value*
+       on a field that exists never blocks: it emits a \`⚠ no target date set\`
+       / \`⚠ no start date set\` line in the final report and the run moves on.
   4. **Decide the outcome:**
      - **Promote to \`Ready\`** when the body is clear, both labels are
        applied, AND no scope decisions remain.
@@ -1461,12 +1468,6 @@ The PO will:
   the PO MUST capture the failure reason and surface it under "⚠ size /
   priority missing" in the final report — silent skip is a contract
   violation.
-
-  Step 3a (Roadmap dates) is **soft** — never blocking. When the PO
-  promotes Backlog → Ready or moves Ready → In Progress, it SHOULD set
-  the appropriate date; when it doesn't (because the date is genuinely
-  unknown), it surfaces a \`⚠ no target date set\` or \`⚠ no start date set\`
-  line in the final report and moves on.
 
 The PO must respect the standard backlog skill — do not bypass its
 scripts.
@@ -1495,29 +1496,24 @@ Use the bundled scripts at \`.specnaut/scripts/backlog/\`:
 
 - \`detect-fields.sh\` — emits eval-friendly env lines listing the
   \`Priority\` / \`Size\` field IDs and option IDs (case-insensitive name
-  match). Run **once per groom run**, not per ticket.
+  match), plus \`STARTDATE_FIELD_ID\` / \`TARGETDATE_FIELD_ID\` /
+  \`ESTIMATE_FIELD_ID\` — **empty when the board carries no such field**,
+  which is the gate step 3a reads. Run **once per groom run**, not per
+  ticket.
 - \`set-field.sh <issue> <Priority|Size> <value>\` — writes the field if
-  present. Exit codes:
-  - \`0\` → wrote the field, do not apply a label for this dimension.
-  - \`10\` → no such native field (e.g. user added neither \`Priority\` nor
-    \`Size\` to their project). Caller MUST apply the corresponding label
-    (\`priority:P2\` / \`size:M\`) instead.
-  - \`11\` → field exists but the value option is missing (only
-    \`priority:P3\` today). Caller MUST apply the matching label.
-  - \`12\` → issue is not on the project. Caller MUST report the
-    discrepancy under "⚠ size / priority missing" — neither path can
-    persist the value.
+  present. Exit \`0\` wrote it (do NOT also label); \`10\` no such field and
+  \`11\` no such option (only \`priority:P3\` today) — caller MUST apply the
+  matching label instead; \`12\` issue not on the project — caller MUST
+  report it under "⚠ size / priority missing", since neither path can
+  persist the value.
 
-**Label fallback** (for exit code \`10\` / \`11\` only):
+**Label fallback** (exit \`10\` / \`11\` only) — \`gh label list\`, then
+\`gh label create "<name>" --color <hex> --description "<desc>"\` if absent,
+then \`gh issue edit <num> --add-label …\` (\`--remove-label\` to swap on a
+re-groom). All \`--repo <owner>/<repo>\`. Suggested colors:
 
-- \`gh label list --repo <owner>/<repo>\` to enumerate existing labels.
-- \`gh label create "<name>" --color <hex> --description "<desc>" --repo <owner>/<repo>\`
-  to create one if absent. Suggested colors:
-  - \`size:XS\` \`#c2e0c6\` · \`size:S\` \`#bfdadc\` · \`size:M\` \`#bfd4f2\` · \`size:L\` \`#d4c5f9\` · \`size:XL\` \`#f9d0c4\`
-  - \`priority:P0\` \`#b60205\` · \`priority:P1\` \`#d93f0b\` · \`priority:P2\` \`#fbca04\` · \`priority:P3\` \`#0e8a16\`
-- \`gh issue edit <num> --add-label "size:M" --add-label "priority:P2" --repo <owner>/<repo>\`
-  to apply (use \`--remove-label\` to swap a previously-assigned label
-  when re-grooming).
+- \`size:XS\` \`#c2e0c6\` · \`size:S\` \`#bfdadc\` · \`size:M\` \`#bfd4f2\` · \`size:L\` \`#d4c5f9\` · \`size:XL\` \`#f9d0c4\`
+- \`priority:P0\` \`#b60205\` · \`priority:P1\` \`#d93f0b\` · \`priority:P2\` \`#fbca04\` · \`priority:P3\` \`#0e8a16\`
 
 ##### GitLab backend
 
@@ -1601,7 +1597,9 @@ Per-ticket:
   ↳ <backlog-reference> — Ready since <date>, no target date set
   ↳ <backlog-reference> — In progress, no start date set
   ↳ ...
-  (omit this whole section when no dates are missing)
+  (omit this whole section when TARGETDATE_FIELD_ID / STARTDATE_FIELD_ID from
+   detect-fields.sh is empty — the board has no such field, so nothing is
+   missing — and when the fields exist but no dates are missing)
 
 Stale PRs:  <S> open PRs idle > 48h
 Orphan specs: <O> spec directories missing the next artefact
@@ -5724,18 +5722,21 @@ backlog item you touch MUST exit with **four hard axes + three soft**
    Optional on mono-domain projects, but the \`## Domain Model\` block in every
    brief MUST carry a \`Bounded context:\` field. Tickets touching ≥ 2 contexts →
    apply the "Epic detection heuristic" with reason "cross-bounded-context".
-6. **Target date** (soft, GitHub only) — set on Backlog → Ready (Roadmap end).
-   ISO 8601 (\`YYYY-MM-DD\`). Missing on Ready / In progress → \`⚠ no target date
-   set\`, never a block.
-7. **Start date** (soft, GitHub only) — set on Ready → In Progress. ISO 8601.
-   Missing on In progress → \`⚠ no start date set\`, never a block.
+6. **Target date** (soft, GitHub only) — Backlog → Ready (Roadmap end), ISO
+   8601. **Gated:** \`detect-fields.sh\` emits \`TARGETDATE_FIELD_ID\` *empty* when
+   the board has no such field — an ordinary board, so the axis does not
+   exist: set and say nothing. Unset on Ready / In progress →
+   \`⚠ no target date set\`, never a block.
+7. **Start date** (soft, GitHub only) — Ready → In Progress, ISO 8601. Same
+   gate on \`STARTDATE_FIELD_ID\`; empty → silent. Unset on In progress →
+   \`⚠ no start date set\`, never a block.
 
 **Estimate** (story points / days; numeric Project V2 field) stays optional —
 set it if the team uses point-based velocity, else skip (no warning on miss).
 
 Persistence per backend:
 
-- **GitHub** — use \`set-field.sh <issue> <Priority|Size|IssueType|StartDate|TargetDate|Estimate> <value>\`; exit \`0\` OK, \`10\`/\`11\` fall back to a label (Priority/Size only; date/Estimate failures skip silently and emit the soft warning where applicable), \`12\` = issue not on project. Run \`detect-fields.sh\` once per groom. Never dual-write field + matching label.
+- **GitHub** — use \`set-field.sh <issue> <Priority|Size|IssueType|StartDate|TargetDate|Estimate> <value>\`; exit \`0\` OK, \`10\`/\`11\` fall back to a label (Priority/Size only; on a date/Estimate axis \`10\` = field absent → skip, warn nothing), \`12\` = issue not on project. Run \`detect-fields.sh\` once per groom. Never dual-write field + matching label.
 - **GitLab** — scoped labels via \`glab\` (\`priority::P1\`, \`size::M\`, \`type::feature\`). Date / Estimate axes are GitHub-only (Roadmap view); GitLab has no equivalent in this scope.
 - **Local Markdown** — \`priority:\` / \`complexity:\` / \`category:\` frontmatter. No labels. Date / Estimate are not tracked on local backends (no Roadmap view to feed).
 
@@ -5791,8 +5792,8 @@ created: YYYY-MM-DD
 ---
 \`\`\`
 
-\`parent: "#NNN"\` is the local-Markdown sub-task convention — grep-friendly.
-A missing or \`null\` \`parent:\` means a top-level task or an epic.
+\`parent: "#NNN"\` is the local-Markdown sub-task convention (grep-friendly);
+missing or \`null\` means a top-level task or an epic, legacy tasks included.
 
 ## Epic concept
 
@@ -5933,14 +5934,10 @@ before estimating epic completion or reporting progress.
   moves / closes / field-sets in the fewest requests (one multi-alias
   \`gh api graphql\` / REST batch), never call-by-call; native field/type
   over a duplicate \`priority:*\`/\`size:*\` label. Detail: \`/board\` skill.
-- Always update \`.specnaut/backlog.md\` after any local task-file change.
 - Never delete task files — change status to \`done\` or \`deferred\`.
-- Use Fibonacci for complexity (1, 2, 3, 5, 8, 13, 21 only).
-- Justify every priority change.
 - Respect dependencies — don't recommend blocked tasks.
 - Respect epic semantics — never close a parent while children remain open.
 - Persisted artifacts in English; chat replies in the user's language.
-- Missing \`parent:\` on legacy tasks is treated as \`parent: null\`.
 
 ## Tech-debt intake protocol
 
