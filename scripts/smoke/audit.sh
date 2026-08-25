@@ -216,13 +216,23 @@ else
       # deliberately NOT fatal: a new category with no recourse would block
       # legitimate work, and the defect here is invisibility, not the gap.
       case "$f" in
-        templates/core/*)
+        # manifest.json is the bundle's own category index, not a user-facing
+        # surface — it changes on essentially every release and no smoke could
+        # meaningfully "cover" it.
+        templates/manifest.json) ;;
+        *)
+          # Everything else the pathspec above collected. It used to say
+          # `templates/core/*` here, which silently excluded `src/cli/` — a
+          # path the diff DOES collect. So the section that exists to make the
+          # map's blind spots visible had a blind spot of its own, and the
+          # audit reported "every surface change has a matching smoke
+          # assertion" about CLI changes it had never mapped.
           unmapped_count=$((unmapped_count + 1))
           unmapped_list="$unmapped_list  - $f
 "
           ;;
       esac
-      continue # tests/, scripts/, plugin/ and friends are genuinely out of scope
+      continue # nothing else reaches here: the pathspec bounds what is scanned
     fi
     base="$(basename "$f")"
     covered=0

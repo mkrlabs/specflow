@@ -113,9 +113,15 @@ chmod +x "$SYNTH_SMOKE/smoke-stale.sh"
 #    coverage gap (no glob claims it) and it must not be silently skipped —
 #    silence here is how a required gate reports "every surface change has a
 #    matching smoke assertion" about something it never looked at.
-mkdir -p templates/core/statusline
+mkdir -p templates/core/statusline src/cli
 cat > templates/core/statusline/config.md <<'EOF'
 # a shipped category no glob in the SURFACES map matches
+EOF
+# And one under src/cli/, which the diff pathspec collects but no SURFACES
+# glob claims. The unmapped section was originally scoped to templates/core/
+# only, so this whole root fell through in silence.
+cat > src/cli/new_surface.ts <<'EOF'
+// a CLI surface the audit collects but maps to nothing
 EOF
 
 git add -A
@@ -253,10 +259,16 @@ else
   fail "audit did NOT report the unmapped surface" "it passed in silence"
 fi
 
-if grep -qE "^  1 unmapped surface change\(s\)" <<<"$out"; then
-  pass "audit summary counts exactly 1 unmapped surface change"
+if grep -qE "^  2 unmapped surface change\(s\)" <<<"$out"; then
+  pass "audit summary counts both unmapped surface changes"
 else
-  fail "audit summary did NOT count exactly 1 unmapped surface change"
+  fail "audit summary did not count 2 unmapped surface changes" "$(grep -E 'unmapped' <<<"$out" | head -2)"
+fi
+
+if grep -q "src/cli/new_surface.ts" <<<"$out"; then
+  pass "an unmapped src/cli/ change is named, not silently skipped"
+else
+  fail "src/cli/ change fell through in silence" "the unmapped section had its own blind spot"
 fi
 
 if grep -qE "^  0 coverage gap\(s\)$" <<<"$allow_out" \
