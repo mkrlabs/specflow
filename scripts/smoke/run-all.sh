@@ -63,10 +63,33 @@ done
 #
 # Comments are stripped first: _common.sh documents the old workspace climb
 # by quoting it, and a comment resolves nothing. The rule is about what the
-# code DOES, not what it mentions.
+# code DOES, not what it mentions. What counts as a comment is decided in
+# _common.sh (plan.md §5 023-R1), not here.
+#
+# The pattern is ASSEMBLED, never written out in full. This block IS the
+# check, so a pattern spelled literally here makes the guard match its own
+# source. #544 settled the shape of the answer: assemble from fragments
+# (smoke-toolbox.sh:38 does the same with `up=".."`); exempting the file
+# that holds a check is a hole in the check, not a fix for one.
+#
+# It stayed hidden while this loop stripped comments inline with
+# `sed 's/#.*$//'` — that expression cut this very line at the hash inside
+# itself and erased the pattern before grep ever saw it. Only the workspace
+# half ever self-matched; the escaped `\.\./…` half never did.
+_seg_ws="apps"
+_seg_half="specnaut-cli"
+BOUNDARY_RE="\.\./\.\./\.\./\.\.\|$_seg_ws/$_seg_half"
+
 boundary_hits=0
 for f in "$SMOKE_DIR"/*.sh; do
-  n="$(sed 's/#.*$//' "$f" | grep -c '\.\./\.\./\.\./\.\.\|apps/specnaut-cli' || true)"
+  # Asker two of two for 023-R1; the definition lives in _common.sh. The
+  # inline expression this replaces cut at the FIRST hash on a line, so any
+  # path written after a `${var#…}` or inside a banner escaped the check —
+  # this guard was blind to part of its own surface.
+  #
+  # `grep -c` consumes all input, so unlike audit.sh's `grep -q` there is no
+  # early exit to SIGPIPE the producer under pipefail.
+  n="$(smoke_code_lines "$f" | grep -c "$BOUNDARY_RE" || true)"
   if [ "$n" -gt 0 ]; then
     echo "❌ $(basename "$f") resolves $n path(s) outside this repository"
     boundary_hits=$((boundary_hits + n))
