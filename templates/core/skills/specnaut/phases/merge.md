@@ -115,6 +115,17 @@ Read `phases/merge-squash.md` and follow it. It carries the scope table, the fou
 the verification that is not optional, and the `--pr` clause. Nothing was cut in the move — the
 rules live there in full, and this phase performs them.
 
+## The full gate tier, once
+
+Before merging an **epic** branch to the default branch, run the **full** gate
+tier exactly once — `.specnaut/scripts/bash/run-gate.sh full`, or its
+PowerShell twin. Never per child; that is the fast tier's job and it already
+ran. `phases/quality-gates.md` carries what each tier is for and what happens
+when one fails.
+
+A project that has declared no gates keeps today's behaviour: the run reports
+that the tier is not declared and continues.
+
 ## Output
 
 A structured report with: files merged, commits merged, whether the user chose to push, and — when

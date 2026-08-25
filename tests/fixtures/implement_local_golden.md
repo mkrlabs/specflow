@@ -172,6 +172,12 @@ produces exactly one commit and the subject line is what makes it placeable.
 Read `phases/epic-commits.md` and follow it. On a standalone item nothing here
 applies — commit as usual.
 
+After each child's commit, run the **fast** gate tier —
+`.specnaut/scripts/bash/run-gate.sh fast`, or its PowerShell twin. What it
+contains is the project's to declare; see `phases/quality-gates.md`. A child
+that fails it is fixed in place and the gate re-runs; the loop does not hand
+back.
+
 ## Ending this phase — freeze, then INVOKE `review`, same turn
 
 **An implementation that has not been through review is not finished.** `review` is this phase's

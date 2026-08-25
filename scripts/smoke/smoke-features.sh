@@ -67,7 +67,7 @@ check ".claude/commands/ is not created at all (#533)" \
   '[ ! -e .claude/commands ]'
 check "router .claude/skills/specnaut/SKILL.md present" \
   '[ -f .claude/skills/specnaut/SKILL.md ]'
-for phase in plan plan-audits tasks implement review merge merge-squash epic-commits constitution tag-version release-version; do
+for phase in plan plan-audits tasks implement review merge merge-squash epic-commits quality-gates constitution tag-version release-version; do
   check ".claude/skills/specnaut/phases/$phase.md present" \
     "[ -f .claude/skills/specnaut/phases/$phase.md ]"
 done
@@ -99,6 +99,40 @@ check "epic-commits.md carries the Epic trailer and the width-agnostic parse (#5
    grep -qF "T(\\d+)" .claude/skills/specnaut/phases/epic-commits.md'
 check "epic-commits.md names no test tool (constitution: stack-agnostic)" \
   '! grep -qiE "jest|vitest|playwright|pytest|rspec|junit" .claude/skills/specnaut/phases/epic-commits.md'
+check "companion doc quality-gates.md scaffolded (#555)" \
+  '[ -f .claude/skills/specnaut/phases/quality-gates.md ]'
+check "gates.yml scaffolded with both tiers declared empty (#555)" \
+  '[ -f .specnaut/gates.yml ] &&
+   grep -qE "^fast_gate:" .specnaut/gates.yml &&
+   grep -qE "^full_gate:" .specnaut/gates.yml'
+check "run-gate.sh scaffolded + executable (#555)" \
+  '[ -x .specnaut/scripts/bash/run-gate.sh ]'
+check "run-gate.ps1 twin scaffolded (#555)" \
+  '[ -f .specnaut/scripts/powershell/run-gate.ps1 ]'
+check "implement.md runs the fast tier per child (#555)" \
+  'grep -qF "run-gate.sh fast" .claude/skills/specnaut/phases/implement.md'
+check "merge.md runs the full tier once, never per child (#555)" \
+  'grep -qF "run-gate.sh full" .claude/skills/specnaut/phases/merge.md &&
+   grep -qF "Never per child" .claude/skills/specnaut/phases/merge.md'
+check "quality-gates.md states the full tier runs once, before the merge (#555)" \
+  'grep -qF "never per child" .claude/skills/specnaut/phases/quality-gates.md'
+check "an undeclared tier degrades rather than failing (#555)" \
+  'grep -qF "is not a failure" .claude/skills/specnaut/phases/quality-gates.md'
+# AC 2, asserted as a sweep over the whole mechanism rather than one file.
+# Specnaut is stack-agnostic; a tool name in ANY of these surfaces ends that,
+# and a check on one file would pass while the name sat in another.
+# NEVER `exit` inside a check expression. `check` runs `eval "$2"` in the
+# CURRENT shell, so an `exit` terminates the whole smoke script — and the
+# first draft of this very assertion ended with `exit 0`, which left the run
+# finishing silently at code 0 with every later check unrun and no closing
+# banner. A fail-open guard, written inside the ticket about guards.
+# grep takes several files, so no loop is needed here at all.
+check "no surface of the gate mechanism names a test tool (#555 AC2)" \
+  '! grep -qiE "jest|vitest|playwright|cypress|pytest|rspec|junit|mocha|karma|nightwatch|testcafe|phpunit|xunit|nunit" \
+       .specnaut/gates.yml \
+       .specnaut/scripts/bash/run-gate.sh \
+       .specnaut/scripts/powershell/run-gate.ps1 \
+       .claude/skills/specnaut/phases/quality-gates.md'
 check "phase doc constitution.md scaffolded" \
   '[ -f .claude/skills/specnaut/phases/constitution.md ]'
 check "removed phases do NOT scaffold (#455)" \

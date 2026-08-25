@@ -1,0 +1,42 @@
+# Quality gate tiers.
+#
+# Two tiers, declared by YOU. Specnaut runs what is written here and
+# interprets nothing — it does not know what a test is, what your runner is
+# called, or what any of these commands do. That is deliberate: naming a tool
+# in a shipped file would tie Specnaut to a stack it has no business knowing
+# about.
+#
+#   fast_gate — runs after EVERY commit while an epic's children are being
+#               worked. Keep it short. Its intended content is a surface pass:
+#               unit tests, an agent review, type checking. If it takes
+#               minutes, the loop it exists to make affordable stops being
+#               affordable.
+#
+#   full_gate — runs ONCE, before the merge to the default branch, and never
+#               per child. This is where a long-running end-to-end suite
+#               belongs — the kind that drives a real browser, boots real
+#               services, or takes tens of minutes.
+#
+# Each key is a flat list of shell command strings, run in order, from the
+# repository root. A non-zero exit from any one of them fails that tier.
+#
+# The format is deliberately narrow so a shell script can read it without a
+# YAML library: a top-level key, then `  - ` items, one command per line. No
+# nesting, no anchors, no multi-line scalars.
+#
+# Leaving a list empty is a valid choice, not a broken configuration —
+# Specnaut reports that the tier is not declared and carries on exactly as it
+# did before this file existed.
+#
+# Example shape (the commands are yours; these are placeholders):
+#
+#   fast_gate:
+#     - <your unit test command>
+#     - <your type checker>
+#   full_gate:
+#     - <your unit test command>
+#     - <your end-to-end suite>
+
+fast_gate: []
+
+full_gate: []

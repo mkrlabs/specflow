@@ -78,11 +78,11 @@ groom\` — this router does not carry a \`groom\` verb at all. Orphan
 spec detection sits on this side and lives in \`phases/auto-chain.md\`, because it
 reads spec artefacts and prescribes specnaut phases.
 
-\`phases/plan-audits.md\`, \`phases/merge-squash.md\`, \`phases/epic-commits.md\` and
-\`phases/auto-chain.md\` are **contract docs, not routable phases** — \`plan\` loads the first at its
+\`phases/plan-audits.md\`, \`phases/merge-squash.md\`, \`phases/epic-commits.md\`,
+\`phases/quality-gates.md\` and \`phases/auto-chain.md\` are **contract docs, not routable phases** — \`plan\` loads the first at its
 step 6, \`merge\` loads the second at its step 4, \`implement\` loads the third when the item is an epic,
-and the router loads the fourth when it chains. Naming any of them as a phase prints the index and
-stops.
+\`implement\` and \`merge\` share the fourth, and the router loads the fifth when it chains. Naming any
+of them as a phase prints the index and stops.
 
 Chainable phases are: \`plan\`, \`tasks\`, \`implement\`, \`review\`. The others (\`merge\`, \`constitution\`,
 \`tag-version\`, \`release-version\`, \`audit <axis>\`) are one-shot regardless of chain mode.
@@ -879,6 +879,12 @@ produces exactly one commit and the subject line is what makes it placeable.
 Read \`phases/epic-commits.md\` and follow it. On a standalone item nothing here
 applies — commit as usual.
 
+After each child's commit, run the **fast** gate tier —
+\`.specnaut/scripts/bash/run-gate.sh fast\`, or its PowerShell twin. What it
+contains is the project's to declare; see \`phases/quality-gates.md\`. A child
+that fails it is fixed in place and the gate re-runs; the loop does not hand
+back.
+
 ## Ending this phase — freeze, then INVOKE \`review\`, same turn
 
 **An implementation that has not been through review is not finished.** \`review\` is this phase's
@@ -1001,6 +1007,103 @@ ways, and they must agree:
 
 If they disagree, the branch has been rewritten by something that did not read
 this file. Stop and say so rather than picking one.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "phase",
+    name: "quality-gates",
+    suffix: "quality-gates.md",
+    content: `# Quality gates — two tiers, declared by the project
+
+Loaded by \`phases/implement.md\` after each child commit on an epic branch, and
+by \`phases/merge.md\` once before the merge to the default branch.
+
+Looping over an epic's children is only affordable if the per-child check is
+cheap. Running a project's whole suite once per child would cost more than the
+N-merges problem the loop removes. So there are two tiers, and the difference
+between them is **how often they run**, not how thorough they are.
+
+## Where they are declared, and by whom
+
+\`.specnaut/gates.yml\`, two keys:
+
+\`\`\`yaml
+fast_gate:
+  - <a command>
+  - <another command>
+full_gate:
+  - <a command>
+\`\`\`
+
+Each key is a flat list of shell command strings. **They are the project's
+commands, run verbatim.** Specnaut does not know what a test is, what your
+runner is called, or what any of these do — and no bundled Specnaut file names
+a test tool, runner or framework. That is a constitutional constraint, not a
+style preference: this tool is stack-agnostic, and a tool name written into a
+shipped file would end that.
+
+The constraint holds **structurally** rather than by review. There is nowhere
+in the mechanism for a tool name to be written: the declaration is yours, the
+runner executes what it reads, and neither this document nor the script has a
+default to fall back to.
+
+## Running one
+
+\`\`\`
+.specnaut/scripts/bash/run-gate.sh <fast|full>
+\`\`\`
+
+or its PowerShell twin. **That script is the only parser.** The loop and the
+pre-merge step both call it; neither reads \`gates.yml\` itself. A second parser
+is a second definition of what a gate is, and two definitions drift.
+
+- Commands run in order, from the repository root, each in its own subshell —
+  a command that changes directory does not relocate the next one.
+- **A non-zero exit from any command fails the tier.**
+- **A tier that is not declared is not a failure.** No \`gates.yml\`, or an empty
+  list, and the run reports that the tier is not declared and continues. A
+  project that declares neither keeps exactly today's behaviour.
+- "No gate ran" and "the gate passed" are printed as different sentences,
+  because they are different facts and a caller that cannot tell them apart
+  will report the wrong one.
+
+## \`fast\` — after every child commit
+
+Its intended content is a **surface pass**: unit tests, an agent review, type
+checking. Short enough that running it N times over an epic's children is not
+what makes the loop expensive. The content is yours to declare; the intent is
+what this document is for.
+
+**A child that fails its fast gate is fixed in place.** The lead fixes it, the
+gate re-runs for that child, and the loop continues to the next. It is not an
+escalation and it does not hand back to the user.
+
+**The agent review inside this tier never stops the loop either.** Findings go
+to the lead, who triages, fixes, commits the child and moves on in the same
+turn. Only the last child's review is a stop.
+
+## \`full\` — once, before the merge
+
+Its intended content includes whatever **long-running end-to-end suite** the
+project has: the kind that drives a real browser, boots real services, or takes
+tens of minutes.
+
+**It runs once, before the merge to the default branch, and never per child.**
+That is the whole reason the tiers exist, and it is stated here plainly rather
+than left to be inferred from the word "full".
+
+A failing full gate is fixed on the branch and retried — a fixup commit
+attributed to the child at fault, then the gate again. It does not abandon the
+merge and does not hand the epic back.
+
+## A standalone item
+
+None of this applies. A standalone task has one commit and one merge; there is
+no per-child tier to run, and a project that has declared gates may still run
+them by hand. The tiers are an epic mechanism.
 `,
     executable: false,
     backend: null,
@@ -1258,6 +1361,17 @@ wanted pull requests will say so.
 Read \`phases/merge-squash.md\` and follow it. It carries the scope table, the four-step procedure,
 the verification that is not optional, and the \`--pr\` clause. Nothing was cut in the move — the
 rules live there in full, and this phase performs them.
+
+## The full gate tier, once
+
+Before merging an **epic** branch to the default branch, run the **full** gate
+tier exactly once — \`.specnaut/scripts/bash/run-gate.sh full\`, or its
+PowerShell twin. Never per child; that is the fast tier's job and it already
+ran. \`phases/quality-gates.md\` carries what each tier is for and what happens
+when one fails.
+
+A project that has declared no gates keeps today's behaviour: the run reports
+that the tier is not declared and continues.
 
 ## Output
 
@@ -24089,6 +24203,116 @@ fi
   {
     category: "spec-root",
     name: "specify",
+    suffix: "scripts/bash/run-gate.sh",
+    content: `#!/usr/bin/env bash
+# Run one declared quality-gate tier.
+#
+#   run-gate.sh <fast|full>
+#
+# Reads \`.specnaut/gates.yml\` and runs the commands under \`fast_gate:\` or
+# \`full_gate:\`, in order, from the repository root.
+#
+# This script is the ONE place the declaration is parsed. The per-child loop
+# and the pre-merge step both call it; neither reads the file itself. A second
+# parser is a second definition of what a gate is, and the two drift.
+#
+# It names no test tool, runner or framework, and it never will: the commands
+# come from the project's file and are executed verbatim. There is nowhere in
+# here for a tool name to be written.
+#
+# Exit codes:
+#   0   every command succeeded, OR the tier is not declared (see below)
+#   1   a command exited non-zero — the tier failed
+#   2   usage error
+#
+# A tier that is not declared is NOT a failure. A project with no gates.yml,
+# or with an empty list, behaves exactly as it did before this file existed.
+# The script says so on stdout rather than passing in silence, because "no
+# gate ran" and "the gate passed" are different facts and a caller that cannot
+# tell them apart will report the wrong one.
+set -uo pipefail
+
+TIER="\${1:-}"
+case "\$TIER" in
+  fast|full) ;;
+  *) echo "usage: run-gate.sh <fast|full>" >&2; exit 2 ;;
+esac
+
+SCRIPT_DIR="\$(cd -- "\$(dirname -- "\${BASH_SOURCE[0]}")" && pwd)"
+# .specnaut/scripts/bash/run-gate.sh -> the .specnaut directory
+SPECNAUT_DIR="\$(cd -- "\$SCRIPT_DIR/../.." && pwd)"
+GATES="\$SPECNAUT_DIR/gates.yml"
+REPO_ROOT="\$(cd -- "\$SPECNAUT_DIR/.." && pwd)"
+
+if [ ! -r "\$GATES" ]; then
+  echo "no \$TIER gate declared — \$GATES is absent, so nothing ran"
+  exit 0
+fi
+
+# Read one flat list. The format is narrow on purpose (see gates.yml): a
+# top-level \`<tier>_gate:\` key, then \`  - \` items until the next top-level key.
+# Quotes around an item are optional and are stripped as a matched pair only,
+# so a command containing a quote is not silently mangled.
+COMMANDS="\$(
+  awk -v key="\${TIER}_gate:" '
+    # A top-level key is a line starting in column 1 with a non-space,
+    # non-comment character. Reaching one ends the section we are in.
+    /^[^ \\t#]/ {
+      if (index(\$0, key) == 1) { inside = 1; next }
+      inside = 0
+    }
+    !inside { next }
+    /^[ \\t]*#/ { next }
+    /^[ \\t]*\$/ { next }
+    /^[ \\t]*-[ \\t]*/ {
+      line = \$0
+      sub(/^[ \\t]*-[ \\t]*/, "", line)
+      sub(/[ \\t]+\$/, "", line)
+      if (line == "") next
+      first = substr(line, 1, 1); last = substr(line, length(line), 1)
+      if ((first == "\\"" && last == "\\"") || (first == "'\\''" && last == "'\\''")) {
+        if (length(line) >= 2) line = substr(line, 2, length(line) - 2)
+      }
+      print line
+    }
+  ' < "\$GATES"
+)"
+
+if [ -z "\$COMMANDS" ]; then
+  echo "no \$TIER gate declared — \${TIER}_gate in \$(basename "\$GATES") is empty, so nothing ran"
+  exit 0
+fi
+
+count="\$(printf '%s\\n' "\$COMMANDS" | wc -l | tr -d ' ')"
+echo "running the \$TIER gate — \$count command(s) from \$(basename "\$GATES")"
+
+i=0
+while IFS= read -r cmd; do
+  [ -n "\$cmd" ] || continue
+  i=\$((i + 1))
+  echo "  [\$i/\$count] \$cmd"
+  # \`cd\` per command: a command that changes directory must not silently
+  # relocate the next one.
+  ( cd "\$REPO_ROOT" && eval "\$cmd" )
+  rc=\$?
+  if [ "\$rc" -ne 0 ]; then
+    echo "  ✗ the \$TIER gate failed at command \$i/\$count (exit \$rc): \$cmd" >&2
+    exit 1
+  fi
+done <<EOF
+\$COMMANDS
+EOF
+
+echo "✓ the \$TIER gate passed — \$count of \$count command(s)"
+exit 0
+`,
+    executable: true,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
     suffix: "scripts/bash/setup-plan.sh",
     content: `#!/usr/bin/env bash
 
@@ -25334,6 +25558,174 @@ if (\$Json) {
         Write-Output "SPECIFY_FEATURE environment variable set to: \$branchName"
     }
 }
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "scripts/powershell/run-gate.ps1",
+    content: `#!/usr/bin/env pwsh
+# Run one declared quality-gate tier. PowerShell twin of run-gate.sh.
+#
+#   run-gate.ps1 <fast|full>
+#
+# Reads \`.specnaut/gates.yml\` and runs the commands under \`fast_gate:\` or
+# \`full_gate:\`, in order, from the repository root.
+#
+# This and its bash twin are the ONLY places the declaration is parsed. The
+# per-child loop and the pre-merge step both call one of them; neither reads
+# the file itself. A second parser is a second definition of what a gate is.
+#
+# It names no test tool, runner or framework, and it never will: the commands
+# come from the project's file and are executed verbatim.
+#
+# Exit codes:
+#   0   every command succeeded, OR the tier is not declared
+#   1   a command exited non-zero — the tier failed
+#   2   usage error
+#
+# A tier that is not declared is NOT a failure, and the script says so on
+# stdout rather than passing in silence: "no gate ran" and "the gate passed"
+# are different facts, and a caller that cannot tell them apart reports the
+# wrong one.
+
+param([Parameter(Position = 0)][string]\$Tier)
+
+if (\$Tier -ne 'fast' -and \$Tier -ne 'full') {
+    Write-Error 'usage: run-gate.ps1 <fast|full>'
+    exit 2
+}
+
+\$scriptDir = Split-Path -Parent \$MyInvocation.MyCommand.Path
+# .specnaut/scripts/powershell/run-gate.ps1 -> the .specnaut directory
+\$specnautDir = (Resolve-Path (Join-Path \$scriptDir '..' '..')).Path
+\$gates = Join-Path \$specnautDir 'gates.yml'
+\$repoRoot = (Resolve-Path (Join-Path \$specnautDir '..')).Path
+
+if (-not (Test-Path -LiteralPath \$gates -PathType Leaf)) {
+    Write-Output "no \$Tier gate declared — \$gates is absent, so nothing ran"
+    exit 0
+}
+
+# One flat list. The format is narrow on purpose (see gates.yml): a top-level
+# \`<tier>_gate:\` key, then \`  - \` items until the next top-level key. Quotes
+# around an item are stripped as a matched pair only, so a command containing
+# a quote is not silently mangled.
+\$key = "\${Tier}_gate:"
+\$inside = \$false
+\$commands = @()
+foreach (\$line in [System.IO.File]::ReadAllLines(\$gates)) {
+    if (\$line -match '^[^ \\t#]') {
+        \$inside = \$line.StartsWith(\$key)
+        continue
+    }
+    if (-not \$inside) { continue }
+    if (\$line -match '^[ \\t]*#') { continue }
+    if (\$line -match '^[ \\t]*\$') { continue }
+    if (\$line -match '^[ \\t]*-[ \\t]*(.*)\$') {
+        \$item = \$Matches[1].TrimEnd()
+        if (\$item -eq '') { continue }
+        if (\$item.Length -ge 2) {
+            \$first = \$item[0]; \$last = \$item[\$item.Length - 1]
+            if ((\$first -eq '"' -and \$last -eq '"') -or (\$first -eq "'" -and \$last -eq "'")) {
+                \$item = \$item.Substring(1, \$item.Length - 2)
+            }
+        }
+        \$commands += \$item
+    }
+}
+
+if (\$commands.Count -eq 0) {
+    Write-Output "no \$Tier gate declared — \${Tier}_gate in \$(Split-Path -Leaf \$gates) is empty, so nothing ran"
+    exit 0
+}
+
+\$count = \$commands.Count
+Write-Output "running the \$Tier gate — \$count command(s) from \$(Split-Path -Leaf \$gates)"
+
+\$i = 0
+foreach (\$cmd in \$commands) {
+    \$i++
+    Write-Output "  [\$i/\$count] \$cmd"
+    # Push/pop per command: a command that changes directory must not silently
+    # relocate the next one.
+    Push-Location \$repoRoot
+    try {
+        # Invoke-Expression is the direct analogue of bash's \`eval\`: the
+        # command string is the project's and is run verbatim. Spawning a
+        # child pwsh through a constructed \$PSHOME path was the first draft
+        # and is fragile across platforms for no gain.
+        \$global:LASTEXITCODE = 0
+        Invoke-Expression \$cmd
+        # A native command sets \$LASTEXITCODE; a failing cmdlet leaves it 0
+        # and sets \$? to false. Both are failures, so both are checked —
+        # reading only one is how a gate passes on a command that did not.
+        \$rc = if (\$LASTEXITCODE -ne 0) { \$LASTEXITCODE } elseif (-not \$?) { 1 } else { 0 }
+    } finally {
+        Pop-Location
+    }
+    if (\$rc -ne 0) {
+        Write-Error "  ✗ the \$Tier gate failed at command \$i/\$count (exit \$rc): \$cmd"
+        exit 1
+    }
+}
+
+Write-Output "✓ the \$Tier gate passed — \$count of \$count command(s)"
+exit 0
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "spec-root",
+    name: "specify",
+    suffix: "gates.yml",
+    content: `# Quality gate tiers.
+#
+# Two tiers, declared by YOU. Specnaut runs what is written here and
+# interprets nothing — it does not know what a test is, what your runner is
+# called, or what any of these commands do. That is deliberate: naming a tool
+# in a shipped file would tie Specnaut to a stack it has no business knowing
+# about.
+#
+#   fast_gate — runs after EVERY commit while an epic's children are being
+#               worked. Keep it short. Its intended content is a surface pass:
+#               unit tests, an agent review, type checking. If it takes
+#               minutes, the loop it exists to make affordable stops being
+#               affordable.
+#
+#   full_gate — runs ONCE, before the merge to the default branch, and never
+#               per child. This is where a long-running end-to-end suite
+#               belongs — the kind that drives a real browser, boots real
+#               services, or takes tens of minutes.
+#
+# Each key is a flat list of shell command strings, run in order, from the
+# repository root. A non-zero exit from any one of them fails that tier.
+#
+# The format is deliberately narrow so a shell script can read it without a
+# YAML library: a top-level key, then \`  - \` items, one command per line. No
+# nesting, no anchors, no multi-line scalars.
+#
+# Leaving a list empty is a valid choice, not a broken configuration —
+# Specnaut reports that the tier is not declared and carries on exactly as it
+# did before this file existed.
+#
+# Example shape (the commands are yours; these are placeholders):
+#
+#   fast_gate:
+#     - <your unit test command>
+#     - <your type checker>
+#   full_gate:
+#     - <your unit test command>
+#     - <your end-to-end suite>
+
+fast_gate: []
+
+full_gate: []
 `,
     executable: false,
     backend: null,

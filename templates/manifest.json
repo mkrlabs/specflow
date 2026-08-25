@@ -38,6 +38,12 @@
     },
     {
       "category": "phase",
+      "name": "quality-gates",
+      "suffix": "quality-gates.md",
+      "source": "core/skills/specnaut/phases/quality-gates.md"
+    },
+    {
+      "category": "phase",
       "name": "review",
       "suffix": "review.md",
       "source": "core/skills/specnaut/phases/review.md"
@@ -1615,6 +1621,13 @@
     {
       "category": "spec-root",
       "name": "specify",
+      "suffix": "scripts/bash/run-gate.sh",
+      "source": "core/specnaut/scripts/bash/run-gate.sh",
+      "executable": true
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
       "suffix": "scripts/bash/setup-plan.sh",
       "source": "core/specnaut/scripts/bash/setup-plan.sh",
       "executable": true
@@ -1636,6 +1649,18 @@
       "name": "specify",
       "suffix": "scripts/powershell/create-new-feature.ps1",
       "source": "core/specnaut/scripts/powershell/create-new-feature.ps1"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "scripts/powershell/run-gate.ps1",
+      "source": "core/specnaut/scripts/powershell/run-gate.ps1"
+    },
+    {
+      "category": "spec-root",
+      "name": "specify",
+      "suffix": "gates.yml",
+      "source": "core/specnaut/gates.yml"
     },
     {
       "category": "spec-root",
