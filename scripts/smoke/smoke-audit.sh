@@ -226,6 +226,27 @@ set +e
 commentonly_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
 set -e
 
+# --- Assertion 3g: a skill's basename identifies nothing ----------------
+# #547. Every skill file is named SKILL.md, so the basename match was
+# constant-true across the whole surface and 13 shipped skills were asserted
+# on by nothing. Two are planted, because the naive repair fails on the
+# second: `lonely-skill` is named nowhere, and `mentioned-elsewhere` is named
+# ONLY inside an assertion whose subject is a different file — the shape at
+# smoke-features.sh:591 that both plan-time audits found. A token built from
+# the bare skill name reports the second one covered.
+mkdir -p templates/core/skills/lonely-skill templates/core/skills/mentioned-elsewhere
+printf -- '---\nname: lonely-skill\n---\n' > templates/core/skills/lonely-skill/SKILL.md
+printf -- '---\nname: mentioned-elsewhere\n---\n' > templates/core/skills/mentioned-elsewhere/SKILL.md
+cat >> "$SYNTH_SMOKE/smoke-features.sh" <<'EOF'
+[ -f .claude/skills/board/SKILL.md ] || { echo "missing board"; exit 1; }
+grep -q "mentioned-elsewhere" .claude/skills/board/SKILL.md || { echo "no xref"; exit 1; }
+EOF
+git add -A
+git commit -q -m "plant two skills, one named only in another file's assertion"
+set +e
+skills_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+set -e
+
 echo "$out"
 echo
 echo "── assertions ──"
@@ -351,6 +372,20 @@ if grep -qE "^  2 coverage gap\(s\)$" <<<"$commentonly_out"; then
 else
   fail "gap count did not reach 2 with the comment-only file planted" \
        "$(grep -E 'coverage gap' <<<"$commentonly_out" | head -1)"
+fi
+
+if grep -q "skills/lonely-skill/SKILL.md" <<<"$skills_out"; then
+  pass "a skill no smoke names is a coverage gap (#547)"
+else
+  fail "a skill nothing asserts on was reported covered" \
+       "every skill's basename is SKILL.md, so the basename match cannot fail"
+fi
+
+if grep -q "skills/mentioned-elsewhere/SKILL.md" <<<"$skills_out"; then
+  pass "naming a skill inside another file's assertion is not coverage"
+else
+  fail "a cross-reference vouched for a skill" \
+       "the token must not be the bare skill name — smoke-features.sh:591 is this shape"
 fi
 
 finish "SMOKE-AUDIT"
