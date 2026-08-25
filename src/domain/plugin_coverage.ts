@@ -115,6 +115,7 @@ export const PLUGIN_COVERED_PATHS_CLAUDE: ReadonlyArray<string> = [
     "implement",
     "review",
     "merge",
+    "merge-squash",
     "auto-chain",
     "constitution",
     "tag-version",

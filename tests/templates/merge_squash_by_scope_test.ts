@@ -20,14 +20,36 @@ import type { CoreEntry } from "../../src/domain/core_bundle.ts";
  *     attributes work to an item that never asked for it.
  */
 
+/**
+ * #558 moved this section out of `merge.md` into a companion doc, because
+ * `merge.md` emitted at 11,960 characters against a 12,000 cap and three
+ * siblings under #552 needed room to write. The rules did not change — only
+ * where they live — so every assertion below is re-anchored verbatim rather
+ * than relaxed. An extraction that quietly loosens its own guard is how a
+ * "no behaviour change" refactor stops being one.
+ */
+function squashDoc(): CoreEntry {
+  const e = CORE_BUNDLE.find((x) => x.category === "phase" && x.name === "merge-squash");
+  if (!e) throw new Error("missing merge-squash phase entry");
+  return e;
+}
+
 function mergePhase(): CoreEntry {
   const e = CORE_BUNDLE.find((x) => x.category === "phase" && x.name === "merge");
   if (!e) throw new Error("missing merge phase entry");
   return e;
 }
 
-Deno.test("merge squashes by scope, and says it is not one commit per branch", () => {
+Deno.test("merge.md still routes to the squash rules it no longer contains", () => {
+  // The load-bearing half of the extraction. A companion doc nobody loads is
+  // a deletion, and the pointer is the only thing that makes the move a move.
   const { content } = mergePhase();
+  assertStringIncludes(content, "phases/merge-squash.md");
+  assertStringIncludes(content, "Squash by scope");
+});
+
+Deno.test("merge squashes by scope, and says it is not one commit per branch", () => {
+  const { content } = squashDoc();
   assertStringIncludes(content, "one commit per scope");
   assertStringIncludes(content, 'never "exactly one commit"');
   assertStringIncludes(content, "a history a human can read");
@@ -38,14 +60,14 @@ Deno.test("merge squashes by scope, and says it is not one commit per branch", (
 });
 
 Deno.test("the backlog id sits in the scope position, and a pre-existing fix keeps its own", () => {
-  const { content } = mergePhase();
+  const { content } = squashDoc();
   assertStringIncludes(content, "scope position");
   assertStringIncludes(content, "never the feature's");
   assertStringIncludes(content, "never asked for it");
 });
 
 Deno.test("the squash stages by name and verifies the tree did not move", () => {
-  const { content } = mergePhase();
+  const { content } = squashDoc();
   assertStringIncludes(content, "reset --soft");
   assertStringIncludes(content, "by name");
   assertStringIncludes(content, "Never `git add -A`");
@@ -57,7 +79,7 @@ Deno.test("the squash stages by name and verifies the tree did not move", () => 
 });
 
 Deno.test("merge does not stop to have the grouping approved", () => {
-  const { content } = mergePhase();
+  const { content } = squashDoc();
   assertStringIncludes(content, "Do not stop between steps 2 and 3");
   assertStringIncludes(content, "Asking for the merge *is* asking for the squash");
   // The one legitimate halt, scoped to the files that caused it.
@@ -65,7 +87,7 @@ Deno.test("merge does not stop to have the grouping approved", () => {
 });
 
 Deno.test("merge documents the protected-branch limit and refuses the forge squash button", () => {
-  const { content } = mergePhase();
+  const { content } = squashDoc();
   assertStringIncludes(content, "protected");
   assertStringIncludes(content, '"Squash and merge"');
 });

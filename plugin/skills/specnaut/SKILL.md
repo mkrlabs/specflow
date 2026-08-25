@@ -67,9 +67,10 @@ groom` — this router does not carry a `groom` verb at all. Orphan
 spec detection sits on this side and lives in `phases/auto-chain.md`, because it
 reads spec artefacts and prescribes specnaut phases.
 
-`phases/plan-audits.md` and `phases/auto-chain.md` are **contract docs, not routable phases** —
-`plan` loads the first at its step 6, the router loads the second when it chains. Naming either as a
-phase prints the index and stops.
+`phases/plan-audits.md`, `phases/merge-squash.md` and `phases/auto-chain.md` are **contract docs,
+not routable phases** — `plan` loads the first at its step 6, `merge` loads the second at its step 4,
+and the router loads the third when it chains. Naming any of them as a phase prints the index and
+stops.
 
 Chainable phases are: `plan`, `tasks`, `implement`, `review`. The others (`merge`, `constitution`,
 `tag-version`, `release-version`, `audit <axis>`) are one-shot regardless of chain mode.

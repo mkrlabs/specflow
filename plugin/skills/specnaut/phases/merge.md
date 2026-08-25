@@ -34,7 +34,7 @@ wanted pull requests will say so.
 2. Run `git status --porcelain` — abort if the working tree is dirty.
 3. Run `git fetch origin <base>` and verify the current branch is up-to-date with `origin/<base>`
    (fast-forward or rebase first if behind).
-4. **Squash by scope** — see the section below. This phase performs the squash; it does not check
+4. **Squash by scope** — load `phases/merge-squash.md`. This phase performs the squash; it does not check
    that somebody else did it, and it does not ask permission to do its own job.
 5. **`--pr` only** — push the feature branch, open the pull request against `<base>`, and **stop
    here**. First run `gh pr view <n> --json closingIssuesReferences` and name any issue the
@@ -109,59 +109,11 @@ wanted pull requests will say so.
     what it believes it closed — the second question is answerable without being
     true.
 
-## Squash by scope — one commit per scope, never "exactly one commit"
+## Squash by scope
 
-A branch usually carries more than one kind of change, and collapsing them into a single commit
-destroys the thing squashing exists to produce: **a history a human can read.**
-
-| What is on the branch | Where it goes |
-| :--- | :--- |
-| The feature itself — rules, domain, service, UI, its tests | **One** commit, `<type>(<id>): <what it does>` |
-| Generated artefacts the feature invalidated — bundles, codegen output, lockfiles | Its own `chore(codegen):` commit |
-| Configuration, tooling, CI unrelated to the feature | Its own `chore(...)` / `ci(...)` commit |
-| Documentation or agent memory written alongside | Its own `docs(...)` commit |
-| A fix to a **pre-existing** defect the branch happened to expose | Its own commit, with **its own** backlog id — never the feature's |
-
-**Every commit subject carries the backlog id of the thing it is about**, in the scope position:
-`feat(412): …`, `fix(389): …`, and `chore(codegen):` where the commit belongs to no item. That id is
-what makes `git log --oneline` readable against the board, and it is why a pre-existing fix must not
-inherit the feature's id — that would attribute work to an item which never asked for it. The id
-comes from whichever backlog backend the project uses; no backend-specific syntax is required.
-
-### Procedure
-
-1. `git log <base>..HEAD --oneline` — read what is actually there.
-2. Group the commits by scope using the table above, and **show the grouping**.
-3. `git reset --soft <base>`, then re-commit **one group at a time**, staging paths **by name**.
-   Never `git add -A` — a sweep is the fastest way to pull in something the branch never had.
-4. `git log <base>..HEAD --oneline` again. The result is one commit per scope, in an order that
-   reads forwards: the feature first, its codegen after it, unrelated changes last.
-
-**Do not stop between steps 2 and 3.** The grouping is shown so the user can see what happened, not
-so they can approve it mid-run. Asking for the merge *is* asking for the squash. The one thing that
-legitimately halts here is a file you cannot classify — name those files, say why, and ask about
-**those files only**.
-
-### Verification, which is not optional
-
-- **`git diff <base>..HEAD` must be byte-identical to what it was before the squash.** A squash that
-  changes the tree is not a squash, it is a rewrite. Capture the diff before step 3 and compare
-  after step 4.
-- **`git status --short` must then be empty.** If anything appears:
-  - **Untracked (`??`)** — usually generated output. Decide per file: it belongs either to the
-    codegen commit or to `.gitignore`. Never leave it dangling and never report success over it.
-  - **Modified** — something wrote to the tree during the squash. Find out what before going
-    further; an agent still holding the worktree is the usual answer, and it must be stopped first.
-
-### The squash happens either way
-
-Squash by scope runs on the `--pr` path too, before the branch is pushed — so the pull request
-carries the same readable history the local path would have produced. Then **do not use the forge's
-"Squash and merge" button**: it collapses the scopes back into the single commit this whole
-procedure exists to avoid. Merge the PR with a merge or rebase strategy, or land it locally.
-
-A repository whose base branch is **protected** cannot take the local path at all — the push is
-rejected. That is precisely what `--pr` is for; it is not a reason for this phase to guess.
+Read `phases/merge-squash.md` and follow it. It carries the scope table, the four-step procedure,
+the verification that is not optional, and the `--pr` clause. Nothing was cut in the move — the
+rules live there in full, and this phase performs them.
 
 ## Output
 

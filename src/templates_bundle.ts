@@ -78,9 +78,10 @@ groom\` — this router does not carry a \`groom\` verb at all. Orphan
 spec detection sits on this side and lives in \`phases/auto-chain.md\`, because it
 reads spec artefacts and prescribes specnaut phases.
 
-\`phases/plan-audits.md\` and \`phases/auto-chain.md\` are **contract docs, not routable phases** —
-\`plan\` loads the first at its step 6, the router loads the second when it chains. Naming either as a
-phase prints the index and stops.
+\`phases/plan-audits.md\`, \`phases/merge-squash.md\` and \`phases/auto-chain.md\` are **contract docs,
+not routable phases** — \`plan\` loads the first at its step 6, \`merge\` loads the second at its step 4,
+and the router loads the third when it chains. Naming any of them as a phase prints the index and
+stops.
 
 Chainable phases are: \`plan\`, \`tasks\`, \`implement\`, \`review\`. The others (\`merge\`, \`constitution\`,
 \`tag-version\`, \`release-version\`, \`audit <axis>\`) are one-shot regardless of chain mode.
@@ -1064,7 +1065,7 @@ wanted pull requests will say so.
 2. Run \`git status --porcelain\` — abort if the working tree is dirty.
 3. Run \`git fetch origin <base>\` and verify the current branch is up-to-date with \`origin/<base>\`
    (fast-forward or rebase first if behind).
-4. **Squash by scope** — see the section below. This phase performs the squash; it does not check
+4. **Squash by scope** — load \`phases/merge-squash.md\`. This phase performs the squash; it does not check
    that somebody else did it, and it does not ask permission to do its own job.
 5. **\`--pr\` only** — push the feature branch, open the pull request against \`<base>\`, and **stop
    here**. First run \`gh pr view <n> --json closingIssuesReferences\` and name any issue the
@@ -1139,7 +1140,43 @@ wanted pull requests will say so.
     what it believes it closed — the second question is answerable without being
     true.
 
-## Squash by scope — one commit per scope, never "exactly one commit"
+## Squash by scope
+
+Read \`phases/merge-squash.md\` and follow it. It carries the scope table, the four-step procedure,
+the verification that is not optional, and the \`--pr\` clause. Nothing was cut in the move — the
+rules live there in full, and this phase performs them.
+
+## Output
+
+A structured report with: files merged, commits merged, whether the user chose to push, and — when
+step 11 ran — whether the linked issue was closed (and via which backend), or skipped (and why:
+no \`linked_issue\`, user declined, or \`cascade-check\` blocked the close). It must also quote
+the branch \`HEAD\` is on after the merge, from \`git rev-parse --abbrev-ref HEAD\` — a merge report
+that claims success without naming the branch is unverifiable.
+
+When step 12 ran, quote \`sweep-closed.sh\`'s summary line verbatim and list any card it moved and
+any \`REOPENED\` it reported. Report the summary even when nothing moved: "drifted 0" is the evidence
+that the board was checked, and omitting it makes a checked board indistinguishable from a skipped
+step.
+
+On the \`--pr\` path the report is shorter and must say so plainly: the branch pushed, the PR URL,
+and the fact that **nothing has merged and the backlog item has not moved**. A report that reads
+like a completed merge when a PR is merely open is the failure this phase is most likely to produce.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "phase",
+    name: "merge-squash",
+    suffix: "merge-squash.md",
+    content: `# Squash by scope — one commit per scope, never "exactly one commit"
+
+Loaded by \`phases/merge.md\` at its step 4. This is the **standalone** path's rule: one backlog item,
+one branch, one merge. An **epic** branch does not squash — its history is already one commit per
+task and \`merge.md\` routes it elsewhere. If you arrived here from an epic, you are in the wrong
+file.
 
 A branch usually carries more than one kind of change, and collapsing them into a single commit
 destroys the thing squashing exists to produce: **a history a human can read.**
@@ -1193,22 +1230,6 @@ procedure exists to avoid. Merge the PR with a merge or rebase strategy, or land
 A repository whose base branch is **protected** cannot take the local path at all — the push is
 rejected. That is precisely what \`--pr\` is for; it is not a reason for this phase to guess.
 
-## Output
-
-A structured report with: files merged, commits merged, whether the user chose to push, and — when
-step 11 ran — whether the linked issue was closed (and via which backend), or skipped (and why:
-no \`linked_issue\`, user declined, or \`cascade-check\` blocked the close). It must also quote
-the branch \`HEAD\` is on after the merge, from \`git rev-parse --abbrev-ref HEAD\` — a merge report
-that claims success without naming the branch is unverifiable.
-
-When step 12 ran, quote \`sweep-closed.sh\`'s summary line verbatim and list any card it moved and
-any \`REOPENED\` it reported. Report the summary even when nothing moved: "drifted 0" is the evidence
-that the board was checked, and omitting it makes a checked board indistinguishable from a skipped
-step.
-
-On the \`--pr\` path the report is shorter and must say so plainly: the branch pushed, the PR URL,
-and the fact that **nothing has merged and the backlog item has not moved**. A report that reads
-like a completed merge when a PR is merely open is the failure this phase is most likely to produce.
 `,
     executable: false,
     backend: null,

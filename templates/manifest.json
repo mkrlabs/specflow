@@ -44,6 +44,12 @@
     },
     {
       "category": "phase",
+      "name": "merge-squash",
+      "suffix": "merge-squash.md",
+      "source": "core/skills/specnaut/phases/merge-squash.md"
+    },
+    {
+      "category": "phase",
       "name": "constitution",
       "suffix": "constitution.md",
       "source": "core/skills/specnaut/phases/constitution.md"
