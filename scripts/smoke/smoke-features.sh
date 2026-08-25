@@ -532,6 +532,13 @@ echo "═══ #188  /specnaut merge auto-closes the linked backlog issue ═�
 # grepped "IMPL_PLAN" and "--json", which match this script's own help text and
 # its JSON output keys — replacing the copy with `touch` would have left every
 # assertion green while shipping an empty plan.md to every user.
+# #549: this file was reported covered by an assertion whose subject was a
+# different README entirely.
+check "the status ledger README documents the JSONL it describes" \
+  'grep -q "agents.jsonl" .specnaut/logs/README.md'
+check "and names the skill that reads it" \
+  'grep -q "status-audit" .specnaut/logs/README.md'
+
 check "setup-plan.sh copies the template onto IMPL_PLAN" \
   'grep -qE "cp .+TEMPLATE.+IMPL_PLAN" .specnaut/scripts/bash/setup-plan.sh'
 check "setup-plan.sh resolves the template by name, not a hardcoded path" \

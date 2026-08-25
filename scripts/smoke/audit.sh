@@ -160,7 +160,6 @@ SURFACES=(
   # `/`, so those swallow the whole scaffolded memory tree and turn 150
   # documents into gaps against a smoke that never claimed them.
   'templates/core/root/*|smoke-features.sh smoke-all-harnesses.sh|project-root-file'
-  'templates/core/skills/board/scripts/cloud/*|smoke-backlog-cloud.sh|cloud-backlog-script'
   'templates/core/skills/using-specnaut/references/*|smoke-features.sh|skill-reference'
   'templates/core/skills/code-audit/scripts/*|smoke-features.sh|skill-script'
   'templates/core/skills/board/groom.md|smoke-features.sh|skill-doc'
@@ -219,6 +218,12 @@ allow_reason() {
 # the line this suite has declined to cross every time it has come up.
 coverage_token() {
   case "$1" in
+    templates/core/specnaut/logs/*)
+      # `README.md` as a token matches assertions about OTHER READMEs — the
+      # same collapse #547 removed for SKILL.md, one directory over. Emit the
+      # runtime path suffix instead.
+      echo "specnaut/logs/${1#templates/core/specnaut/logs/}"
+      ;;
     templates/core/skills/*/SKILL.md)
       _n="${1#templates/core/skills/}"
       # `case` globs match `/`, so a hypothetical nested SKILL.md reaches here
@@ -484,7 +489,9 @@ echo
 echo "## Unmapped surface"
 echo
 if [ "$unmapped_count" -eq 0 ]; then
-  echo "  ✓ every changed file under a scaffolded surface fell under a mapped glob"
+  echo "  ✓ every changed file the pathspec collects fell under a mapped glob"
+  echo "    (scope: templates/core/, templates/manifest.json, src/cli/ —"
+  echo "     templates/harness-specific/ is NOT scanned — 12 shipped files, tracked)"
 else
   printf '%s' "$unmapped_list"
   echo "      ↳ no glob in the SURFACES map matches these, so NOTHING was"
