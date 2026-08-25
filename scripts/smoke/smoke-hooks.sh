@@ -99,6 +99,19 @@ echo "═══ check-backlog-prereqs.sh (github backend, gh present) ═══"
 # Patch the lock to simulate the github backend
 sed -i.bak 's/backlog_backend: local/backlog_backend: github/' \
   .specnaut/installed.lock
+# #550: assert the fixture APPLIED. A sed whose pattern matches nothing exits
+# 0 and changes nothing, so if the lock ever spells the key differently every
+# assertion below runs against the LOCAL backend and passes — a whole section
+# exercising the wrong branch, reported as green.
+if ! grep -q "backlog_backend: github" .specnaut/installed.lock; then
+  fail "the github-backend fixture did not apply" \
+       "lock still reads: $(grep backlog_backend .specnaut/installed.lock || echo '<no backlog_backend key>')"
+  # Not a bare `fail`: every assertion below is about the github branch, and
+  # running them against the local one produces green results that mean
+  # nothing. Stop here through the suite's own contract.
+  mv .specnaut/installed.lock.bak .specnaut/installed.lock
+  finish "HOOKS"
+fi
 out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?")
 
 # The disjunction the old comment shrugged at ("Either is OK") is queryable, so

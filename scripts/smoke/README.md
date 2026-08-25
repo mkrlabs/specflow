@@ -33,18 +33,40 @@ counts as code in a smoke script. Source it; never re-derive any of them locally
 
 ## Audit heuristics
 
-`audit.sh` compares the working tree against the newest `v*.*.*` tag and reports five things. It
-exits **1** on any of the first four — the table below marks which. Exit **2** means it could not
-resolve a baseline (a shallow or tagless clone) and **3** that `--src-root` is not a git work tree;
-neither is a findings verdict, and `.specnaut/release/preflight.sh` branches on that difference.
+`audit.sh` compares the working tree against the newest `v*.*.*` tag and reports six findings. Every
+one of them is **fatal** — exit **1**. Exit **2** means it could not resolve a baseline (a shallow
+or tagless clone) and **3** that `--src-root` is not a git work tree; neither is a findings verdict,
+and `.specnaut/release/preflight.sh` branches on that difference.
 
-| Finding                    | What it means                                                                                                                              |
-| :------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Coverage gap**           | A changed file under a mapped surface that no smoke names by basename. Fatal unless allow-listed.                                          |
-| **Stale assertion**        | A smoke references a runtime path with no source counterpart under `templates/`. Fatal.                                                    |
-| **Stale allowlist entry**  | An allow-listed path that no longer exists, or an entry with no written reason. Fatal.                                                     |
-| **Suite-membership drift** | `SUITE_FILES` and the scripts on disk disagree. Fatal.                                                                                     |
-| **Unmapped surface**       | A changed file under `templates/core/` that no glob claims. Reported and counted, **not** fatal — the defect is invisibility, not the gap. |
+| Finding                           | What it means                                                                                                                                      |
+| :-------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Coverage gap**                  | A changed file under a mapped surface that no smoke names by basename. Fatal unless allow-listed with a written reason.                            |
+| **Stale assertion**               | A smoke references a runtime path with no source counterpart under `templates/`.                                                                   |
+| **Capture read only in a `fail`** | A `name=$(…)` capture whose only reader sits inside a `fail`. The `fail` runs _after_ the assertion decided, so the value never reached a verdict. |
+| **Stale allowlist entry**         | An allow-listed path that no longer exists, or an entry with no written reason.                                                                    |
+| **Suite-membership drift**        | `SUITE_FILES` and the scripts on disk disagree.                                                                                                    |
+| **Unmapped surface**              | A changed file under `templates/core/` that no glob claims. Fatal since #549 — the defect is invisibility, not the gap.                            |
+
+Two things are reported and are deliberately **not** fatal: a gap that carries a written allow-list
+reason, and a change under `src/cli/`, which is counted in its own class because it is not a
+scaffolded surface at all.
+
+### An assertion that cannot fail
+
+The unread-capture scan (#550) is one lexical shape of a wider class, and the only shape a grep can
+decide. It is **not** a claim that the suite's assertions are meaningful — 024-R4 forbids that
+framing, and it still holds. It proves that a captured value is _read_ somewhere other than a
+diagnostic; it says nothing about the comparison that read feeds.
+
+The program is `unread-captures.awk`, and it is resolved from the script's own directory, never
+through `--smoke-dir`: the scan's program is not a fixture and does not live in a synthetic tree. It
+skips heredoc bodies (they are data, and this suite embeds shell in them), treats `$((…))` as
+arithmetic rather than a capture, and requires a word boundary after a name so `$fooX` is not a read
+of `foo`. A missing or erroring program is reported as a finding, not as a clean scan.
+
+The complete answer to this class is mutation testing — deliberately breaking the code under test to
+prove each assertion goes red. That is what found all three of #546's constant-true assertions, and
+it is a far larger ticket.
 
 The surface map lives in the `SURFACES` array in `audit.sh`; each entry is
 `<glob>|<smoke-script-list>|<kind>`. The stale scan walks the smoke scripts it enumerates from the

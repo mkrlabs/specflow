@@ -511,6 +511,78 @@ if [ "$stale_count" -eq 0 ]; then
 fi
 
 echo
+echo "## Unread-capture scan"
+echo
+# An assertion that cannot fail is worth less than no assertion, because it
+# reads as coverage. #546 shipped three of them into the ticket whose subject
+# was assertions that do not assert, and every one was found by hand-mutating
+# the code until it was supposed to go red. Nothing in the suite, in
+# shellcheck, or in two plan-time audits saw any of them.
+#
+# This is one lexical shape of that class, and the only one a grep can decide:
+# a `name=$(...)` capture whose ONLY reader is inside a `fail` call. A `fail`
+# runs after the assertion has already decided, so such a value never
+# influenced a verdict — it is a diagnostic wearing an assertion's clothes.
+# That is exactly the `clean_out` defect #546's AC4 fixed by hand.
+#
+# 024-R4 still binds: this proves a captured value is READ somewhere, not that
+# the comparison it feeds is meaningful. The finding says "captured but never
+# read outside fail" and claims nothing more. Mutation testing is the complete
+# answer and a far larger ticket (#550, Out of scope).
+unread_count=0
+# The stale scan's list plus run-all.sh: it carries `fail` calls of its own
+# (the FR-001 boundary check), so it can hold this defect. It is left out of
+# $scanned_files because that list drives the path-staleness scan, and
+# widening it there would change a second, unrelated verdict.
+capture_files="$scanned_files"
+[ -f "$SMOKE_DIR/run-all.sh" ] && capture_files="${capture_files}run-all.sh
+"
+# DEFAULT_SMOKE_DIR, not SMOKE_DIR. `--smoke-dir` points the audit at a
+# synthetic tree of fixtures; the scan's own program is not a fixture and does
+# not live there. Resolving it through SMOKE_DIR made awk fail silently on
+# every meta-test run, the pipeline produce nothing, and the section print
+# "✓ every captured value is read outside a fail diagnostic" — a scan that
+# could not find itself reporting clean. Caught by 3k going red, which is the
+# only reason the control was built.
+CAPTURE_AWK="$DEFAULT_SMOKE_DIR/unread-captures.awk"
+if [ ! -r "$CAPTURE_AWK" ]; then
+  echo "  - $CAPTURE_AWK is missing or unreadable — the unread-capture scan did NOT run"
+  unread_count=$((unread_count + 1))
+  capture_files=""
+fi
+for smoke_name in $capture_files; do
+  smoke="$SMOKE_DIR/$smoke_name"
+  # Same reason smoke-audit.sh is skipped by the stale scan: its heredocs
+  # carry deliberately-defective shell as fixtures for THIS check.
+  [ "$smoke_name" = "smoke-audit.sh" ] && continue
+  if ! code="$(smoke_code_lines "$smoke")"; then
+    echo "  - $smoke_name could not be read — the unread-capture scan did NOT inspect it"
+    unread_count=$((unread_count + 1))
+    continue
+  fi
+  scan_rc=0
+  scan_out="$(printf '%s\n' "$code" | awk -f "$CAPTURE_AWK" 2>&1 | sort -t'|' -k2 -n)" || scan_rc=$?
+  if [ "$scan_rc" -ne 0 ]; then
+    echo "  - the unread-capture scan errored on $smoke_name (awk rc=$scan_rc) — it did NOT inspect it"
+    unread_count=$((unread_count + 1))
+    continue
+  fi
+  while IFS='|' read -r nm lineno failreads; do
+    [ -n "$nm" ] || continue
+    unread_count=$((unread_count + 1))
+    printf '  - %s:%s captures $%s, read %s time(s) and only inside a fail\n' \
+      "$smoke_name" "$lineno" "$nm" "$failreads"
+    printf '      a fail runs after the assertion decided, so the value never reached a verdict\n'
+  done <<EOF
+$scan_out
+EOF
+done
+
+if [ "$unread_count" -eq 0 ]; then
+  echo "  ✓ every captured value is read outside a fail diagnostic"
+fi
+
+echo
 echo "## Unmapped surface"
 echo
 if [ "$unmapped_count" -eq 0 ]; then
@@ -574,6 +646,7 @@ echo "## Summary"
 echo "  $gaps_count coverage gap(s)"
 [ "$allowed_count" -gt 0 ] && echo "  $allowed_count allow-listed gap(s) (not fatal)"
 echo "  $stale_count stale assertion(s)"
+echo "  $unread_count capture(s) read only inside a fail"
 echo "  $stale_allow_count stale allowlist entr(y/ies)"
 echo "  $unmapped_count unmapped surface change(s)"
 [ "$outside_count" -gt 0 ] && echo "  $outside_count change(s) outside the scaffolded surface (not fatal)"
@@ -582,7 +655,7 @@ echo "  $drift_count suite-membership drift(s)"
 echo
 # The exit code IS the verdict (plan.md §5 R5). No caller re-derives it.
 if [ "$gaps_count" -gt 0 ] || [ "$stale_count" -gt 0 ] || [ "$stale_allow_count" -gt 0 ] \
-   || [ "$drift_count" -gt 0 ] || [ "$unmapped_count" -gt 0 ]; then
+   || [ "$drift_count" -gt 0 ] || [ "$unmapped_count" -gt 0 ] || [ "$unread_count" -gt 0 ]; then
   echo "Add the missing assertions, prune the stale ones, or allow-list a gap"
   echo "with a written reason in $(basename "$ALLOWLIST"), then re-run."
   echo "(audit.sh never edits smoke scripts autonomously — that is on you.)"

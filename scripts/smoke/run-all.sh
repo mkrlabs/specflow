@@ -81,6 +81,32 @@ _seg_half="specnaut-cli"
 BOUNDARY_RE="\.\./\.\./\.\./\.\.\|$_seg_ws/$_seg_half"
 
 boundary_hits=0
+
+# #550: a positive control. Nothing else here proves the pattern can EVER
+# match, so a typo in BOUNDARY_RE is indistinguishable from a clean tree — the
+# check would report ✓ forever. Both alternations are probed separately: the
+# escaped `../../../..` half has never self-matched in this file, so only a
+# deliberate probe exercises it at all.
+# Assembled, never written out — the literal would match BOUNDARY_RE and this
+# file would report itself as a violation, which is the self-match hazard the
+# comment above BOUNDARY_RE describes. It fired on the first draft of this
+# very control.
+_up=".."
+for _probe in "$_up/$_up/$_up/$_up/elsewhere" "$_seg_ws/$_seg_half/src/main.ts"; do
+  if ! grep -q "$BOUNDARY_RE" <<<"$_probe"; then
+    fail "the boundary pattern cannot match a known violation: $_probe" \
+         "a typo in BOUNDARY_RE reads exactly like a clean tree (FR-001)"
+    boundary_hits=$((boundary_hits + 1))
+  fi
+done
+# And the other direction, so the control cannot be satisfied by a pattern
+# that matches everything.
+if grep -q "$BOUNDARY_RE" <<<'scripts/smoke/audit.sh'; then
+  fail "the boundary pattern matches an ordinary in-repo path" \
+       "a pattern that matches everything reports every file as a violation (FR-001)"
+  boundary_hits=$((boundary_hits + 1))
+fi
+
 for f in "$SMOKE_DIR"/*.sh; do
   # Asker two of two for 023-R1; the definition lives in _common.sh. The
   # inline expression this replaces cut at the FIRST hash on a line, so any
@@ -105,7 +131,17 @@ for f in "$SMOKE_DIR"/*.sh; do
     boundary_hits=$((boundary_hits + 1))
     continue
   fi
-  n="$(grep -c "$BOUNDARY_RE" <<<"$code" || true)"
+  # #550: `|| true` collapsed rc>=2 (grep itself errored) into rc=1 ("found
+  # nothing"), so a broken search reported a clean result. grep -c prints 0
+  # and exits 1 on no match, which is not an error; anything at or above 2 is.
+  grep_rc=0
+  n="$(grep -c "$BOUNDARY_RE" <<<"$code")" || grep_rc=$?
+  if [ "$grep_rc" -ge 2 ]; then
+    fail "$(basename "$f") — the boundary grep errored (rc=$grep_rc)" \
+         "the boundary check did not inspect it (FR-001)"
+    boundary_hits=$((boundary_hits + 1))
+    continue
+  fi
   if [ "$n" -gt 0 ]; then
     fail "$(basename "$f") resolves $n path(s) outside this repository" \
          "the suite must run from a bare clone of this repository (FR-001)"

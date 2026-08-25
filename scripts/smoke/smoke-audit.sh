@@ -338,6 +338,65 @@ set -euo pipefail
 EOF
 chmod +x "$SYNTH_SMOKE/smoke-stale.sh"
 
+# --- Assertion 3k: a capture read only inside a fail, ISOLATED ----------
+# The positive control for #550's unread-capture scan. Isolated for the same
+# reason 3j is: a run that is already non-zero for coverage gaps cannot tell
+# you whether THIS class is fatal, and a grep for the finding text passes
+# against a report that merely printed it.
+#
+# The pair is the control. Same synthetic smoke, one version whose only reader
+# of $probe_out sits inside a `fail`, one that reads it in the condition. If
+# the scan stops firing, or stops being fatal, the first half goes green here.
+rm -f "$SYNTH_SMOKE/smoke-stale.sh"
+cat > "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/agents/new-fake-agent.md  isolated run: not the class under test
+templates/core/agents/comment-only-agent.md  isolated run: not the class under test
+templates/core/agents/agént-café.md  isolated run: not the class under test
+templates/core/skills/lonely-skill/SKILL.md  isolated run: not the class under test
+templates/core/skills/mentioned-elsewhere/SKILL.md  isolated run: not the class under test
+templates/core/statusline/config.md  isolated run: not the class under test
+templates/core/nosuchcategory/thing.md  isolated run: not the class under test
+EOF
+# The defect. `probe_out` is captured, then read ONLY in the fail diagnostic —
+# which runs after `[ 1 = 1 ]` has already decided. The assertion cannot fail
+# for any reason connected to what was captured.
+cat > "$SYNTH_SMOKE/smoke-capture.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f .claude/agents/baseline-agent.md ] || { echo "missing baseline"; exit 1; }
+probe_out="$(printf 'unexpected')"
+if [ 1 = 1 ]; then
+  fail "the probe disagreed" "got: $probe_out"
+fi
+EOF
+chmod +x "$SYNTH_SMOKE/smoke-capture.sh"
+set +e
+capture_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+capture_rc=$?
+set -e
+# The fix: the captured value now decides the branch. Nothing else changes —
+# same file, same capture, same fail line.
+cat > "$SYNTH_SMOKE/smoke-capture.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f .claude/agents/baseline-agent.md ] || { echo "missing baseline"; exit 1; }
+probe_out="$(printf 'unexpected')"
+if [ "$probe_out" != "unexpected" ]; then
+  fail "the probe disagreed" "got: $probe_out"
+fi
+EOF
+set +e
+capture_fixed_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+capture_fixed_rc=$?
+set -e
+rm -f "$SYNTH_SMOKE/smoke-capture.sh" "$SYNTH_SMOKE/coverage-allowlist.txt"
+cat > "$SYNTH_SMOKE/smoke-stale.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f .claude/agents/baseline-deleted-agent.md ] || { echo "stale ref"; exit 1; }
+EOF
+chmod +x "$SYNTH_SMOKE/smoke-stale.sh"
+
 echo "$out"
 echo
 echo "── assertions ──"
@@ -579,6 +638,26 @@ if [ "$iso_clear_rc" -eq 0 ]; then
 else
   fail "a reasoned allowlist entry did not clear the isolated run" \
        "rc=$iso_clear_rc; $(grep -E 'coverage gap|unmapped' <<<"$iso_clear_out" | head -2)"
+fi
+
+# #550's positive control. The COUNT and the exit code together: a grep for
+# the finding text alone would pass against a report that printed it without
+# acting on it, which is the shape this whole ticket exists to remove.
+if [ "$capture_rc" -ne 0 ] \
+   && grep -qE "^  1 capture\(s\) read only inside a fail$" <<<"$capture_out" \
+   && grep -qE "^  0 coverage gap\(s\)$" <<<"$capture_out" \
+   && grep -qF 'captures $probe_out' <<<"$capture_out"; then
+  pass "a capture read only inside a fail is reported, and is fatal alone (#550)"
+else
+  fail "an unread capture did not fail the audit" \
+       "rc=$capture_rc; $(grep -E 'capture\(s\)|coverage gap' <<<"$capture_out" | head -2)"
+fi
+if [ "$capture_fixed_rc" -eq 0 ] \
+   && grep -qE "^  0 capture\(s\) read only inside a fail$" <<<"$capture_fixed_out"; then
+  pass "and reading it in the condition is what clears the verdict"
+else
+  fail "reading the capture outside the fail did not clear the audit" \
+       "rc=$capture_fixed_rc; $(grep -E 'capture\(s\)' <<<"$capture_fixed_out" | head -1)"
 fi
 
 finish "SMOKE-AUDIT"

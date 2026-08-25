@@ -114,10 +114,18 @@ PYEOF
 # already has the right instinct with `head -1`.
 detail() { printf '%s' "$out" | sed $'s/\x1b\[[0-9;?]*[A-Za-z]//g' | tail -25; }
 
+# #550: every assertion below reads `$out` through a here-string, never
+# `printf … | grep -q`. This script runs under `pipefail`, and `grep -q` exits
+# the moment it matches — which SIGPIPEs the producer and makes the PIPELINE
+# report 141 for a run that FOUND the string. The assertion then decides on
+# the writer's death rather than on the content, and it decides wrong in the
+# direction that reports a defect where there is none. A here-string is not a
+# pipeline, so there is no producer to kill.
+#
 # The hang check comes FIRST: when init never completed, every assertion below
 # fails for that one reason, and reporting them as five findings is how a
 # missing keystroke reads like a product defect.
-if printf '%s' "$out" | grep -q "__SMOKE_PICKER_TIMEOUT__"; then
+if grep -q "__SMOKE_PICKER_TIMEOUT__" <<<"$out"; then
   fail "init never completed — the keystroke script is short a step" \
        "add the missing prompt to SCRIPT; see the numbered list in this file"
   # Short-circuit. `fail` does not exit, so every assertion below used to run
@@ -127,20 +135,20 @@ if printf '%s' "$out" | grep -q "__SMOKE_PICKER_TIMEOUT__"; then
   finish "PICKER"
 fi
 
-echo "$out" | grep -q "Choose your AI harness" \
+grep -q "Choose your AI harness" <<<"$out" \
   && pass "harness picker prompt rendered" \
   || fail "harness prompt missing" "$(detail)"
 
-echo "$out" | grep -q "❯ Codex CLI" \
+grep -q "❯ Codex CLI" <<<"$out" \
   && pass "highlight reached Codex CLI after 2 arrow-downs" \
   || fail "❯ never reached Codex CLI" "$(detail)"
 
-echo "$out" | grep -q "Choose your backlog backend" \
+grep -q "Choose your backlog backend" <<<"$out" \
   && pass "backlog picker prompt rendered" \
   || fail "backlog prompt missing" "$(detail)"
 
 # Since #406: Specnaut Cloud is listed first and marked recommended (default).
-echo "$out" | grep -q "Specnaut Cloud.*recommended (default)" \
+grep -q "Specnaut Cloud.*recommended (default)" <<<"$out" \
   && pass "Specnaut Cloud marked recommended (default)" \
   || fail "Cloud not marked recommended (default)" "$(detail)"
 
@@ -149,15 +157,15 @@ echo "$out" | grep -q "Specnaut Cloud.*recommended (default)" \
 # which the check above already covers. Rather than delete the assertion, it
 # now covers the SPEC PICKER: the step whose addition is what broke this
 # script, and which had no assertion of its own.
-echo "$out" | grep -q "Choose where your specs are stored" \
+grep -q "Choose where your specs are stored" <<<"$out" \
   && pass "spec-storage picker prompt rendered" \
   || fail "spec-storage picker missing" "$(detail)"
 
-echo "$out" | grep -q "❯ GitHub Issues" \
+grep -q "❯ GitHub Issues" <<<"$out" \
   && pass "highlight reached GitHub backend after two arrow-downs (new cloud-first order)" \
   || fail "❯ never reached GitHub backend" "$(detail)"
 
-echo "$out" | grep -q "Open the project in Codex CLI" \
+grep -q "Open the project in Codex CLI" <<<"$out" \
   && pass "init resolved harness = Codex CLI (selected harness honored)" \
   || fail "init did not pick Codex CLI" "$(detail)"
 
