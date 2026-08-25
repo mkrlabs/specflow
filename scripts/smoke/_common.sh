@@ -36,12 +36,17 @@ DEFAULT_SMOKE_DIR="$SMOKE_DIR"
 
 # --- Suite membership (plan.md §5 R3) ------------------------------------
 # The one answer to "which scripts constitute the suite". run-all.sh runs
-# SUITE_FILES; audit.sh's stale-assertion scan reads SCAN_FILES.
+# SUITE_FILES; audit.sh enumerates what it scans from the smoke directory
+# itself and checks THIS list against that enumeration, so a script that
+# exists but is not listed is a finding rather than a silent omission.
 #
-# SCAN_FILES adds this file. That is not decoration: assertions hoisted out
-# of a smoke and into a shared helper would otherwise become invisible to
-# the very scan that exists to catch stale ones.
-SUITE_FILES="smoke-features.sh
+# There is deliberately no second list here. An earlier revision declared a
+# `SCAN_FILES` alongside this one; when audit.sh moved to enumerating the
+# directory, that declaration kept its documentation and lost its only
+# reader — a second spelling of membership that had stopped meaning
+# anything while still reading like the source of truth.
+SUITE_FILES="smoke-toolbox.sh
+smoke-features.sh
 smoke-backlog-local.sh
 smoke-backlog-github.sh
 smoke-backlog-gitlab.sh
@@ -50,9 +55,6 @@ smoke-picker.sh
 smoke-all-harnesses.sh
 smoke-tag-release.sh
 smoke-audit.sh"
-
-SCAN_FILES="$SUITE_FILES
-_common.sh"
 
 # --- Failure ------------------------------------------------------------
 die() { echo "❌ $*" >&2; exit 1; }

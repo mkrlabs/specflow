@@ -6,7 +6,7 @@ set -euo pipefail
 
 NAME="${1:?usage: bootstrap-empty.sh <name>}"
 . "$(dirname "$0")/_common.sh"
-SANDBOX_DIR="$CLI/sandbox/$NAME"
+SANDBOX_DIR="$(scenario_dir "$NAME")"
 
 rm -rf "$SANDBOX_DIR"
 mkdir -p "$SANDBOX_DIR"

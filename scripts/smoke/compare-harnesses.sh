@@ -7,14 +7,18 @@ set -euo pipefail
 
 NAME="${1:?usage: compare-harnesses.sh <name>}"
 . "$(dirname "$0")/_common.sh"
-HARNESSES=(claude cursor codex gemini windsurf copilot opencode antigravity)
+# `gemini` was in this list and is not a supported harness — `run-init.sh`
+# would have failed on it. Same family as a banner asserting a count it does
+# not compute. smoke-all-harnesses.sh carries the authoritative set.
+HARNESSES=(claude cursor codex windsurf copilot opencode antigravity)
 
 bash "$SMOKE_DIR/bootstrap-vite.sh" "$NAME"
 
 for h in "${HARNESSES[@]}"; do
   variant="$NAME-$h"
-  rm -rf "$CLI/sandbox/$variant"
-  cp -R "$CLI/sandbox/$NAME" "$CLI/sandbox/$variant"
+  variant_dir="$(scenario_dir "$variant")"
+  rm -rf "$variant_dir"
+  cp -R "$(scenario_dir "$NAME")" "$variant_dir"
   echo
   echo "=== init --ai $h ==="
   bash "$SMOKE_DIR/run-init.sh" "$variant" "$h"

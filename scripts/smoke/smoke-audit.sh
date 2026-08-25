@@ -226,7 +226,8 @@ fi
 if [ "$noreason_rc" -ne 0 ]; then
   pass "an allowlist entry with NO reason does not grant an exemption"
 else
-  fail "a reasonless allowlist entry silenced the gap" "the allowlist is a list of paths, not decisions"
+  fail "a reasonless allowlist entry silenced the gap" \
+       "$(grep -E 'coverage gap' <<<"$noreason_out" | head -1)"
 fi
 
 # A finding must not be inferable only from stdout: assert the two agree.
