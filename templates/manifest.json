@@ -91,6 +91,12 @@
       "source": "core/skills/board/groom.md"
     },
     {
+      "category": "backlog-doc",
+      "name": "board",
+      "suffix": "spec-autogen.md",
+      "source": "core/skills/board/spec-autogen.md"
+    },
+    {
       "category": "phase",
       "name": "tag-version",
       "suffix": "tag-version.md",

@@ -2,6 +2,7 @@ import { assert, assertEquals } from "@std/assert";
 import { WindsurfHarness } from "../../../src/infrastructure/harness/windsurf_harness.ts";
 import type { CoreBundle } from "../../../src/domain/core_bundle.ts";
 import { CORE_BUNDLE } from "../../../src/templates_bundle.ts";
+import { everyBundleOption } from "../../../src/application/ports.ts";
 import {
   WINDSURF_WORKFLOW_MAX_CHARS,
   workflowLength,
@@ -138,30 +139,34 @@ Deno.test("WindsurfHarness emits no Claude/Cursor/Codex artefacts", () => {
 });
 
 Deno.test("WindsurfHarness emits no workflow exceeding the Cascade cap", () => {
-  // #539: measured in CHARACTERS, the unit the vendor's limit uses, and across
-  // every backlog backend. The previous version pinned one option combination
-  // and counted UTF-16 code units — right for this content by luck, and unable
-  // to say so. Reporting the three measures on failure is deliberate: the gap
-  // between them is what made the earlier reading ambiguous.
+  // #539 settled the UNIT: characters, the unit the vendor's limit uses.
+  // #562 settled the SET. This loop used to spell its own axes — backlog
+  // backend and version scheme — and pin `specBackend: "local"`. It never
+  // mentioned `specAutogen` at all, because that field is optional and a
+  // caller who omits it compiles. So it measured 16 of 32 combinations and
+  // reported itself green while `specnaut-board.md` emitted at 12,539
+  // characters, 539 past the cap, on github + cloud + autogen.
+  //
+  // A loop spells the axes it happens to remember. `everyBundleOption()` is
+  // derived from `BundleOptions` itself, so it cannot forget one: a new field
+  // fails to compile rather than silently narrowing what this measures.
+  //
+  // Reporting the three measures on failure is deliberate: the gap between
+  // them is what made the pre-#539 reading ambiguous.
   const h = new WindsurfHarness();
-  for (const backlogBackend of ["local", "github", "gitlab", "cloud"] as const) {
-    for (const versionScheme of ["semver", "date"] as const) {
-      const mapped = h.mapBundle(CORE_BUNDLE, {
-        backlogBackend,
-        versionScheme,
-        specBackend: "local",
-      });
-      for (const [path, file] of Object.entries(mapped)) {
-        if (!path.startsWith(".windsurf/workflows/")) continue;
-        const chars = workflowLength(file.content);
-        assert(
-          chars <= WINDSURF_WORKFLOW_MAX_CHARS,
-          `${path} exceeds ${WINDSURF_WORKFLOW_MAX_CHARS} characters: ${chars} ` +
-            `(${new TextEncoder().encode(file.content).length} bytes, ` +
-            `${file.content.length} UTF-16 units) on ` +
-            `backlog=${backlogBackend} scheme=${versionScheme}`,
-        );
-      }
+  for (const opts of everyBundleOption()) {
+    const mapped = h.mapBundle(CORE_BUNDLE, opts);
+    for (const [path, file] of Object.entries(mapped)) {
+      if (!path.startsWith(".windsurf/workflows/")) continue;
+      const chars = workflowLength(file.content);
+      assert(
+        chars <= WINDSURF_WORKFLOW_MAX_CHARS,
+        `${path} exceeds ${WINDSURF_WORKFLOW_MAX_CHARS} characters: ${chars} ` +
+          `(${new TextEncoder().encode(file.content).length} bytes, ` +
+          `${file.content.length} UTF-16 units) on ` +
+          `backlog=${opts.backlogBackend} scheme=${opts.versionScheme} ` +
+          `spec=${opts.specBackend} autogen=${opts.specAutogen}`,
+      );
     }
   }
 });
