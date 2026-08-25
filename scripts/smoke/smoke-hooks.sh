@@ -100,21 +100,37 @@ echo "═══ check-backlog-prereqs.sh (github backend, gh present) ═══"
 sed -i.bak 's/backlog_backend: local/backlog_backend: github/' \
   .specnaut/installed.lock
 out=$(echo "{}" | bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?")
+
+# The disjunction the old comment shrugged at ("Either is OK") is queryable, so
+# it is asserted instead of echoed. Both sides are exercised HERE, while the
+# lock still says github — the hook only consults gh on that backend, so after
+# the restore below either branch would pass for the wrong reason.
+#
+# The warning text is copied from the hook, not paraphrased. The first version
+# of this check grepped "gh CLI not found", which the hook never prints: on a
+# machine where gh IS present the grep could not match, the `||` branch ran,
+# and the assertion passed unconditionally. A constant-true assertion, inside
+# the fix for constant-true assertions.
+GH_WARN="is not on PATH"
+if echo "$out" | grep -qF "$GH_WARN"; then
+  fail "warned about a missing gh" "gh is on PATH here; $out"
+else
+  pass "no missing-gh warning when gh is on PATH"
+fi
+
+out_nogh=$(echo "{}" | PATH=/usr/bin:/bin bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?")
+if echo "$out_nogh" | grep -qF "$GH_WARN"; then
+  pass "and warns when gh is genuinely off PATH"
+else
+  fail "no warning with gh off PATH" "$out_nogh"
+fi
+echo "$out_nogh" | grep -q "ec=0" \
+  && pass "a missing gh is a warning, not a failure" \
+  || fail "the hook failed instead of warning" "$out_nogh"
+
 mv .specnaut/installed.lock.bak .specnaut/installed.lock
 echo "$out" | grep -q "ec=0" && pass "exit 0 on github backend" \
   || fail "non-zero exit" "$out"
-# The disjunction the comment used to shrug at is queryable, so it is asserted
-# rather than echoed. "Either is OK" plus a bare echo is a green line that
-# checks nothing — the shape this whole ticket is about.
-if command -v gh >/dev/null 2>&1; then
-  echo "$out" | grep -q "gh CLI not found" \
-    && fail "warned about a missing gh that is installed" "$out" \
-    || pass "no missing-gh warning when gh is on PATH"
-else
-  echo "$out" | grep -q "gh CLI not found" \
-    && pass "warns that gh is missing when it is" \
-    || fail "gh is absent and the hook said nothing" "$out"
-fi
 
 echo
 echo "═══ no lock present (e.g. uninitialised project) ═══"
