@@ -415,6 +415,35 @@ if [ "$DRY_RUN" != true ]; then
     printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
 fi
 
+# --- Move the linked item into In progress -------------------------------
+# The workflow used to contain exactly ONE board write — `move.sh <id> Done`,
+# at merge — so a card could sit in the intake column through an entire
+# implementation while the board said nobody was working on anything.
+#
+# This lives in the script rather than in the phase prose because prose asks
+# to be remembered. Creating the branch and moving the card are one command,
+# so one cannot happen without the other.
+#
+# It never fails the run: by this point the branch exists and the spec
+# directory is written, and exiting non-zero would describe a feature that
+# was not created. Every outcome is reported, including "nothing was moved" —
+# silence is what let the drift go unnoticed.
+if [ "$DRY_RUN" != true ]; then
+    if [ -z "$LINKED_ISSUE" ]; then
+        echo "# no --issue given, so no backlog item was moved" >&2
+    else
+        _move_sh="$REPO_ROOT/.specnaut/scripts/backlog/move.sh"
+        if [ ! -x "$_move_sh" ]; then
+            echo "# no backlog move.sh installed — issue $LINKED_ISSUE NOT moved; move it by hand" >&2
+        elif _move_out=$(bash "$_move_sh" "$LINKED_ISSUE" "In progress" 2>&1); then
+            echo "# $_move_out" >&2
+        else
+            echo "# could not move issue $LINKED_ISSUE to In progress: $_move_out" >&2
+            echo "# the branch was created; the board was NOT updated" >&2
+        fi
+    fi
+fi
+
 # Compute the LINKED_ISSUE JSON value: integer when set, JSON null otherwise.
 if [ -n "$LINKED_ISSUE" ]; then
     LINKED_ISSUE_JSON="$LINKED_ISSUE"

@@ -58,6 +58,11 @@ Persist `{ "feature_directory": "<resolved dir>", "linked_issue": <N or null> }`
 the feature from it. `linked_issue` is the backlog item id when `--issue <N>` was passed (or a hook
 returned one); `merge` reads it to close the item, and its absence is a no-op downstream.
 
+**The card moves itself.** With `--issue <N>`, `create-new-feature.sh` moves that item to
+`In progress` as part of creating the branch, and reports the outcome — including when nothing
+moved. Do **not** move it yourself as well: the workflow's board writes have one home each, this
+one and `merge`'s move to `Done`.
+
 **One feature per invocation.** The feature directory name and the branch name are independent.
 
 ### 3. Read the ground truth before writing a line

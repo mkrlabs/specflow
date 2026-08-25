@@ -372,6 +372,38 @@ if (-not $DryRun) {
     $env:SPECIFY_FEATURE = $branchName
 }
 
+# --- Move the linked item into In progress -------------------------------
+# See the bash twin for why this lives in the script and not in the phase
+# prose: creating the branch and moving the card are one command, so one
+# cannot happen without the other.
+#
+# It never fails the run - the branch already exists by here. Every outcome
+# is reported, including the ones where nothing moved, because silence is
+# what let cards sit in the intake column through whole implementations.
+#
+# The backlog helpers ship as bash only, so this needs a bash on PATH. Where
+# there is none, that is stated rather than skipped.
+if (-not $DryRun) {
+    if ($Issue -le 0) {
+        [Console]::Error.WriteLine("# no -Issue given, so no backlog item was moved")
+    } else {
+        $moveSh = Join-Path $repoRoot '.specnaut/scripts/backlog/move.sh'
+        if (-not (Test-Path $moveSh)) {
+            [Console]::Error.WriteLine("# no backlog move.sh installed - issue $Issue NOT moved; move it by hand")
+        } elseif (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
+            [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - issue $Issue NOT moved")
+        } else {
+            $moveOut = & bash $moveSh $Issue 'In progress' 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                [Console]::Error.WriteLine("# $moveOut")
+            } else {
+                [Console]::Error.WriteLine("# could not move issue $Issue to In progress: $moveOut")
+                [Console]::Error.WriteLine("# the branch was created; the board was NOT updated")
+            }
+        }
+    }
+}
+
 # Render LINKED_ISSUE as a JSON integer when set, JSON null otherwise.
 if ($Issue -gt 0) {
     $linkedIssueValue = $Issue

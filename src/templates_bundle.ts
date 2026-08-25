@@ -242,6 +242,11 @@ Persist \`{ "feature_directory": "<resolved dir>", "linked_issue": <N or null> }
 the feature from it. \`linked_issue\` is the backlog item id when \`--issue <N>\` was passed (or a hook
 returned one); \`merge\` reads it to close the item, and its absence is a no-op downstream.
 
+**The card moves itself.** With \`--issue <N>\`, \`create-new-feature.sh\` moves that item to
+\`In progress\` as part of creating the branch, and reports the outcome — including when nothing
+moved. Do **not** move it yourself as well: the workflow's board writes have one home each, this
+one and \`merge\`'s move to \`Done\`.
+
 **One feature per invocation.** The feature directory name and the branch name are independent.
 <!-- END: spec-backend=local -->
 <!-- BEGIN: spec-backend=cloud -->
@@ -23707,6 +23712,35 @@ if [ "\$DRY_RUN" != true ]; then
     printf '# To persist: export SPECIFY_FEATURE=%q\\n' "\$BRANCH_NAME" >&2
 fi
 
+# --- Move the linked item into In progress -------------------------------
+# The workflow used to contain exactly ONE board write — \`move.sh <id> Done\`,
+# at merge — so a card could sit in the intake column through an entire
+# implementation while the board said nobody was working on anything.
+#
+# This lives in the script rather than in the phase prose because prose asks
+# to be remembered. Creating the branch and moving the card are one command,
+# so one cannot happen without the other.
+#
+# It never fails the run: by this point the branch exists and the spec
+# directory is written, and exiting non-zero would describe a feature that
+# was not created. Every outcome is reported, including "nothing was moved" —
+# silence is what let the drift go unnoticed.
+if [ "\$DRY_RUN" != true ]; then
+    if [ -z "\$LINKED_ISSUE" ]; then
+        echo "# no --issue given, so no backlog item was moved" >&2
+    else
+        _move_sh="\$REPO_ROOT/.specnaut/scripts/backlog/move.sh"
+        if [ ! -x "\$_move_sh" ]; then
+            echo "# no backlog move.sh installed — issue \$LINKED_ISSUE NOT moved; move it by hand" >&2
+        elif _move_out=\$(bash "\$_move_sh" "\$LINKED_ISSUE" "In progress" 2>&1); then
+            echo "# \$_move_out" >&2
+        else
+            echo "# could not move issue \$LINKED_ISSUE to In progress: \$_move_out" >&2
+            echo "# the branch was created; the board was NOT updated" >&2
+        fi
+    fi
+fi
+
 # Compute the LINKED_ISSUE JSON value: integer when set, JSON null otherwise.
 if [ -n "\$LINKED_ISSUE" ]; then
     LINKED_ISSUE_JSON="\$LINKED_ISSUE"
@@ -24937,6 +24971,38 @@ if (-not \$DryRun) {
 
     # Set the SPECIFY_FEATURE environment variable for the current session
     \$env:SPECIFY_FEATURE = \$branchName
+}
+
+# --- Move the linked item into In progress -------------------------------
+# See the bash twin for why this lives in the script and not in the phase
+# prose: creating the branch and moving the card are one command, so one
+# cannot happen without the other.
+#
+# It never fails the run - the branch already exists by here. Every outcome
+# is reported, including the ones where nothing moved, because silence is
+# what let cards sit in the intake column through whole implementations.
+#
+# The backlog helpers ship as bash only, so this needs a bash on PATH. Where
+# there is none, that is stated rather than skipped.
+if (-not \$DryRun) {
+    if (\$Issue -le 0) {
+        [Console]::Error.WriteLine("# no -Issue given, so no backlog item was moved")
+    } else {
+        \$moveSh = Join-Path \$repoRoot '.specnaut/scripts/backlog/move.sh'
+        if (-not (Test-Path \$moveSh)) {
+            [Console]::Error.WriteLine("# no backlog move.sh installed - issue \$Issue NOT moved; move it by hand")
+        } elseif (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
+            [Console]::Error.WriteLine("# the backlog helpers are bash-only and no bash was found - issue \$Issue NOT moved")
+        } else {
+            \$moveOut = & bash \$moveSh \$Issue 'In progress' 2>&1
+            if (\$LASTEXITCODE -eq 0) {
+                [Console]::Error.WriteLine("# \$moveOut")
+            } else {
+                [Console]::Error.WriteLine("# could not move issue \$Issue to In progress: \$moveOut")
+                [Console]::Error.WriteLine("# the branch was created; the board was NOT updated")
+            }
+        }
+    }
 }
 
 # Render LINKED_ISSUE as a JSON integer when set, JSON null otherwise.

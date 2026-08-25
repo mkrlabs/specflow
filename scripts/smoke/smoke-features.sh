@@ -518,6 +518,19 @@ check "specnaut-auto skill is removed (auto-chain is the /specnaut default)" \
 
 echo
 echo "═══ #188  /specnaut merge auto-closes the linked backlog issue ═══"
+# specnaut-monorepo#25 — the chain used to hold exactly ONE board write, at
+# merge, so a card could sit in the intake column through a whole
+# implementation. These pin the other end of it.
+check "create-new-feature.sh moves the linked item to In progress" \
+  'grep -q "In progress" .specnaut/scripts/bash/create-new-feature.sh'
+check "create-new-feature.sh reports when nothing was moved" \
+  'grep -q "no backlog item was moved" .specnaut/scripts/bash/create-new-feature.sh'
+check "create-new-feature.sh never fails the run over a board write" \
+  'grep -q "the board was NOT updated" .specnaut/scripts/bash/create-new-feature.sh'
+check "create-new-feature.ps1 moves the linked item too (twins stay in step)" \
+  'grep -q "In progress" .specnaut/scripts/powershell/create-new-feature.ps1'
+check "create-new-feature.ps1 says so when no bash is available to run the helper" \
+  'grep -q "bash-only and no bash was found" .specnaut/scripts/powershell/create-new-feature.ps1'
 check "create-new-feature.sh exposes --issue flag" \
   'grep -q -- "--issue" .specnaut/scripts/bash/create-new-feature.sh'
 check "plan.md persists linked_issue into feature.json" \
