@@ -51,7 +51,7 @@ asset_count="$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.assets | length')"
 # dispatching here just removes the wait, using the operator's `gh` auth rather
 # than a secret stored in a public repository.
 #
-# `gh workflow run` exits 0 the moment GitHub ACCEPTS the request. That is not
+# A dispatch exits 0 the moment GitHub ACCEPTS the request. That is not
 # evidence of anything, which is why each dispatch is followed by reading the
 # published artefact back.
 # Both channels resolve exclusively through `releases/latest`. Nothing so far
@@ -69,11 +69,27 @@ latest="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name' 2>/dev/null || e
   exit 1
 }
 
+# Dispatched through the REST endpoint, not `gh workflow run`. That command
+# resolves the repository's default branch over GraphQL first, so it fails
+# whenever the GraphQL quota is spent even though the dispatch itself is a
+# REST call against a separate, usually untouched budget. That is not
+# hypothetical: the v4.0.1 release hit it with graphql at 0/5000 and core at
+# 4952/5000, and all three dispatches failed on a limit that did not apply to
+# the work being asked for.
+#
+# Failures print their reason. The previous version discarded stderr, so a
+# spent quota, a missing `workflow` scope and a 404 were the same message.
 echo "▶ dispatching the packaging syncs (they pull; nothing is pushed to them)"
 for target in homebrew-tap specnaut-marketplace; do
-  gh workflow run "sync from specnaut-cli" -R "specnaut/$target" >/dev/null 2>&1 \
-    && echo "  dispatched $target" \
-    || echo "  ⚠ could not dispatch $target — its cron will pick this up within the hour"
+  dispatch_err="$(gh api -X POST \
+    "repos/specnaut/$target/actions/workflows/sync-from-cli.yml/dispatches" \
+    -f ref=main 2>&1 >/dev/null)"
+  if [ -z "$dispatch_err" ]; then
+    echo "  dispatched $target"
+  else
+    echo "  ⚠ could not dispatch $target — its cron will pick this up within the hour"
+    echo "    $(printf '%s' "$dispatch_err" | head -1)"
+  fi
 done
 
 echo "▶ verifying Homebrew tap formula bumped to ${TAG#v}"
@@ -108,9 +124,14 @@ fi
 # and a docs rebuild that did not fire is a stale page, not a broken binary.
 docs_warned=0
 echo "▶ refreshing the docs site (version.json tracks the latest release)"
-dispatch_err="$(gh workflow run pages.yml -R specnaut/specnaut-web 2>&1 >/dev/null)" && dispatch_ok=1 || dispatch_ok=0
+# REST, for the same reason as the two syncs above — `gh workflow run` needs
+# GraphQL to resolve the default branch and dies with the quota rather than
+# with the dispatch.
+dispatch_err="$(gh api -X POST \
+  repos/specnaut/specnaut-web/actions/workflows/pages.yml/dispatches \
+  -f ref=main 2>&1 >/dev/null)" && dispatch_ok=1 || dispatch_ok=0
 if [ "$dispatch_ok" -eq 1 ]; then
-  # `gh workflow run` exits 0 the moment GitHub *accepts* the request; it never
+  # A dispatch exits 0 the moment GitHub *accepts* the request; it never
   # observes the resulting run. Dispatching therefore proves only that we have
   # permission. Poll the artefact itself — version.json is the thing the
   # `specnaut-guide` agent reads to answer "am I up to date?", so it is the
