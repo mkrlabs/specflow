@@ -233,10 +233,10 @@ brownfield scenario end to end.
       scripts, zero red checks (FR-011). Eight are green today; `smoke-picker` is the ninth
 - [x] T042 Run `deno task fmt:check`, `deno task lint`, `deno task check`, `deno task test` — 1413
       tests must stay green, and `ci.yml:22-35` must not find a stale bundle
-- [ ] T043 **The reproduction FR-013 requires**: on a throwaway commit, break one assertion, push
+- [x] T043 **The reproduction FR-013 requires**: on a throwaway commit, break one assertion, push
       the branch, confirm CI goes red and the log names it. Then revert. Record the run URL in
       plan.md § 4 under SC-006
-- [ ] T044 Measure SC-004 on the first green CI run — the cold-runner wall-clock — and record it in
+- [x] T044 Measure SC-004 on the first green CI run — the cold-runner wall-clock — and record it in
       plan.md § 4. The 7 s figure in § 1 is warm-cache and is explicitly not the baseline
 - [x] T045 [MONO] Delete `/Users/kevin/Sites/specnaut-monorepo/.claude/skills/test-sandbox/scripts/`
       entirely

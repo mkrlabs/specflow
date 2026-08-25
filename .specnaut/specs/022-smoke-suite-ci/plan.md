@@ -153,12 +153,29 @@ today.
 - **SC-003**: A person holding only this repository runs the complete guard with one command and no
   step reports itself skipped.
 - **SC-004**: The whole suite finishes inside the budget a gate can carry — target ≤ 90 s on a
-  **cold** runner. The 7 s figure in §1 is warm-cache and is not the baseline; SC-004 is measured on
-  the first green CI run and recorded here.
+  **cold** runner. **Met: 21 s for the whole job, 11 s for the suite itself** — measured on the
+  first green CI run
+  ([run 32800245392](https://github.com/specnaut/specnaut-cli/actions/runs/32800245392), cold
+  `ubuntu-latest`; checkout 2 s, setup-deno 2 s). The 7 s figure in §1 is warm-cache and was never
+  the baseline.
 - **SC-005**: A shipped file added with no assertion is named in the same run, together with the
   script expected to assert it — and a file under no mapped surface is named as unmapped.
-- **SC-006**: Deliberately breaking one assertion produces a red run naming it, performed once on a
-  throwaway commit (FR-013's reproduction).
+- **SC-006**: Deliberately breaking one assertion produces a red run naming it. **Met** — on a
+  throwaway branch, since deleted
+  ([run 32800324275](https://github.com/specnaut/specnaut-cli/actions/runs/32800324275), conclusion
+  `failure`). The log named the assertion, the failing command, the script and the verdict:
+
+  ```
+  ❌ the board skill exists to be checked at all — command: [ -f .claude/skills/board/DELIBERATELY-BROKEN-FOR-T043.md ]
+  ═══ FEATURES: 1 CHECK(S) FAILED ═══
+  ❌ smoke-features.sh — exit 1
+  red: smoke-features.sh
+  ═══ SUITE: 1 CHECK(S) FAILED ═══
+  ```
+
+  Recorded alongside it, because it is the point of Q2 observed rather than argued: on that same
+  branch push **`ci` did not run at all** — `ci.yml` fires only on `main` and pull requests. Without
+  this workflow's trigger, nothing would have checked that commit before it landed.
 
 ## 5. 🔒 Decision table
 
