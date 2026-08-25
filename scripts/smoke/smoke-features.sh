@@ -593,4 +593,71 @@ check "the board skill points at the backlog-reference-contract" \
 check "the board skill does not restate the rule (single canonical copy)" \
   '! grep -q "Never a number alone" .claude/skills/board/SKILL.md'
 
+echo
+echo "═══ #547  the thirteen skills nothing asserted on ═══"
+# These shipped covered by an audit that could not fail: every skill's file
+# is named SKILL.md, so its basename identified nothing. Each assertion below
+# names what the skill PROMISES — a presence check would satisfy the coverage
+# token and close none of the hole, which is this feature's own defect coming
+# back through the door marked done.
+
+# --- the five per-axis audits share a scope contract ---------------------
+for axis in a11y arch dep perf sec; do
+  check "$axis-audit scaffolded" \
+    "[ -f .claude/skills/$axis-audit/SKILL.md ]"
+  check "$axis-audit frontmatter declares its own name" \
+    "head -5 .claude/skills/$axis-audit/SKILL.md | grep -q 'name: $axis-audit'"
+  check "$axis-audit offers all three scopes (--path/--range/--diff)" \
+    "grep -q -- '--path' .claude/skills/$axis-audit/SKILL.md && grep -q -- '--range' .claude/skills/$axis-audit/SKILL.md && grep -q -- '--diff' .claude/skills/$axis-audit/SKILL.md"
+done
+# Literal paths for the coverage token (024-R1) — the loop above interpolates
+# $axis and so is invisible to it, the same reason the phase block at the top
+# of this file spells its filenames out.
+check "a11y-audit .claude/skills/a11y-audit/SKILL.md audits against WCAG 2.1 AA" \
+  'grep -q "WCAG 2.1 AA" .claude/skills/a11y-audit/SKILL.md'
+check "arch-audit .claude/skills/arch-audit/SKILL.md names hex-layer drift" \
+  'grep -q "hex-layer" .claude/skills/arch-audit/SKILL.md'
+check "dep-audit .claude/skills/dep-audit/SKILL.md names typosquats" \
+  'grep -q "typosquats" .claude/skills/dep-audit/SKILL.md'
+check "perf-audit .claude/skills/perf-audit/SKILL.md names N+1 queries" \
+  'grep -qF "N+1" .claude/skills/perf-audit/SKILL.md'
+check "sec-audit .claude/skills/sec-audit/SKILL.md names SSRF" \
+  'grep -q "SSRF" .claude/skills/sec-audit/SKILL.md'
+
+# --- the five output contracts define a named machine-readable block -----
+check "workflow-contract .claude/skills/workflow-contract/SKILL.md is not user-invocable" \
+  'grep -q "user-invocable: false" .claude/skills/workflow-contract/SKILL.md'
+check "workflow-contract defines the WORKFLOW STATUS block and its DONE_CRITERIA_MET key" \
+  'grep -q "WORKFLOW STATUS" .claude/skills/workflow-contract/SKILL.md && grep -q "DONE_CRITERIA_MET:" .claude/skills/workflow-contract/SKILL.md'
+check "review-findings-contract .claude/skills/review-findings-contract/SKILL.md is not user-invocable" \
+  'grep -q "user-invocable: false" .claude/skills/review-findings-contract/SKILL.md'
+check "review-findings-contract requires a verdict and a CRITICAL count" \
+  'grep -q "REVIEW_VERDICT:" .claude/skills/review-findings-contract/SKILL.md && grep -q "CRITICAL_COUNT:" .claude/skills/review-findings-contract/SKILL.md'
+check "qa-report-contract .claude/skills/qa-report-contract/SKILL.md requires a verdict and a bug count" \
+  'grep -q "QA_VERDICT:" .claude/skills/qa-report-contract/SKILL.md && grep -q "BUGS_FOUND:" .claude/skills/qa-report-contract/SKILL.md'
+check "handoff-protocol .claude/skills/handoff-protocol/SKILL.md carries a payload and its open risks" \
+  'grep -q "PAYLOAD:" .claude/skills/handoff-protocol/SKILL.md && grep -q "OPEN_RISKS:" .claude/skills/handoff-protocol/SKILL.md'
+check "backlog-reference-contract .claude/skills/backlog-reference-contract/SKILL.md requires number and title" \
+  'grep -q "number, title" .claude/skills/backlog-reference-contract/SKILL.md'
+check "backlog-reference-contract bans a bare number" \
+  'grep -q "bare .#42. is opaque" .claude/skills/backlog-reference-contract/SKILL.md'
+
+# --- the three that share nothing with each other ------------------------
+check "code-audit .claude/skills/code-audit/SKILL.md runs its seats in parallel" \
+  'grep -q "parallel" .claude/skills/code-audit/SKILL.md'
+# `grep -q -- "--last"` was satisfied by `--lastN`, so it pinned nothing —
+# found by mutating the template and watching this assertion stay green.
+check "code-audit scopes by commit count with --last <n>" \
+  'grep -qF -- "--last <n>" .claude/skills/code-audit/SKILL.md'
+check "status-audit .claude/skills/status-audit/SKILL.md reads the agent ledger" \
+  'grep -q ".specnaut/logs/agents.jsonl" .claude/skills/status-audit/SKILL.md'
+# alias-example is deliberately NOT bundled — verified by scaffolding: 21
+# skills land and it is not among them, and the bundle contains its name zero
+# times while every shipped skill appears at least once. It is a source-only
+# reference showing the alias_of + overlays frontmatter convention, meant to
+# be copied. A runtime assertion about it could only ever be false, so its
+# coverage is carried by a reasoned allowlist entry instead (022-R13).
+check "alias-example is a source-only reference and does NOT scaffold" \
+  '[ ! -e .claude/skills/alias-example ]'
+
 finish "FEATURES"
