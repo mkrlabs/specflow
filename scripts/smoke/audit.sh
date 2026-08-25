@@ -249,7 +249,16 @@ else
       # SIGPIPE-ing the producer. pipefail would then report 141 for a run that
       # FOUND the string — turning every covered file into a gap, sometimes,
       # depending on how fast the producer got there.
-      code="$(smoke_code_lines "$SMOKE_DIR/$s")"
+      # Guarded: this script runs under `set -e`, so an unreadable smoke would
+      # abort the whole audit with the helper's rc 2 — a code this file's own
+      # header reserves for "baseline ref could not be resolved", and which
+      # .specnaut/release/preflight.sh branches on. Skipping the smoke leaves
+      # the file uncovered, so the run still fails, with the right code and a
+      # named reason.
+      if ! code="$(smoke_code_lines "$SMOKE_DIR/$s")"; then
+        echo "audit.sh: cannot read $s — it vouches for nothing" >&2
+        continue
+      fi
       if grep -qF "$base" <<<"$code"; then
         covered=1
         break

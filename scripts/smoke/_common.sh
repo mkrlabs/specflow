@@ -56,21 +56,28 @@ smoke_code_lines() {
   # filename is not going to be mistaken for an option.
   awk -v SQ="'" -v DQ='"' '
     {
-      out = ""; sq = 0; dq = 0; n = length($0)
+      # Scan for the cut INDEX; never accumulate the kept text. Building the
+      # output character by character is quadratic, and this runs once per
+      # file per caller and once per (changed file x candidate smoke) in
+      # audit.sh — measured at 1.75s for a 200KB line and 7.2s for 400KB.
+      # Fast path: no hash on the line means nothing to decide. On this
+      # suite that is most lines, and it keeps the character scan off every
+      # line that could never be a comment.
+      if (index($0, "#") == 0) { print; next }
+      cut = 0; sq = 0; dq = 0; n = length($0)
       for (i = 1; i <= n; i++) {
         c = substr($0, i, 1)
         # Backslash escapes the next character everywhere except inside
         # single quotes, where shell treats it literally.
-        if (c == "\\" && sq == 0) { out = out c substr($0, i + 1, 1); i++; continue }
-        if (c == SQ && dq == 0) { sq = 1 - sq; out = out c; continue }
-        if (c == DQ && sq == 0) { dq = 1 - dq; out = out c; continue }
+        if (c == "\\" && sq == 0) { i++; continue }
+        if (c == SQ && dq == 0) { sq = 1 - sq; continue }
+        if (c == DQ && sq == 0) { dq = 1 - dq; continue }
         if (c == "#" && sq == 0 && dq == 0) {
           p = (i == 1) ? " " : substr($0, i - 1, 1)
-          if (p == " " || p == "\t") break
+          if (p == " " || p == "\t") { cut = i; break }
         }
-        out = out c
       }
-      print out
+      print (cut ? substr($0, 1, cut - 1) : $0)
     }
   ' < "$1"
 }
