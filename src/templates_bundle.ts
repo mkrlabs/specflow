@@ -854,35 +854,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running \`/specnaut tasks\` first to regenerate the task list.
 
-10. **Check for extension hooks**: After completion validation, check if \`.specnaut/extensions.yml\` exists in the project root.
-    - If it exists, read it and look for entries under the \`hooks.after_implement\` key
-    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-    - Filter out hooks where \`enabled\` is explicitly \`false\`. Treat hooks without an \`enabled\` field as enabled by default.
-    - For each remaining hook, do **not** attempt to interpret or evaluate hook \`condition\` expressions:
-      - If the hook has no \`condition\` field, or it is null/empty, treat the hook as executable
-      - If the hook defines a non-empty \`condition\`, skip the hook and leave condition evaluation to the HookExecutor implementation
-    - For each executable hook, output the following based on its \`optional\` flag:
-      - **Optional hook** (\`optional: true\`):
-        \`\`\`
-        ## Extension Hooks
-
-        **Optional Hook**: {extension}
-        Command: \`/{command}\`
-        Description: {description}
-
-        Prompt: {prompt}
-        To execute: \`/{command}\`
-        \`\`\`
-      - **Mandatory hook** (\`optional: false\`):
-        \`\`\`
-        ## Extension Hooks
-
-        **Automatic Hook**: {extension}
-        Executing: \`/{command}\`
-        EXECUTE_COMMAND: {command}
-        \`\`\`
-    - If no hooks are registered or \`.specnaut/extensions.yml\` does not exist, skip silently
-
+10. **Check for extension hooks**: After completion validation, check
+    \`hooks.after_implement\` in \`.specnaut/extensions.yml\` and follow the same
+    procedure as the pre-hook block above — same parse, same \`enabled\` default,
+    same refusal to evaluate a \`condition\`, same silent skip when absent. Two
+    differences only: the key is \`after_implement\`, and the emitted wording is
+    \`**Optional Hook**\` / \`**Automatic Hook**\` (no "Pre-").
 ## An epic runs as a loop, not as one implementation
 
 When the item being worked is an **epic with open sub-issues**, read
@@ -2176,6 +2153,33 @@ and the degradation ladder; do not restate it here.
 
 ## Output format
 
+End with a single summary block — read \`groom-report.md\` and follow it. The
+per-ticket lines and the size/priority-missing escalation block are **mandatory
+contract output, not optional**: they are how the user verifies the sizing and
+priority contract was honoured.
+
+## When NOT to use this skill
+
+- For a single-item backlog clarification → invoke the \`product-owner\`
+  subagent directly with the item number.
+- For PR review on a specific PR → invoke \`code-reviewer\` /
+  \`security-expert\` directly.
+- For implementing a spec → invoke \`/specnaut implement\` directly.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-doc",
+    name: "board",
+    suffix: "groom-report.md",
+    content: `# Groom report — the output contract
+
+Loaded by the board skill's \`groom\` pass at its end. Split out of \`groom.md\`
+under #562: the pass and the shape of its report change for different reasons,
+and the report is a contract worth reading on its own.
+
 End with a single summary block. **The per-ticket lines and the
 size/priority-missing escalation block are mandatory contract output,
 not optional** — they are how the user verifies the sizing + priority
@@ -2225,13 +2229,6 @@ Next action: <one-line recommendation, or "no action needed">
 If nothing needed action, say so explicitly. The point of the skill is
 to be a **no-op when the project is healthy**.
 
-## When NOT to use this skill
-
-- For a single-item backlog clarification → invoke the \`product-owner\`
-  subagent directly with the item number.
-- For PR review on a specific PR → invoke \`code-reviewer\` /
-  \`security-expert\` directly.
-- For implementing a spec → invoke \`/specnaut implement\` directly.
 `,
     executable: false,
     backend: null,
@@ -6300,6 +6297,208 @@ amount of contract text will make it answer the second.
   },
   {
     category: "skill",
+    name: "alert-triage-contract",
+    suffix: null,
+    content: `---
+name: alert-triage-contract
+description: Defines the security-expert's alert-triage mode — the per-alert workflow, the constrained Bash allowlist, the resolution values each GitHub endpoint accepts, and the VERDICT line. Preloaded, not user-invocable.
+user-invocable: false
+---
+
+# alert-triage-contract
+
+Preloaded by \`security-expert\`. Split out of that agent under #562, when the
+emitted Windsurf workflow had 49 characters of room left and no duplication to
+reclaim — the seat and its triage procedure change for different reasons, and
+the procedure is long enough to be worth reading on its own.
+
+**Nothing was cut in the move.** In particular the Bash constraint below is the
+*entire* limit on an agent whose frontmatter grants \`Bash\` unconditionally, and
+the per-endpoint \`resolution\` values are an allowlist, not a repetition — each
+endpoint's list genuinely differs.
+
+Spawned by the local \`/release\` session AFTER the \`security-preflight\`
+job in \`release.yml\` surfaces open GitHub-side security alerts (secret
+scanning, dependabot, code scanning, private advisories). The dispatch
+prompt provides the alert payload as JSON.
+
+## Per-alert workflow
+
+For each alert, decide ONE of three actions:
+
+1. **Real risk** — open a backlog ticket via the \`product-owner\`
+   subagent. Title format: \`security: <one-line summary>\`. Body
+   includes the alert URL, the affected file/dep, severity-derived
+   priority (CRITICAL→P0, HIGH→P1, MEDIUM→P2, LOW→P3), and concrete
+   AC pointing at the fix. Do NOT auto-close the alert — the fix PR
+   will close it on merge.
+2. **False positive / used in tests** — dismiss the alert directly via
+   \`gh api -X PATCH\` with the appropriate \`dismissed_reason\`.
+3. **Escalate** — if the alert needs Kevin's judgement (e.g. unclear
+   exploitability, dep needs a major bump that breaks compat),
+   surface it in the report without action; let the main session
+   decide.
+
+## Allowed Bash usage (constrained)
+
+\`Bash\` is granted ONLY for the \`gh api\` calls listed below. Do NOT run
+arbitrary shell commands. Do NOT chain commands. Do NOT redirect to
+files. Each invocation is one \`gh api\` call with the specific shape:
+
+- Secret scanning dismissal:
+  \`\`\`bash
+  gh api -X PATCH "repos/<owner>/<repo>/secret-scanning/alerts/<num>" \\
+    -f state=resolved \\
+    -f resolution=<reason> \\
+    -f resolution_comment="<≤280 char justification>"
+  \`\`\`
+  Valid \`resolution\` values: \`false_positive\`, \`wont_fix\`, \`revoked\`,
+  \`used_in_tests\`, \`pattern_deleted\`, \`pattern_edited\`. Anything else
+  is rejected by the API.
+
+- Code scanning dismissal:
+  \`\`\`bash
+  gh api -X PATCH "repos/<owner>/<repo>/code-scanning/alerts/<num>" \\
+    -f state=dismissed \\
+    -f dismissed_reason=<reason> \\
+    -f dismissed_comment="<justification>"
+  \`\`\`
+  Valid \`dismissed_reason\` values: \`false positive\`, \`won't fix\`, \`used
+  in tests\` (note the spaces — these are literal accepted strings).
+
+- Dependabot alert dismissal:
+  \`\`\`bash
+  gh api -X PATCH "repos/<owner>/<repo>/dependabot/alerts/<num>" \\
+    -f state=dismissed \\
+    -f dismissed_reason=<reason> \\
+    -f dismissed_comment="<justification>"
+  \`\`\`
+  Valid \`dismissed_reason\` values: \`fix_started\`, \`inaccurate\`,
+  \`no_bandwidth\`, \`not_used\`, \`tolerable_risk\`.
+
+Anything outside these three shapes is forbidden.
+
+## Output format (Mode 2)
+
+One row per alert in a final summary table:
+
+\`\`\`
+| Alert # | Type             | Severity | Action                               |
+| ------- | ---------------- | -------- | ------------------------------------ |
+| 1       | stripe_api_key   | n/a      | resolved: used_in_tests              |
+| 2       | npm:lodash       | high     | ticket #N created (P1)               |
+| 3       | reflected XSS    | medium   | escalated: needs human review        |
+\`\`\`
+
+End with a \`VERDICT\` line: \`clean\` (all alerts dismissed or ticketed),
+\`escalation_needed\` (one or more alerts surfaced for the user), or
+\`error\` (a triage step failed).
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "skill",
+    name: "backlog-frontmatter",
+    suffix: null,
+    content: `---
+name: backlog-frontmatter
+description: The canonical task-file frontmatter schema for the local Markdown backlog backend — every field, its allowed values, and which are mandatory. Preloaded, not user-invocable.
+user-invocable: false
+---
+
+# backlog-frontmatter
+
+Preloaded by \`product-owner\`, which owns this schema. Split out of that agent
+under #562: the seat had 76 characters of room and no duplication left to
+reclaim, and a field schema is a reference worth reading on its own rather than
+a passage inside a role description.
+
+**Nothing was cut in the move.**
+
+\`\`\`yaml
+---
+id: NNN                # zero-padded 3 digits, globally unique within this project
+title: string
+category: string       # free-form, but consistent across tasks
+priority: critical | high | medium | low
+complexity: 1 | 2 | 3 | 5 | 8 | 13 | 21   # Fibonacci
+status: todo | in_progress | done | deferred | blocked
+parent: "#NNN" | null  # local task id of the parent epic, if this is a sub-task
+depends_on: [string]   # other task titles or ids
+spec: string | null    # Specnaut spec id if attached
+tags: [string]
+created: YYYY-MM-DD
+---
+\`\`\`
+
+\`parent: "#NNN"\` is the local-Markdown sub-task convention (grep-friendly);
+missing or \`null\` means a top-level task or an epic, legacy tasks included.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "skill",
+    name: "specnaut-facts",
+    suffix: null,
+    content: `---
+name: specnaut-facts
+description: The vendored offline snapshot of what Specnaut is, its commands, harnesses and backlog backends — what specnaut-guide answers from when the live docs cannot be fetched. Preloaded, not user-invocable.
+user-invocable: false
+---
+
+# specnaut-facts
+
+Preloaded by \`specnaut-guide\`. Split out of that agent under #562, when its
+emitted Windsurf workflow had 47 characters of room left and no duplication to
+reclaim. The seat's *protocol* (fetch live, check versions, file bugs) and the
+*facts* it falls back on change for different reasons, which is the split.
+
+**This is a snapshot and it goes stale.** The live docs win; see the seat's
+fetch protocol. Nothing was cut in the move.
+
+Frozen at scaffold time. Run the live fetch protocol for anything newer.
+
+### What Specnaut is
+
+Enhanced fork of [\`specify\` CLI](https://github.com/github/spec-kit), distributed as a single native binary. Scaffolds AI harness files — SpecKit slash-commands, spec/plan/tasks templates, a constitution, sub-agents, and a backlog system — into an existing project in one command. Does **not** call any LLM; the user's AI harness reads the generated files. Docs: <https://specnaut.com/llms.txt>. Source: <https://github.com/specnaut/specnaut-cli>.
+
+**Install:** \`curl -fsSL https://raw.githubusercontent.com/specnaut/specnaut-cli/main/install.sh | bash\` or \`brew tap specnaut/tap && brew install specnaut\`.
+
+**Harnesses:** claude, cursor, codex, windsurf, copilot, opencode, antigravity — all share \`templates/core/\` content, mapped per-harness by an adapter.
+
+**Different from upstream Spec Kit:** auto-chained pipeline (\`/specnaut plan\` chains all phases); dedicated \`review\` phase after implement; backlog as product source of truth via \`product-owner\` agent (backends: local, github, gitlab); Claude Code plugin distribution (\`specnaut-plugin\` marketplace).
+
+**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-expert, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-guide.
+
+### Commands
+
+- \`specnaut init [--here] [--ai <harness>] [--backlog <backend>] [--backlog-url <url>]\` — scaffold the project.
+- \`specnaut upgrade\` — refresh templates. On apply writes \`.specnaut/upgrade-pending.json\` (\`{from,to,at}\`) + staging dir (\`.specnaut/upgrade-staging/<path>\`, consumed by \`specnaut reconcile\`); both removed after successful \`review-upgrade\` walk. Prints \`@specnaut-guide review-upgrade\` handoff.
+- \`specnaut reconcile --status\` — list files pending post-upgrade reconciliation as JSON.
+- \`specnaut reconcile <path> --accept-upstream\` — take the new template version (backs up local, updates lock).
+- \`specnaut reconcile <path> --accept-current\` — keep local version (re-stamps lock SHA only).
+- \`specnaut check [--project]\` — verify scaffold integrity.
+- \`specnaut self-update\` — replace binary with latest release, verifying SHA256.
+- \`specnaut --version\` — print binary + bundled templates version.
+
+### Backlog conventions (GitHub backend)
+
+\`Priority\` (P0–P2) and \`Size\` (XS–XL) via Project V2 native fields (\`set-field.sh\`); fall back to \`priority:*\`/\`size:*\` labels when the native field is absent. Two-step close: \`move.sh <num> Done\` then \`gh issue close --reason completed\`. \`/board groom\` catches items closed via paths that bypassed the move step.
+
+### Design principles
+
+Agnostic of language / LLM / harness / backlog backend. Single binary via \`deno compile\` for macOS, Linux, Windows. No Python or extra runtimes.
+`,
+    executable: false,
+    backend: null,
+    skipIfExists: false,
+  },
+  {
+    category: "skill",
     name: "qa-report-contract",
     suffix: null,
     content: `---
@@ -6354,7 +6553,7 @@ description: Product Owner and business guardian. Owns the product backlog, all 
 model: opus
 effort: high
 tools: Read, Write, Edit, Grep, Glob, Bash
-skills: backlog-reference-contract
+skills: backlog-reference-contract, backlog-frontmatter
 maxTurns: 30
 color: cyan
 ---
@@ -6449,24 +6648,10 @@ mutating anything.
 
 ## Frontmatter schema (local Markdown — mandatory)
 
-\`\`\`yaml
----
-id: NNN                # zero-padded 3 digits, globally unique within this project
-title: string
-category: string       # free-form, but consistent across tasks
-priority: critical | high | medium | low
-complexity: 1 | 2 | 3 | 5 | 8 | 13 | 21   # Fibonacci
-status: todo | in_progress | done | deferred | blocked
-parent: "#NNN" | null  # local task id of the parent epic, if this is a sub-task
-depends_on: [string]   # other task titles or ids
-spec: string | null    # Specnaut spec id if attached
-tags: [string]
-created: YYYY-MM-DD
----
-\`\`\`
-
-\`parent: "#NNN"\` is the local-Markdown sub-task convention (grep-friendly);
-missing or \`null\` means a top-level task or an epic, legacy tasks included.
+The canonical schema lives in the preloaded \`backlog-frontmatter\` skill — read
+it and follow it. It is mandatory on the local Markdown backend: every field,
+its allowed values, and which ones a task file may not omit. Do not reconstruct
+it from memory, and do not restate it anywhere else.
 
 ## Epic concept
 
@@ -6997,7 +7182,7 @@ description: Reviews code for security issues — input validation, authz, secre
 model: opus
 effort: xhigh
 tools: Read, Grep, Glob, Bash
-skills: review-findings-contract, workflow-contract
+skills: review-findings-contract, workflow-contract, alert-triage-contract
 maxTurns: 20
 color: red
 ---
@@ -7130,82 +7315,15 @@ by what the attacker actually achieves, per \`00-triage.md\`.
 
 ## Mode 2 — Alert triage
 
-Spawned by the local \`/release\` session AFTER the \`security-preflight\`
-job in \`release.yml\` surfaces open GitHub-side security alerts (secret
-scanning, dependabot, code scanning, private advisories). The dispatch
-prompt provides the alert payload as JSON.
+Spawned by the local \`/release\` session AFTER the \`security-preflight\` job in
+\`release.yml\` surfaces open GitHub-side security alerts. The dispatch prompt
+provides the alert payload as JSON.
 
-### Per-alert workflow
-
-For each alert, decide ONE of three actions:
-
-1. **Real risk** — open a backlog ticket via the \`product-owner\`
-   subagent. Title format: \`security: <one-line summary>\`. Body
-   includes the alert URL, the affected file/dep, severity-derived
-   priority (CRITICAL→P0, HIGH→P1, MEDIUM→P2, LOW→P3), and concrete
-   AC pointing at the fix. Do NOT auto-close the alert — the fix PR
-   will close it on merge.
-2. **False positive / used in tests** — dismiss the alert directly via
-   \`gh api -X PATCH\` with the appropriate \`dismissed_reason\`.
-3. **Escalate** — if the alert needs Kevin's judgement (e.g. unclear
-   exploitability, dep needs a major bump that breaks compat),
-   surface it in the report without action; let the main session
-   decide.
-
-### Allowed Bash usage (constrained)
-
-\`Bash\` is granted ONLY for the \`gh api\` calls listed below. Do NOT run
-arbitrary shell commands. Do NOT chain commands. Do NOT redirect to
-files. Each invocation is one \`gh api\` call with the specific shape:
-
-- Secret scanning dismissal:
-  \`\`\`bash
-  gh api -X PATCH "repos/<owner>/<repo>/secret-scanning/alerts/<num>" \\
-    -f state=resolved \\
-    -f resolution=<reason> \\
-    -f resolution_comment="<≤280 char justification>"
-  \`\`\`
-  Valid \`resolution\` values: \`false_positive\`, \`wont_fix\`, \`revoked\`,
-  \`used_in_tests\`, \`pattern_deleted\`, \`pattern_edited\`. Anything else
-  is rejected by the API.
-
-- Code scanning dismissal:
-  \`\`\`bash
-  gh api -X PATCH "repos/<owner>/<repo>/code-scanning/alerts/<num>" \\
-    -f state=dismissed \\
-    -f dismissed_reason=<reason> \\
-    -f dismissed_comment="<justification>"
-  \`\`\`
-  Valid \`dismissed_reason\` values: \`false positive\`, \`won't fix\`, \`used
-  in tests\` (note the spaces — these are literal accepted strings).
-
-- Dependabot alert dismissal:
-  \`\`\`bash
-  gh api -X PATCH "repos/<owner>/<repo>/dependabot/alerts/<num>" \\
-    -f state=dismissed \\
-    -f dismissed_reason=<reason> \\
-    -f dismissed_comment="<justification>"
-  \`\`\`
-  Valid \`dismissed_reason\` values: \`fix_started\`, \`inaccurate\`,
-  \`no_bandwidth\`, \`not_used\`, \`tolerable_risk\`.
-
-Anything outside these three shapes is forbidden.
-
-### Output format (Mode 2)
-
-One row per alert in a final summary table:
-
-\`\`\`
-| Alert # | Type             | Severity | Action                               |
-| ------- | ---------------- | -------- | ------------------------------------ |
-| 1       | stripe_api_key   | n/a      | resolved: used_in_tests              |
-| 2       | npm:lodash       | high     | ticket #N created (P1)               |
-| 3       | reflected XSS    | medium   | escalated: needs human review        |
-\`\`\`
-
-End with a \`VERDICT\` line: \`clean\` (all alerts dismissed or ticketed),
-\`escalation_needed\` (one or more alerts surfaced for the user), or
-\`error\` (a triage step failed).
+**Read the preloaded \`alert-triage-contract\` and follow it.** It carries the
+per-alert workflow, the resolution values each endpoint accepts, the report
+shape, and the \`VERDICT\` line — and the constrained Bash allowlist, which is
+the only thing standing between this seat's unconditional \`Bash\` grant and an
+arbitrary shell. Do not improvise any of it from this summary.
 
 ## Mode 3 — Plan expertise (before any code exists)
 
@@ -7561,6 +7679,7 @@ permissionMode: default
 maxTurns: 10
 disable-model-invocation: false
 color: pink
+skills: specnaut-facts
 ---
 
 You are the **Specnaut expert**. Your job is to explain how Specnaut
@@ -7725,38 +7844,10 @@ Both walks complete with nothing skipped: delete \`.specnaut/upgrade-pending.jso
 
 ## Vendored knowledge snapshot
 
-Frozen at scaffold time. Run the live fetch protocol for anything newer.
-
-### What Specnaut is
-
-Enhanced fork of [\`specify\` CLI](https://github.com/github/spec-kit), distributed as a single native binary. Scaffolds AI harness files — SpecKit slash-commands, spec/plan/tasks templates, a constitution, sub-agents, and a backlog system — into an existing project in one command. Does **not** call any LLM; the user's AI harness reads the generated files. Docs: <https://specnaut.com/llms.txt>. Source: <https://github.com/specnaut/specnaut-cli>.
-
-**Install:** \`curl -fsSL https://raw.githubusercontent.com/specnaut/specnaut-cli/main/install.sh | bash\` or \`brew tap specnaut/tap && brew install specnaut\`.
-
-**Harnesses:** claude, cursor, codex, windsurf, copilot, opencode, antigravity — all share \`templates/core/\` content, mapped per-harness by an adapter.
-
-**Different from upstream Spec Kit:** auto-chained pipeline (\`/specnaut plan\` chains all phases); dedicated \`review\` phase after implement; backlog as product source of truth via \`product-owner\` agent (backends: local, github, gitlab); Claude Code plugin distribution (\`specnaut-plugin\` marketplace).
-
-**Bundled agents:** product-owner, developer, review-coordinator, code-reviewer, security-expert, test-reviewer, qa-tester, workflow-manager, devops-sre, specnaut-guide.
-
-### Commands
-
-- \`specnaut init [--here] [--ai <harness>] [--backlog <backend>] [--backlog-url <url>]\` — scaffold the project.
-- \`specnaut upgrade\` — refresh templates. On apply writes \`.specnaut/upgrade-pending.json\` (\`{from,to,at}\`) + staging dir (\`.specnaut/upgrade-staging/<path>\`, consumed by \`specnaut reconcile\`); both removed after successful \`review-upgrade\` walk. Prints \`@specnaut-guide review-upgrade\` handoff.
-- \`specnaut reconcile --status\` — list files pending post-upgrade reconciliation as JSON.
-- \`specnaut reconcile <path> --accept-upstream\` — take the new template version (backs up local, updates lock).
-- \`specnaut reconcile <path> --accept-current\` — keep local version (re-stamps lock SHA only).
-- \`specnaut check [--project]\` — verify scaffold integrity.
-- \`specnaut self-update\` — replace binary with latest release, verifying SHA256.
-- \`specnaut --version\` — print binary + bundled templates version.
-
-### Backlog conventions (GitHub backend)
-
-\`Priority\` (P0–P2) and \`Size\` (XS–XL) via Project V2 native fields (\`set-field.sh\`); fall back to \`priority:*\`/\`size:*\` labels when the native field is absent. Two-step close: \`move.sh <num> Done\` then \`gh issue close --reason completed\`. \`/board groom\` catches items closed via paths that bypassed the move step.
-
-### Design principles
-
-Agnostic of language / LLM / harness / backlog backend. Single binary via \`deno compile\` for macOS, Linux, Windows. No Python or extra runtimes.
+The offline fallback — what Specnaut is, its commands, harnesses and backlog
+backends — lives in the preloaded \`specnaut-facts\` skill. Read it when the live
+fetch above fails or is unavailable, and say plainly that you are answering from
+a vendored snapshot rather than the current docs.
 
 ## Style
 
@@ -8946,28 +9037,14 @@ FINDING <severity>: <one-line summary>
   Suggested fix: <code sketch or pointer>
 \`\`\`
 
-After the findings, emit exactly one \`REVIEW SUMMARY\` block per the preloaded
-\`review-findings-contract\`:
-
-\`\`\`
-REVIEW SUMMARY
-REVIEW_SCOPE: dependency-expert
-REVIEW_VERDICT: pass | fail | needs_followup
-SEATS_EXPECTED: 1
-SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
-EVIDENCE: <the paths you inspected, comma-separated — required when every count is 0>
-CRITICAL_COUNT: <integer>
-HIGH_COUNT: <integer>
-MEDIUM_COUNT: <integer>
-LOW_COUNT: <integer>
-TOP_ISSUES: <one sentence, or up to 5 lines | none>
-RECOMMENDATION: <one sentence — what the next actor should do>
-\`\`\`
-
-\`REVIEW_VERDICT: pass\` only when \`CRITICAL_COUNT == 0\` and \`HIGH_COUNT == 0\`;
-\`fail\` when either is > 0; \`needs_followup\` when only Medium/Low remain. Then
-emit the \`WORKFLOW STATUS\` block per \`workflow-contract\`. Audit-mode (Mode 2)
-emits neither block — backlog material is not pass/fail.
+After the findings, emit exactly one \`REVIEW SUMMARY\` block in the format the
+preloaded \`review-findings-contract\` defines — do not restate its fields here.
+\`REVIEW_SCOPE: dependency-expert\`, \`SEATS_EXPECTED: 1\`, \`SEATS_REPORTED: 0\` when
+you could not review, and \`EVIDENCE:\` naming the manifests you actually
+inspected — a clean report that names none is counted as \`NOT RUN\`. The verdict rule is the contract's, including the
+\`SEATS_REPORTED == SEATS_EXPECTED\` clause this file used to drop. Then emit the
+\`WORKFLOW STATUS\` block per \`workflow-contract\`. Audit-mode (Mode 2) emits
+neither block — backlog material is not pass/fail.
 `,
     executable: false,
     backend: null,

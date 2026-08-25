@@ -19,13 +19,21 @@ const CONTRACT_SKILLS = [
   "review-findings-contract",
   "qa-report-contract",
   "backlog-reference-contract",
+  // #562: three sections split out of seats that had no duplication left to
+  // reclaim. Same shape, same `user-invocable: false`.
+  "alert-triage-contract",
+  "backlog-frontmatter",
+  "specnaut-facts",
 ] as const;
 
 /** Authoritative wired-agent → contracts mapping (research.md). */
 const AGENT_WIRING: Record<string, readonly string[]> = {
   "architect-expert": ["review-findings-contract", "workflow-contract"],
   "performance-expert": ["review-findings-contract", "workflow-contract"],
-  "security-expert": ["review-findings-contract", "workflow-contract"],
+  // #562 split this seat's alert-triage mode — including its Bash allowlist —
+  // into a preloaded skill, when the emitted workflow had 49 characters left
+  // and no duplication to reclaim.
+  "security-expert": ["review-findings-contract", "workflow-contract", "alert-triage-contract"],
   "accessibility-expert": ["review-findings-contract", "workflow-contract"],
   "dependency-expert": ["review-findings-contract", "workflow-contract"],
   "code-reviewer": ["review-findings-contract", "workflow-contract"],
@@ -36,7 +44,10 @@ const AGENT_WIRING: Record<string, readonly string[]> = {
   "qa-tester": ["qa-report-contract", "workflow-contract"],
   // The single biggest emitter of backlog references — and, until now, the
   // only wired agent with no `skills:` line at all.
-  "product-owner": ["backlog-reference-contract"],
+  "product-owner": ["backlog-reference-contract", "backlog-frontmatter"],
+  // Same #562 split; this seat had no `skills:` line before #378 and none of
+  // its own content asserted before this ticket.
+  "specnaut-guide": ["specnaut-facts"],
 };
 
 function skillEntry(name: string): CoreEntry | undefined {

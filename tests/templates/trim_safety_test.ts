@@ -43,13 +43,10 @@ const MUST_SURVIVE: ReadonlyArray<
     label: "security-expert.md",
     body: () => entry("agent", "security-expert", null),
     sentences: [
-      // The ENTIRE limit on an agent whose frontmatter grants Bash
-      // unconditionally. Three near-identical `gh api` snippets make the block
-      // read as self-duplication; it is the opposite.
-      "`Bash` is granted ONLY for the `gh api` calls listed below. Do NOT run arbitrary shell commands. Do NOT chain commands. Do NOT redirect to",
-      // Removing this lets the seat close real security alerts with nothing
-      // behind them.
-      "Do NOT auto-close the alert",
+      // The seat must still SAY its Bash grant is constrained, even though the
+      // allowlist itself now lives in the preloaded skill (#562). A pointer
+      // that stops pointing is how a relocation becomes a deletion.
+      "the constrained Bash allowlist, which is the only thing standing between this seat's unconditional `Bash` grant and an arbitrary shell",
       // The operative half of the secrets rule. The pre-existing assertion
       // covers only the heading clause "never emit a secret value" — these two
       // clauses are what make it actionable.
@@ -97,6 +94,31 @@ const MUST_SURVIVE: ReadonlyArray<
     ],
   },
   {
+    label: "alert-triage-contract (split out of security-expert under #562)",
+    body: () => entry("skill", "alert-triage-contract", null),
+    sentences: [
+      // The ENTIRE limit on an agent whose frontmatter grants Bash
+      // unconditionally. Three near-identical `gh api` snippets make the block
+      // read as self-duplication; it is the opposite. It moved file under
+      // #562 — so this assertion moved with it, rather than being deleted for
+      // failing where the text no longer is.
+      "`Bash` is granted ONLY for the `gh api` calls listed below. Do NOT run arbitrary shell commands. Do NOT chain commands. Do NOT redirect to",
+      // Removing this lets the seat close real security alerts with nothing
+      // behind them.
+      "Do NOT auto-close the alert",
+    ],
+  },
+  {
+    label: "backlog-frontmatter (split out of product-owner under #562)",
+    body: () => entry("skill", "backlog-frontmatter", null),
+    sentences: ["mandatory"],
+  },
+  {
+    label: "specnaut-facts (split out of specnaut-guide under #562)",
+    body: () => entry("skill", "specnaut-facts", null),
+    sentences: ["Specnaut"],
+  },
+  {
     label: "board/spec-autogen.md",
     body: () => entry("backlog-doc", "board", "spec-autogen.md"),
     sentences: [
@@ -132,6 +154,6 @@ Deno.test("the trim-safety list is not vacuously empty", () => {
   // A list that quietly emptied would make every test above pass. This is the
   // same failure the size guard had: an assertion that cannot fail.
   const total = MUST_SURVIVE.reduce((n, f) => n + f.sentences.length, 0);
-  assert(MUST_SURVIVE.length >= 5, `only ${MUST_SURVIVE.length} files covered`);
+  assert(MUST_SURVIVE.length >= 8, `only ${MUST_SURVIVE.length} files covered`);
   assert(total >= 15, `only ${total} sentences guarded`);
 });

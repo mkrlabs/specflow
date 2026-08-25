@@ -4,7 +4,7 @@ description: Product Owner and business guardian. Owns the product backlog, all 
 model: opus
 effort: high
 tools: Read, Write, Edit, Grep, Glob, Bash
-skills: backlog-reference-contract
+skills: backlog-reference-contract, backlog-frontmatter
 maxTurns: 30
 color: cyan
 ---
@@ -99,24 +99,10 @@ mutating anything.
 
 ## Frontmatter schema (local Markdown — mandatory)
 
-```yaml
----
-id: NNN                # zero-padded 3 digits, globally unique within this project
-title: string
-category: string       # free-form, but consistent across tasks
-priority: critical | high | medium | low
-complexity: 1 | 2 | 3 | 5 | 8 | 13 | 21   # Fibonacci
-status: todo | in_progress | done | deferred | blocked
-parent: "#NNN" | null  # local task id of the parent epic, if this is a sub-task
-depends_on: [string]   # other task titles or ids
-spec: string | null    # Specnaut spec id if attached
-tags: [string]
-created: YYYY-MM-DD
----
-```
-
-`parent: "#NNN"` is the local-Markdown sub-task convention (grep-friendly);
-missing or `null` means a top-level task or an epic, legacy tasks included.
+The canonical schema lives in the preloaded `backlog-frontmatter` skill — read
+it and follow it. It is mandatory on the local Markdown backend: every field,
+its allowed values, and which ones a task file may not omit. Do not reconstruct
+it from memory, and do not restate it anywhere else.
 
 ## Epic concept
 

@@ -92,14 +92,14 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
     // dep-audit, a11y-audit) + status-audit (#381) +
     // board + 15 agent workflows (11 original + performance-expert #304
     // + accessibility-expert #305 + architect-expert #321 + dependency-expert
-    // #322) = 54 (specnaut-auto removed in #409; merge-squash #558 + epic-commits #556 + quality-gates #555 + epic-fixups #559 + merge-close #560 + epic-loop #554 added; board spec-autogen #562 split out). code-audit's scope script
+    // #322) = 54 (specnaut-auto removed in #409; merge-squash #558 + epic-commits #556 + quality-gates #555 + epic-fixups #559 + merge-close #560 + epic-loop #554 added; board spec-autogen + groom-report + 3 seat contracts #562 split out). code-audit's scope script
     // ships under .specnaut/scripts/code-audit/, not as a flattened workflow file;
     // status-audit's schema doc ships to .specnaut/logs/README.md, also not
     // flattened here.
     const workflowsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".windsurf/workflows")),
     )).length;
-    assertEquals(workflowsCount, 59);
+    assertEquals(workflowsCount, 63);
 
     // Shared (cross-harness)
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);

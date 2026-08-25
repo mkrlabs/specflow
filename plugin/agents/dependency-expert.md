@@ -246,25 +246,11 @@ FINDING <severity>: <one-line summary>
   Suggested fix: <code sketch or pointer>
 ```
 
-After the findings, emit exactly one `REVIEW SUMMARY` block per the preloaded
-`review-findings-contract`:
-
-```
-REVIEW SUMMARY
-REVIEW_SCOPE: dependency-expert
-REVIEW_VERDICT: pass | fail | needs_followup
-SEATS_EXPECTED: 1
-SEATS_REPORTED: <1 when you reviewed, 0 when you could not>
-EVIDENCE: <the paths you inspected, comma-separated — required when every count is 0>
-CRITICAL_COUNT: <integer>
-HIGH_COUNT: <integer>
-MEDIUM_COUNT: <integer>
-LOW_COUNT: <integer>
-TOP_ISSUES: <one sentence, or up to 5 lines | none>
-RECOMMENDATION: <one sentence — what the next actor should do>
-```
-
-`REVIEW_VERDICT: pass` only when `CRITICAL_COUNT == 0` and `HIGH_COUNT == 0`;
-`fail` when either is > 0; `needs_followup` when only Medium/Low remain. Then
-emit the `WORKFLOW STATUS` block per `workflow-contract`. Audit-mode (Mode 2)
-emits neither block — backlog material is not pass/fail.
+After the findings, emit exactly one `REVIEW SUMMARY` block in the format the
+preloaded `review-findings-contract` defines — do not restate its fields here.
+`REVIEW_SCOPE: dependency-expert`, `SEATS_EXPECTED: 1`, `SEATS_REPORTED: 0` when
+you could not review, and `EVIDENCE:` naming the manifests you actually
+inspected — a clean report that names none is counted as `NOT RUN`. The verdict rule is the contract's, including the
+`SEATS_REPORTED == SEATS_EXPECTED` clause this file used to drop. Then emit the
+`WORKFLOW STATUS` block per `workflow-contract`. Audit-mode (Mode 2) emits
+neither block — backlog material is not pass/fail.

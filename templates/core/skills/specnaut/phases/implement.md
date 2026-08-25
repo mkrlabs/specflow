@@ -149,35 +149,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/specnaut tasks` first to regenerate the task list.
 
-10. **Check for extension hooks**: After completion validation, check if `.specnaut/extensions.yml` exists in the project root.
-    - If it exists, read it and look for entries under the `hooks.after_implement` key
-    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-      - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-    - For each executable hook, output the following based on its `optional` flag:
-      - **Optional hook** (`optional: true`):
-        ```
-        ## Extension Hooks
-
-        **Optional Hook**: {extension}
-        Command: `/{command}`
-        Description: {description}
-
-        Prompt: {prompt}
-        To execute: `/{command}`
-        ```
-      - **Mandatory hook** (`optional: false`):
-        ```
-        ## Extension Hooks
-
-        **Automatic Hook**: {extension}
-        Executing: `/{command}`
-        EXECUTE_COMMAND: {command}
-        ```
-    - If no hooks are registered or `.specnaut/extensions.yml` does not exist, skip silently
-
+10. **Check for extension hooks**: After completion validation, check
+    `hooks.after_implement` in `.specnaut/extensions.yml` and follow the same
+    procedure as the pre-hook block above — same parse, same `enabled` default,
+    same refusal to evaluate a `condition`, same silent skip when absent. Two
+    differences only: the key is `after_implement`, and the emitted wording is
+    `**Optional Hook**` / `**Automatic Hook**` (no "Pre-").
 ## An epic runs as a loop, not as one implementation
 
 When the item being worked is an **epic with open sub-issues**, read

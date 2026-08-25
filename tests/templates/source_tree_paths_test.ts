@@ -42,7 +42,11 @@ const SOURCE_TREE_MARKERS = [
 const ADDRESSES_THIS_REPO: Record<string, string> = {
   "skill/verification-before-completion":
     "its maintainer section opens by stating it applies only to a project containing templates/core/",
-  "agent/specnaut-guide":
+  // #562 moved the vendored snapshot out of the seat and into a preloaded
+  // skill. The excuse moved with the text, not with the file name — an
+  // allowlist keyed on a location goes stale the moment the content relocates,
+  // and a stale entry excuses nothing while looking like it does.
+  "skill/specnaut-facts":
     "answers questions ABOUT Specnaut's own architecture; naming the layout is the answer",
 };
 

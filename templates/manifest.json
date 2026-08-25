@@ -93,6 +93,12 @@
     {
       "category": "backlog-doc",
       "name": "board",
+      "suffix": "groom-report.md",
+      "source": "core/skills/board/groom-report.md"
+    },
+    {
+      "category": "backlog-doc",
+      "name": "board",
       "suffix": "spec-autogen.md",
       "source": "core/skills/board/spec-autogen.md"
     },
@@ -233,6 +239,21 @@
       "category": "skill",
       "name": "review-findings-contract",
       "source": "core/skills/review-findings-contract/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "alert-triage-contract",
+      "source": "core/skills/alert-triage-contract/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "backlog-frontmatter",
+      "source": "core/skills/backlog-frontmatter/SKILL.md"
+    },
+    {
+      "category": "skill",
+      "name": "specnaut-facts",
+      "source": "core/skills/specnaut-facts/SKILL.md"
     },
     {
       "category": "skill",

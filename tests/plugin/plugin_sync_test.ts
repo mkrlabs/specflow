@@ -107,6 +107,11 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     "handoff-protocol",
     "review-findings-contract",
     "qa-report-contract",
+    // #562: three sections split out of seats that had no duplication left to
+    // reclaim. Same mechanism, same `user-invocable: false`.
+    "alert-triage-contract",
+    "backlog-frontmatter",
+    "specnaut-facts",
   ].map((name) => ({
     plugin: `plugin/skills/${name}/SKILL.md`,
     source: `templates/core/skills/${name}/SKILL.md`,

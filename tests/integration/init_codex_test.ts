@@ -110,7 +110,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     const agentsSkillsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".agents/skills")),
     )).length;
-    assertEquals(agentsSkillsCount, 21);
+    assertEquals(agentsSkillsCount, 24);
     const codexAgentsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".codex/agents")),
     )).length;
