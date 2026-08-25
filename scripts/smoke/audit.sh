@@ -237,7 +237,20 @@ else
     base="$(basename "$f")"
     covered=0
     for s in $smokes; do
-      if [ -f "$SMOKE_DIR/$s" ] && grep -qF "$base" "$SMOKE_DIR/$s"; then
+      [ -f "$SMOKE_DIR/$s" ] || continue
+      # A comment is not an assertion (plan.md §5 023-R1). The definition of
+      # "code in a smoke script" has one home, in _common.sh; this is one of
+      # its two askers. It used to be a bare `grep -qF "$base" "$SMOKE_DIR/$s"`
+      # over the whole file, so a basename occurring only in a comment — even
+      # one saying the file is deliberately uncovered — counted as coverage.
+      #
+      # Captured into a variable rather than piped into `grep -q`: this script
+      # runs under `set -euo pipefail`, and `grep -q` exits at the first match,
+      # SIGPIPE-ing the producer. pipefail would then report 141 for a run that
+      # FOUND the string — turning every covered file into a gap, sometimes,
+      # depending on how fast the producer got there.
+      code="$(smoke_code_lines "$SMOKE_DIR/$s")"
+      if grep -qF "$base" <<<"$code"; then
         covered=1
         break
       fi

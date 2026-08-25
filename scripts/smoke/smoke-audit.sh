@@ -30,6 +30,9 @@
 #       one that means "found things" (1); .specnaut/release/preflight.sh
 #       branches on that difference and would otherwise blame a shallow clone
 #       for coverage gaps
+#   3f. a basename that appears ONLY inside a comment is not coverage —
+#       a comment resolves nothing, and one saying a file is deliberately
+#       uncovered would otherwise vouch for it (#545)
 #   4. the EXIT CODE is the verdict: 0 on a clean tree, non-zero with
 #      findings. The old version wrapped the call in `|| true` and grepped
 #      only stdout, so it passed identically whether audit.sh exited 0, 1 or
@@ -192,6 +195,32 @@ notgit_rc=$?
 rmdir "$notgit_dir"
 set -e
 
+# --- Assertion 3f: a mention inside a COMMENT is not coverage -----------
+# #545. The coverage test was one unanchored fixed-string match over the
+# whole smoke file, so a basename occurring only in a comment counted as
+# coverage — including a comment saying the file is deliberately NOT
+# covered. The failure direction is the one a gate must never take: it
+# reports coverage that does not exist.
+#
+# Planted last, and captured separately, so the counts every assertion
+# above pins against `$out` are untouched.
+cat > templates/core/agents/comment-only-agent.md <<'EOF'
+---
+name: comment-only-agent
+description: mentioned by the smoke in a comment and nowhere else.
+---
+EOF
+cat >> "$SYNTH_SMOKE/smoke-features.sh" <<'EOF'
+# comment-only-agent.md is named here and nowhere else in this file.
+# A comment resolves nothing and asserts nothing; it must not vouch for a file.
+EOF
+git add -A
+git commit -q -m "plant a file mentioned only in a comment"
+set +e
+commentonly_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+commentonly_rc=$?
+set -e
+
 echo "$out"
 echo
 echo "── assertions ──"
@@ -300,6 +329,23 @@ if [ "$clean_rc" -eq 0 ] && [ "$rc" -ne 0 ]; then
   pass "exit code and report agree in both directions"
 else
   fail "exit code and report disagree" "clean_rc=$clean_rc findings_rc=$rc"
+fi
+
+if grep -q "comment-only-agent.md" <<<"$commentonly_out"; then
+  pass "a basename occurring only in a comment is NOT coverage (#545)"
+else
+  fail "a comment vouched for a file" \
+       "audit reported coverage for comment-only-agent.md, which no assertion names"
+fi
+
+# Asserted on the REPORT, not merely on the exit code: this run is non-zero
+# for the planted stale assertion regardless, so `rc != 0` would pass even
+# with the comment still counting as coverage. Pin the count instead.
+if grep -qE "^  2 coverage gap\(s\)$" <<<"$commentonly_out"; then
+  pass "the comment-only file is counted as a gap, not merely mentioned"
+else
+  fail "gap count did not reach 2 with the comment-only file planted" \
+       "$(grep -E 'coverage gap' <<<"$commentonly_out" | head -1)"
 fi
 
 finish "SMOKE-AUDIT"
