@@ -15,19 +15,50 @@
 #   audit.sh --since <ref>   # override baseline (e.g. another tag, sha, branch)
 #
 # Exit codes:
-#   0  audit ran (regardless of findings — stdout is the report)
+#   0  clean — no stale assertion, no un-allow-listed coverage gap
+#   1  findings, or an unexpected error
 #   2  baseline ref could not be resolved
-#   3  not running inside a git work tree
-#   1  unexpected error
+#   3  --src-root is not a git work tree
+#
+# The exit code IS the verdict (plan.md §5 R5). It used to be 0 regardless
+# of findings, with `.specnaut/release/preflight.sh` re-deriving pass/fail by
+# grepping this script's stdout — two spellings of one rule, and the caller
+# held the authoritative one. A caller that must parse a report to learn
+# whether it failed is a caller that will eventually parse it wrong.
 #
 # Heuristics live in `.claude/skills/test-sandbox/SKILL.md` ("Audit
 # heuristics") so the rules and the script can drift together but are
 # documented in exactly one place.
 set -euo pipefail
 
+# Path resolution has one home (plan.md §5 R1); this script's source tree is
+# an explicit PARAMETER with a default (R2), never an ambient value.
+#
+# It used to be derived from the CALLER'S cwd via `git rev-parse
+# --show-toplevel`, so the same invocation answered differently depending on
+# where you stood. Deriving it from this file's own location instead would
+# only have swapped one invisible input for another — and would have broken
+# smoke-audit.sh, which points the audit at a synthetic tree. Injection
+# removes the class rather than moving it.
+. "$(dirname "$0")/_common.sh"
+
 SINCE=""
 while [ $# -gt 0 ]; do
   case "$1" in
+    --smoke-dir)
+      SMOKE_DIR="${2:-}"
+      [ -n "$SMOKE_DIR" ] || { echo "audit.sh: --smoke-dir needs a directory" >&2; exit 1; }
+      [ -d "$SMOKE_DIR" ] || { echo "audit.sh: --smoke-dir '$SMOKE_DIR' is not a directory" >&2; exit 1; }
+      SMOKE_DIR="$(cd "$SMOKE_DIR" && pwd)"
+      shift 2
+      ;;
+    --src-root)
+      SRC_ROOT="${2:-}"
+      [ -n "$SRC_ROOT" ] || { echo "audit.sh: --src-root needs a directory" >&2; exit 1; }
+      [ -d "$SRC_ROOT" ] || { echo "audit.sh: --src-root '$SRC_ROOT' is not a directory" >&2; exit 1; }
+      SRC_ROOT="$(cd "$SRC_ROOT" && pwd)"
+      shift 2
+      ;;
     --since)
       SINCE="${2:-}"
       [ -n "$SINCE" ] || { echo "audit.sh: --since needs a ref" >&2; exit 1; }
@@ -44,23 +75,47 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "audit.sh: not inside a git work tree" >&2
+if ! git -C "$SRC_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "audit.sh: '$SRC_ROOT' is not a git work tree" >&2
   exit 3
 fi
 
-ROOT="$(git rev-parse --show-toplevel)"
-# Source tree = where templates/ and the release tags live. In the monorepo the
-# CLI is a submodule (apps/specnaut-cli) with its own tags; on a flat repo or the
-# synthetic self-test, it's the toplevel itself.
-if [ -d "$ROOT/apps/specnaut-cli/templates" ]; then
-  SRC_ROOT="$ROOT/apps/specnaut-cli"
-else
-  SRC_ROOT="$ROOT"
+# --- What gets scanned (plan.md §5 R3) ----------------------------------
+# Membership is ENUMERATED from $SMOKE_DIR, and SUITE_FILES is checked
+# against that enumeration rather than trusted as a second list.
+#
+# Two lists that must agree is the duplication this table exists to forbid.
+# One list plus a check is not: the check is what turns "somebody added a
+# smoke and never wired it into the suite" from a silent omission into a
+# finding. `--smoke-dir` points this at a foreign directory (only the
+# meta-test does), and there the declaration does not apply.
+scanned_files=""
+for _f in "$SMOKE_DIR"/smoke-*.sh; do
+  [ -f "$_f" ] || continue
+  scanned_files="$scanned_files$(basename "$_f")
+"
+done
+[ -f "$SMOKE_DIR/_common.sh" ] && scanned_files="${scanned_files}_common.sh
+"
+
+membership_drift=""
+if [ "$SMOKE_DIR" = "$DEFAULT_SMOKE_DIR" ]; then
+  for _f in $(printf '%s' "$scanned_files" | grep -v '^_common.sh$' || true); do
+    case "
+$SUITE_FILES
+" in
+      *"
+$_f
+"*) ;;
+      *) membership_drift="$membership_drift  - $_f exists but is not in SUITE_FILES — run-all.sh never runs it
+" ;;
+    esac
+  done
+  for _f in $SUITE_FILES; do
+    [ -f "$SMOKE_DIR/$_f" ] || membership_drift="$membership_drift  - $_f is in SUITE_FILES but does not exist
+"
+  done
 fi
-# Smoke scripts live next to THIS script (the monorepo .claude/ tree), which is
-# a different location than SRC_ROOT under the monorepo layout.
-SMOKE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ -z "$SINCE" ]; then
   SINCE=$(git -C "$SRC_ROOT" tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | head -1 || true)
@@ -105,7 +160,30 @@ SURFACES=(
 CHANGED=$(git -C "$SRC_ROOT" diff --name-only --diff-filter=AMR "$SINCE..HEAD" -- \
   'templates/core/' 'templates/manifest.json' 'src/cli/' 2>/dev/null || true)
 
+# --- Coverage-gap allowlist (plan.md §5 R13) ----------------------------
+ALLOWLIST="$SMOKE_DIR/coverage-allowlist.txt"
+
+# Echo the recorded reason if $1 is allow-listed; return 1 otherwise.
+# An entry with no reason is NOT an entry — that is what stops the file
+# degrading into a list of paths somebody added to make the gate quiet.
+allow_reason() {
+  [ -f "$ALLOWLIST" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    entry="${line%%[[:space:]]*}"
+    [ "$entry" = "$1" ] || continue
+    reason="$(printf '%s' "${line#"$entry"}" | sed 's/^[[:space:]]*//')"
+    [ -n "$reason" ] || return 1
+    printf '%s' "$reason"
+    return 0
+  done < "$ALLOWLIST"
+  return 1
+}
+
 gaps_count=0
+allowed_count=0
+unmapped_count=0
+unmapped_list=""
 echo "## Coverage scan"
 echo
 if [ -z "$CHANGED" ]; then
@@ -132,7 +210,19 @@ else
       esac
     done
     if [ -z "$matched_glob" ]; then
-      continue # outside the audit's surface map (tests, scripts/, plugin/, etc.)
+      # This used to `continue` in silence, which is how a required gate ends
+      # up printing "every surface change has a matching smoke assertion"
+      # about a category it has never heard of. Reported and counted — but
+      # deliberately NOT fatal: a new category with no recourse would block
+      # legitimate work, and the defect here is invisibility, not the gap.
+      case "$f" in
+        templates/core/*)
+          unmapped_count=$((unmapped_count + 1))
+          unmapped_list="$unmapped_list  - $f
+"
+          ;;
+      esac
+      continue # tests/, scripts/, plugin/ and friends are genuinely out of scope
     fi
     base="$(basename "$f")"
     covered=0
@@ -143,8 +233,13 @@ else
       fi
     done
     if [ "$covered" -eq 0 ]; then
-      gaps_count=$((gaps_count + 1))
-      printf '  - %s\n      kind: %s\n      expected coverage in: %s\n' "$f" "$kind" "$smokes"
+      if reason="$(allow_reason "$f")"; then
+        allowed_count=$((allowed_count + 1))
+        printf '  ~ %s (allow-listed)\n      reason: %s\n' "$f" "$reason"
+      else
+        gaps_count=$((gaps_count + 1))
+        printf '  - %s\n      kind: %s\n      expected coverage in: %s\n' "$f" "$kind" "$smokes"
+      fi
     fi
   done <<<"$CHANGED"
   if [ "$gaps_count" -eq 0 ]; then
@@ -227,9 +322,11 @@ resolves() {
 }
 
 stale_count=0
-for smoke in "$SMOKE_DIR"/smoke-*.sh; do
-  [ -f "$smoke" ] || continue
-  smoke_name="$(basename "$smoke")"
+# Enumerated above, and it includes _common.sh: a path assertion hoisted into
+# the shared header would otherwise be invisible to the very scan that exists
+# to catch stale ones.
+for smoke_name in $scanned_files; do
+  smoke="$SMOKE_DIR/$smoke_name"
   # The audit's own meta-test plants deliberately-fake `.claude/agents/baseline-*.md`
   # references inside heredocs to verify the staleness scan reports them. Audit-ing
   # the auditor would always flag those as a false positive — skip it.
@@ -268,11 +365,66 @@ if [ "$stale_count" -eq 0 ]; then
 fi
 
 echo
+echo "## Unmapped surface"
+echo
+if [ "$unmapped_count" -eq 0 ]; then
+  echo "  ✓ every changed file under templates/core/ fell under a mapped surface"
+else
+  printf '%s' "$unmapped_list"
+  echo "      ↳ no glob in the SURFACES map matches these, so NOTHING was asserted"
+  echo "        about them. Not fatal — but a green run does not cover them."
+fi
+
+# --- Allowlist staleness (plan.md §5 R13) -------------------------------
+# An allow-listed path whose file is gone is the allowlist's own version of a
+# stale assertion: it silently grants an exemption nothing needs any more.
+echo
+echo "## Suite membership"
+echo
+if [ -n "$membership_drift" ]; then
+  printf '%s' "$membership_drift"
+else
+  echo "  ✓ SUITE_FILES matches the scripts on disk"
+fi
+
+echo
+echo "## Allowlist scan"
+echo
+stale_allow_count=0
+if [ -f "$ALLOWLIST" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    entry="${line%%[[:space:]]*}"
+    reason="$(printf '%s' "${line#"$entry"}" | sed 's/^[[:space:]]*//')"
+    if [ -z "$reason" ]; then
+      echo "  - $entry is allow-listed with no reason — ignored, so the gap is still fatal"
+      stale_allow_count=$((stale_allow_count + 1))
+      continue
+    fi
+    if [ ! -e "$SRC_ROOT/$entry" ]; then
+      echo "  - $entry no longer exists — prune this allowlist entry"
+      stale_allow_count=$((stale_allow_count + 1))
+    fi
+  done < "$ALLOWLIST"
+fi
+[ "$stale_allow_count" -eq 0 ] && echo "  ✓ no stale allowlist entries"
+
+echo
 echo "## Summary"
 echo "  $gaps_count coverage gap(s)"
+[ "$allowed_count" -gt 0 ] && echo "  $allowed_count allow-listed gap(s) (not fatal)"
 echo "  $stale_count stale assertion(s)"
+echo "  $stale_allow_count stale allowlist entr(y/ies)"
+echo "  $unmapped_count unmapped surface change(s) (not fatal)"
+drift_count="$(printf '%s' "$membership_drift" | grep -c '^  - ' || true)"
+echo "  $drift_count suite-membership drift(s)"
 echo
-if [ "$gaps_count" -gt 0 ] || [ "$stale_count" -gt 0 ]; then
-  echo "Add the missing assertions or prune the stale ones, then re-run."
+# The exit code IS the verdict (plan.md §5 R5). No caller re-derives it.
+if [ "$gaps_count" -gt 0 ] || [ "$stale_count" -gt 0 ] || [ "$stale_allow_count" -gt 0 ] \
+   || [ "$drift_count" -gt 0 ]; then
+  echo "Add the missing assertions, prune the stale ones, or allow-list a gap"
+  echo "with a written reason in $(basename "$ALLOWLIST"), then re-run."
   echo "(audit.sh never edits smoke scripts autonomously — that is on you.)"
+  exit 1
 fi
+exit 0

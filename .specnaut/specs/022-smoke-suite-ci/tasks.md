@@ -87,13 +87,13 @@ nothing reports itself skipped.
 **Independent test**: `git clone` the CLI alone into a tmpdir, run `bash scripts/smoke/run-all.sh`,
 confirm zero "skipped" lines and a real audit verdict.
 
-- [ ] T019 [US2] Change `apps/specnaut-cli/scripts/smoke/audit.sh` to take `--src-root <dir>`, defaulting to `_common.sh`'s value — **home of decision R2**, finding A1. Delete the cwd-derived `git rev-parse --show-toplevel` at `:52` and the now-dead `apps/specnaut-cli/templates` branch at `:56-59`
-- [ ] T020 [US2] Point `audit.sh`'s two scans at `SUITE_FILES` (T005) instead of the `smoke-*.sh` glob at `:230` and the script names hardcoded in the SURFACES map at `:91-103` — finding A5, otherwise an assertion hoisted into `_common.sh` silently stops covering its surface and reports a false gap
-- [ ] T021 [US2] Make `audit.sh`'s exit code its verdict — **home of decision R5**, FR-004. Non-zero on a stale assertion always; on a coverage gap unless allow-listed (T026)
-- [ ] T022 [US2] Rewrite `apps/specnaut-cli/scripts/smoke/smoke-audit.sh` to stop copying `audit.sh` into the synthetic tree at `:58` — invoke the real one in place with `--src-root "$SANDBOX"` (finding A2). This deletes the "is the copy the same as the original" question and unblocks T019
-- [ ] T023 [US2] Update `smoke-audit.sh`'s 8 synthetic-tree path references (`:36,47,54,58,59,77,82,88`) to the new layout — finding A10: they **move**, they do not vanish with the deleted directory, and FR-010's grep will return them
-- [ ] T024 [US2] Add the exit-code assertion to `smoke-audit.sh` (FR-005, finding A4): capture status separately (`set +e; out=$(…); rc=$?; set -e`) and assert `rc` non-zero with findings, zero without. Today `:88`'s `|| true` swallows exactly the property T021 introduces
-- [ ] T025 [US2] Update `apps/specnaut-cli/.specnaut/release/preflight.sh`: `audit_sh="scripts/smoke/audit.sh"`, **delete** the standalone-clone skip at `:44-46` (FR-009) and the output parse at `:49-52` (FR-004) — but keep a named `❌` message so a finding does not abort silently under `set -euo pipefail`
+- [X] T019 [US2] Change `apps/specnaut-cli/scripts/smoke/audit.sh` to take `--src-root <dir>`, defaulting to `_common.sh`'s value — **home of decision R2**, finding A1. Delete the cwd-derived `git rev-parse --show-toplevel` at `:52` and the now-dead `apps/specnaut-cli/templates` branch at `:56-59`
+- [X] T020 [US2] Point `audit.sh`'s two scans at `SUITE_FILES` (T005) instead of the `smoke-*.sh` glob at `:230` and the script names hardcoded in the SURFACES map at `:91-103` — finding A5, otherwise an assertion hoisted into `_common.sh` silently stops covering its surface and reports a false gap
+- [X] T021 [US2] Make `audit.sh`'s exit code its verdict — **home of decision R5**, FR-004. Non-zero on a stale assertion always; on a coverage gap unless allow-listed (T026)
+- [X] T022 [US2] Rewrite `apps/specnaut-cli/scripts/smoke/smoke-audit.sh` to stop copying `audit.sh` into the synthetic tree at `:58` — invoke the real one in place with `--src-root "$SANDBOX"` (finding A2). This deletes the "is the copy the same as the original" question and unblocks T019
+- [X] T023 [US2] Update `smoke-audit.sh`'s 8 synthetic-tree path references (`:36,47,54,58,59,77,82,88`) to the new layout — finding A10: they **move**, they do not vanish with the deleted directory, and FR-010's grep will return them
+- [X] T024 [US2] Add the exit-code assertion to `smoke-audit.sh` (FR-005, finding A4): capture status separately (`set +e; out=$(…); rc=$?; set -e`) and assert `rc` non-zero with findings, zero without. Today `:88`'s `|| true` swallows exactly the property T021 introduces
+- [X] T025 [US2] Update `apps/specnaut-cli/.specnaut/release/preflight.sh`: `audit_sh="scripts/smoke/audit.sh"`, **delete** the standalone-clone skip at `:44-46` (FR-009) and the output parse at `:49-52` (FR-004) — but keep a named `❌` message so a finding does not abort silently under `set -euo pipefail`
 
 **Checkpoint**: the audit answers the same way everywhere, and its meta-test can prove it.
 
@@ -107,10 +107,10 @@ under **no** mapped surface is named as unmapped rather than passing silently.
 **Independent test**: add a file under a mapped surface with no assertion → named as a gap. Add one
 under an unmapped path (e.g. `templates/core/statusline/`) → named under `## Unmapped surface`.
 
-- [ ] T026 [US3] Add the coverage-gap allowlist beside `audit.sh` — **home of decision R13**, Q4. One entry per deliberately-deferred assertion, each carrying a written reason
-- [ ] T027 [US3] Make `audit.sh` report an allowlist entry whose file no longer exists as a **stale allowlist entry**, in the same register as a stale assertion (plan.md § 9) — otherwise the allowlist becomes the new hiding place and rots exactly as the assertions did
-- [ ] T028 [US3] Add the `## Unmapped surface` section to `audit.sh` — **home of decision R6**, finding A6. Replace the silent `continue` at `:134-136` with a report, and count it in the summary. `:223-225`'s `return 0` in `resolves()` stays (it is the resolver's correct default), but unmapped **coverage** must be visible
-- [ ] T029 [US3] Verify T028 against a real case: `templates/core/statusline/` or any path outside the eleven globs at `:91-103` must appear in the report instead of producing `✓ every surface change has a matching smoke assertion`
+- [X] T026 [US3] Add the coverage-gap allowlist beside `audit.sh` — **home of decision R13**, Q4. One entry per deliberately-deferred assertion, each carrying a written reason
+- [X] T027 [US3] Make `audit.sh` report an allowlist entry whose file no longer exists as a **stale allowlist entry**, in the same register as a stale assertion (plan.md § 9) — otherwise the allowlist becomes the new hiding place and rots exactly as the assertions did
+- [X] T028 [US3] Add the `## Unmapped surface` section to `audit.sh` — **home of decision R6**, finding A6. Replace the silent `continue` at `:134-136` with a report, and count it in the summary. `:223-225`'s `return 0` in `resolves()` stays (it is the resolver's correct default), but unmapped **coverage** must be visible
+- [X] T029 [US3] Verify T028 against a real case: `templates/core/statusline/` or any path outside the eleven globs at `:91-103` must appear in the report instead of producing `✓ every surface change has a matching smoke assertion`
 
 **Checkpoint**: the gate reports what it does not cover. It is now honest about its own reach.
 

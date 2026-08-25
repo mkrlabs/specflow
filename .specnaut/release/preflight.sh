@@ -33,23 +33,23 @@ done
 [ "$conclusion" = "success" ] || { echo "❌ CI not green on $sha (got: ${conclusion:-no-completed-run-after-5min})"; exit 1; }
 
 echo "▶ smoke audit"
-# audit.sh prints `0 coverage gap(s)` / `0 stale assertion(s)` but does NOT exit
-# non-zero on failures (verified 2026-05-26). Capture output and parse — the
-# preflight is the gate that gives the audit its teeth.
+# The audit owns its own verdict now: its exit code IS the answer
+# (see .specnaut/specs/022-smoke-suite-ci/plan.md §5 R5).
 #
-# Since specnaut-monorepo#7 the test-sandbox skill lives in the monorepo-root
-# `.claude/` (submodules carry none), i.e. two levels up from this repo. Resolve
-# it there; skip gracefully from a standalone clone (e.g. a bare CI checkout of
-# specnaut-cli) where the monorepo `.claude/` isn't present.
-audit_sh="../../.claude/skills/test-sandbox/scripts/audit.sh"
-if [ ! -f "$audit_sh" ]; then
-  echo "  ↳ skipped (test-sandbox skill not present — standalone clone, not the monorepo)"
-else
-  audit_out="$(bash "$audit_sh")"
-  echo "$audit_out"
-  gaps="$(echo "$audit_out" | grep -oE '[0-9]+ coverage gap' | grep -oE '^[0-9]+' || echo "0")"
-  stale="$(echo "$audit_out" | grep -oE '[0-9]+ stale assertion' | grep -oE '^[0-9]+' || echo "0")"
-  [ "$gaps" -eq 0 ] && [ "$stale" -eq 0 ] || { echo "❌ smoke audit found $gaps gap(s) + $stale stale assertion(s) — fix before releasing"; exit 1; }
+# This block used to re-derive pass/fail by grepping the audit's stdout for
+# `N coverage gap`, because audit.sh exited 0 regardless of findings. That was
+# two spellings of one rule with the CALLER holding the authoritative one — and
+# a caller that must parse a report to learn whether it failed is a caller that
+# will eventually parse it wrong.
+#
+# The standalone-clone skip is DELETED rather than narrowed. The scripts live in
+# this repository now, so there is no clone shape in which they are absent; the
+# skip could only ever have hidden a real failure. `smoke.yml` runs the same
+# script on every push, so this is no longer the only place it fires either.
+if ! bash scripts/smoke/audit.sh; then
+  echo "❌ smoke audit is red — fix the findings, or allow-list a coverage gap"
+  echo "   with a written reason in scripts/smoke/coverage-allowlist.txt."
+  exit 1
 fi
 
 echo "▶ deno task bundle (re-sync)"

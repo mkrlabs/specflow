@@ -1,0 +1,20 @@
+# Coverage-gap allowlist for audit.sh  (plan.md §5 R13)
+#
+# A coverage gap is a shipped file under a mapped surface that no smoke
+# script names. It is FATAL by default. This file is the only way to defer
+# one, and every entry must carry a written reason — an entry without a
+# reason is ignored, so "add the path and move on" does not work.
+#
+# Why an allowlist rather than "gaps are only a warning": under this repo's
+# local --ff-only workflow the branch push is the last gate before main, so a
+# warning would block nowhere. And a tolerated gap is invisible, which is how
+# the assertions rotted across two majors in the first place.
+#
+# audit.sh reports an entry whose file no longer exists as a STALE ALLOWLIST
+# ENTRY, in the same register as a stale assertion — so this file cannot
+# quietly become the new hiding place.
+#
+# Format:  <path relative to the repo root><whitespace><reason>
+#
+# Example (not active — the leading # makes it a comment):
+# templates/core/skills/foo/SKILL.md  deferred to #123, assertion lands with the backend

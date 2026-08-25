@@ -30,6 +30,9 @@ SMOKE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI="$(cd "$SMOKE_DIR/../.." && pwd)"
 SRC_ROOT="$CLI"
 SANDBOX_ROOT="$CLI/sandbox"
+# audit.sh may be pointed at a foreign smoke directory (--smoke-dir); it
+# compares against this to know whether SUITE_FILES applies.
+DEFAULT_SMOKE_DIR="$SMOKE_DIR"
 
 # --- Suite membership (plan.md §5 R3) ------------------------------------
 # The one answer to "which scripts constitute the suite". run-all.sh runs
