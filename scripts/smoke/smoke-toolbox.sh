@@ -163,12 +163,16 @@ echo "═══ smoke_code_lines: a comment is not an assertion ═══"
 # testing a _common.sh helper. Its `rm -rf` sweep above deliberately does
 # NOT use that helper — see plan.md §8.
 cl_fixture="$(mktemp)"
+# `set -e` is live from the drift-probe block onward, so an abort between
+# here and the rm would leak the fixture.
+trap 'rm -f "$cl_fixture"' EXIT
 cat > "$cl_fixture" <<'FIXTURE'
 # a whole-line comment naming victim-a.sh
     # an indented comment naming victim-b.sh
 kept_trailing="survivor-c.sh"   # comment naming victim-d.sh
 expansion="${rt#prefix/}survivor-e.sh"
 bare_expansion=${rt#prefix/}survivor-g.sh
+sq_closed='survivor-h.sh'   # comment naming victim-e.sh
 banner_line='echo "=== #180  survivor-f.sh --parent flag ==="'
 FIXTURE
 cl_out="$(smoke_code_lines "$cl_fixture")"
@@ -181,7 +185,7 @@ cl_out="$(smoke_code_lines "$cl_fixture")"
 # be preceded by whitespace to start a comment — audit.sh:175 and :421 are
 # real instances, and dropping that clause truncates them while every other
 # assertion here still passes.
-for survivor in survivor-c.sh survivor-e.sh survivor-f.sh survivor-g.sh; do
+for survivor in survivor-c.sh survivor-e.sh survivor-f.sh survivor-g.sh survivor-h.sh; do
   if grep -qF "$survivor" <<<"$cl_out"; then
     pass "smoke_code_lines keeps real code: $survivor"
   else
@@ -192,7 +196,10 @@ done
 
 # Negative half: without it, a helper that returned its input unchanged
 # would pass everything above.
-for victim in victim-a.sh victim-b.sh victim-d.sh; do
+# victim-e.sh sits after a single-quoted region that CLOSES. A quote
+# tracker whose state got stuck open would score the hash as quoted, keep
+# the comment, and reinstate #545 — while passing every other assertion here.
+for victim in victim-a.sh victim-b.sh victim-d.sh victim-e.sh; do
   if grep -qF "$victim" <<<"$cl_out"; then
     fail "smoke_code_lines kept a comment: $victim" "a comment would still vouch for a file"
   else
@@ -220,6 +227,7 @@ else
        "the fail-closed guarantee rests on every output line being a prefix of its input"
 fi
 rm -f "$cl_fixture"
+trap - EXIT
 
 if smoke_code_lines /nonexistent/definitely-not-here.sh >/dev/null 2>&1; then
   fail "smoke_code_lines returned success for an unreadable file" \

@@ -129,8 +129,9 @@ defect this table forbids.
 
 ## 6. Technical context
 
-- POSIX shell, **bash 3.2 floor**; BSD tooling (no GNU `\|` alternation, no `\s` in `/usr/bin/sed`,
-  no `cat -A`, no `timeout`). An `awk` implementation sidesteps the `sed` portability floor.
+- POSIX shell, **bash 3.2 floor**; BSD tooling (no GNU `\|` alternation in `sed` — BSD `grep` does
+  support it in BRE, verified, no `\s` in `/usr/bin/sed`, no `cat -A`, no `timeout`). An `awk`
+  implementation sidesteps the `sed` portability floor.
 - **`set -e` is not uniform, and the plan must not assume it is**: `audit.sh` and
   `.specnaut/release/preflight.sh` are `set -euo pipefail`; `run-all.sh:25` and
   `smoke-toolbox.sh:20` are `set -uo pipefail` — **no `-e`**. A `grep` matching nothing still needs
