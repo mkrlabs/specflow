@@ -525,16 +525,23 @@ echo "═══ #188  /specnaut merge auto-closes the linked backlog issue ═�
 # before it). Each names something the script promises, not that its file
 # exists: #547 established that a presence check satisfies the coverage token
 # and closes none of the hole.
-check "setup-plan.sh scaffolds the plan from plan-template" \
-  'grep -q "plan-template" .specnaut/scripts/bash/setup-plan.sh'
-check "setup-plan.sh writes to IMPL_PLAN rather than a path of its own" \
-  'grep -q "IMPL_PLAN" .specnaut/scripts/bash/setup-plan.sh'
-check "setup-plan.sh offers the --json contract its callers parse" \
-  'grep -q -- "--json" .specnaut/scripts/bash/setup-plan.sh'
-check "setup-plan.ps1 scaffolds from the same template (twins stay in step)" \
-  'grep -q "plan-template" .specnaut/scripts/powershell/setup-plan.ps1'
-check "setup-plan.ps1 writes to IMPL_PLAN too" \
-  'grep -q "IMPL_PLAN" .specnaut/scripts/powershell/setup-plan.ps1'
+# No inner single quotes in any pattern: a `\'` inside a single-quoted `check`
+# expression does not escape, it terminates the string — which silently turned
+# the first version of these into something that could not fail.
+# Anchored to the WRITE and the case arm, not to tokens. The first version
+# grepped "IMPL_PLAN" and "--json", which match this script's own help text and
+# its JSON output keys — replacing the copy with `touch` would have left every
+# assertion green while shipping an empty plan.md to every user.
+check "setup-plan.sh copies the template onto IMPL_PLAN" \
+  'grep -qE "cp .+TEMPLATE.+IMPL_PLAN" .specnaut/scripts/bash/setup-plan.sh'
+check "setup-plan.sh resolves the template by name, not a hardcoded path" \
+  'grep -qE "resolve_template .plan-template." .specnaut/scripts/bash/setup-plan.sh'
+check "setup-plan.sh parses --json as an argument, not only in its help text" \
+  'grep -qE "^[[:space:]]*--json\)" .specnaut/scripts/bash/setup-plan.sh'
+check "setup-plan.ps1 copies the template too (twins stay in step)" \
+  'grep -qE "Copy-Item .+template .+IMPL_PLAN" .specnaut/scripts/powershell/setup-plan.ps1'
+check "setup-plan.ps1 resolves the same template by name" \
+  'grep -qF "Resolve-Template -TemplateName" .specnaut/scripts/powershell/setup-plan.ps1'
 
 check "create-new-feature.sh moves the linked item to In progress" \
   'grep -q "In progress" .specnaut/scripts/bash/create-new-feature.sh'

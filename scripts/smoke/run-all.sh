@@ -95,7 +95,13 @@ for f in "$SMOKE_DIR"/*.sh; do
   # exactly the input it could not inspect. Same principle as audit.sh's
   # exit codes: "could not run" is not "found nothing".
   if ! code="$(smoke_code_lines "$f")"; then
-    echo "❌ $(basename "$f") could not be read — the boundary check did not inspect it"
+    # `fail`, not `echo`. `finish` branches on the harness counter, never on
+    # boundary_hits, so an echo here let an unreadable file exit 0 through
+    # "ALL CHECKS PASSED" with no smoke run at all. The bare `exit 1` this
+    # block replaced could not do that: routing the OTHER branch through the
+    # harness and leaving this one behind is what created the fail-open.
+    fail "$(basename "$f") could not be read" \
+         "the boundary check did not inspect it (FR-001)"
     boundary_hits=$((boundary_hits + 1))
     continue
   fi

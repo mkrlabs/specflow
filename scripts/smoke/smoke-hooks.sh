@@ -118,7 +118,27 @@ else
   pass "no missing-gh warning when gh is on PATH"
 fi
 
-out_nogh=$(echo "{}" | PATH=/usr/bin:/bin bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?")
+# /usr/bin:/bin hides a Homebrew gh but NOT ubuntu-latest's, which ships at
+# /usr/bin/gh — so on CI a correct hook would have turned this red, and a red
+# assertion on correct code is how assertions get deleted to unblock a push.
+# Build a PATH guaranteed not to contain gh.
+nogh_bin="$(mktemp -d)"
+# bash is symlinked too: `PATH=x cmd` resolves cmd through x, so leaving it out
+# made the run fail with "bash: command not found" rather than exercising the
+# hook.
+for _t in bash awk cat env; do
+  _p="$(command -v "$_t" 2>/dev/null)" && ln -sf "$_p" "$nogh_bin/$_t"
+done
+if PATH="$nogh_bin" command -v gh >/dev/null 2>&1; then
+  fail "the gh-absent fixture still finds gh" "the absent branch cannot be exercised"
+fi
+out_nogh=$(echo "{}" | PATH="$nogh_bin" bash .claude/hooks/check-backlog-prereqs.sh 2>&1; echo "ec=$?")
+# Not `rm -rf`: smoke-toolbox.sh's static sweep requires every deleting path be
+# built through scenario_dir, and this one is a mktemp outside the sandbox. The
+# directory holds only symlinks, so removing them and rmdir'ing is exact — and
+# it keeps the sweep's rule intact instead of carving an exception into it.
+rm -f "$nogh_bin"/*
+rmdir "$nogh_bin"
 if echo "$out_nogh" | grep -qF "$GH_WARN"; then
   pass "and warns when gh is genuinely off PATH"
 else
