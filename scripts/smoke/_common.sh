@@ -35,32 +35,20 @@ SANDBOX_ROOT="$CLI/sandbox"
 DEFAULT_SMOKE_DIR="$SMOKE_DIR"
 
 # --- What counts as code (plan.md §5 023-R1, 023-R2, 023-R3) -------------
-# A comment is not an assertion. Two guards need to tell shell code from
-# commentary — audit.sh's coverage match and run-all.sh's boundary check —
-# and this is where that is decided. Neither carries its own expression.
+# A comment is not an assertion. The two guards that must tell shell code
+# from commentary — audit.sh's coverage match and run-all.sh's boundary
+# check — ask this; neither carries its own expression.
 #
-# The rule, and the reasoning behind it, are written down once in
-# README.md ("Audit heuristics"), not restated here (023-R6).
+# The rule, why it is not `sed 's/#.*$//'`, and its heredoc blind spot are
+# written down ONCE in README.md ("What counts as a mention"). They are not
+# restated here: 023-R6 names that file as their home, and an earlier
+# revision of this comment had already drifted from it on a figure.
 #
-# Two properties callers rely on:
-#   * It removes a SUFFIX of the line and never an interior span. Every
-#     output line is therefore a prefix of its input, so a fixed-string
-#     search can lose a match but never invent one — which is what makes
-#     the coverage gate fail closed by construction (023-R2).
-#   * Line numbering is preserved. Lines are blanked, never deleted, so a
-#     caller reporting `file:line` still reports the right one (023-R2).
-#
-# `sed 's/#.*$//'` was the obvious implementation and is the wrong one: it
-# cuts at the FIRST `#`, and shell puts one inside `${var#prefix}` and
-# inside every `echo "=== #180 ..."` banner this suite writes. Measured over
-# these scripts it discards 201 lines of real code. Hence quote tracking —
-# the minimum needed to answer "is this `#` a comment", and deliberately
-# not more (023-R3).
-#
-# LIMIT, stated rather than implied: state resets on every line, so heredoc
-# bodies are not analysed. This suite embeds .gitignore, CSS, Markdown and
-# Python inside heredocs; a `#` there is scored as shell. Damage is bounded
-# to the line it sits on.
+# Contract, which callers depend on and which therefore belongs here:
+#   * removes a SUFFIX of the line, never an interior span
+#   * preserves line numbering (blanks, never deletes)
+#   * returns non-zero if the file cannot be read — callers must treat that
+#     as a finding, not as an empty file
 smoke_code_lines() {
   [ -n "${1:-}" ] || { echo "smoke_code_lines: needs a file" >&2; return 2; }
   [ -r "$1" ] || { echo "smoke_code_lines: cannot read '$1'" >&2; return 2; }

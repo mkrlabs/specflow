@@ -168,13 +168,20 @@ cat > "$cl_fixture" <<'FIXTURE'
     # an indented comment naming victim-b.sh
 kept_trailing="survivor-c.sh"   # comment naming victim-d.sh
 expansion="${rt#prefix/}survivor-e.sh"
+bare_expansion=${rt#prefix/}survivor-g.sh
 banner_line='echo "=== #180  survivor-f.sh --parent flag ==="'
 FIXTURE
 cl_out="$(smoke_code_lines "$cl_fixture")"
 
 # Positive half: real code carrying a hash survives. Both shapes were
 # measured on this suite — 16 parameter expansions and the banner lines.
-for survivor in survivor-c.sh survivor-e.sh survivor-f.sh; do
+# survivor-g.sh is the one that matters most and was missing at review: the
+# other fixtures sit inside quotes, so they exercise the quote clause only.
+# An UNQUOTED `${var#…}` is held together solely by the rule that a `#` must
+# be preceded by whitespace to start a comment — audit.sh:175 and :421 are
+# real instances, and dropping that clause truncates them while every other
+# assertion here still passes.
+for survivor in survivor-c.sh survivor-e.sh survivor-f.sh survivor-g.sh; do
   if grep -qF "$survivor" <<<"$cl_out"; then
     pass "smoke_code_lines keeps real code: $survivor"
   else
@@ -213,5 +220,45 @@ else
        "the fail-closed guarantee rests on every output line being a prefix of its input"
 fi
 rm -f "$cl_fixture"
+
+if smoke_code_lines /nonexistent/definitely-not-here.sh >/dev/null 2>&1; then
+  fail "smoke_code_lines returned success for an unreadable file" \
+       "a caller cannot tell 'no violations' from 'never looked'"
+else
+  pass "smoke_code_lines fails loudly on a file it cannot read"
+fi
+
+echo
+echo "═══ run-all.sh's boundary guard still catches a real violation ═══"
+# SC-006. The pattern is assembled from fragments so this file does not
+# match its own guard; an assembly that silently stopped matching would be
+# a dead guard that looks green, which is worse than the defect it replaced.
+# Written with printf and separate arguments for the same reason.
+bp="$SMOKE_DIR/smoke-zzz-boundary-probe.sh"
+cleanup_bp() { rm -f "$bp"; }
+trap cleanup_bp EXIT
+{
+  printf '#!/usr/bin/env bash\n'
+  printf 'climb="%s/%s/%s/%s"\n' ".." ".." ".." ".."
+  printf 'half="%s/%s"\n' "apps" "specnaut-cli"
+} > "$bp"
+set +e
+bp_out="$(bash "$SMOKE_DIR/run-all.sh" 2>&1)"
+bp_rc=$?
+set -e
+cleanup_bp
+trap - EXIT
+
+if grep -q "smoke-zzz-boundary-probe.sh resolves 2 path(s) outside this repository" <<<"$bp_out"; then
+  pass "run-all.sh reports a planted boundary violation, both halves"
+else
+  fail "the boundary guard missed a planted violation" \
+       "$(grep -iE 'resolves|outside this repository' <<<"$bp_out" | head -1)"
+fi
+if [ "$bp_rc" -ne 0 ]; then
+  pass "a boundary violation is fatal, not advisory"
+else
+  fail "run-all.sh exited 0 with a boundary violation planted" "FR-001 would not stop anything"
+fi
 
 finish "TOOLBOX"

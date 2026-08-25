@@ -89,7 +89,17 @@ for f in "$SMOKE_DIR"/*.sh; do
   #
   # `grep -c` consumes all input, so unlike audit.sh's `grep -q` there is no
   # early exit to SIGPIPE the producer under pipefail.
-  n="$(smoke_code_lines "$f" | grep -c "$BOUNDARY_RE" || true)"
+  # A file this cannot read is NOT a file with no violations. The inline
+  # `sed` this replaces had the same hole — it printed to stderr, produced
+  # nothing, and the count came out 0 — so the guard reported clean on
+  # exactly the input it could not inspect. Same principle as audit.sh's
+  # exit codes: "could not run" is not "found nothing".
+  if ! code="$(smoke_code_lines "$f")"; then
+    echo "❌ $(basename "$f") could not be read — the boundary check did not inspect it"
+    boundary_hits=$((boundary_hits + 1))
+    continue
+  fi
+  n="$(grep -c "$BOUNDARY_RE" <<<"$code" || true)"
   if [ "$n" -gt 0 ]; then
     echo "❌ $(basename "$f") resolves $n path(s) outside this repository"
     boundary_hits=$((boundary_hits + n))
