@@ -1,6 +1,5 @@
 import { assert, assertStringIncludes } from "@std/assert";
 import { CORE_BUNDLE } from "../../src/templates_bundle.ts";
-import { WINDSURF_WORKFLOW_MAX_CHARS } from "../../src/infrastructure/harness/windsurf_harness.ts";
 
 /**
  * Locks the two grounding mechanisms that need no catalogue.
@@ -130,18 +129,6 @@ Deno.test("no seat still tells the reviewer to ship unmeasured findings quietly"
       !agent(seat).includes("surface the finding at LOW rather than dropping it"),
       `${seat} still carries the pre-mechanism catch-all, which contradicts the ` +
         `downgrade rule it now also carries`,
-    );
-  }
-});
-
-Deno.test("every seat stays under the Windsurf workflow cap", () => {
-  // Cascade truncates silently at the boundary, so a breach loses whatever sat
-  // at the end of the file — in these seats, the output contract.
-  for (const seat of SEATS) {
-    const size = agent(seat).length;
-    assert(
-      size <= WINDSURF_WORKFLOW_MAX_CHARS,
-      `${seat} is ${size} chars, over the ${WINDSURF_WORKFLOW_MAX_CHARS} cap`,
     );
   }
 });

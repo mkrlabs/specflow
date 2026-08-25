@@ -4,6 +4,8 @@ import type { CoreBundle } from "../../../src/domain/core_bundle.ts";
 import { CORE_BUNDLE } from "../../../src/templates_bundle.ts";
 import { everyBundleOption } from "../../../src/application/ports.ts";
 import {
+  describeOversizeWorkflow,
+  WINDSURF_WORKFLOW_BUDGET_CHARS,
   WINDSURF_WORKFLOW_MAX_CHARS,
   workflowLength,
 } from "../../../src/infrastructure/harness/windsurf_harness.ts";
@@ -138,7 +140,7 @@ Deno.test("WindsurfHarness emits no Claude/Cursor/Codex artefacts", () => {
   assert(!keys.includes("CLAUDE.md"), "no CLAUDE.md");
 });
 
-Deno.test("WindsurfHarness emits no workflow exceeding the Cascade cap", () => {
+Deno.test("WindsurfHarness emits no workflow over the Cascade budget", () => {
   // #539 settled the UNIT: characters, the unit the vendor's limit uses.
   // #562 settled the SET. This loop used to spell its own axes — backlog
   // backend and version scheme — and pin `specBackend: "local"`. It never
@@ -154,21 +156,28 @@ Deno.test("WindsurfHarness emits no workflow exceeding the Cascade cap", () => {
   // Reporting the three measures on failure is deliberate: the gap between
   // them is what made the pre-#539 reading ambiguous.
   const h = new WindsurfHarness();
+  // Reported pass or fail. The assertion alone is binary — green until the day
+  // it is red — and gives nobody a way to see the margin halving over a year.
+  let worst = { chars: -1, path: "", where: "" };
   for (const opts of everyBundleOption()) {
     const mapped = h.mapBundle(CORE_BUNDLE, opts);
     for (const [path, file] of Object.entries(mapped)) {
       if (!path.startsWith(".windsurf/workflows/")) continue;
       const chars = workflowLength(file.content);
+      const where = `backlog=${opts.backlogBackend} scheme=${opts.versionScheme} ` +
+        `spec=${opts.specBackend} autogen=${opts.specAutogen}`;
+      if (chars > worst.chars) worst = { chars, path, where };
       assert(
-        chars <= WINDSURF_WORKFLOW_MAX_CHARS,
-        `${path} exceeds ${WINDSURF_WORKFLOW_MAX_CHARS} characters: ${chars} ` +
-          `(${new TextEncoder().encode(file.content).length} bytes, ` +
-          `${file.content.length} UTF-16 units) on ` +
-          `backlog=${opts.backlogBackend} scheme=${opts.versionScheme} ` +
-          `spec=${opts.specBackend} autogen=${opts.specAutogen}`,
+        chars <= WINDSURF_WORKFLOW_BUDGET_CHARS,
+        describeOversizeWorkflow(path, file.content, where),
       );
     }
   }
+  console.log(
+    `  windsurf headroom: tightest is ${worst.path} at ${worst.chars} chars — ` +
+      `${WINDSURF_WORKFLOW_BUDGET_CHARS - worst.chars} under budget, ` +
+      `${WINDSURF_WORKFLOW_MAX_CHARS - worst.chars} under cap (${worst.where})`,
+  );
 });
 
 Deno.test("the emitted workflow set is the same on every install combination", () => {

@@ -48,6 +48,63 @@ function stripCascadeIgnoredFields(content: string): string {
 export const WINDSURF_WORKFLOW_MAX_CHARS = 12_000;
 
 /**
+ * Editing room kept back under the cap. Module-private on purpose — see below.
+ *
+ * **Why a reserve exists.** Six emitted workflows once sat within 100
+ * characters of the cap. At that margin any routine edit fails the build, and
+ * the only remedy available in the moment is deleting unrelated content from
+ * the same file to buy characters back. That happened twice in one day: one
+ * seat had 23 characters of room, so the content reclaimed to pay for a
+ * one-line change had nothing to do with the change (#561, #562).
+ *
+ * **Why 300.** It catches exactly the same set of files a 500-character reserve
+ * does, at 60% of the cut — the sizes cluster, so the extra 200 characters buy
+ * no additional file and are paid for by cutting deeper into seats a security
+ * review had just named as dangerous to cut. A 200-character reserve leaves the
+ * next file down with 82 characters of real slack, less than the reserve
+ * itself, which makes the reserve a fiction one file in.
+ *
+ * **Why this lives in production source when no production code reads it.**
+ * Its justification is the cap's own comment directly above: the reserve exists
+ * *because* the vendor documents no failure mode above 12,000, so the margin is
+ * an unknown rather than a cliff. Splitting the number from that paragraph is
+ * worse than a test-only export, and this file already exports
+ * {@link workflowLength}, which no `src/` caller uses either.
+ *
+ * Not exported: a call site that can see the reserve can spell
+ * `MAX - RESERVE`, and then the budget has two homes. Export the budget.
+ */
+const WINDSURF_WORKFLOW_RESERVE_CHARS = 300;
+
+/**
+ * What an emitted workflow is actually held to: the cap minus the reserve.
+ *
+ * Derived, never written down twice. Failing here still leaves ~300 characters
+ * before anything Windsurf does — which is the point: the build breaks while
+ * there is still room to plan a trim, instead of at the moment there is none.
+ */
+export const WINDSURF_WORKFLOW_BUDGET_CHARS = WINDSURF_WORKFLOW_MAX_CHARS -
+  WINDSURF_WORKFLOW_RESERVE_CHARS;
+
+/**
+ * The one description of a workflow that is too long. One builder, not a string
+ * spelled at each assertion: a second site writing its own message reports no
+ * path, no deficit, no combination — and calls a budget a "cap".
+ */
+export function describeOversizeWorkflow(
+  path: string,
+  content: string,
+  where: string,
+): string {
+  const chars = workflowLength(content);
+  return `${path} is ${chars} characters, over the ${WINDSURF_WORKFLOW_BUDGET_CHARS} budget ` +
+    `by ${chars - WINDSURF_WORKFLOW_BUDGET_CHARS} (cap ${WINDSURF_WORKFLOW_MAX_CHARS}, ` +
+    `reserve ${WINDSURF_WORKFLOW_MAX_CHARS - WINDSURF_WORKFLOW_BUDGET_CHARS}; ` +
+    `${new TextEncoder().encode(content).length} bytes, ` +
+    `${content.length} UTF-16 units) on ${where}`;
+}
+
+/**
  * Character count of an emitted workflow, in the unit the vendor's limit uses.
  * Counting code points rather than UTF-16 code units is the whole difference
  * between measuring the file and measuring its JavaScript representation.
