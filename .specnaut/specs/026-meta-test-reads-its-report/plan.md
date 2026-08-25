@@ -79,6 +79,11 @@ number in these files.
 | **026-R4** — A suite script reports through `fail`/`finish`                                              | `_common.sh`'s harness, asked by every script | a bare `exit` in a suite member; a second closing banner                                 |
 | **026-R5** — Fixture state moved aside is restored by a trap, not by the next line                       | the `trap` at each move site                  | a paired `mv` back with no trap between them                                             |
 
+**026-R4 was cut.** It re-spelled **022-R4** (_"How a check reports pass/fail → `_common.sh`
+(pass/fail/counter/banner)"_) word for word. AC8 is therefore a **conformance defect against an
+already-owned row**, not a new rule — `run-all.sh`'s bare `exit 1` violates 022-R4 and is cited that
+way.
+
 **Deliberately not a row:** "a guard is proven by being observed red" is **023-R5**; "an assertion
 must name what a file promises" is **024-R4**'s neighbour and is cited by AC9. Neither is restated
 here.
@@ -99,9 +104,11 @@ consuming project named.
 
 ## 8. Surface impact
 
-`scripts/smoke/{smoke-audit,smoke-hooks,smoke-picker,smoke-features,run-all}.sh`.
-`.specnaut/release/preflight.sh` unchanged — it branches on the exit code and never parses the
-report (022-R5). No front-end surface exists in this repository.
+`scripts/smoke/{smoke-audit,smoke-hooks,smoke-picker,smoke-features,run-all}.sh`. Plus
+`scripts/smoke/coverage-allowlist.txt` (022-R13 is AC10's only lever if an assertion cannot close a
+gap) and `scripts/smoke/README.md` (§7's constitution clause anticipates prose there; 024-R4's home
+is that file). `.specnaut/release/preflight.sh` unchanged — it branches on the exit code and never
+parses the report (022-R5). No front-end surface exists in this repository.
 
 ## 9. Risks
 
@@ -116,11 +123,28 @@ report (022-R5). No front-end surface exists in this repository.
 
 ## 10. Architecture audit
 
-_Pending._
+`architect-expert`, on the plan. **Verdict: fail** — 0 critical, 2 high, 2 medium, 1 low. Every
+finding verified by hand before acceptance.
+
+| Finding                                                                                                                                                                     | Verified                                                                                                                                                                              | Disposition                                                                                                                                                                                                                        |
+| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **HIGH** — 026-R4 re-spells 022-R4 verbatim                                                                                                                                 | yes, read side by side                                                                                                                                                                | **Row cut.** AC8 recited as a conformance defect against 022-R4.                                                                                                                                                                   |
+| **HIGH** — §8 omits `coverage-allowlist.txt` and `README.md`, which AC10 and §7 require                                                                                     | yes                                                                                                                                                                                   | **§8 extended.**                                                                                                                                                                                                                   |
+| **MEDIUM** — 026-R1's `*_out` glob is structurally blind                                                                                                                    | yes, and my own check was blind too: my pattern required `out=$(` and missed `out="$("`. Correctly counted, **16** captures across three files are invisible to the glob (3 + 11 + 2) | **Accepted, scope held.** AC4 is implemented as written (the six `*_out` in `smoke-audit.sh`). A lexical detector is the better fix and is in no AC and in none of Kevin's answers — filed as a follow-up rather than smuggled in. |
+| **MEDIUM** — AC5's premise is half wrong: `smoke-hooks.sh:104-105` _does_ assert `ec=0`; the unasserted part is the bare `echo` at `:108`, and the disjunction is queryable | yes — `command -v gh` appears nowhere in the file                                                                                                                                     | **Plan changed.** AC5 is satisfied by branching on `command -v gh`, not by the escape hatch. The hatch is not used.                                                                                                                |
+| **LOW** — AC6 names one mutation pair; `sed -i.bak` at `:100-103` is a second; SC-005's "nine" is ten                                                                       | yes                                                                                                                                                                                   | **Both folded in**; SC-005 pinned by observation rather than by a counted number.                                                                                                                                                  |
 
 ## 11. Security audit
 
-_Pending._
+`security-expert`, same dispatch. **Verdict: needs_followup** — 0 critical, 0 high, 1 medium, 3 low.
+
+| Finding                                                                                                                                                                                                                                                                                  | Verified                                         | Disposition                                                                                                                    |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **MEDIUM** — AC6's real leak is `/tmp/spec-lock-backup-$$`, not the fixture (the EXIT trap at `:14` already wipes the tree). The name is PID-predictable in a world-writable directory; on a cross-filesystem `/tmp`, `mv` degrades to copy+unlink and **follows a destination symlink** | yes, and I had independently found the trap half | **Plan changed.** The backup moves **inside `$DIR`**, which the existing trap already covers.                                  |
+| **MEDIUM, second half** — bash cannot append traps, so a `trap … EXIT` added for AC6 would **silently replace** the `clean.sh` trap and leak every scenario tree                                                                                                                         | yes                                              | **Binding on the implementation: no second trap in `smoke-hooks.sh`.** This is the finding I was most likely to walk into.     |
+| **LOW** — AC8 has no restore hazard (the `exit` precedes the backup and its trap), but `fail` without an adjacent `finish` continues into `deno task bundle` on a tree just declared out of bounds                                                                                       | yes                                              | `fail` and `finish` land adjacently.                                                                                           |
+| **LOW** — AC7's Python driver orphans the PTY child on the deadline path: it closes the fd and returns with no `kill`/`waitpid`                                                                                                                                                          | yes                                              | Reap in the driver before returning, then `fail` + `finish`.                                                                   |
+| **AC1** — deletion confirmed harmless, **but the plan's stated ground is wrong**: 3f pins `commentonly_out`, a different scenario. The real ground is `:279` (`clean_rc -eq 0`) and `:287` (`rc -eq 1`, strictly stronger)                                                               | yes                                              | **Corrected.** The replacing comment cites those two, not 3f. This came from the issue body and I carried it without checking. |
 
 ## 12. Open questions
 
