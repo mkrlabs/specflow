@@ -146,8 +146,12 @@ set -e
 # flip proves nothing — which is exactly what the first version of this test
 # asserted, and it failed for the right reason.
 rm -f "$SYNTH_SMOKE/smoke-stale.sh"
+# Both classes must be excused for the verdict to flip: the coverage gap and
+# the unmapped category #549 made fatal. That one rule clears either is the
+# point of the hatch.
 cat > "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
 templates/core/agents/new-fake-agent.md  deferred on purpose, for the meta-test
+templates/core/statusline/config.md  an unmapped category, excused with a reason
 EOF
 set +e
 allow_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
@@ -278,7 +282,12 @@ templates/core/nosuchcategory/thing.md
 EOF
 set +e
 unmapped_noreason_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
-unmapped_noreason_rc=$?
+set -e
+cat > "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/nosuchcategory/thing.md  a deliberate category, excused on purpose
+EOF
+set +e
+unmapped_reason_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
 set -e
 rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
 
@@ -366,10 +375,19 @@ else
   fail "audit did NOT report the unmapped surface" "it passed in silence"
 fi
 
-if grep -qE "^  2 unmapped surface change\(s\)" <<<"$out"; then
-  pass "audit summary counts both unmapped surface changes"
+# One unmapped (a shipped category — fatal) and one outside the scaffolded
+# surface (src/cli — reported, not fatal). #549 split them: #544 added src/cli
+# to the pathspec so it would be VISIBLE, and that stands; but the smoke suite
+# does not test this repository's TypeScript, so it must not block a release.
+if grep -qE "^  1 unmapped surface change\(s\)" <<<"$out"; then
+  pass "audit counts the shipped unmapped category"
 else
-  fail "audit summary did not count 2 unmapped surface changes" "$(grep -E 'unmapped' <<<"$out" | head -2)"
+  fail "unmapped count is not 1" "$(grep -E 'unmapped' <<<"$out" | head -2)"
+fi
+if grep -qE "^  1 change\(s\) outside the scaffolded surface \(not fatal\)" <<<"$out"; then
+  pass "and counts the src/cli change separately, as not fatal"
+else
+  fail "the outside-the-surface class was not counted" "$(grep -E 'outside' <<<"$out" | head -2)"
 fi
 
 if grep -q "src/cli/new_surface.ts" <<<"$out"; then
@@ -483,11 +501,22 @@ if [ "$unmapped_rc" -ne 0 ] && grep -qF "nosuchcategory/thing.md" <<<"$unmapped_
 else
   fail "an unmapped category did not fail the audit" "rc=$unmapped_rc"
 fi
-if [ "$unmapped_noreason_rc" -ne 0 ]; then
+# The COUNT, not the exit code: this scenario is non-zero for several unrelated
+# findings, so `rc != 0` would pass with the rule regressed — the vacuous shape
+# #546 removed from this file. The pair is the control: same entry, one without
+# a reason and one with, and only the count distinguishes them.
+if grep -qE "^  2 unmapped surface change\(s\)" <<<"$unmapped_noreason_out"; then
   pass "allow-listing it WITHOUT a reason does not excuse it (022-R13)"
 else
-  fail "a reasonless allowlist entry silenced an unmapped file" \
-       "the escape hatch became a mute button"
+  fail "a reasonless allowlist entry changed the unmapped count" \
+       "$(grep -E 'unmapped surface change' <<<"$unmapped_noreason_out" | head -1)"
+fi
+if grep -qE "^  1 unmapped surface change\(s\)" <<<"$unmapped_reason_out" \
+   && grep -qF "(unmapped, allow-listed)" <<<"$unmapped_reason_out"; then
+  pass "and the SAME entry WITH a reason does excuse it"
+else
+  fail "a reasoned allowlist entry did not excuse the unmapped file" \
+       "$(grep -E 'unmapped surface change|allow-listed' <<<"$unmapped_reason_out" | head -2)"
 fi
 
 finish "SMOKE-AUDIT"

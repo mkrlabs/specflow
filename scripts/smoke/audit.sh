@@ -234,6 +234,8 @@ gaps_count=0
 allowed_count=0
 unmapped_count=0
 unmapped_list=""
+outside_count=0
+outside_list=""
 echo "## Coverage scan"
 echo
 if [ -z "$CHANGED" ]; then
@@ -283,11 +285,16 @@ else
         # never executed. A smoke can assert the tree arrives; asserting each
         # document's prose is a category error.
         templates/core/specnaut/memory/*) ;;
-        # Product source. The pathspec collects src/cli/ on purpose (#544 — CLI
-        # changes were invisible here), but the smoke suite tests SCAFFOLDED
-        # output, not this repository's TypeScript; the 1400-test deno suite is
-        # what covers that.
-        src/cli/*) ;;
+        # Product source. #544 added src/cli/ to the pathspec precisely so
+        # these changes would be VISIBLE here, and that decision stands — but
+        # they must not be FATAL: the smoke suite tests scaffolded output, not
+        # this repository's TypeScript, which the 1400-test deno suite covers.
+        # So they are counted separately: reported, never silent, never fatal.
+        src/cli/*)
+          outside_count=$((outside_count + 1))
+          outside_list="$outside_list  - $f
+"
+          ;;
         *)
           # Everything else the pathspec above collected. It used to say
           # `templates/core/*` here, which silently excluded `src/cli/` — a
@@ -295,9 +302,18 @@ else
           # map's blind spots visible had a blind spot of its own, and the
           # audit reported "every surface change has a matching smoke
           # assertion" about CLI changes it had never mapped.
-          unmapped_count=$((unmapped_count + 1))
-          unmapped_list="$unmapped_list  - $f
+          # The allow-list is the escape hatch for this class too (#549 AC4).
+          # Making the bucket fatal without consulting it would leave the
+          # documented recourse unimplemented — and the witness for it passing
+          # because the rule was never reached, not because it works.
+          if reason="$(allow_reason "$f")"; then
+            allowed_count=$((allowed_count + 1))
+            printf '  ~ %s (unmapped, allow-listed)\n      reason: %s\n' "$f" "$reason"
+          else
+            unmapped_count=$((unmapped_count + 1))
+            unmapped_list="$unmapped_list  - $f
 "
+          fi
           ;;
       esac
       continue # nothing else reaches here: the pathspec bounds what is scanned
@@ -468,7 +484,7 @@ echo
 echo "## Unmapped surface"
 echo
 if [ "$unmapped_count" -eq 0 ]; then
-  echo "  ✓ every changed file under templates/core/ fell under a mapped surface"
+  echo "  ✓ every changed file under a scaffolded surface fell under a mapped glob"
 else
   printf '%s' "$unmapped_list"
   echo "      ↳ no glob in the SURFACES map matches these, so NOTHING was"
@@ -479,6 +495,14 @@ fi
 # --- Allowlist staleness (plan.md §5 R13) -------------------------------
 # An allow-listed path whose file is gone is the allowlist's own version of a
 # stale assertion: it silently grants an exemption nothing needs any more.
+if [ "$outside_count" -gt 0 ]; then
+  echo
+  echo "  Outside the scaffolded surface — reported, not fatal:"
+  printf '%s' "$outside_list"
+  echo "      ↳ product source. The smoke suite tests scaffolded output; this"
+  echo "        repository's TypeScript is covered by \`deno task test\`."
+fi
+
 echo
 echo "## Suite membership"
 echo
@@ -522,6 +546,7 @@ echo "  $gaps_count coverage gap(s)"
 echo "  $stale_count stale assertion(s)"
 echo "  $stale_allow_count stale allowlist entr(y/ies)"
 echo "  $unmapped_count unmapped surface change(s)"
+[ "$outside_count" -gt 0 ] && echo "  $outside_count change(s) outside the scaffolded surface (not fatal)"
 drift_count="$(printf '%s' "$membership_drift" | grep -c '^  - ' || true)"
 echo "  $drift_count suite-membership drift(s)"
 echo
