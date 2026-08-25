@@ -190,6 +190,9 @@ expansion="${rt#prefix/}survivor-e.sh"
 bare_expansion=${rt#prefix/}survivor-g.sh
 sq_closed='survivor-h.sh'   # comment naming victim-e.sh
 banner_line='echo "=== #180  survivor-f.sh --parent flag ==="'
+    indented_code="survivor-k.sh"   # comment naming victim-g.sh
+unquoted_escape=$(echo \") # comment naming victim-f.sh
+dq_escape="a \" b # survivor-i.sh"
 FIXTURE
 cl_out="$(smoke_code_lines "$cl_fixture")"
 
@@ -201,7 +204,16 @@ cl_out="$(smoke_code_lines "$cl_fixture")"
 # be preceded by whitespace to start a comment — audit.sh:175 and :421 are
 # real instances, and dropping that clause truncates them while every other
 # assertion here still passes.
-for survivor in survivor-c.sh survivor-e.sh survivor-f.sh survivor-g.sh survivor-h.sh; do
+# survivor-i.sh and victim-f.sh are the backslash clause's only witnesses
+# (#548). `\"` must not toggle the quote state: on the dq_escape line the
+# string stays OPEN, so its `#` is quoted and survivor-i.sh survives; on the
+# unquoted_escape line the string never opens, so the trailing comment IS a
+# comment and victim-f.sh must go. Drop the clause and the two swap places —
+# each is the other's control, and every other assertion here stays green.
+# survivor-k.sh is indented CODE. Only an indented *comment* existed before,
+# which strips to a blank line and is a valid prefix either way, so the
+# suffix-invariant check below had nothing to bite on.
+for survivor in survivor-c.sh survivor-e.sh survivor-f.sh survivor-g.sh survivor-h.sh survivor-i.sh survivor-k.sh; do
   if grep -qF "$survivor" <<<"$cl_out"; then
     pass "smoke_code_lines keeps real code: $survivor"
   else
@@ -215,7 +227,7 @@ done
 # victim-e.sh sits after a single-quoted region that CLOSES. A quote
 # tracker whose state got stuck open would score the hash as quoted, keep
 # the comment, and reinstate #545 — while passing every other assertion here.
-for victim in victim-a.sh victim-b.sh victim-d.sh victim-e.sh; do
+for victim in victim-a.sh victim-b.sh victim-d.sh victim-e.sh victim-f.sh victim-g.sh; do
   if grep -qF "$victim" <<<"$cl_out"; then
     fail "smoke_code_lines kept a comment: $victim" "a comment would still vouch for a file"
   else
@@ -242,6 +254,36 @@ else
   fail "smoke_code_lines cut out an interior span on $cl_prefix_bad line(s)" \
        "the fail-closed guarantee rests on every output line being a prefix of its input"
 fi
+if grep -q '^    indented_code="survivor-k.sh"' <<<"$cl_out"; then
+  pass "smoke_code_lines preserves leading whitespace on a code line"
+else
+  fail "smoke_code_lines lost the indentation of a code line" \
+       "a caller matching an anchored pattern would stop seeing indented code"
+fi
+
+# A file with no comments must come back byte-identical. Without this, a
+# helper that dropped the last character of every line satisfies the suffix
+# invariant (a truncation IS a prefix) and every grep above that searches for
+# a token not at end-of-line. It is the cheapest assertion here and the only
+# one that pins the strip to doing NOTHING when there is nothing to do.
+cl_clean="$(mktemp)"
+trap 'rm -f "$cl_fixture" "$cl_clean"' EXIT
+cat > "$cl_clean" <<'FIXTURE'
+set -euo pipefail
+    indented=1
+value="${rt#prefix/}"
+printf '%s\n' "$value"
+
+banner='echo "=== #180 ==="'
+FIXTURE
+if smoke_code_lines "$cl_clean" | cmp -s - "$cl_clean"; then
+  pass "smoke_code_lines returns a comment-free file byte-identical"
+else
+  fail "smoke_code_lines altered a file that has no comments" \
+       "the strip must be a no-op when there is nothing to strip"
+fi
+rm -f "$cl_clean"
+
 rm -f "$cl_fixture"
 trap - EXIT
 

@@ -77,9 +77,13 @@ The naive expression cuts at the _first_ `#` on a line, and shell puts one insid
 and inside every `echo "═══ #180  add.sh …"` banner this suite writes. Measured over these scripts
 it discards several hundred lines of real code against the genuine comments it is meant to remove.
 
-**Known limit, stated rather than implied:** the scan resets on every line, so heredoc bodies are
-not analysed. This suite embeds `.gitignore`, CSS, Markdown and Python inside heredocs, where a `#`
-is not a shell comment; it is scored as one, and the damage is bounded to that line.
+**Known limit, stated plainly:** heredoc bodies are **not recognised**. The scan resets on every
+line and holds no notion of an open heredoc, so **a `#` inside a heredoc body is scored exactly as
+if the line were shell** — as the start of a comment when whitespace precedes it and it sits
+outside quotes *on that line*, and as ordinary text otherwise. This suite embeds `.gitignore`, CSS,
+Markdown and Python inside heredocs, where a `#` is not a shell comment at all, so such a line can
+be truncated. The damage is bounded to the one line, and it falls in the safe direction: a
+truncated line can lose a coverage match, never invent one.
 
 ### What identifies a changed file
 
