@@ -10419,6 +10419,183 @@ exit 0
   },
   {
     category: "backlog-script",
+    name: "propagate-parent-status",
+    suffix: "cascade-check.sh",
+    content: `#!/usr/bin/env bash
+# Verify that a parent task is safe to close — every sub-task must already
+# be done. Local-backend twin of the github script, same exit contract so
+# callers need no per-backend branching.
+#
+# Usage:   cascade-check.sh <task-number>
+# Exit:    0  no open children — safe to close
+#          11 at least one child is still open — close blocked
+#          12 the parent is already done — nothing to gate
+#          3  the parent does not exist
+#          2  usage error
+set -euo pipefail
+
+# shellcheck source=./_config.sh
+. "\$(dirname "\$0")/_config.sh"
+
+if [ "\$#" -lt 1 ]; then
+  echo 'usage: cascade-check.sh <task-number>' >&2
+  exit 2
+fi
+NUM="\$1"
+case "\$NUM" in
+  '' | *[!0-9]*) echo "not a task number: '\$NUM'" >&2; exit 2 ;;
+esac
+
+# Read one frontmatter scalar from a task file.
+_fm() {
+  awk -v key="\$2" '
+    NR == 1 && /^---[[:space:]]*\$/ { inside = 1; next }
+    inside && /^---[[:space:]]*\$/  { exit }
+    inside && \$0 ~ "^"key":" {
+      sub("^"key":[[:space:]]*", "")
+      gsub(/^["'\\''#]+|["'\\'']+\$/, "")
+      print
+      exit
+    }
+  ' "\$1"
+}
+
+# \`10#\` forces base 10. Without it \`printf '%03d' 011\` reads the argument
+# as OCTAL and yields 009 — a lookup for a different task, silently. A
+# caller that pads its own numbers would get the wrong file and never know.
+PADDED=\$(printf '%03d' "\$((10#\$NUM))")
+PARENT_FILE=""
+for candidate in "\$BACKLOG_DIR/\$PADDED"-*.md; do
+  [ -e "\$candidate" ] || continue
+  PARENT_FILE="\$candidate"
+  break
+done
+if [ -z "\$PARENT_FILE" ]; then
+  echo "✗ task #\$NUM not found under \$BACKLOG_DIR" >&2
+  exit 3
+fi
+
+# Already-done short-circuit, matching github's exit 12: a caller that
+# trusts exit 0 would otherwise close it a second time.
+PARENT_STATUS=\$(_fm "\$PARENT_FILE" status)
+if [ "\$PARENT_STATUS" = "done" ]; then
+  echo "ℹ #\$NUM is already done — nothing to gate"
+  exit 12
+fi
+
+# A child is open when its status is anything but done or deferred. Both are
+# terminal here: \`deferred\` is a decision not to do the work, and holding a
+# parent open on one would block the epic on a task nobody intends to finish.
+OPEN=0
+OPEN_LIST=""
+for f in "\$BACKLOG_DIR"/*.md; do
+  [ -e "\$f" ] || continue
+  [ "\$f" = "\$PARENT_FILE" ] && continue
+  [ "\$(_fm "\$f" parent)" = "\$NUM" ] || continue
+  st=\$(_fm "\$f" status)
+  case "\$st" in
+    done | deferred) continue ;;
+  esac
+  OPEN=\$((OPEN + 1))
+  OPEN_LIST="\$OPEN_LIST  - #\$(_fm "\$f" id) — \$(_fm "\$f" title) [\${st:-no status}]
+"
+done
+
+if [ "\$OPEN" -gt 0 ]; then
+  echo "✗ #\$NUM has \$OPEN open child task(s) — close them first"
+  printf '%s' "\$OPEN_LIST"
+  exit 11
+fi
+
+echo "✓ #\$NUM safe to close (no open children)"
+exit 0
+`,
+    executable: true,
+    backend: "local",
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-script",
+    name: "propagate-parent-status",
+    suffix: "parent-of.sh",
+    content: `#!/usr/bin/env bash
+# Resolve a task's parent epic, if it has one. Local-backend twin.
+#
+# Usage:   parent-of.sh <task-number>
+# Stdout:  the parent's number, on exit 0. Nothing otherwise.
+# Exit:    0  it is a sub-task — the parent's number is on stdout
+#          10 it has no parent, and that is not an error
+#          3  the task does not exist
+#          2  usage error
+#
+# Exit 10 is its own code so a caller can tell "no parent" from "could not
+# ask". Collapsing them makes a standalone task and a failed lookup
+# indistinguishable, and the caller branches the same way on each.
+#
+# The link is the \`parent: "#NNN"\` frontmatter \`add.sh --parent\` already
+# writes and \`propagate-parent-status.sh\` already reads. Nothing new is
+# invented here; the convention existed in fragments and is collected.
+set -euo pipefail
+
+# shellcheck source=./_config.sh
+. "\$(dirname "\$0")/_config.sh"
+
+if [ "\$#" -lt 1 ]; then
+  echo 'usage: parent-of.sh <task-number>' >&2
+  exit 2
+fi
+NUM="\$1"
+case "\$NUM" in
+  '' | *[!0-9]*) echo "not a task number: '\$NUM'" >&2; exit 2 ;;
+esac
+
+# \`10#\` forces base 10. Without it \`printf '%03d' 011\` reads the argument
+# as OCTAL and yields 009 — a lookup for a different task, silently. A
+# caller that pads its own numbers would get the wrong file and never know.
+PADDED=\$(printf '%03d' "\$((10#\$NUM))")
+FILE=""
+for candidate in "\$BACKLOG_DIR/\$PADDED"-*.md; do
+  [ -e "\$candidate" ] || continue
+  FILE="\$candidate"
+  break
+done
+
+if [ -z "\$FILE" ]; then
+  echo "✗ task #\$NUM not found under \$BACKLOG_DIR" >&2
+  exit 3
+fi
+
+# Frontmatter only — the first \`---\` block. A \`parent:\` written in the body
+# is prose, and reading it would attach a task to an epic somebody merely
+# mentioned.
+PARENT=\$(awk '
+  NR == 1 && /^---[[:space:]]*\$/ { inside = 1; next }
+  inside && /^---[[:space:]]*\$/  { exit }
+  inside && /^parent:/ {
+    sub(/^parent:[[:space:]]*/, "")
+    gsub(/^["'\\''#]+|["'\\'']+\$/, "")
+    print
+    exit
+  }
+' "\$FILE")
+
+case "\$PARENT" in
+  '' | null | ~ ) exit 10 ;;
+  *[!0-9]* )
+    echo "✗ task #\$NUM has a parent: value this script cannot read: \$PARENT" >&2
+    exit 3
+    ;;
+esac
+
+echo "\$PARENT"
+exit 0
+`,
+    executable: true,
+    backend: "local",
+    skipIfExists: false,
+  },
+  {
+    category: "backlog-script",
     name: "_config",
     suffix: "_config.sh",
     content: `#!/usr/bin/env bash

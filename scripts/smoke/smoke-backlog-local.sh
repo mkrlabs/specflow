@@ -20,6 +20,25 @@ bash "$SMOKE_DIR/bootstrap-vite.sh" "$NAME" >/dev/null
 
 cd "$DIR"
 
+echo "═══ #563  sub-issue enumeration on the local backend ═══"
+check "parent-of.sh present + executable (#563)" \
+  '[ -x .specnaut/scripts/backlog/parent-of.sh ]'
+check "cascade-check.sh present + executable (#563)" \
+  '[ -x .specnaut/scripts/backlog/cascade-check.sh ]'
+check "both read the parent link add.sh already writes (#563)" \
+  'grep -q "\^parent:" .specnaut/scripts/backlog/parent-of.sh &&
+   grep -q "_fm" .specnaut/scripts/backlog/cascade-check.sh &&
+   grep -q "parent" .specnaut/scripts/backlog/cascade-check.sh'
+check "the exit contract matches github's, so callers need no branching (#563 AC1/AC2)" \
+  'grep -qF "exit 11" .specnaut/scripts/backlog/cascade-check.sh &&
+   grep -qF "exit 12" .specnaut/scripts/backlog/cascade-check.sh &&
+   grep -qF "exit 10" .specnaut/scripts/backlog/parent-of.sh'
+check "task numbers are read base-10, never octal (#563)" \
+  'grep -qF "10#" .specnaut/scripts/backlog/parent-of.sh &&
+   grep -qF "10#" .specnaut/scripts/backlog/cascade-check.sh'
+check "only FRONTMATTER parent: counts, not a mention in the body (#563)" \
+  'grep -qF "inside" .specnaut/scripts/backlog/parent-of.sh'
+
 echo "═══ add ═══"
 out=$(bash .specnaut/scripts/backlog/add.sh "First item" "## Why\n\nSmoke test")
 echo "$out"
