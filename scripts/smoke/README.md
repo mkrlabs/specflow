@@ -35,17 +35,44 @@ counts as code in a smoke script. Source it; never re-derive any of them locally
 
 `audit.sh` compares the working tree against the newest `v*.*.*` tag and reports six findings. Every
 one of them is **fatal** — exit **1**. Exit **2** means it could not resolve a baseline (a shallow
-or tagless clone) and **3** that `--src-root` is not a git work tree; neither is a findings verdict,
-and `.specnaut/release/preflight.sh` branches on that difference.
+or tagless clone) and **3** that `--src-root` is unusable — not a git work tree, or not that tree's
+**toplevel**; neither is a findings verdict, and `.specnaut/release/preflight.sh` branches on that
+difference.
 
-| Finding                           | What it means                                                                                                                                      |
-| :-------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Coverage gap**                  | A changed file under a mapped surface that no smoke names by basename. Fatal unless allow-listed with a written reason.                            |
-| **Stale assertion**               | A smoke references a runtime path with no source counterpart under `templates/`.                                                                   |
-| **Capture read only in a `fail`** | A `name=$(…)` capture whose only reader sits inside a `fail`. The `fail` runs _after_ the assertion decided, so the value never reached a verdict. |
-| **Stale allowlist entry**         | An allow-listed path that no longer exists, or an entry with no written reason.                                                                    |
-| **Suite-membership drift**        | `SUITE_FILES` and the scripts on disk disagree.                                                                                                    |
-| **Unmapped surface**              | A changed file under `templates/core/` that no glob claims. Fatal since #549 — the defect is invisibility, not the gap.                            |
+### What "the working tree" means — three sources, one pathspec
+
+The collected set is the de-duplicated union of three git queries, all scoped by the same
+`SURFACE_PATHSPEC` and all sharing the same `GIT_SRC` invocation prefix:
+
+1. **tracked, changed since the baseline** — `git diff --diff-filter=AMR "$SINCE..HEAD"`.
+2. **staged but not committed** — `git diff --diff-filter=AMR --cached HEAD`.
+3. **untracked and not ignored** — `git ls-files --others --exclude-standard --full-name`.
+
+Sources 2 and 3 arrived with #564. Before them the collection was source 1 alone, and
+`git diff <a>..<b>` compares two **commits** — so a file git had never recorded was in neither, and
+the gate ran blind on exactly the files it exists to catch. A wholly new surface file has no
+assertion by definition; the audit stayed quiet for the whole time it was being written and went red
+only once it landed.
+
+An uncommitted path is marked in the report — `(untracked)`, `(staged, not committed)`, or
+`(untracked nested repository …)` — so a red gate names its cause. That marking is report text: it
+touches no counter and no term in the verdict, and an uncommitted gap is fatal through exactly the
+path a committed one is.
+
+`--exclude-standard` is what makes an ignored file invisible, and it reads three sources: the tree's
+`.gitignore` files, `$GIT_DIR/info/exclude`, and the user's machine-global excludes file. The third
+is pinned out with `-c core.excludesFile=/dev/null`, so the verdict is a property of the tree rather
+than of the laptop. This is `scripts/smoke/audit.sh`'s decision; **this document is derived from
+it**, and where the two disagree the script wins.
+
+| Finding                           | What it means                                                                                                                                                                |
+| :-------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Coverage gap**                  | A changed file under a mapped surface that no smoke names by basename. Fatal unless allow-listed with a written reason.                                                      |
+| **Stale assertion**               | A smoke references a runtime path with no source counterpart under `templates/`.                                                                                             |
+| **Capture read only in a `fail`** | A `name=$(…)` capture whose only reader sits inside a `fail`. The `fail` runs _after_ the assertion decided, so the value never reached a verdict.                           |
+| **Stale allowlist entry**         | An allow-listed path that no longer exists, or an entry with no written reason.                                                                                              |
+| **Suite-membership drift**        | `SUITE_FILES` and the scripts on disk disagree.                                                                                                                              |
+| **Unmapped surface**              | A collected file that no `SURFACES` glob claims — anywhere in the collected surface, not just `templates/core/`. Fatal since #549 — the defect is invisibility, not the gap. |
 
 Two things are reported and are deliberately **not** fatal: a gap that carries a written allow-list
 reason, and a change under `src/cli/`, which is counted in its own class because it is not a

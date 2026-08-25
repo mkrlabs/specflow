@@ -33,6 +33,14 @@
 #   3f. a basename that appears ONLY inside a comment is not coverage —
 #       a comment resolves nothing, and one saying a file is deliberately
 #       uncovered would otherwise vouch for it (#545)
+#   3l. an UNCOMMITTED surface file — untracked or merely staged — is seen
+#       at all (#564). Until then the collection was `git diff <a>..<b>`, which
+#       compares two COMMITS, so a file git had never recorded was in neither
+#       and the gate ran blind on precisely the files it exists to catch.
+#       Includes the paired --exclude-standard control, the pathspec control,
+#       the union's de-duplication, the nested-repository shape, the
+#       machine-global excludes pin, idempotence, and the invariant that no
+#       collected path is ever OPENED.
 #   4. the EXIT CODE is the verdict: 0 on a clean tree, non-zero with
 #      findings. The old version wrapped the call in `|| true` and grepped
 #      only stdout, so it passed identically whether audit.sh exited 0, 1 or
@@ -58,6 +66,18 @@ git init -q -b main
 git config user.email "smoke-audit@local"
 git config user.name "smoke-audit"
 
+# ─── Why these prefixes are written out as literals ──────────────────────
+# `audit.sh` carries the same four surface prefixes in `SURFACE_PATHSPEC`, and
+# #564 hoisted them there so its own two collections could not drift apart.
+# These literals are NOT that duplication and must not be "fixed" by importing
+# the array: they are the only independent opinion in the suite about what that
+# array should contain. Import it and this test plants under whatever audit.sh
+# currently says, so no assertion here can ever fail on a wrong pathspec.
+#
+# #551 is what that would have cost — twelve shipped files under
+# `templates/harness-specific/` were invisible for months because the pathspec
+# ignored the whole tree, and only a hand-written literal elsewhere could have
+# caught it.
 mkdir -p templates/core/agents \
          templates/core/skills/board/scripts/github \
          templates/harness-specific/claude/hooks \
@@ -397,6 +417,215 @@ set -euo pipefail
 EOF
 chmod +x "$SYNTH_SMOKE/smoke-stale.sh"
 
+# --- Assertion 3l: an UNCOMMITTED surface file is seen (#564) ------------
+# EVERYTHING below is planted AFTER every capture above. Nineteen assertions in
+# this file pin exact counts, and one stray untracked file under a surface
+# prefix moves all of them. The margin is one line; this comment is the guard
+# rail, because nothing mechanical enforces the ordering.
+#
+# Each probe runs ISOLATED — every other finding class allow-listed or removed —
+# for the reason 3j and 3k are isolated: a run that is already non-zero for
+# five coverage gaps cannot tell you whether THIS class is fatal, and a grep
+# for the finding text passes against a report that merely printed it.
+
+# The synthetic tree gets a .gitignore mirroring a REAL rule from this
+# repository's own (`*.log`, .gitignore:3). It sits at the synthetic root,
+# outside all four surface prefixes, so it shifts no count above.
+cat > .gitignore <<'EOF'
+*.log
+EOF
+git add -A
+git commit -q -m "give the synthetic tree a .gitignore mirroring a real rule"
+
+rm -f "$SYNTH_SMOKE/smoke-stale.sh"
+cat > "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/agents/new-fake-agent.md  isolated run: not the class under test
+templates/core/agents/comment-only-agent.md  isolated run: not the class under test
+templates/core/agents/agént-café.md  isolated run: not the class under test
+templates/core/skills/lonely-skill/SKILL.md  isolated run: not the class under test
+templates/core/skills/mentioned-elsewhere/SKILL.md  isolated run: not the class under test
+templates/core/statusline/config.md  isolated run: not the class under test
+templates/core/nosuchcategory/thing.md  isolated run: not the class under test
+EOF
+
+_iso_audit() {
+  bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1
+}
+
+# The control every probe below is measured against. Nothing planted, every
+# other class excused: the isolated tree must be GREEN. If this is not 0, every
+# "rc=1 because of my probe" assertion below is vacuous.
+set +e
+u564_base_out="$(_iso_audit)"; u564_base_rc=$?
+set -e
+
+# (a) untracked, under a mapped surface, named by no smoke.
+printf -- '---\nname: probe-untracked-564\n---\n' > templates/core/agents/probe-untracked-564.md
+set +e
+u564_untracked_out="$(_iso_audit)"; u564_untracked_rc=$?
+set -e
+
+# (b) the same file, with an assertion naming it — the verdict must flip.
+cp "$SYNTH_SMOKE/smoke-features.sh" "$SANDBOX/features-564.bak"
+cat >> "$SYNTH_SMOKE/smoke-features.sh" <<'EOF'
+[ -f .claude/agents/probe-untracked-564.md ] || { echo "missing probe"; exit 1; }
+EOF
+set +e
+u564_covered_out="$(_iso_audit)"; u564_covered_rc=$?
+set -e
+cp "$SANDBOX/features-564.bak" "$SYNTH_SMOKE/smoke-features.sh"
+rm -f "$SANDBOX/features-564.bak" templates/core/agents/probe-untracked-564.md
+
+# (c) FR-004 — the --exclude-standard control, PAIRED.
+# The fixture is under a surface prefix AND matched by an ignore rule, so the
+# pathspec cannot be what hides it. The first draft of the plan planted this
+# under `sandbox/` — outside the pathspec — which meant `--exclude-standard`
+# could be deleted with the assertion still green. That is the vacuous shape
+# this whole file exists to refuse.
+echo "noise" > templates/core/agents/debug.log
+set +e
+u564_ignored_out="$(_iso_audit)"; u564_ignored_rc=$?
+set -e
+# The negative half: the same collection WITHOUT the flag does see it. Run
+# directly, because the point is what the flag does, not what audit.sh does.
+u564_noflag_hits="$(git -C "$SANDBOX" ls-files --others --full-name -- 'templates/core/' 2>/dev/null | grep -c 'agents/debug\.log' || true)"
+u564_flag_hits="$(git -C "$SANDBOX" ls-files --others --exclude-standard --full-name -- 'templates/core/' 2>/dev/null | grep -c 'agents/debug\.log' || true)"
+rm -f templates/core/agents/debug.log
+
+# (d) the pathspec control — a DIFFERENT mechanism from (c), so neither can
+# stand in for the other. An untracked file outside all four prefixes.
+# At the synthetic ROOT rather than in a subdirectory: smoke-toolbox.sh's
+# static sweep refuses `rm -rf` on any path it cannot see was built from
+# $SANDBOX, and it is right to — one failed `cd` and a literal relative path
+# deletes the real repository's directory of the same name.
+echo "scratch" > scratch-564.md
+set +e
+u564_outside_out="$(_iso_audit)"; u564_outside_rc=$?
+set -e
+rm -f scratch-564.md
+
+# (e) staged but not committed — invisible to BOTH `ls-files --others` and
+# `$SINCE..HEAD`. `git add` is the next keystroke after `touch`, so without the
+# third source the feature's value window is approximately zero.
+printf -- '---\nname: probe-staged-564\n---\n' > templates/core/agents/probe-staged-564.md
+git add templates/core/agents/probe-staged-564.md
+set +e
+u564_staged_out="$(_iso_audit)"; u564_staged_rc=$?
+set -e
+git rm --cached -q templates/core/agents/probe-staged-564.md
+rm -f templates/core/agents/probe-staged-564.md
+
+# (f) a nested repository. `ls-files --others` emits it as `<dir>/` — trailing
+# slash, contents suppressed — which the plan's first draft called impossible
+# "by construction". Measured, twice, in a throwaway repo and here.
+# A MINIMAL .git skeleton rather than `git init`, deliberately: git needs only
+# HEAD, objects/ and refs/ to treat the directory as a repository — verified —
+# and this shape tears down with `rm -f` + `rmdir` alone. `git init` would
+# leave ~15 files behind and force an `rm -rf` on a literal relative path,
+# which smoke-toolbox.sh's static sweep refuses. Satisfying that guard is
+# cheaper than widening it, and widening a guard to fit new code is how the
+# guard stops guarding.
+mkdir -p templates/core/agents/nested-564/.git/objects \
+         templates/core/agents/nested-564/.git/refs
+printf 'ref: refs/heads/main\n' > templates/core/agents/nested-564/.git/HEAD
+printf -- '---\nname: inner\n---\n' > templates/core/agents/nested-564/inner.md
+set +e
+u564_nested_out="$(_iso_audit)"; u564_nested_rc=$?
+set -e
+rm -f templates/core/agents/nested-564/.git/HEAD templates/core/agents/nested-564/inner.md
+rmdir templates/core/agents/nested-564/.git/objects \
+      templates/core/agents/nested-564/.git/refs \
+      templates/core/agents/nested-564/.git \
+      templates/core/agents/nested-564
+
+# (g) FR-014 — the audit reads the CONTENT of no collected path. An unreadable
+# file must not stop the run. This assertion fails the day somebody "improves"
+# the unmapped bucket by reading a new file's front-matter to classify it —
+# which would turn a filename report into a content-disclosure path in a job
+# whose logs are public.
+printf -- '---\nname: unreadable\n---\n' > templates/core/agents/probe-unreadable-564.md
+chmod 000 templates/core/agents/probe-unreadable-564.md
+set +e
+u564_unreadable_out="$(_iso_audit)"; u564_unreadable_rc=$?
+set -e
+chmod 644 templates/core/agents/probe-unreadable-564.md
+rm -f templates/core/agents/probe-unreadable-564.md
+
+# (h) an untracked path with non-ASCII bytes. #549 was the tracked half of this:
+# git renders such a path as an escaped, quoted string that matches no SURFACES
+# glob. `-c core.quotePath=false` now lives in the shared GIT_SRC prefix, so it
+# applies to this source too — and this is the only thing that says so.
+printf -- '---\nname: untracked-accented\n---\n' > "templates/core/agents/untracked-café-564.md"
+set +e
+u564_accent_out="$(_iso_audit)"; u564_accent_rc=$?
+set -e
+rm -f "templates/core/agents/untracked-café-564.md"
+
+# (i) the machine-global excludes pin. `--exclude-standard` reads THREE sources;
+# the third is the user's own excludes file, which has nothing to do with this
+# repository. Unpinned, the same tree gets different verdicts on different
+# laptops — in the false-green direction, which is the family #564 belongs to.
+cat > "$SANDBOX/probe-excludes-564" <<'EOF'
+templates/core/agents/probe-excl-564.md
+EOF
+cat > "$SANDBOX/probe-gitconfig-564" <<EOF
+[core]
+	excludesFile = $SANDBOX/probe-excludes-564
+EOF
+printf -- '---\nname: probe-excl\n---\n' > templates/core/agents/probe-excl-564.md
+# The control: with that global in force and NO pin, git hides the file.
+u564_global_hidden="$(GIT_CONFIG_GLOBAL="$SANDBOX/probe-gitconfig-564" \
+  git -C "$SANDBOX" ls-files --others --exclude-standard --full-name -- 'templates/core/' 2>/dev/null \
+  | grep -c 'probe-excl-564' || true)"
+set +e
+u564_excl_out="$(GIT_CONFIG_GLOBAL="$SANDBOX/probe-gitconfig-564" _iso_audit)"; u564_excl_rc=$?
+set -e
+rm -f templates/core/agents/probe-excl-564.md "$SANDBOX/probe-excludes-564" "$SANDBOX/probe-gitconfig-564"
+
+# (j) idempotence. Two runs, one tree, byte-identical output — the assertion
+# that would have caught a `sort -u` where the union needs first-seen order.
+printf -- '---\nname: probe-idem-564\n---\n' > templates/core/agents/probe-idem-564.md
+set +e
+u564_idem1_out="$(_iso_audit)"
+u564_idem2_out="$(_iso_audit)"
+set -e
+rm -f templates/core/agents/probe-idem-564.md
+
+# (k) the union's de-duplication, LAST because it commits. `git rm --cached` on
+# a path committed after the baseline puts it in source 1 (an `A` in the range)
+# AND source 3 (the index no longer has it). Concatenated without a dedupe the
+# gap is counted twice and the report names one file twice.
+printf -- '---\nname: probe-dup-564\n---\n' > templates/core/agents/probe-dup-564.md
+git add -A
+git commit -q -m "plant a file for the union de-duplication case"
+git rm --cached -q templates/core/agents/probe-dup-564.md
+u564_dup_in_tracked="$(git -C "$SANDBOX" diff --name-only --diff-filter=AMR vTEST-BASELINE..HEAD -- 'templates/core/' | grep -c 'probe-dup-564' || true)"
+u564_dup_in_others="$(git -C "$SANDBOX" ls-files --others --exclude-standard --full-name -- 'templates/core/' | grep -c 'probe-dup-564' || true)"
+set +e
+u564_dup_out="$(_iso_audit)"
+set -e
+u564_dup_reported="$(grep -c '^  - templates/core/agents/probe-dup-564\.md' <<<"$u564_dup_out" || true)"
+rm -f templates/core/agents/probe-dup-564.md
+
+# (l) FR-013 — --src-root must be the TOPLEVEL, not merely inside a work tree.
+# `git diff --name-only` speaks root-relative and `git ls-files` speaks
+# cwd-relative, so from a subdirectory the two halves of the union name
+# different things and the untracked half matches no glob. Exit 3 is reused on
+# purpose: it already means "--src-root is not usable" and preflight.sh already
+# branches on it.
+set +e
+bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX/templates" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE >/dev/null 2>&1
+u564_subdir_rc=$?
+set -e
+
+rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
+cat > "$SYNTH_SMOKE/smoke-stale.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f .claude/agents/baseline-deleted-agent.md ] || { echo "stale ref"; exit 1; }
+EOF
+chmod +x "$SYNTH_SMOKE/smoke-stale.sh"
+
 echo "$out"
 echo
 echo "── assertions ──"
@@ -658,6 +887,138 @@ if [ "$capture_fixed_rc" -eq 0 ] \
 else
   fail "reading the capture outside the fail did not clear the audit" \
        "rc=$capture_fixed_rc; $(grep -E 'capture\(s\)' <<<"$capture_fixed_out" | head -1)"
+fi
+
+# ── #564: an uncommitted surface file is seen ──────────────────────────
+# The control first. Every assertion below reads "rc flipped to 1 because of
+# my probe", and that sentence means nothing unless the tree without the probe
+# was 0.
+if [ "$u564_base_rc" -eq 0 ]; then
+  pass "the isolated tree is green before anything uncommitted is planted"
+else
+  fail "the isolated control run was not green — every #564 assertion below is vacuous" \
+       "rc=$u564_base_rc; $(grep -E 'gap\(s\)|unmapped|stale' <<<"$u564_base_out" | head -3)"
+fi
+
+if [ "$u564_untracked_rc" -ne 0 ] \
+   && grep -qE "^  1 coverage gap\(s\)$" <<<"$u564_untracked_out" \
+   && grep -qF "probe-untracked-564.md" <<<"$u564_untracked_out"; then
+  pass "an UNTRACKED surface file nothing asserts on is a fatal coverage gap (#564)"
+else
+  fail "an untracked surface file did not fail the audit" \
+       "rc=$u564_untracked_rc; $(grep -E 'coverage gap' <<<"$u564_untracked_out" | head -1)"
+fi
+
+# The marker is not decoration: without it a brand-new file prints identically
+# to a landed one, and the natural repair for a red gate naming a file that was
+# never meant to exist is to add an assertion for it.
+if grep -qF "probe-untracked-564.md (untracked)" <<<"$u564_untracked_out"; then
+  pass "and the report says the file is untracked, not merely that it is a gap"
+else
+  fail "the report did not mark the file as untracked" \
+       "$(grep -F 'probe-untracked-564' <<<"$u564_untracked_out" | head -1)"
+fi
+
+if [ "$u564_covered_rc" -eq 0 ]; then
+  pass "adding an assertion for it is what clears the verdict"
+else
+  fail "an asserted-on untracked file still failed the audit" \
+       "rc=$u564_covered_rc; $(grep -E 'coverage gap' <<<"$u564_covered_out" | head -1)"
+fi
+
+# FR-004, paired. The `_flag_hits`/`_noflag_hits` control is what makes this
+# non-vacuous: it proves --exclude-standard is what hides the file, not the
+# pathspec. Assert the control BEFORE the verdict it explains.
+if [ "$u564_noflag_hits" -ge 1 ] && [ "$u564_flag_hits" -eq 0 ]; then
+  pass "--exclude-standard is what hides an ignored file, and the control proves it"
+else
+  fail "the --exclude-standard control did not behave as a control" \
+       "without the flag: $u564_noflag_hits row(s); with it: $u564_flag_hits"
+fi
+if [ "$u564_ignored_rc" -eq 0 ] && ! grep -qF "debug.log" <<<"$u564_ignored_out"; then
+  pass "an IGNORED file under a mapped surface appears in no bucket"
+else
+  fail "a gitignored file under a surface prefix reached the audit" \
+       "rc=$u564_ignored_rc; $(grep -F 'debug.log' <<<"$u564_ignored_out" | head -1)"
+fi
+
+if [ "$u564_outside_rc" -eq 0 ] && ! grep -qF "scratch-564.md" <<<"$u564_outside_out"; then
+  pass "an untracked file outside the four prefixes is not collected (the pathspec, separately)"
+else
+  fail "an untracked file outside the pathspec was collected" \
+       "rc=$u564_outside_rc; $(grep -F 'scratch-564' <<<"$u564_outside_out" | head -1)"
+fi
+
+if [ "$u564_staged_rc" -ne 0 ] \
+   && grep -qF "probe-staged-564.md (staged, not committed)" <<<"$u564_staged_out"; then
+  pass "a STAGED but uncommitted surface file is seen, and named as staged"
+else
+  fail "a staged surface file was invisible or unmarked" \
+       "rc=$u564_staged_rc; $(grep -F 'probe-staged-564' <<<"$u564_staged_out" | head -1)"
+fi
+
+if [ "$u564_nested_rc" -ne 0 ] \
+   && grep -qF "templates/core/agents/nested-564/ (untracked nested repository" <<<"$u564_nested_out"; then
+  pass "an untracked nested repository is reported as a directory, with its cause named"
+else
+  fail "a nested repository under a surface prefix was not reported as one" \
+       "rc=$u564_nested_rc; $(grep -F 'nested-564' <<<"$u564_nested_out" | head -1)"
+fi
+
+# FR-014. The run must COMPLETE — reaching the summary is the assertion. It
+# goes non-zero for the gap, which is expected and is not what is under test.
+if grep -qE "^## Summary$" <<<"$u564_unreadable_out" \
+   && grep -qF "probe-unreadable-564.md" <<<"$u564_unreadable_out"; then
+  pass "an unreadable collected path is reported without being opened (FR-014)"
+else
+  fail "the audit did not survive an unreadable collected path" \
+       "rc=$u564_unreadable_rc; $(tail -3 <<<"$u564_unreadable_out")"
+fi
+
+if grep -qF "untracked-café-564.md" <<<"$u564_accent_out"; then
+  pass "an UNTRACKED non-ASCII path is rendered unescaped too (#549 on the new source)"
+else
+  fail "an untracked non-ASCII path was escaped or lost" \
+       "$(grep -F 'untracked' <<<"$u564_accent_out" | head -2)"
+fi
+
+if [ "$u564_global_hidden" -eq 0 ] && grep -qF "probe-excl-564.md" <<<"$u564_excl_out"; then
+  pass "a machine-global excludes file cannot hide a surface file from the audit"
+else
+  fail "the core.excludesFile pin did not hold" \
+       "global-hidden rows=$u564_global_hidden; audit named it: $(grep -cF 'probe-excl-564' <<<"$u564_excl_out")"
+fi
+
+# Not 1: a subdirectory is a tree the audit CANNOT answer for, which is the
+# same class as "not a work tree" and gets the same code. Asserting it is
+# non-zero would pass on 1, which is the findings verdict.
+if [ "$u564_subdir_rc" -eq 3 ]; then
+  pass "--src-root pointed at a subdirectory exits 3, not a findings verdict (FR-013)"
+else
+  fail "a subdirectory --src-root did not exit 3" "rc=$u564_subdir_rc"
+fi
+
+if [ "$u564_idem1_out" = "$u564_idem2_out" ]; then
+  pass "two runs on one unchanged tree produce identical output"
+else
+  fail "the audit is not idempotent on an unchanged tree" \
+       "$(diff <(printf '%s\n' "$u564_idem1_out") <(printf '%s\n' "$u564_idem2_out") | head -4)"
+fi
+
+# The de-duplication control: assert the path really was in BOTH sources before
+# asserting it was reported once. Without the control, a run where the repro
+# failed to set itself up would read as a passing dedupe.
+if [ "$u564_dup_in_tracked" -ge 1 ] && [ "$u564_dup_in_others" -ge 1 ]; then
+  pass "the union's duplicate case reproduces: one path, both sources"
+else
+  fail "the duplication repro did not set itself up" \
+       "tracked=$u564_dup_in_tracked others=$u564_dup_in_others"
+fi
+if [ "$u564_dup_reported" -eq 1 ]; then
+  pass "and the union reports it exactly once"
+else
+  fail "a path present in two sources was reported $u564_dup_reported time(s)" \
+       "$(grep -F 'probe-dup-564' <<<"$u564_dup_out" | head -3)"
 fi
 
 finish "SMOKE-AUDIT"

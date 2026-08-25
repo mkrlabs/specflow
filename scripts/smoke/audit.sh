@@ -80,6 +80,28 @@ if ! git -C "$SRC_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 3
 fi
 
+# --src-root must be the TOPLEVEL, not merely somewhere inside a work tree
+# (#564). `git diff --name-only` emits root-relative paths; `git ls-files`
+# emits cwd-relative ones. From a subdirectory the two halves of the
+# collection below speak different vocabularies -- the tracked half matches a
+# SURFACES glob and the untracked half does not, so it lands in the unmapped
+# bucket naming a path that does not exist. `--full-name` fixes the
+# rendering; this fixes the class, and it is the same discipline the header
+# states for $SRC_ROOT itself: an explicit parameter, never an ambient value.
+#
+# Exit 3 already means "--src-root is not usable" and
+# .specnaut/release/preflight.sh already branches on it, so no fourth code.
+# Both sides are resolved with `pwd -P`: on macOS /tmp is a symlink to
+# /private/tmp, and `git rev-parse --show-toplevel` answers physically while
+# `cd && pwd` answers logically.
+_toplevel="$(git -C "$SRC_ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$_toplevel" ] \
+  || [ "$(cd "$SRC_ROOT" && pwd -P)" != "$(cd "$_toplevel" && pwd -P)" ]; then
+  echo "audit.sh: --src-root '$SRC_ROOT' is not the toplevel of its work tree" >&2
+  echo "  toplevel is: ${_toplevel:-<unresolved>}" >&2
+  exit 3
+fi
+
 # --- What gets scanned (plan.md §5 R3) ----------------------------------
 # Membership is ENUMERATED from $SMOKE_DIR, and SUITE_FILES is checked
 # against that enumeration rather than trusted as a second list.
@@ -188,12 +210,111 @@ SURFACES=(
   'templates/harness-specific/*/*|smoke-features.sh smoke-all-harnesses.sh|harness-file'
 )
 
+# --- The collection: one git prefix, one pathspec, three sources (#564) ---
+#
 # `core.quotePath=false`: by default git renders a non-ASCII path as an escaped,
 # double-quoted string, which matches no glob in SURFACES and left through the
 # unmapped bucket — a green gate over a file nothing asserts on (#549).
-CHANGED=$(git -C "$SRC_ROOT" -c core.quotePath=false diff --name-only --diff-filter=AMR "$SINCE..HEAD" -- \
-  'templates/core/' 'templates/harness-specific/' 'templates/manifest.json' 'src/cli/' \
-  2>/dev/null || true)
+#
+# It lives in a SHARED prefix rather than being typed on each collection line.
+# Hoisting only the pathspec would leave this flag with two literal copies, and
+# #549 is the shipped incident proving what one missing copy costs.
+#
+# `core.excludesFile=/dev/null`: `--exclude-standard` below reads THREE sources
+# — per-directory .gitignore files, $GIT_DIR/info/exclude, and the user's
+# machine-global excludes file. The third has nothing to do with this repository,
+# and inheriting it makes the verdict a property of the laptop rather than of the
+# tree, in the false-green direction. `info/exclude` stays honoured: it is
+# repo-local and deliberate, the same class as .gitignore.
+GIT_SRC=(git -C "$SRC_ROOT" -c core.quotePath=false -c core.excludesFile=/dev/null)
+
+# The audited surface, ONCE. Every collection below consumes this array, so the
+# tracked and untracked halves are scoped identically by construction rather
+# than by discipline.
+#
+# `smoke-audit.sh` restates these prefixes as literals on purpose — see the
+# comment beside them there. Do not "fix" that duplication: it is the only
+# independent opinion about what this array should contain, and #551 is what it
+# would have caught.
+SURFACE_PATHSPEC=('templates/core/' 'templates/harness-specific/' 'templates/manifest.json' 'src/cli/')
+
+# `git diff <a>..<b>` compares two COMMITS. A file that has never been committed
+# is in neither, so until #564 the gate ran blind on exactly the files it exists
+# to catch: a wholly new surface file has no assertion by definition, and the
+# audit stayed quiet for the whole time it was being written.
+#
+# Three sources, unioned — never substituted:
+#   1. tracked, changed since the baseline  — the original collection, untouched
+#   2. staged but not committed             — `git add` is the next keystroke
+#                                             after `touch`; without this the
+#                                             feature's value window is ~zero
+#   3. untracked and not ignored            — the ticket's own case
+#
+# Rejected, and why. The record lives here, beside the code, not only in a
+# commit body nobody greps three cycles from now:
+#
+#   - `git status --porcelain` as a REPLACEMENT for source 1. It reports
+#     working-tree-vs-HEAD, not $SINCE..HEAD, so every file changed in the range
+#     but clean in the tree — most of a normal run — would vanish. Its
+#     "one source of truth" appeal is real but it is truth about the wrong
+#     question. Unioned in, it is source 3 with a harder parse.
+#   - Refusing to run at all when an untracked surface file is present. Loud,
+#     but it provides no detection whatsoever — only a demand that the operator
+#     commit first — and it makes the audit unusable while editing, which is
+#     when a coverage gap is cheapest to fix.
+#   - Giving source 3 a `--diff-filter` counterpart. It needs none: a path git
+#     has never recorded can only ever be an addition, so `--others` yields
+#     exactly the `A` subset the filter would have selected. That equivalence is
+#     by construction on the FILTER axis — and NOT on the path axis, which is
+#     why `--full-name` is here and why the toplevel assertion above exists.
+#
+# De-duplicated with awk, not `sort -u`: `git rm --cached` on a path committed
+# after the baseline puts it in BOTH source 1 and source 3, and the report's
+# order is fixed on purpose (two runs on one tree must print identically).
+_tracked_changed=$("${GIT_SRC[@]}" diff --name-only --diff-filter=AMR "$SINCE..HEAD" -- \
+  "${SURFACE_PATHSPEC[@]}" 2>/dev/null || true)
+STAGED_SET=$("${GIT_SRC[@]}" diff --name-only --diff-filter=AMR --cached HEAD -- \
+  "${SURFACE_PATHSPEC[@]}" 2>/dev/null || true)
+UNTRACKED_SET=$("${GIT_SRC[@]}" ls-files --others --exclude-standard --full-name -- \
+  "${SURFACE_PATHSPEC[@]}" 2>/dev/null || true)
+CHANGED=$(printf '%s\n%s\n%s\n' "$_tracked_changed" "$STAGED_SET" "$UNTRACKED_SET" \
+  | awk 'NF && !seen[$0]++')
+
+# A path's ORIGIN, for the report TEXT only (#564). It touches no counter and no
+# term in the verdict `if` at the bottom of this file: an uncommitted file with
+# no assertion is fatal through exactly the path a committed one is. What this
+# buys is that the report says WHICH — otherwise a brand-new file prints
+# identically to a landed one, and the natural repair for a red gate naming a
+# file that was never meant to exist is to add an assertion for it.
+#
+# Written as `case` over a newline-wrapped string rather than `printf | grep -qxF`:
+# this script runs under `set -euo pipefail`, and `grep -q` exits at the first
+# match, SIGPIPE-ing its producer — the hazard already documented at the
+# coverage grep below.
+origin_note() {
+  case "$1" in
+    # `ls-files --others` emits an untracked directory that is ITSELF a git
+    # repository as `<dir>/`, with a trailing slash and its contents suppressed.
+    # It reaches the unmapped bucket and is fatal there either way; naming the
+    # cause is what stops the maintainer's repair being a .gitignore entry,
+    # which would hide the tree rather than map it.
+    */) printf ' (untracked nested repository — its contents are not enumerated)'; return 0 ;;
+  esac
+  case "
+$UNTRACKED_SET
+" in
+    *"
+$1
+"*) printf ' (untracked)'; return 0 ;;
+  esac
+  case "
+$STAGED_SET
+" in
+    *"
+$1
+"*) printf ' (staged, not committed)'; return 0 ;;
+  esac
+}
 
 # --- Coverage-gap allowlist (plan.md §5 R13) ----------------------------
 ALLOWLIST="$SMOKE_DIR/coverage-allowlist.txt"
@@ -335,7 +456,7 @@ else
         # So they are counted separately: reported, never silent, never fatal.
         src/cli/*)
           outside_count=$((outside_count + 1))
-          outside_list="$outside_list  - $f
+          outside_list="$outside_list  - $f$(origin_note "$f")
 "
           ;;
         *)
@@ -351,10 +472,10 @@ else
           # because the rule was never reached, not because it works.
           if reason="$(allow_reason "$f")"; then
             allowed_count=$((allowed_count + 1))
-            printf '  ~ %s (unmapped, allow-listed)\n      reason: %s\n' "$f" "$reason"
+            printf '  ~ %s%s (unmapped, allow-listed)\n      reason: %s\n' "$f" "$(origin_note "$f")" "$reason"
           else
             unmapped_count=$((unmapped_count + 1))
-            unmapped_list="$unmapped_list  - $f
+            unmapped_list="$unmapped_list  - $f$(origin_note "$f")
 "
           fi
           ;;
@@ -394,10 +515,10 @@ else
     if [ "$covered" -eq 0 ]; then
       if reason="$(allow_reason "$f")"; then
         allowed_count=$((allowed_count + 1))
-        printf '  ~ %s (allow-listed)\n      reason: %s\n' "$f" "$reason"
+        printf '  ~ %s%s (allow-listed)\n      reason: %s\n' "$f" "$(origin_note "$f")" "$reason"
       else
         gaps_count=$((gaps_count + 1))
-        printf '  - %s\n      kind: %s\n      expected coverage in: %s\n' "$f" "$kind" "$smokes"
+        printf '  - %s%s\n      kind: %s\n      expected coverage in: %s\n' "$f" "$(origin_note "$f")" "$kind" "$smokes"
       fi
     fi
   done <<<"$CHANGED"
