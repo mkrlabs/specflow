@@ -169,7 +169,12 @@ Deno.test("config keys: the fence scanner is not defeated by CRLF line endings",
   // this file's entire population there — every assertion above passing
   // vacuously except the one that checks the population is non-empty. That
   // guard is the only reason it surfaced as a red rather than as silence.
-  const posix = await Deno.readTextFile(join(ROOT, "templates/core/skills/board/SKILL.md"));
+  // Normalised to LF FIRST, then converted. Reading the file and blindly
+  // CRLF-ifying it assumes the checkout is LF — on windows-latest, where
+  // `core.autocrlf` already handed back CRLF, that produced `\r\r\n` and this
+  // very test failed on the platform it was written to protect.
+  const raw = await Deno.readTextFile(join(ROOT, "templates/core/skills/board/SKILL.md"));
+  const posix = raw.replaceAll("\r\n", "\n");
   const crlf = posix.replaceAll("\n", "\r\n");
   assertEquals(
     configFences(crlf).length,
