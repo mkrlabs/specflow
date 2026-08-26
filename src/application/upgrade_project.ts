@@ -245,9 +245,27 @@ export class UpgradeProjectUseCase {
       // written before the flip keeps describing files this workspace does not
       // own, and without it the resurrection only moves from "planned adds" to
       // phantom rows nobody looks at until they mislead someone (#476).
+      // #572, third case, and the one that hides best. When EVERY dest is
+      // `unchanged` the run returns here, before the lock rebuild below ever
+      // sees them — so a project whose whole tree already matches the bundle
+      // but whose lock is behind gets "up-to-date" and no repair at all. Both
+      // other cases at least reached the rebuild. This one never did, which is
+      // why it survived a fix aimed at the rebuild.
+      //
+      // A stale entry here is not ambiguous: `unchanged` means the file equals
+      // the bundle, so the bundle's sha is what the entry should have said all
+      // along.
+      const staleUnchanged = plan.filter((a) =>
+        a.kind === "unchanged" &&
+        lock.entries.get(a.dest)?.sha256 !== newShas.get(a.dest)
+      ).map((a) => a.dest);
+      const staleVersion = lock.templatesVersion !== templatesVersion;
       const staleAgentic = parentManaged &&
         [...lock.entries.keys()].some((dest) => isAgenticPath(dest));
-      if (parentManaged !== lockParentManaged || staleAgentic) {
+      if (
+        parentManaged !== lockParentManaged || staleAgentic ||
+        staleUnchanged.length > 0 || staleVersion
+      ) {
         const correctedLock: InstalledLock = {
           version: 2,
           harness: lock.harness,
@@ -255,13 +273,19 @@ export class UpgradeProjectUseCase {
           versionScheme: lock.versionScheme,
           specBackend: lock.specBackend,
           specAutogen: lock.specAutogen,
-          templatesVersion: lock.templatesVersion,
-          entries: parentManaged ? pruneAgenticEntries(lock.entries) : lock.entries,
+          templatesVersion,
+          entries: restampUnchanged(
+            parentManaged ? pruneAgenticEntries(lock.entries) : lock.entries,
+            staleUnchanged,
+            newShas,
+            templatesVersion,
+          ),
           ...(parentManaged ? { parentManaged: true as const } : {}),
         };
         await lockStore.write(input.projectDir, correctedLock);
       }
-      return { status: "up-to-date", currentVersion: lock.templatesVersion };
+      // The version reported is the one now recorded, not the one that was.
+      return { status: "up-to-date", currentVersion: templatesVersion };
     }
 
     // `--dry-run` returns here, BEFORE anything is written. It used to fall
@@ -414,6 +438,24 @@ export class UpgradeProjectUseCase {
         .filter((a) => a.kind === "migrate-to-plugin" || a.kind === "defer-to-plugin")
         .map((a) => a.dest),
     );
+    // #572. A dest the plan classified `unchanged` has disk content that
+    // ALREADY equals the bundle — that is the definition of the branch. Its
+    // lock entry was nevertheless carried over verbatim, because `wrote` is
+    // false for anything outside `toWrite`, so a project whose lock had fallen
+    // behind kept a sha matching NEITHER the file NOR the bundle, forever.
+    // `upgrade` could not heal it (nothing to write), and `--reset-baseline`
+    // could not either (it assigns a local `lockSha` inside the planner and
+    // never reaches `lock.entries`). The only remaining remedy was editing the
+    // lock by hand, which is the opposite of what a lock is for.
+    //
+    // This is NOT the freeze the `staleSince` doc describes and deliberately
+    // leaves alone. That one is about a **customized** preserve, where the
+    // frozen `templatesVersion` is the only record of when the divergence
+    // began and re-stamping would destroy it. Here there is no divergence to
+    // record: the file and the bundle agree.
+    const unchangedDests = new Set(
+      plan.filter((a) => a.kind === "unchanged").map((a) => a.dest),
+    );
     const updatedEntries = new Map<string, LockEntry>();
     for (const [dest] of newShas) {
       if (droppedToPlugin.has(dest)) continue;
@@ -436,10 +478,27 @@ export class UpgradeProjectUseCase {
       // Dropping it here heals the project on its next upgrade, without the
       // user needing to know the problem existed.
       if (!wrote && bundle[dest]?.skipIfExists === true) continue;
+      // True when the file on disk holds this bundle's content — either
+      // because we just wrote it, or because it already did.
+      const matchesBundle = wrote || unchangedDests.has(dest);
       updatedEntries.set(dest, {
-        sha256: wrote ? sha : existing?.sha256 ?? sha,
+        // The `?? sha` fallback used to fire for an unwritten dest with no
+        // prior entry — a declared preserve whose template was renamed, so
+        // the lock still carries the old path. It recorded the BUNDLE's sha
+        // against a file this run deliberately refused to touch, asserting
+        // byte-identity the file may not have. `diskShas` is what the file
+        // actually holds, and it is already in scope; `sha` survives only as
+        // the last resort for a dest with neither.
+        sha256: matchesBundle ? sha : existing?.sha256 ?? diskShas.get(dest) ?? sha,
+        // NOT re-stamped for `unchanged`. The content matches the bundle, but
+        // it did not arrive now — it arrived whenever it was last written, and
+        // that is what the recorded value says. Overwriting it would trade a
+        // known date for a false one and buy nothing: no consumer reads
+        // `installedAt` to decide anything, and the one place it is read
+        // (`staleSince`) only fires on customized preserves, which this branch
+        // never touches.
         installedAt: wrote ? now : (existing?.installedAt ?? now),
-        templatesVersion: wrote
+        templatesVersion: matchesBundle
           ? templatesVersion
           : (existing?.templatesVersion ?? templatesVersion),
       });
@@ -538,6 +597,33 @@ function managedSectionEntries(bundle: Bundle): Array<[string, string, string]> 
     const body = extractBlock(file.content, label, "html");
     if (body === null || body.length === 0) continue;
     out.push([dest, label, body]);
+  }
+  return out;
+}
+
+/**
+ * Re-stamp the lock entries for dests the plan called `unchanged` but whose
+ * recorded sha disagrees with the bundle (#572).
+ *
+ * `installedAt` is deliberately NOT touched: the content matches the bundle,
+ * but it did not arrive now — it arrived whenever it was last written, and
+ * that is what the recorded value says. Trading a known date for a false one
+ * buys nothing.
+ */
+function restampUnchanged(
+  entries: ReadonlyMap<string, LockEntry>,
+  dests: readonly string[],
+  newShas: Map<string, string>,
+  templatesVersion: string,
+): ReadonlyMap<string, LockEntry> {
+  if (dests.length === 0) return entries;
+  const out = new Map(entries);
+  for (const dest of dests) {
+    const sha = newShas.get(dest);
+    if (sha === undefined) continue;
+    const existing = out.get(dest);
+    if (existing === undefined) continue;
+    out.set(dest, { ...existing, sha256: sha, templatesVersion });
   }
   return out;
 }

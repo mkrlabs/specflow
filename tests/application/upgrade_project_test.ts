@@ -758,3 +758,178 @@ Deno.test("UpgradeProjectUseCase: legacy lock + parentManagedOverride persists p
   // Metadata-only: no files written.
   assertEquals(writer.written.size, 0);
 });
+
+// ─── #572: a stale lock entry for a file that already matches the bundle ───
+
+Deno.test(
+  "UpgradeProjectUseCase re-stamps an `unchanged` dest whose lock entry is stale",
+  async () => {
+    // The state a project reaches by tracking the templates forward by hand,
+    // or by upgrading with an older binary: the FILE is current, the LOCK is
+    // not. `computeUpgradePlan` classifies this `unchanged` — correctly, there
+    // is nothing to write — and the lock rebuild used to carry the entry over
+    // verbatim, so the recorded sha matched neither the file nor the bundle.
+    // Forever: `upgrade` had nothing to write, and `--reset-baseline` never
+    // reaches `lock.entries`. The only remedy left was editing the lock by
+    // hand, which is the opposite of what a lock is for.
+    const content = "current bundle content";
+    const currentSha = await sha256Hex(content);
+    const staleSha = await sha256Hex("what an older binary wrote");
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "1.12.0",
+      entries: new Map([["a.md", {
+        sha256: staleSha,
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "1.12.0",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    const writer = fakeWriter();
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer,
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    const result = await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+
+    // The version REPORTED is the one now recorded, not the one that was. A
+    // run that repaired the lock and then announced the old version would be
+    // telling the operator the repair did not happen.
+    assertEquals(result.status, "up-to-date");
+    assert("currentVersion" in result);
+    assertEquals(result.currentVersion, "4.0.1");
+
+    const saved = store.last;
+    assert(saved !== null, "the lock must be written even when nothing is");
+    const entry = saved.entries.get("a.md");
+    assert(entry !== undefined, "the entry must survive the rebuild");
+    assertEquals(
+      entry.sha256,
+      currentSha,
+      "an unchanged dest records what is on disk, which is the bundle",
+    );
+    assertEquals(entry.templatesVersion, "4.0.1");
+    // NOT re-stamped: the content matches the bundle but it did not arrive
+    // now, and overwriting a known date with a false one buys nothing.
+    assertEquals(entry.installedAt, "2026-05-26T00:00:00Z");
+    // And nothing was written — this is a lock repair, not a file write.
+    assertEquals(writer.written.size, 0);
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase records the DISK sha for an unwritten preserve with no prior entry",
+  async () => {
+    // The shape a template rename produces: the lock still carries the old
+    // path, so the new one has no entry at all. It is declared-preserved, so
+    // the run refuses to touch it — and the rebuild's `?? sha` fallback then
+    // recorded the BUNDLE's sha against it, asserting a byte-identity the file
+    // does not have. A run whose purpose is to make the lock a record rather
+    // than a claim would have written a claim that was never true, and written
+    // it BECAUSE the maintainer declared the file preserved.
+    const diskContent = "the maintainer's own version";
+    const diskSha = await sha256Hex(diskContent);
+    const bundleContent = "the template's version";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "2.0.1",
+      // Deliberately empty for this dest: the rename left the old key behind.
+      entries: new Map([["old-name.md", {
+        sha256: await sha256Hex("whatever"),
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "2.0.1",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": diskContent }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content: bundleContent, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({
+      projectDir: "/p",
+      dryRun: false,
+      force: false,
+      isDeclaredPreserved: (dest: string) => dest === "a.md",
+    });
+
+    const entry = store.last?.entries.get("a.md");
+    assert(entry !== undefined);
+    assertEquals(
+      entry.sha256,
+      diskSha,
+      "a preserved file's entry describes the file, never the template it was spared from",
+    );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase re-stamps a stale `unchanged` entry on a run that also has real work",
+  async () => {
+    // The previous test's project is entirely `unchanged`, so it takes the
+    // `up-to-date` early return and never reaches the lock rebuild. This one
+    // adds a second file that genuinely needs writing, which is what a real
+    // upgrade looks like — and it is the only shape that exercises the rebuild
+    // loop's own re-stamp. Two fixes, two paths, two witnesses.
+    const stable = "already current";
+    const stableSha = await sha256Hex(stable);
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "1.12.0",
+      entries: new Map([
+        ["stable.md", {
+          sha256: await sha256Hex("what an older binary wrote"),
+          installedAt: "2026-05-26T00:00:00Z",
+          templatesVersion: "1.12.0",
+        }],
+        ["moving.md", {
+          sha256: await sha256Hex("old"),
+          installedAt: "2026-05-26T00:00:00Z",
+          templatesVersion: "1.12.0",
+        }],
+      ]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "stable.md": stable, "moving.md": "old" }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({
+        "stable.md": { content: stable, executable: false },
+        "moving.md": { content: "new", executable: false },
+      }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+
+    const entries = store.last?.entries;
+    assert(entries !== undefined);
+    // The one that was written.
+    assertEquals(entries.get("moving.md")?.sha256, await sha256Hex("new"));
+    assertEquals(entries.get("moving.md")?.templatesVersion, "4.0.1");
+    // And the one that was NOT written, but already held the bundle's content.
+    assertEquals(entries.get("stable.md")?.sha256, stableSha);
+    assertEquals(entries.get("stable.md")?.templatesVersion, "4.0.1");
+    assertEquals(entries.get("stable.md")?.installedAt, "2026-05-26T00:00:00Z");
+  },
+);
