@@ -27,6 +27,24 @@ explore the rest of the codebase unless strictly necessary for context.
    (controllers/services/repositories or equivalent), flag layer violations as
    HIGH.
 
+## Why this seat has no execution tool
+
+`Read, Grep, Glob`, deliberately — not by oversight, and not a gap to be closed
+next time somebody compares this file with `test-reviewer.md`.
+
+Every rule above is reachable by reading. Duplication, naming, dead code, layer
+violations, constitution conformance, error handling that swallows — each is a
+property of the text, settled by looking at it, and running the program would
+add nothing a careful read does not already give.
+
+`test-reviewer` carries a test-runner Bash grant because one of its rules is not
+like that: whether an assertion actually bites is behavioural, and reading a
+test file cannot answer it. The seam between the two seats follows the shape of
+their rules, and it is meant to be there.
+
+If a rule ever lands here whose evidence is behavioural, that is the moment to
+revisit this — not before.
+
 ## Output format
 
 Emit findings in this exact structure (one per finding):
