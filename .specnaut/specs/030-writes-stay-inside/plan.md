@@ -211,7 +211,18 @@ cost.
 | **What the project root is** | `assertInsideProject`'s resolved root, derived once per operation from the caller's `projectDir` | Each adapter re-deriving it — `resolve()` here, `join()` there — so two of them hold different opinions about the same run |
 | **Which destination strings are legal** | `assertSafeDestination` in `src/domain/template.ts`, unchanged | Teaching the filesystem check to also reject `..`; that is the string rule and it already has a home |
 | **Which symlinks are refused** — only those resolving outside | `assertInsideProject`'s verdict | A blanket symlink refusal anywhere; widening the existing `skipIfExists` skip to cover in-project links |
-| **Whether Specnaut may move a project's own symlink** | the `skipIfExists` branch of `writeBundle`, one answer for both `backupExisting` values | The current split, where `false` refuses and `true` renames the link and calls it a content backup |
+| **What a backup of a symlinked dest reports** | the `wasSymlink` flag `backupAside`'s callers set, carried to the user as `linksMoved` | A `BackupReport` entry that describes a moved LINK as saved content; a second place deciding whether a symlink was involved |
+
+**Row 6 was amended during implementation, and the amendment is a correction to
+this table rather than to the code.** It read "one answer for both
+`backupExisting` values", which FR-010's own text never said — FR-010 asks that
+a backup *stop reporting a pointer as content*, and that is what shipped. The
+review flagged the disagreement as a binding-table violation and it was right
+that the two disagreed; it was the row that was wrong. Unifying the branches
+would have required editing a case in `write_bundle_symlink_test.ts`, which pins
+the pre-existing rename — and T019 makes needing to edit that file the signal
+that a change has become a scope change rather than a fix. The rename stays; the
+accounting is what was broken.
 
 **Two askers, two verdicts, one predicate — and the first version got this
 wrong.** It claimed "two askers, one decider". The sinks ask *may I mutate this*

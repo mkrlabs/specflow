@@ -140,3 +140,53 @@ Deno.test("the home directory is refused as a project", async () => {
   if (home === undefined || home === "") return; // not applicable on this host
   await assertRejects(() => resolveProjectRoot(home));
 });
+
+Deno.test("a relative leaf link under a symlinked parent is resolved the way the kernel does", async () => {
+  // The CRITICAL the review reproduced, and the sharpest case in this file.
+  //
+  //     proj/.claude      -> outside/dir
+  //     outside/dir/x.md  -> ../victim.md
+  //
+  // `join` collapses `..` LEXICALLY; the kernel resolves each component in turn
+  // and applies `..` from wherever it actually landed. Joining `../victim.md`
+  // against the unresolved `proj/.claude` gives `proj/victim.md` — inside. The
+  // kernel gives `outside/victim.md` — not. Measured before the fix:
+  // `writeBundle` did not refuse, and the file outside was overwritten and
+  // chmod 755'd.
+  //
+  // Two symlinks, both committable to a repository, and they defeated the
+  // resolver at the centre of every guard in this change.
+  const { root, proj, outside } = await box();
+  try {
+    await Deno.mkdir(join(outside, "dir"));
+    await Deno.writeTextFile(join(outside, "victim.md"), "SENTINEL");
+    await Deno.symlink(join(outside, "dir"), join(proj, ".claude"));
+    await Deno.symlink("../victim.md", join(outside, "dir/x.md"));
+
+    const abs = join(proj, ".claude/x.md");
+    assertEquals(
+      await resolveTarget(abs),
+      await Deno.realPath(abs),
+      "the resolver must agree with the kernel, which is the only definition of where a write lands",
+    );
+    const r = await resolveProjectRoot(proj);
+    await assertRejects(() => assertInsideProject(r, abs));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("a relative leaf link that stays inside is still allowed", async () => {
+  // The positive control for the case above: `..` in a link target is not
+  // itself the defect, and refusing every relative link would satisfy the
+  // assertion above while breaking ordinary layouts.
+  const { root, proj } = await box();
+  try {
+    await Deno.mkdir(join(proj, "a"));
+    await Deno.writeTextFile(join(proj, "real.md"), "x");
+    await Deno.symlink("../real.md", join(proj, "a/link.md"));
+    await assertInsideProject(await resolveProjectRoot(proj), join(proj, "a/link.md"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

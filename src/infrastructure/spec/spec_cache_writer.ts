@@ -40,11 +40,9 @@ export class SpecCacheWriter implements SpecCacheStore {
     // removed the target's tree — measured, a file planted there was
     // destroyed — and then wrote the cache outside. `slug()` cannot help: it
     // sanitises the leaf, and the escape is in the prefix.
-    await assertInsideProject(
-      await resolveProjectRoot(projectDir),
-      this.cacheDir(projectDir, taskNumber),
-    );
-    await this.clear(projectDir, taskNumber);
+    const root = await resolveProjectRoot(projectDir);
+    await assertInsideProject(root, this.cacheDir(projectDir, taskNumber));
+    await this.clear(projectDir, taskNumber, root);
     const dir = this.cacheDir(projectDir, taskNumber);
     await Deno.mkdir(dir, { recursive: true });
 
@@ -115,15 +113,20 @@ export class SpecCacheWriter implements SpecCacheStore {
     return entries.length > 0 ? entries : null;
   }
 
-  async clear(projectDir: string, taskNumber: number): Promise<void> {
+  async clear(projectDir: string, taskNumber: number, resolvedRoot?: string): Promise<void> {
+    // OUTSIDE the try, and that placement is the point. The catch below
+    // swallows `NotFound` to make `clear` idempotent — and `resolveProjectRoot`
+    // raises exactly that when the project directory is missing, so a guard
+    // inside it would have been swallowed and the only recursive delete in
+    // this codebase would have run unchecked.
+    //
+    // Guarded here as well as at `write`'s call: `clear` is public and
+    // `spec_handler` calls it on its own. A check that only the caller performs
+    // is a check the next caller does not have. `resolvedRoot` lets `write`
+    // hand over the root it already resolved instead of resolving it twice.
+    const root = resolvedRoot ?? await resolveProjectRoot(projectDir);
+    await assertInsideProject(root, this.cacheDir(projectDir, taskNumber));
     try {
-      // Guarded here as well as at `write`'s call above: `clear` is public and
-      // `spec_handler` calls it on its own. A check that only the caller
-      // performs is a check the next caller does not have.
-      await assertInsideProject(
-        await resolveProjectRoot(projectDir),
-        this.cacheDir(projectDir, taskNumber),
-      );
       await Deno.remove(this.cacheDir(projectDir, taskNumber), { recursive: true });
     } catch (e) {
       if (e instanceof Deno.errors.NotFound) return; // already absent — idempotent

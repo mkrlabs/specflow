@@ -1,4 +1,4 @@
-import { basename, dirname, isAbsolute, join } from "@std/path";
+import { basename, dirname, isAbsolute, join, parse } from "@std/path";
 import { isInside } from "../domain/template.ts";
 
 /**
@@ -33,7 +33,11 @@ import { isInside } from "../domain/template.ts";
 export async function resolveProjectRoot(projectDir: string): Promise<string> {
   const root = await Deno.realPath(projectDir);
   const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
-  if (root === "/" || root === "\\") {
+  // `parse().root` rather than a literal: on Windows a filesystem root is
+  // `C:\\` or `\\\\server\\share\\`, never the single separator the first
+  // version compared against — so that branch was dead on the one platform it
+  // was written for.
+  if (root === parse(root).root) {
     throw new Error(`refusing to operate with the filesystem root as the project: ${root}`);
   }
   if (home !== undefined && home !== "" && root === await Deno.realPath(home).catch(() => home)) {
@@ -107,7 +111,24 @@ export async function resolveTarget(abs: string): Promise<string> {
 
   if (info.isSymlink) {
     const link = await Deno.readLink(abs);
-    const lexical = isAbsolute(link) ? link : join(dirname(abs), link);
+    // The parent is RESOLVED before the join, and that is the whole finding.
+    //
+    // `join` collapses `..` lexically; the kernel resolves each component in
+    // turn and applies `..` from wherever it actually landed. The two disagree
+    // exactly when the parent is itself a link out of the project — and two
+    // symlinks committed to a repository are enough:
+    //
+    //     proj/.claude      -> outside/dir
+    //     outside/dir/x.md  -> ../victim.md
+    //
+    // Joining `../victim.md` against the unresolved `proj/.claude` yields
+    // `proj/victim.md`, which is inside. The kernel yields `outside/victim.md`,
+    // which is not. Measured before this line changed: `writeBundle` did not
+    // refuse, and the file outside was overwritten and chmod 755'd. Write,
+    // delete and chmod all escaped — the three sinks this module exists to
+    // close, defeated by the resolver at their centre.
+    const realParent = await resolveDeepestExisting(dirname(abs));
+    const lexical = isAbsolute(link) ? link : join(realParent, link);
     // Through `resolveDeepestExisting`, not `realPath` directly: a dangling
     // link must still be resolved against the real filesystem as far as it
     // goes, or its verdict is a lexical path compared against a resolved root —

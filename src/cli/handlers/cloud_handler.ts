@@ -31,6 +31,7 @@ import { openInBrowser } from "../../infrastructure/browser_opener.ts";
 import { makeStdinSelectIO, selectInteractive, type SelectItem } from "../select.ts";
 import { generateProjectKey } from "../../domain/cloud/project_key.ts";
 import { assertInsideProject, resolveProjectRoot } from "../../infrastructure/fs_containment.ts";
+import { join } from "@std/path";
 
 export type CloudIntent = {
   kind: "cloud";
@@ -336,7 +337,7 @@ async function runLogin(intent: CloudIntent): Promise<number> {
   const cloudDir = Deno.cwd();
   await assertInsideProject(
     await resolveProjectRoot(cloudDir),
-    `${cloudDir}/.specnaut/backlog-config.yml`,
+    join(cloudDir, ".specnaut", "backlog-config.yml"),
   );
   await writeCloudConfig(cloudDir, apiUrl, projectKey);
   console.log(green(`✓ linked to project ${bold(projectKey)}`));
