@@ -279,10 +279,19 @@ export class UpgradeProjectUseCase {
             staleUnchanged,
             newShas,
             templatesVersion,
+            (this.deps.now ?? (() => new Date()))().toISOString(),
           ),
           ...(parentManaged ? { parentManaged: true as const } : {}),
         };
-        await lockStore.write(input.projectDir, correctedLock);
+        // NOT on a dry run. `input.dryRun` is first consulted below, AFTER
+        // this early return, so this write happened on a preview — and the new
+        // `staleVersion` clause fires on the ordinary post-release state (files
+        // current, version string behind), which means a preview would have
+        // mutated the trust artefact on a perfectly normal tree. A preview that
+        // writes is not a preview.
+        if (!input.dryRun) {
+          await lockStore.write(input.projectDir, correctedLock);
+        }
       }
       // The version reported is the one now recorded, not the one that was.
       return { status: "up-to-date", currentVersion: templatesVersion };
@@ -481,15 +490,31 @@ export class UpgradeProjectUseCase {
       // True when the file on disk holds this bundle's content — either
       // because we just wrote it, or because it already did.
       const matchesBundle = wrote || unchangedDests.has(dest);
+      // An unwritten dest with no prior entry gets NO entry — the same refusal,
+      // for the same reason, one branch over.
+      //
+      // The first version of this fix recorded `diskShas.get(dest)` here. That
+      // was aimed at a DECLARED preserve after a template rename, but nothing
+      // gated it on the reason, so it fired for a `customized` preserve too —
+      // the `lockSha === undefined` branch, whose own comment reads "the user's
+      // own edit of a file Specnaut manages". Recording the user's sha as the
+      // installed baseline makes the NEXT run see `diskSha === lockSha`,
+      // classify the file `auto-update`, and overwrite it — with no
+      // `.specnaut.bak`, because a plain upgrade passes `backupExisting: false`.
+      // Two runs, no flag, no warning, and the edits are gone.
+      //
+      // Recording nothing keeps the file exactly as untracked as it was, so the
+      // next run reaches the same branch and preserves it again. The ticket's
+      // own criterion allows "the disk sha OR no entry at all"; only one of the
+      // two is safe for both reasons, so it is the one taken.
+      if (!wrote && existing === undefined && !matchesBundle) continue;
       updatedEntries.set(dest, {
-        // The `?? sha` fallback used to fire for an unwritten dest with no
-        // prior entry — a declared preserve whose template was renamed, so
-        // the lock still carries the old path. It recorded the BUNDLE's sha
-        // against a file this run deliberately refused to touch, asserting
-        // byte-identity the file may not have. `diskShas` is what the file
-        // actually holds, and it is already in scope; `sha` survives only as
-        // the last resort for a dest with neither.
-        sha256: matchesBundle ? sha : existing?.sha256 ?? diskShas.get(dest) ?? sha,
+        // `existing` is defined here whenever `matchesBundle` is false — the
+        // guard above returned for every other case — so no fallback sha is
+        // reachable and none is offered. The old `?? sha` recorded the BUNDLE's
+        // sha against a file the run refused to touch; its replacement recorded
+        // the user's, which was worse.
+        sha256: matchesBundle ? sha : existing?.sha256 ?? sha,
         // NOT re-stamped for `unchanged`. The content matches the bundle, but
         // it did not arrive now — it arrived whenever it was last written, and
         // that is what the recorded value says. Overwriting it would trade a
@@ -615,6 +640,7 @@ function restampUnchanged(
   dests: readonly string[],
   newShas: Map<string, string>,
   templatesVersion: string,
+  now: string,
 ): ReadonlyMap<string, LockEntry> {
   if (dests.length === 0) return entries;
   const out = new Map(entries);
@@ -622,8 +648,17 @@ function restampUnchanged(
     const sha = newShas.get(dest);
     if (sha === undefined) continue;
     const existing = out.get(dest);
-    if (existing === undefined) continue;
-    out.set(dest, { ...existing, sha256: sha, templatesVersion });
+    // Absent is a legitimate state here and must be HEALED, not skipped. The
+    // detection above treats `undefined !== sha` as stale, so skipping meant
+    // the lock was rewritten identically on every run and the dest stayed
+    // untracked forever — while the rebuild loop, for the identical state,
+    // adopted it. One rule, two implementations, opposite outcomes.
+    out.set(
+      dest,
+      existing === undefined
+        ? { sha256: sha, installedAt: now, templatesVersion }
+        : { ...existing, sha256: sha, templatesVersion },
+    );
   }
   return out;
 }

@@ -56,15 +56,25 @@ function fakeReader(files: Record<string, string>): FsReader {
   };
 }
 
-function fakeLockStore(initial: InstalledLock | null): LockStore & { last: InstalledLock | null } {
+function fakeLockStore(
+  initial: InstalledLock | null,
+): LockStore & { last: InstalledLock | null; writes: number } {
   let last = initial;
+  // `last` is pre-seeded with the input lock, so `last !== null` is true before
+  // anything happens — an assertion on it cannot distinguish "written" from
+  // "never touched". The counter can, and a dry-run assertion needs it.
+  let writes = 0;
   return {
     get last() {
       return last;
     },
+    get writes() {
+      return writes;
+    },
     read: () => Promise.resolve(last),
     write: (_d, lock) => {
       last = lock;
+      writes += 1;
       return Promise.resolve();
     },
     lockPath: (d) => `${d}/.specnaut/installed.lock`,
@@ -807,8 +817,9 @@ Deno.test(
     assert("currentVersion" in result);
     assertEquals(result.currentVersion, "4.0.1");
 
+    assertEquals(store.writes, 1, "the lock is written even when no file is");
     const saved = store.last;
-    assert(saved !== null, "the lock must be written even when nothing is");
+    assert(saved !== null);
     const entry = saved.entries.get("a.md");
     assert(entry !== undefined, "the entry must survive the rebuild");
     assertEquals(
@@ -826,18 +837,19 @@ Deno.test(
 );
 
 Deno.test(
-  "UpgradeProjectUseCase records the DISK sha for an unwritten preserve with no prior entry",
+  "UpgradeProjectUseCase records NO entry for an unwritten preserve with no prior entry",
   async () => {
     // The shape a template rename produces: the lock still carries the old
-    // path, so the new one has no entry at all. It is declared-preserved, so
-    // the run refuses to touch it — and the rebuild's `?? sha` fallback then
-    // recorded the BUNDLE's sha against it, asserting a byte-identity the file
-    // does not have. A run whose purpose is to make the lock a record rather
-    // than a claim would have written a claim that was never true, and written
-    // it BECAUSE the maintainer declared the file preserved.
+    // path, so the new one has no entry at all. It is preserved, so the run
+    // refuses to touch it — and the rebuild's fallback used to record a sha for
+    // it anyway. First the BUNDLE's, asserting a byte-identity the file does
+    // not have; then, when that was fixed, the USER's — which is worse, because
+    // the next run reads it as the installed baseline, classifies the file
+    // `auto-update`, and overwrites it with no `.specnaut.bak`.
+    //
+    // Recording nothing keeps the file as untracked as it was. The next run
+    // reaches the same branch and preserves it again.
     const diskContent = "the maintainer's own version";
-    const diskSha = await sha256Hex(diskContent);
-    const bundleContent = "the template's version";
     const lock: InstalledLock = {
       version: 2,
       harness: "claude",
@@ -845,7 +857,6 @@ Deno.test(
       versionScheme: "semver",
       specBackend: "local",
       templatesVersion: "2.0.1",
-      // Deliberately empty for this dest: the rename left the old key behind.
       entries: new Map([["old-name.md", {
         sha256: await sha256Hex("whatever"),
         installedAt: "2026-05-26T00:00:00Z",
@@ -857,7 +868,9 @@ Deno.test(
       reader: fakeReader({ "a.md": diskContent }),
       writer: fakeWriter(),
       lockStore: store,
-      core: coreFromBundle({ "a.md": { content: bundleContent, executable: false } }),
+      core: coreFromBundle({
+        "a.md": { content: "the template's version", executable: false },
+      }),
       findHarness: findFakeHarness,
       templatesVersion: "4.0.1",
     });
@@ -868,13 +881,151 @@ Deno.test(
       isDeclaredPreserved: (dest: string) => dest === "a.md",
     });
 
-    const entry = store.last?.entries.get("a.md");
-    assert(entry !== undefined);
     assertEquals(
-      entry.sha256,
-      diskSha,
-      "a preserved file's entry describes the file, never the template it was spared from",
+      store.last?.entries.has("a.md"),
+      false,
+      "a file the run refused to touch gets no entry describing it",
     );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase does not turn a customized preserve into a vanilla baseline",
+  async () => {
+    // The regression the first version of this fix shipped, in the shape that
+    // destroys work: TWO runs. Nothing in the suite pinned this, which is why
+    // six injected-defect probes and 1473 green tests missed it.
+    const userEdit = "the user's own edit";
+    const shipped = "what the template ships";
+    const emptyLock = (): InstalledLock => ({
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "1.12.0",
+      entries: new Map(),
+    });
+
+    // Run 1 — untracked and diverged: `preserve/customized`. Not written.
+    const store1 = fakeLockStore(emptyLock());
+    const writer1 = fakeWriter();
+    const uc1 = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": userEdit }),
+      writer: writer1,
+      lockStore: store1,
+      core: coreFromBundle({ "a.md": { content: shipped, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc1.execute({ projectDir: "/p", dryRun: false, force: false });
+    // `written` also captures the staging copy under .specnaut/upgrade-staging/,
+    // which is the point of staging — so the assertion is about the DEST itself.
+    assertEquals(writer1.written.has("a.md"), false, "run 1 must not write the file");
+    assertEquals(
+      store1.last?.entries.has("a.md"),
+      false,
+      "run 1 must not adopt the user's content as the installed baseline",
+    );
+
+    // Run 2 — fed run 1's lock. If run 1 had recorded the user's sha, this run
+    // would see disk === lock, classify `auto-update`, and overwrite with no
+    // backup, because a plain upgrade passes backupExisting: false.
+    const store2 = fakeLockStore(store1.last);
+    const writer2 = fakeWriter();
+    const uc2 = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": userEdit }),
+      writer: writer2,
+      lockStore: store2,
+      core: coreFromBundle({ "a.md": { content: shipped, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc2.execute({ projectDir: "/p", dryRun: false, force: false });
+    assertEquals(
+      writer2.written.has("a.md"),
+      false,
+      "run 2 must still preserve it — a plain upgrade must never silently overwrite a user edit",
+    );
+    assertEquals(
+      writer2.backupsRequested,
+      false,
+      "and no backup was needed, because the file was never written",
+    );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase writes no lock on a dry run, even when the lock is stale",
+  async () => {
+    // The early return's repair sits ABOVE the `input.dryRun` check, so a
+    // preview wrote the lock — on the ordinary post-release state, which is
+    // files current and version string behind. A preview that writes is not a
+    // preview, and the comment beneath it asserted the opposite.
+    const content = "current";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "1.12.0",
+      entries: new Map([["a.md", {
+        sha256: await sha256Hex("stale"),
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "1.12.0",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: true, force: false });
+    assertEquals(store.writes, 0, "a preview writes nothing, including the lock");
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase repairs a lock whose only staleness is the version string",
+  async () => {
+    // The two trigger clauses were true simultaneously in every fixture, so
+    // deleting either left the suite green. This is the `staleVersion`-only
+    // case: every entry's sha is already correct and only the header is behind
+    // — which is exactly the report/record divergence this ticket closes.
+    const content = "current";
+    const sha = await sha256Hex(content);
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "2.0.1",
+      entries: new Map([["a.md", {
+        sha256: sha,
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "2.0.1",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    const result = await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+    assertEquals(store.writes, 1);
+    assertEquals(store.last?.templatesVersion, "4.0.1");
+    assert("currentVersion" in result);
+    assertEquals(result.currentVersion, "4.0.1");
   },
 );
 
@@ -931,5 +1082,60 @@ Deno.test(
     assertEquals(entries.get("stable.md")?.sha256, stableSha);
     assertEquals(entries.get("stable.md")?.templatesVersion, "4.0.1");
     assertEquals(entries.get("stable.md")?.installedAt, "2026-05-26T00:00:00Z");
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase repairs stale and absent entries when the version already matches",
+  async () => {
+    // Isolates the two things every other fixture had true simultaneously.
+    // Here the HEADER already reads 4.0.1, so `staleVersion` is false and the
+    // only reason to write is a per-entry defect. Two of them:
+    //
+    //   stale.md   — unchanged, entry present, sha behind
+    //   absent.md  — unchanged, NO entry at all
+    //
+    // The second is the one that used to force a lock rewrite on every single
+    // run and then heal nothing: the detection counted `undefined !== sha` as
+    // stale, and the repair skipped it. Meanwhile the rebuild loop adopted the
+    // identical state. One rule, two implementations, opposite outcomes.
+    const stale = "stable content";
+    const absent = "also stable";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "4.0.1",
+      entries: new Map([["stale.md", {
+        sha256: await sha256Hex("what an older binary wrote"),
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "4.0.1",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "stale.md": stale, "absent.md": absent }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({
+        "stale.md": { content: stale, executable: false },
+        "absent.md": { content: absent, executable: false },
+      }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+
+    assertEquals(store.writes, 1, "a per-entry defect is reason enough to write");
+    const entries = store.last?.entries;
+    assert(entries !== undefined);
+    assertEquals(entries.get("stale.md")?.sha256, await sha256Hex(stale));
+    assertEquals(
+      entries.get("absent.md")?.sha256,
+      await sha256Hex(absent),
+      "an absent entry is healed, not skipped — otherwise the rewrite repeats forever",
+    );
   },
 );
