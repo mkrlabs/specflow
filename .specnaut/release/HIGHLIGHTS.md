@@ -31,8 +31,8 @@ from `specnaut init`; a plugin-only install has the documents and needs an init 
 apply, which the skill now says on its own page.
 
 Smaller, and worth knowing if you use the GitHub backlog backend: a wrong `project_number` in
-`backlog-config.yml` used to be invisible. The read commands address the board through `repo:` alone,
-so they kept working while every project write was dead. The four writing scripts now resolve the
-number when the config is read and tell you which project numbers do exist for that owner. The two
-`project_node_id` / `status_field_id` keys are gone — nothing ever read them, and nothing ever
+`backlog-config.yml` used to be invisible. The read commands address the board through `repo:`
+alone, so they kept working while every project write was dead. The four writing scripts now resolve
+the number when the config is read and tell you which project numbers do exist for that owner. The
+two `project_node_id` / `status_field_id` keys are gone — nothing ever read them, and nothing ever
 populated them, despite the documentation promising both.
