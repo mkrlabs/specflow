@@ -65,18 +65,26 @@ is pinned out with `-c core.excludesFile=/dev/null`, so the verdict is a propert
 than of the laptop. This is `scripts/smoke/audit.sh`'s decision; **this document is derived from
 it**, and where the two disagree the script wins.
 
-| Finding                           | What it means                                                                                                                                                                |
-| :-------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Coverage gap**                  | A changed file under a mapped surface that no smoke names by basename. Fatal unless allow-listed with a written reason.                                                      |
-| **Stale assertion**               | A smoke references a runtime path with no source counterpart under `templates/`.                                                                                             |
-| **Capture read only in a `fail`** | A `name=$(…)` capture whose only reader sits inside a `fail`. The `fail` runs _after_ the assertion decided, so the value never reached a verdict.                           |
-| **Stale allowlist entry**         | An allow-listed path that no longer exists, or an entry with no written reason.                                                                                              |
-| **Suite-membership drift**        | `SUITE_FILES` and the scripts on disk disagree.                                                                                                                              |
-| **Unmapped surface**              | A collected file that no `SURFACES` glob claims — anywhere in the collected surface, not just `templates/core/`. Fatal since #549 — the defect is invisibility, not the gap. |
+| Finding                           | What it means                                                                                                                                                                                                                                  |
+| :-------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Coverage gap**                  | A changed file under a mapped surface that no smoke names by basename. Fatal unless allow-listed with a written reason.                                                                                                                        |
+| **Stale assertion**               | A smoke references a runtime path with no source counterpart under `templates/`.                                                                                                                                                               |
+| **Capture read only in a `fail`** | A `name=$(…)` capture whose only reader sits inside a `fail`. The `fail` runs _after_ the assertion decided, so the value never reached a verdict.                                                                                             |
+| **Stale allowlist entry**         | An allow-listed path that no longer exists, or an entry with no written reason.                                                                                                                                                                |
+| **Suite-membership drift**        | `SUITE_FILES` and the scripts on disk disagree.                                                                                                                                                                                                |
+| **Unmapped surface**              | A collected file that no `SURFACES` glob claims — anywhere in the collected surface, not just `templates/core/`. Fatal since #549 — the defect is invisibility, not the gap. Two categories are exempt in code rather than by glob: see below. |
 
 Two things are reported and are deliberately **not** fatal: a gap that carries a written allow-list
 reason, and a change under `src/cli/`, which is counted in its own class because it is not a
 scaffolded surface at all.
+
+Two more are exempt from the unmapped bucket **silently**, in code rather than through the
+allow-list, because the allow-list matches exact paths and these are whole categories:
+`templates/manifest.json` — the bundle's own index, which changes on essentially every release and
+which no smoke could meaningfully cover — and `templates/core/specnaut/memory/*`, a knowledge base
+copied verbatim and read by agents, where asserting on each document's prose would be a category
+error. They are named here because a table row saying the bucket is universal, next to code that
+carves out two trees, is the same shape as the staleness this row replaced.
 
 ### An assertion that cannot fail
 

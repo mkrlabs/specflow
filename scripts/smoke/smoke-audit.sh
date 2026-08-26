@@ -703,6 +703,43 @@ u564_ambient_ctl_out="$(_iso_audit)"
 u564_ambient_out="$(GIT_DIR="$_decoy_564/.git" bash "$SMOKE_DIR/audit.sh" \
   --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
 u564_ambient_rc=$?
+# GIT_COMMON_DIR repoints refs, config and objects exactly as GIT_DIR does, and
+# the first version of the unset named three variables by hand and missed it.
+# Its own witness, because a hand-written list only ever fails on the entry
+# somebody forgot — and the assertion above cannot see this one.
+u564_common_out="$(GIT_COMMON_DIR="$_decoy_564/.git" bash "$SMOKE_DIR/audit.sh" \
+  --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+set -e
+
+# (o) a FAILING collection is not an empty tree. Until the review, all three
+# collection lines ended `2>/dev/null || true`, so a fatal git produced the same
+# empty string a clean repository does — and an empty changed set prints
+# `✓ no user-visible surface changes` and exits 0. A green gate from a broken
+# query is this ticket's own defect class.
+#
+# The witness is a SEPARATE repository with a CORRUPT INDEX, chosen because it
+# breaks exactly one thing. Everything upstream still succeeds — it is a work
+# tree, it is the toplevel, the baseline tag resolves, `rev-parse --short HEAD`
+# resolves, and even the tree-to-tree diff of source 1 succeeds, because none of
+# those reads the index. Only the two index-reading collections fail, with 128.
+#
+# The first attempt used a dangling HEAD instead. It exposed a different defect
+# — an unguarded `rev-parse --short HEAD` that died with git's raw fatal and exit
+# 128 before the collection was ever reached — which is now guarded above. But it
+# made a poor witness for THIS rule, because it never got there. A witness has to
+# break the thing under test and nothing else.
+_brokenhead_564="$SANDBOX/brokenhead-564"
+mkdir -p "$_brokenhead_564/templates/core/agents"
+git -C "$_brokenhead_564" init -q -b main
+echo "x" > "$_brokenhead_564/templates/core/agents/a.md"
+git -C "$_brokenhead_564" add -A
+git -C "$_brokenhead_564" -c user.email=b@l -c user.name=b commit -q -m base
+git -C "$_brokenhead_564" tag vBROKEN-564
+printf 'GARBAGE-NOT-AN-INDEX' > "$_brokenhead_564/.git/index"
+set +e
+u564_broken_out="$(bash "$SMOKE_DIR/audit.sh" --src-root "$_brokenhead_564" \
+  --smoke-dir "$SYNTH_SMOKE" --since vBROKEN-564 2>&1)"
+u564_broken_rc=$?
 set -e
 
 rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
@@ -1081,11 +1118,32 @@ fi
 # unchanged, not merely the exit code: the observed failure mode was 28 TRACKED
 # files reported as "(untracked)" on a run whose rc was already non-zero for
 # unrelated reasons, so an rc-only assertion would have seen nothing.
+# `could not run` must be exit 2, not 0 and not 1. Asserting merely "non-zero"
+# would pass on 1 — the findings verdict — which is the confusion this script's
+# exit codes exist to prevent and which preflight.sh branches on.
+# It names the SPECIFIC collection, not just "a collection". A corrupt index
+# breaks both index-reading sources, so a generic grep passes even when the
+# staged guard is removed — the untracked one catches it one line later and the
+# message still contains "collection failed". Observed: that generic version
+# stayed green under the very defect it claimed to catch.
+if [ "$u564_broken_rc" -eq 2 ] && grep -qF "the staged collection failed" <<<"$u564_broken_out"; then
+  pass "a failing collection exits 2 and names which one, instead of reporting a clean tree"
+else
+  fail "a broken git query did not produce a could-not-run verdict" \
+       "rc=$u564_broken_rc; $(grep -E 'no user-visible|collection failed' <<<"$u564_broken_out" | head -1)"
+fi
+
 if [ -n "$u564_ambient_ctl_out" ] && [ "$u564_ambient_out" = "$u564_ambient_ctl_out" ]; then
   pass "an ambient GIT_DIR cannot repoint the audit at another repository"
 else
   fail "an exported GIT_DIR changed the audit's report" \
        "rc=$u564_ambient_rc; $(diff <(printf '%s\n' "$u564_ambient_ctl_out") <(printf '%s\n' "$u564_ambient_out") | head -4)"
+fi
+if [ -n "$u564_ambient_ctl_out" ] && [ "$u564_common_out" = "$u564_ambient_ctl_out" ]; then
+  pass "and neither can GIT_COMMON_DIR — the variable a hand-written list missed"
+else
+  fail "an exported GIT_COMMON_DIR changed the audit's report" \
+       "$(diff <(printf '%s\n' "$u564_ambient_ctl_out") <(printf '%s\n' "$u564_common_out") | head -4)"
 fi
 
 if grep -qF "untracked-café-564.md" <<<"$u564_accent_out"; then

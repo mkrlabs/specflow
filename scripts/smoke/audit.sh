@@ -17,8 +17,13 @@
 # Exit codes:
 #   0  clean — no stale assertion, no un-allow-listed coverage gap
 #   1  findings, or an unexpected error
-#   2  baseline ref could not be resolved
-#   3  --src-root is not a git work tree
+#   2  could not run — the baseline ref did not resolve, or a collection query
+#      failed. NOT a findings verdict: an unanswerable question is not a clean
+#      tree, and this script refuses to report one as the other.
+#   3  --src-root is not a usable work tree — not a git repository, or not that
+#      repository's toplevel (`git ls-files` is cwd-relative where `git diff` is
+#      root-relative, so a subdirectory makes the two halves of the collection
+#      name different things)
 #
 # The exit code IS the verdict (plan.md §5 R5). It used to be 0 regardless
 # of findings, with `.specnaut/release/preflight.sh` re-deriving pass/fail by
@@ -88,7 +93,14 @@ done
 # in this file sit outside the shared prefix, one of them the toplevel
 # assertion immediately below, and an enumeration of call sites is exactly the
 # shape that goes blind when the seventh is added.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+#
+# The list comes from GIT ITSELF. The first version of this line named three
+# variables by hand and the review found it missing two that repoint the script
+# identically — `GIT_COMMON_DIR` (refs, config and objects) and
+# `GIT_OBJECT_DIRECTORY`. Replacing an enumeration hazard with a shorter
+# enumeration is not a fix. `--local-env-vars` needs no repository, cannot go
+# stale, and covers fifteen variables including all five reachable here.
+unset $(git rev-parse --local-env-vars 2>/dev/null)
 
 if ! git -C "$SRC_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "audit.sh: '$SRC_ROOT' is not a git work tree" >&2
@@ -167,8 +179,20 @@ if ! git -C "$SRC_ROOT" rev-parse --verify "$SINCE^{commit}" >/dev/null 2>&1; th
   exit 2
 fi
 
-HEAD_SHORT=$(git -C "$SRC_ROOT" rev-parse --short HEAD)
-BASE_SHORT=$(git -C "$SRC_ROOT" rev-parse --short "$SINCE^{commit}")
+# Guarded for the same reason the collections below are (#564). These were bare
+# substitutions, so a repository whose HEAD does not resolve — a dangling
+# symbolic-ref, an unborn branch — killed the script under `set -e` with git's
+# own raw fatal and exit 128. That is a code no caller understands:
+# .specnaut/release/preflight.sh branches on 1, 2 and 3, and would have read 128
+# as an unexpected error rather than "this tree cannot be audited".
+_rc=0
+HEAD_SHORT=$(git -C "$SRC_ROOT" rev-parse --short HEAD 2>/dev/null) || _rc=$?
+BASE_SHORT=$(git -C "$SRC_ROOT" rev-parse --short "$SINCE^{commit}" 2>/dev/null) || _rc=$?
+if [ "$_rc" -ne 0 ]; then
+  echo "audit.sh: cannot resolve HEAD or '$SINCE' in '$SRC_ROOT' (git exit $_rc)." >&2
+  echo "  Nothing can be compared, so there is no verdict to report." >&2
+  exit 2
+fi
 
 echo "test-sandbox audit"
 echo "  baseline: $SINCE ($BASE_SHORT)"
@@ -286,14 +310,56 @@ SURFACE_PATHSPEC=('templates/core/' 'templates/harness-specific/' 'templates/man
 # De-duplicated with awk, not `sort -u`: `git rm --cached` on a path committed
 # after the baseline puts it in BOTH source 1 and source 3, and the report's
 # order is fixed on purpose (two runs on one tree must print identically).
+# A failing query is NOT an empty tree. The original collection ended
+# `2>/dev/null || true`, so a fatal `git` produced the same empty string a clean
+# repository does — and an empty CHANGED prints
+# `✓ no user-visible surface changes` and exits 0. A green gate produced by a
+# broken query is this ticket's own defect class, and the idiom was about to be
+# copied onto two new sources. `_common.sh` already settled the rule for this
+# situation in the opposite direction: a failed read is a finding, not an empty
+# file.
+#
+# Exit 2, not 1: "could not run" is not "found nothing", and
+# .specnaut/release/preflight.sh already branches on that difference. The rc is
+# captured at TOP LEVEL — `exit` inside a `$( )` would only leave the subshell,
+# and the assignment would carry on with a partial result.
+_collection_failed() {
+  echo "audit.sh: the $1 collection failed (git exit $2)." >&2
+  echo "  A failed query and a clean tree produce the same empty result, and the" >&2
+  echo "  verdict would have been GREEN. Refusing to report success." >&2
+  exit 2
+}
+_rc=0
 _tracked_changed=$("${GIT_SRC[@]}" diff --name-only --diff-filter=AMR "$SINCE..HEAD" -- \
-  "${SURFACE_PATHSPEC[@]}" 2>/dev/null || true)
+  "${SURFACE_PATHSPEC[@]}" 2>/dev/null) || _rc=$?
+[ "$_rc" -eq 0 ] || _collection_failed "tracked-since-baseline" "$_rc"
+_rc=0
 STAGED_SET=$("${GIT_SRC[@]}" diff --name-only --diff-filter=AMR --cached HEAD -- \
-  "${SURFACE_PATHSPEC[@]}" 2>/dev/null || true)
+  "${SURFACE_PATHSPEC[@]}" 2>/dev/null) || _rc=$?
+[ "$_rc" -eq 0 ] || _collection_failed "staged" "$_rc"
+_rc=0
 UNTRACKED_SET=$("${GIT_SRC[@]}" ls-files --others --exclude-standard --full-name -- \
-  "${SURFACE_PATHSPEC[@]}" 2>/dev/null || true)
+  "${SURFACE_PATHSPEC[@]}" 2>/dev/null) || _rc=$?
+[ "$_rc" -eq 0 ] || _collection_failed "untracked" "$_rc"
+
+# `length`, not `NF`. Both drop the blank lines an empty source contributes, but
+# `NF` also drops a line that is entirely blanks — safe only because every
+# SURFACE_PATHSPEC entry happens to begin with a non-blank byte, which is a
+# different decision-table row's invariant. `length` depends on nothing.
+#
+# This one has NO test, and that is stated rather than papered over: a path whose
+# entire rendering is blanks cannot exist under a pathspec whose every entry
+# starts with a non-blank byte, so the two filters are indistinguishable on any
+# tree reachable today. The red battery confirmed it — swapping `length` back to
+# `NF` leaves the suite green. The change is precision, not a fix, and it stops
+# the filter depending on a fact stated four hundred lines away.
+#
+# The filter is load-bearing, not tidiness: without it the first blank line
+# survives, CHANGED is non-empty on a genuinely clean tree, and the report says
+# "every surface change has a matching smoke assertion" where it should say
+# "no user-visible surface changes since <tag>".
 CHANGED=$(printf '%s\n%s\n%s\n' "$_tracked_changed" "$STAGED_SET" "$UNTRACKED_SET" \
-  | awk 'NF && !seen[$0]++')
+  | awk 'length && !seen[$0]++')
 
 # A path's ORIGIN, for the report TEXT only (#564). It touches no counter and no
 # term in the verdict `if` at the bottom of this file: an uncommitted file with
@@ -307,6 +373,10 @@ CHANGED=$(printf '%s\n%s\n%s\n' "$_tracked_changed" "$STAGED_SET" "$UNTRACKED_SE
 # match, SIGPIPE-ing its producer — the hazard already documented at the
 # coverage grep below.
 origin_note() {
+  # An empty argument would make needle == haystack against an empty set and
+  # print `(untracked)` for nothing. The only thing preventing that today is a
+  # `[ -z "$f" ] && continue` in a different loop, a hundred lines away.
+  [ -n "${1:-}" ] || return 0
   case "$1" in
     # `ls-files --others` emits an untracked directory that is ITSELF a git
     # repository as `<dir>/`, with a trailing slash and its contents suppressed.
@@ -329,6 +399,11 @@ $STAGED_SET
 $1
 "*) printf ' (staged, not committed)'; return 0 ;;
   esac
+  # Explicit, because two of the five call sites are bare assignments
+  # (`unmapped_list=…`, `outside_list=…`) where a simple command consisting only
+  # of assignments takes the substitution's status — so under `set -e` one added
+  # trailing command in here would abort the audit mid-scan.
+  return 0
 }
 
 # --- Coverage-gap allowlist (plan.md §5 R13) ----------------------------
