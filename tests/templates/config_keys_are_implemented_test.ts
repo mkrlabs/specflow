@@ -12,7 +12,7 @@
 // stub emits or a shipped doc shows", derived rather than listed. A test
 // enumerating the two known-bad keys would go green the moment a third appeared.
 
-import { assert } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { fromFileUrl } from "@std/path";
 import { join } from "@std/path";
 import { BACKLOG_STRATEGIES } from "../../src/domain/backlog_strategies/registry.ts";
@@ -95,8 +95,16 @@ async function allBackendsCorpus(): Promise<string> {
   return all;
 }
 
-/** The ```yaml fences that are showing a backlog-config.yml. */
-function configFences(md: string): string[] {
+/**
+ * The ```yaml fences that are showing a backlog-config.yml.
+ *
+ * `\r` is stripped first. A Windows checkout with `core.autocrlf` on hands
+ * these files back with CRLF endings, and a fence regex anchored on `\n`
+ * matches nothing there — which emptied this test's whole population on
+ * windows-latest while every POSIX runner stayed green.
+ */
+export function configFences(raw: string): string[] {
+  const md = raw.replaceAll("\r\n", "\n");
   const out: string[] = [];
   const re = /```ya?ml\n([\s\S]*?)```/g;
   let m: RegExpExecArray | null;
@@ -150,3 +158,23 @@ for (const rel of DOCS) {
     }
   });
 }
+
+// ---------------------------------------------------------------------------
+// 4. The scanner survives a CRLF checkout.
+// ---------------------------------------------------------------------------
+
+Deno.test("config keys: the fence scanner is not defeated by CRLF line endings", async () => {
+  // Regression guard. The first version of `configFences` anchored on `\n`,
+  // matched nothing on a Windows checkout with `core.autocrlf` on, and emptied
+  // this file's entire population there — every assertion above passing
+  // vacuously except the one that checks the population is non-empty. That
+  // guard is the only reason it surfaced as a red rather than as silence.
+  const posix = await Deno.readTextFile(join(ROOT, "templates/core/skills/board/SKILL.md"));
+  const crlf = posix.replaceAll("\n", "\r\n");
+  assertEquals(
+    configFences(crlf).length,
+    configFences(posix).length,
+    "a CRLF checkout must yield the same fences as an LF one",
+  );
+  assert(configFences(crlf).length > 0, "the CRLF path found nothing at all");
+});

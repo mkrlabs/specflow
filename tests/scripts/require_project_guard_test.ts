@@ -43,6 +43,41 @@ esac
 exit 0
 `;
 
+const SEP = Deno.build.os === "windows" ? ";" : ":";
+
+/**
+ * The inherited PATH with every directory that actually contains `gh` removed.
+ *
+ * Two requirements pull against each other. The scripts need the platform's
+ * own `sed` / `tr` / `awk`, so the environment cannot simply be cleared — an
+ * earlier version hard-coded `/usr/bin:/bin`, which is meaningless on
+ * windows-latest where `bash` is Git Bash, and all seven cases failed there
+ * for a reason unrelated to the guard. But the "gh is absent" case needs `gh`
+ * to be genuinely unreachable, and merely PREPENDING a stub directory does not
+ * make it so on a developer machine that has the real one installed — the
+ * skip-path assertion then exercises the real `gh` against a fake project
+ * number and fails for the opposite wrong reason.
+ *
+ * Filtering is what satisfies both, and it is exact rather than approximate:
+ * a directory is dropped only if the executable is really in it.
+ */
+function pathWithoutRealGh(): string {
+  const names = Deno.build.os === "windows" ? ["gh.exe", "gh.cmd", "gh"] : ["gh"];
+  return (Deno.env.get("PATH") ?? "")
+    .split(SEP)
+    .filter((dir) => {
+      if (dir.length === 0) return false;
+      return !names.some((n) => {
+        try {
+          return Deno.statSync(join(dir, n)).isFile;
+        } catch {
+          return false;
+        }
+      });
+    })
+    .join(SEP);
+}
+
 interface Box {
   dir: string;
   binDir: string;
@@ -76,13 +111,17 @@ async function run(
   script: string,
   args: string[],
 ): Promise<{ code: number; stderr: string }> {
-  // PATH is the stub dir plus a minimal system prefix, so `gh` resolves to the
-  // stub (or to nothing at all) while `sed`/`tr` stay available.
+  // The stub directory is PREPENDED to the inherited PATH rather than
+  // replacing it. An earlier version cleared the environment and hard-coded
+  // `/usr/bin:/bin`, which is meaningless on windows-latest: `bash` is Git
+  // Bash there, and stripping its PATH left the scripts unable to find `sed`,
+  // `tr` or `gh` — so all seven cases failed for a reason that had nothing to
+  // do with the guard. Prepending keeps the stub authoritative for `gh` while
+  // the platform's own tools stay reachable.
   const { code, stderr } = await new Deno.Command("bash", {
     args: [b.script(script), ...args],
     cwd: b.dir,
-    env: { PATH: `${b.binDir}:/usr/bin:/bin` },
-    clearEnv: true,
+    env: { PATH: `${b.binDir}${SEP}${pathWithoutRealGh()}` },
     stdout: "piped",
     stderr: "piped",
   }).output();
