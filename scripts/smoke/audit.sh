@@ -630,6 +630,13 @@ echo
 # overlap). The resolver checks both.
 resolves() {
   local rt="$1"
+  # Captured rather than piped into `grep -q`: this script runs under
+  # `set -euo pipefail`, and `grep -q` exits at the first match, SIGPIPE-ing
+  # `find`. pipefail then reports 141 for a run that FOUND the file, and the
+  # caller reads that as "does not resolve" — a stale-assertion finding
+  # manufactured out of a path that resolves. Same hazard as the coverage grep
+  # below; see the commit body for the witness.
+  local hits
   # Strip trailing slash — directory references in `[ -d ... ]` checks are
   # not stale signals; they're shape assertions on the runtime tree.
   case "$rt" in */) return 0 ;; esac
@@ -637,18 +644,21 @@ resolves() {
     .claude/agents/*.md)
       local n="${rt#.claude/agents/}"
       [ -f "$SRC_ROOT/templates/core/agents/$n" ] && return 0
-      find "$SRC_ROOT/templates/harness-specific" -path "*/agents/$n" 2>/dev/null | grep -q .
+      hits="$(find "$SRC_ROOT/templates/harness-specific" -path "*/agents/$n" 2>/dev/null || true)"
+      [ -n "$hits" ]
       ;;
     .claude/commands/*.md)
       local n="${rt#.claude/commands/}"
       [ -f "$SRC_ROOT/templates/core/commands/$n" ] && return 0
-      find "$SRC_ROOT/templates/harness-specific" -path "*/commands/$n" 2>/dev/null | grep -q .
+      hits="$(find "$SRC_ROOT/templates/harness-specific" -path "*/commands/$n" 2>/dev/null || true)"
+      [ -n "$hits" ]
       ;;
     .claude/skills/*/SKILL.md)
       local n="${rt#.claude/skills/}"
       n="${n%/SKILL.md}"
       [ -f "$SRC_ROOT/templates/core/skills/$n/SKILL.md" ] && return 0
-      find "$SRC_ROOT/templates/harness-specific" -path "*/skills/$n/SKILL.md" 2>/dev/null | grep -q .
+      hits="$(find "$SRC_ROOT/templates/harness-specific" -path "*/skills/$n/SKILL.md" 2>/dev/null || true)"
+      [ -n "$hits" ]
       ;;
     .claude/skills/specnaut/phases/*.md)
       local n="${rt#.claude/skills/specnaut/phases/}"
@@ -657,23 +667,27 @@ resolves() {
     .claude/hooks/*)
       local n="${rt#.claude/hooks/}"
       [ -e "$SRC_ROOT/templates/core/hooks/$n" ] && return 0
-      find "$SRC_ROOT/templates/harness-specific" -path "*/hooks/$n" 2>/dev/null | grep -q .
+      hits="$(find "$SRC_ROOT/templates/harness-specific" -path "*/hooks/$n" 2>/dev/null || true)"
+      [ -n "$hits" ]
       ;;
     .claude/scripts/*)
       local n="${rt#.claude/scripts/}"
       [ -e "$SRC_ROOT/templates/core/scripts/$n" ] && return 0
-      find "$SRC_ROOT/templates/harness-specific" -path "*/scripts/$n" 2>/dev/null | grep -q .
+      hits="$(find "$SRC_ROOT/templates/harness-specific" -path "*/scripts/$n" 2>/dev/null || true)"
+      [ -n "$hits" ]
       ;;
     .claude/loop.md)
       [ -f "$SRC_ROOT/templates/core/loop.md" ] && return 0
-      find "$SRC_ROOT/templates/harness-specific" -name "loop.md" 2>/dev/null | grep -q .
+      hits="$(find "$SRC_ROOT/templates/harness-specific" -name "loop.md" 2>/dev/null || true)"
+      [ -n "$hits" ]
       ;;
     .claude/settings.json|.claude/settings.local.json)
       return 0 # merged at init time from per-harness logic; no single source file
       ;;
     .specnaut/scripts/backlog/*)
       local n="${rt#.specnaut/scripts/backlog/}"
-      find "$SRC_ROOT/templates/core/skills/board/scripts" -name "$(basename "$n")" 2>/dev/null | grep -q .
+      hits="$(find "$SRC_ROOT/templates/core/skills/board/scripts" -name "$(basename "$n")" 2>/dev/null || true)"
+      [ -n "$hits" ]
       ;;
     .specnaut/scripts/bash/*|.specnaut/scripts/powershell/*)
       local n="${rt#.specnaut/scripts/}"
