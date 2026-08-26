@@ -112,9 +112,7 @@ Deno.test("shape C — a delete cannot reach through a symlinked ancestor", asyn
   try {
     await Deno.writeTextFile(join(outside, "z.md"), "keep");
     await Deno.symlink(outside, join(proj, ".claude"));
-    await assertRejects(() =>
-      w.deletePaths([".claude/z.md"], proj, { backupExisting: false })
-    );
+    await assertRejects(() => w.deletePaths([".claude/z.md"], proj, { backupExisting: false }));
     assertEquals(await Deno.readTextFile(join(outside, "z.md")), "keep");
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -126,9 +124,7 @@ Deno.test("a backup rename cannot move a file out of the project either", async 
   try {
     await Deno.writeTextFile(join(outside, "z.md"), "keep");
     await Deno.symlink(outside, join(proj, ".claude"));
-    await assertRejects(() =>
-      w.deletePaths([".claude/z.md"], proj, { backupExisting: true })
-    );
+    await assertRejects(() => w.deletePaths([".claude/z.md"], proj, { backupExisting: true }));
     assertEquals(await Deno.readTextFile(join(outside, "z.md")), "keep");
     assertEquals(
       await Deno.stat(join(outside, "z.md.specnaut.bak")).then(() => true).catch(() => false),
@@ -152,7 +148,10 @@ Deno.test("the refusal names the path, where it resolved, and the root", async (
     assert(err instanceof Error);
     assert(err.message.includes(".claude/x.md"), err.message);
     assert(err.message.includes("resolves:"), "where it went");
-    assert(err.message.includes("project:"), "and against which root — a widened root is otherwise invisible");
+    assert(
+      err.message.includes("project:"),
+      "and against which root — a widened root is otherwise invisible",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -163,10 +162,14 @@ Deno.test("an ordinary project is written exactly as before", async () => {
   // refuses everything would satisfy all of them.
   const { root, proj } = await box();
   try {
-    const report = await w.writeBundle({
-      "a/b.md": { content: "hello\n", executable: false },
-      "c.sh": { content: "#!/bin/sh\n", executable: true },
-    }, proj, { overwrite: true, backupExisting: false });
+    const report = await w.writeBundle(
+      {
+        "a/b.md": { content: "hello\n", executable: false },
+        "c.sh": { content: "#!/bin/sh\n", executable: true },
+      },
+      proj,
+      { overwrite: true, backupExisting: false },
+    );
     assertEquals(await Deno.readTextFile(join(proj, "a/b.md")), "hello\n");
     assertEquals(report.backups.length, 0);
   } finally {

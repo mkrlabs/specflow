@@ -1,0 +1,87 @@
+import { assert, assertEquals, assertRejects } from "@std/assert";
+import { join } from "@std/path";
+import { DenoFsReader } from "../../src/infrastructure/fs_reader.ts";
+import { parseLock } from "../../src/domain/installed_lock.ts";
+
+async function box(): Promise<{ root: string; proj: string; outside: string }> {
+  const root = await Deno.makeTempDir({ prefix: "read-" });
+  const proj = join(root, "proj");
+  const outside = join(root, "outside");
+  await Deno.mkdir(proj);
+  await Deno.mkdir(outside);
+  return { root, proj, outside };
+}
+
+Deno.test("a read through a leaf symlink out of the project is refused", async () => {
+  // The exfiltration primitive (cli#574). `DenoFsReader.readText` was three
+  // lines with no validator at all, and it is the only `FsReader`. With a
+  // bundle destination symlinked out, `specnaut diff` rendered the target's
+  // contents as a unified diff on stdout — measured with the real binary.
+  const { root, proj, outside } = await box();
+  try {
+    await Deno.writeTextFile(join(outside, "secret.txt"), "SECRET");
+    await Deno.symlink(join(outside, "secret.txt"), join(proj, "c.md"));
+    const err = await assertRejects(() => new DenoFsReader().readText(proj, "c.md"));
+    assert(err instanceof Error);
+    assert(err.message.includes("leaves the project"), err.message);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("a read through a symlinked ancestor is refused", async () => {
+  const { root, proj, outside } = await box();
+  try {
+    await Deno.writeTextFile(join(outside, "secret.txt"), "SECRET");
+    await Deno.symlink(outside, join(proj, ".claude"));
+    await assertRejects(() => new DenoFsReader().readText(proj, ".claude/secret.txt"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("a traversing relative path is refused by the string rule", async () => {
+  const { root, proj } = await box();
+  try {
+    await assertRejects(() => new DenoFsReader().readText(proj, "../../etc/passwd"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("an ordinary read still works, and a missing file is still null", async () => {
+  // The positive control. Every assertion above is a refusal, and a reader
+  // that refused everything would satisfy all of them.
+  const { root, proj } = await box();
+  try {
+    await Deno.writeTextFile(join(proj, "ok.md"), "hello");
+    assertEquals(await new DenoFsReader().readText(proj, "ok.md"), "hello");
+    assertEquals(await new DenoFsReader().readText(proj, "absent.md"), null);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("parseLock rejects an entry KEY that is not a legal destination", async () => {
+  // The amplifier. Every VALUE in an entry was type-checked and the path it
+  // names was not — and the path is the part that reaches the filesystem.
+  // `.specnaut/installed.lock` is committed and absent from the scaffolded
+  // `.gitignore`, so a cloned repository supplies the key set that `upgrade`
+  // then reads off disk, one file per key.
+  const hostile = [
+    "version: 2",
+    "harness: claude",
+    "backlog_backend: local",
+    "version_scheme: semver",
+    "spec_backend: local",
+    "templates_version: 4.0.1",
+    "entries:",
+    "  ../../../../etc/passwd:",
+    "    sha256: " + "0".repeat(64),
+    "    installed_at: '2026-01-01T00:00:00Z'",
+    "    templates_version: 4.0.1",
+  ].join("\n");
+  const err = await assertRejects(() => Promise.resolve().then(() => parseLock(hostile)));
+  assert(err instanceof Error);
+  assert(err.message.includes("not a legal destination"), err.message);
+});

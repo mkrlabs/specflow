@@ -1,4 +1,5 @@
 import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
+import { assertSafeDestination } from "./template.ts";
 
 /**
  * Every harness the CLI can install *and* read back.
@@ -163,6 +164,24 @@ export function parseLock(yaml: string): InstalledLock {
   const rawEntries = asObject(root.entries ?? {}, "entries");
   const entries = new Map<string, LockEntry>();
   for (const [path, value] of Object.entries(rawEntries)) {
+    // The KEY is validated, not just the values (cli#574). Every value in an
+    // entry was type-checked and the path it names was not — and the path is
+    // the part that reaches the filesystem: `upgrade` reads every lock key off
+    // disk, and `.specnaut/installed.lock` is committed and absent from the
+    // scaffolded `.gitignore`, so a cloned repository supplies the key set.
+    // A key of `../../../../etc/passwd` was read.
+    //
+    // In the domain, beside the rule it uses, because "which destination
+    // strings are legal" already lives there and a lock key IS a destination.
+    try {
+      assertSafeDestination(path);
+    } catch (err) {
+      throw new Error(
+        `entries[${path}] is not a legal destination: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
     const entry = asObject(value, `entries[${path}]`);
     const sha256 = entry.sha256;
     const installedAt = entry.installed_at;
