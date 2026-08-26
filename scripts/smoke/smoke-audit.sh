@@ -545,6 +545,14 @@ rmdir templates/core/agents/nested-564/.git/objects \
 # whose logs are public.
 printf -- '---\nname: unreadable\n---\n' > templates/core/agents/probe-unreadable-564.md
 chmod 000 templates/core/agents/probe-unreadable-564.md
+# The probe's own control. chmod 000 is a no-op for uid 0, so under a
+# `container:` runner — which smoke.yml does not use today, and that is the only
+# reason this was live — the file stays readable and the assertion below would
+# pass while proving nothing. A probe that can silently stop probing is worse
+# than no probe: it reports coverage that does not exist, which is the class
+# this whole file guards.
+u564_unreadable_control=0
+[ -r templates/core/agents/probe-unreadable-564.md ] && u564_unreadable_control=1
 set +e
 u564_unreadable_out="$(_iso_audit)"; u564_unreadable_rc=$?
 set -e
@@ -577,19 +585,54 @@ printf -- '---\nname: probe-excl\n---\n' > templates/core/agents/probe-excl-564.
 u564_global_hidden="$(GIT_CONFIG_GLOBAL="$SANDBOX/probe-gitconfig-564" \
   git -C "$SANDBOX" ls-files --others --exclude-standard --full-name -- 'templates/core/' 2>/dev/null \
   | grep -c 'probe-excl-564' || true)"
+# A SIMPLE COMMAND, not `_iso_audit`: a variable assignment prefixing a shell
+# function is not the same construct as one prefixing an external command, and
+# the control above only proves propagation for the latter. The probe and its
+# control must exercise the same mechanism or the control is not one.
 set +e
-u564_excl_out="$(GIT_CONFIG_GLOBAL="$SANDBOX/probe-gitconfig-564" _iso_audit)"; u564_excl_rc=$?
+u564_excl_out="$(GIT_CONFIG_GLOBAL="$SANDBOX/probe-gitconfig-564" \
+  bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+u564_excl_rc=$?
 set -e
 rm -f templates/core/agents/probe-excl-564.md "$SANDBOX/probe-excludes-564" "$SANDBOX/probe-gitconfig-564"
 
-# (j) idempotence. Two runs, one tree, byte-identical output — the assertion
-# that would have caught a `sort -u` where the union needs first-seen order.
-printf -- '---\nname: probe-idem-564\n---\n' > templates/core/agents/probe-idem-564.md
+# (j) idempotence AND first-seen order — two different properties, because
+# byte-equality alone cannot see the one the union actually decided.
+#
+# The first version of this probe compared two runs byte-for-byte and claimed,
+# in its own comment, to catch a `sort -u` substituted for
+# `awk '!seen[$0]++'`. It cannot: `sort -u` is deterministic, so both runs stay
+# identical and it passes. It also passed on two identical CRASHES — neither rc
+# was captured and nothing asserted the output was non-empty. FR-012's ordering
+# decision had zero witness while plan §9 and §12 both named this as its
+# mitigation. Caught at review, and it is the same vacuous shape #546 exists to
+# remove from this file.
+#
+# The order witness: `new-fake-agent.md` is TRACKED and committed after the
+# baseline, so it comes from source 1. `aaa-order-564.md` is untracked, so it
+# comes from source 3 — and it sorts FIRST alphabetically. Concatenation order
+# puts the tracked one first; any sort puts the untracked one first. So the
+# assertion below distinguishes them, which byte-equality never could.
+sed -i.bak '/new-fake-agent/d' "$SYNTH_SMOKE/coverage-allowlist.txt"
+rm -f "$SYNTH_SMOKE/coverage-allowlist.txt.bak"
+printf -- '---\nname: probe-order-564\n---\n' > templates/core/agents/aaa-order-564.md
 set +e
-u564_idem1_out="$(_iso_audit)"
+u564_idem1_out="$(_iso_audit)"; u564_idem1_rc=$?
 u564_idem2_out="$(_iso_audit)"
 set -e
-rm -f templates/core/agents/probe-idem-564.md
+# `|| true` on both: a capture that feeds an assertion must never decide the
+# suite's fate by itself. Without it, `set -e` killed the whole run the moment
+# either path was ABSENT from the report — which is precisely the state the
+# assertion below exists to detect, so the defect it guards aborted the file
+# before that assertion was reached. Found while observing the red battery: the
+# "delete source 3" probe produced a crash with zero failed assertions, which
+# reads as green to anything counting failures.
+u564_order_tracked="$(grep -n 'new-fake-agent\.md' <<<"$u564_idem1_out" | head -1 | cut -d: -f1 || true)"
+u564_order_untracked="$(grep -n 'aaa-order-564\.md' <<<"$u564_idem1_out" | head -1 | cut -d: -f1 || true)"
+rm -f templates/core/agents/aaa-order-564.md
+cat >> "$SYNTH_SMOKE/coverage-allowlist.txt" <<'EOF'
+templates/core/agents/new-fake-agent.md  isolated run: not the class under test
+EOF
 
 # (k) the union's de-duplication, LAST because it commits. `git rm --cached` on
 # a path committed after the baseline puts it in source 1 (an `A` in the range)
@@ -607,6 +650,25 @@ set -e
 u564_dup_reported="$(grep -c '^  - templates/core/agents/probe-dup-564\.md' <<<"$u564_dup_out" || true)"
 rm -f templates/core/agents/probe-dup-564.md
 
+# (m) the SECOND surface prefix. Until this probe every fixture in this file
+# sat under `templates/core/`, so the literals above claimed an independent
+# opinion about four prefixes while witnessing one — and the #551 drift they
+# cite as their own justification (twelve files under
+# `templates/harness-specific/` invisible because the pathspec ignored the
+# tree) would still have passed. Caught at review.
+#
+# `templates/manifest.json` and `src/cli/` deliberately have NO fixture here:
+# manifest.json is a named category exemption that produces no finding either
+# way, so an assertion on it could not fail, and `src/cli/` is already
+# witnessed by the non-fatal outside-surface bucket above. Naming the gap
+# beats claiming the coverage.
+mkdir -p templates/harness-specific/claude
+printf -- '---\nname: probe-hs\n---\n' > templates/harness-specific/claude/probe-hs-564.md
+set +e
+u564_hs_out="$(_iso_audit)"; u564_hs_rc=$?
+set -e
+rm -f templates/harness-specific/claude/probe-hs-564.md
+
 # (l) FR-013 — --src-root must be the TOPLEVEL, not merely inside a work tree.
 # `git diff --name-only` speaks root-relative and `git ls-files` speaks
 # cwd-relative, so from a subdirectory the two halves of the union name
@@ -616,6 +678,31 @@ rm -f templates/core/agents/probe-dup-564.md
 set +e
 bash "$SMOKE_DIR/audit.sh" --src-root "$SANDBOX/templates" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE >/dev/null 2>&1
 u564_subdir_rc=$?
+set -e
+
+# (n) ambient git environment. `git -C <dir>` does NOT beat an exported
+# GIT_DIR: measured on the real repository, it made the audit take another
+# repo's tag as the baseline and report 28 TRACKED files as "(untracked)".
+# Until #564 added a second git query only the baseline lookup could see it,
+# which is why a script whose header calls its source tree "never an ambient
+# value" had carried the breach unnoticed.
+_decoy_564="$SANDBOX/decoy-564"
+mkdir -p "$_decoy_564"
+git -C "$_decoy_564" init -q -b main
+echo "decoy" > "$_decoy_564/f.md"
+git -C "$_decoy_564" add -A
+git -C "$_decoy_564" -c user.email=d@l -c user.name=d commit -q -m decoy
+git -C "$_decoy_564" tag vDECOY-564
+# Measured against a SAME-MOMENT control rather than against rc=0. By this
+# point the fixture has left a permanent finding behind on purpose (the
+# de-duplication case commits a file), so "green" is the wrong yardstick — the
+# property is that the ambient variable changes NOTHING, and the only honest
+# way to say that is to run the same audit twice and diff.
+set +e
+u564_ambient_ctl_out="$(_iso_audit)"
+u564_ambient_out="$(GIT_DIR="$_decoy_564/.git" bash "$SMOKE_DIR/audit.sh" \
+  --src-root "$SANDBOX" --smoke-dir "$SYNTH_SMOKE" --since vTEST-BASELINE 2>&1)"
+u564_ambient_rc=$?
 set -e
 
 rm -f "$SYNTH_SMOKE/coverage-allowlist.txt"
@@ -967,12 +1054,38 @@ fi
 
 # FR-014. The run must COMPLETE — reaching the summary is the assertion. It
 # goes non-zero for the gap, which is expected and is not what is under test.
+# The control first: if chmod 000 did not actually make the file unreadable
+# (uid 0), say so instead of passing.
+if [ "$u564_unreadable_control" -eq 0 ]; then
+  pass "the unreadable-path probe is actually unreadable (its own control)"
+else
+  fail "chmod 000 left the file readable — the FR-014 probe below proves nothing" \
+       "running as uid $(id -u)?"
+fi
 if grep -qE "^## Summary$" <<<"$u564_unreadable_out" \
    && grep -qF "probe-unreadable-564.md" <<<"$u564_unreadable_out"; then
   pass "an unreadable collected path is reported without being opened (FR-014)"
 else
   fail "the audit did not survive an unreadable collected path" \
        "rc=$u564_unreadable_rc; $(tail -3 <<<"$u564_unreadable_out")"
+fi
+
+if [ "$u564_hs_rc" -ne 0 ] && grep -qF "probe-hs-564.md (untracked)" <<<"$u564_hs_out"; then
+  pass "the SECOND surface prefix (templates/harness-specific/) is witnessed too"
+else
+  fail "an untracked file under templates/harness-specific/ was not collected" \
+       "rc=$u564_hs_rc; $(grep -F 'probe-hs-564' <<<"$u564_hs_out" | head -1)"
+fi
+
+# `git -C` does not beat an exported GIT_DIR. The whole report must be
+# unchanged, not merely the exit code: the observed failure mode was 28 TRACKED
+# files reported as "(untracked)" on a run whose rc was already non-zero for
+# unrelated reasons, so an rc-only assertion would have seen nothing.
+if [ -n "$u564_ambient_ctl_out" ] && [ "$u564_ambient_out" = "$u564_ambient_ctl_out" ]; then
+  pass "an ambient GIT_DIR cannot repoint the audit at another repository"
+else
+  fail "an exported GIT_DIR changed the audit's report" \
+       "rc=$u564_ambient_rc; $(diff <(printf '%s\n' "$u564_ambient_ctl_out") <(printf '%s\n' "$u564_ambient_out") | head -4)"
 fi
 
 if grep -qF "untracked-café-564.md" <<<"$u564_accent_out"; then
@@ -998,11 +1111,26 @@ else
   fail "a subdirectory --src-root did not exit 3" "rc=$u564_subdir_rc"
 fi
 
-if [ "$u564_idem1_out" = "$u564_idem2_out" ]; then
-  pass "two runs on one unchanged tree produce identical output"
+# Idempotence, with the non-emptiness control the first version lacked: two
+# identical crashes are byte-identical too.
+if [ -n "$u564_idem1_out" ] && grep -qE "^## Summary$" <<<"$u564_idem1_out" \
+   && [ "$u564_idem1_out" = "$u564_idem2_out" ]; then
+  pass "two runs on one unchanged tree produce identical, non-empty output"
 else
   fail "the audit is not idempotent on an unchanged tree" \
-       "$(diff <(printf '%s\n' "$u564_idem1_out") <(printf '%s\n' "$u564_idem2_out") | head -4)"
+       "rc=$u564_idem1_rc; $(diff <(printf '%s\n' "$u564_idem1_out") <(printf '%s\n' "$u564_idem2_out") | head -4)"
+fi
+
+# FR-012's ACTUAL decision — first-seen order, not byte-equality. A tracked gap
+# (source 1) must be reported BEFORE an untracked one (source 3) that sorts
+# first alphabetically. Any sort in the union inverts this; byte-equality above
+# cannot see it.
+if [ -n "$u564_order_tracked" ] && [ -n "$u564_order_untracked" ] \
+   && [ "$u564_order_tracked" -lt "$u564_order_untracked" ]; then
+  pass "the union preserves first-seen order: source 1 before source 3 (FR-012)"
+else
+  fail "the union did not preserve concatenation order" \
+       "tracked at line ${u564_order_tracked:-<absent>}, untracked at ${u564_order_untracked:-<absent>}"
 fi
 
 # The de-duplication control: assert the path really was in BOTH sources before

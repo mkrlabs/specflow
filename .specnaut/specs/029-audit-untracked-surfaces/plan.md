@@ -141,9 +141,10 @@ assertion of its own.
   body carries the same rationale as the ephemeral echo, not as the record. (#564 AC6, widened: a
   commit body is not what a reader three cycles from now greps.)
 - **FR-009** — `smoke-audit.sh` MUST plant every new fixture file **after** the last invocation
-  whose counts are asserted, or `git add`+commit it before that invocation. Nineteen assertion sites
-  in that file pin exact counts, and a single stray untracked file under a surface prefix moves all
-  of them. The current fixture is clean; the margin is one line.
+  whose counts are asserted, or `git add`+commit it before that invocation. **Eighteen** assertion
+  sites in that file pin exact counts (the first draft said nineteen; the review counted them — an
+  arithmetic slip, but the kind that becomes a cited number), and a single stray untracked file
+  under a surface prefix moves all of them. The current fixture is clean; the margin is one line.
 - **FR-010** — The changed set MUST also include **staged-but-uncommitted** paths, via a third
   source `git diff --name-only --diff-filter=AMR --cached HEAD`. AC1 says "still-uncommitted", and
   `git add` is the most common keystroke after `touch`; without this, the value window of the whole
@@ -153,7 +154,11 @@ assertion of its own.
   either way; what FR-011 buys is that the maintainer's natural repair is not "add a `.gitignore`
   entry", which is FR-004's drift shape.
 - **FR-012** — The union MUST be de-duplicated, preserving first-seen order (`awk '!seen[$0]++'`,
-  not `sort -u` — SC-003 relies on a fixed order).
+  not `sort -u`). **Its witness may not be an idempotence comparison.** `sort -u` is deterministic,
+  so two runs stay byte-identical under it and such an assertion passes on the very substitution it
+  claims to catch — the first implementation shipped exactly that, and the review caught it. The
+  witness must be an ORDER assertion: a source-1 path reported before a source-3 path that sorts
+  first alphabetically.
 - **FR-013** — `--src-root` MUST be the **toplevel** of its work tree. `git ls-files` emits
   **cwd-relative** paths where `git diff --name-only` emits **root-relative** ones; from a
   subdirectory the two halves speak different vocabularies and the untracked half matches no glob.
@@ -163,7 +168,15 @@ assertion of its own.
 - **FR-014** — The audit MUST read the **content** of no collected path. A collected path is a
   string used for mapping and reporting only. Asserted by planting an unreadable (`chmod 000`)
   untracked surface file and requiring the audit to complete — which fails the moment somebody adds
-  a read.
+  a read. **That probe MUST carry its own control**: `chmod 000` is a no-op for uid 0, so under a
+  container runner it would silently stop probing while still passing.
+- **FR-015** — No ambient git environment variable may repoint the audit. `git -C <dir>` does
+  **not** beat an exported `GIT_DIR`: measured on the real tree, it took another repository's tag as
+  the baseline and reported 28 **tracked** files as `(untracked)`. `GIT_DIR`, `GIT_WORK_TREE` and
+  `GIT_INDEX_FILE` are unset once, after the argument loop — not neutralised per invocation, because
+  six `git -C` calls sit outside the shared prefix, and an enumeration of call sites is the shape
+  that goes blind when the seventh is added. This restores what the file's own header already
+  claimed: the source tree is a parameter, never an ambient value.
 
 ## 4. Success criteria
 
@@ -307,7 +320,7 @@ fixes, which is the whole reason the audit runs before the code.
 it covered: FR-003's "the mechanism already exists" is correct and traced end to end; the
 `--diff-filter=AMR` equivalence holds on its own axis; the existing fixture leaves nothing behind
 (all 17 invocations traced) — the margin is one line, hence FR-009; nothing in §8 relocates text the
-19 count assertions name; the real tree is clean on both sides today, so the change is a no-op on
+18 count assertions name; the real tree is clean on both sides today, so the change is a no-op on
 landing; and the rejection of option 2 (`git status --porcelain`) is correct and properly protected
 by §5.
 
@@ -369,6 +382,12 @@ the branch.
    decision in one file. Naming it in §5 row 3 is what this ticket owes it; resolving it is a
    separate ticket, because any resolution changes what consumers receive.
 5. **Decided without asking**: the fixture's ignore pattern is `*.log` (a real rule in this repo's
-   `.gitignore`), the de-duplication is `awk '!seen[$0]++'` rather than `sort -u` (SC-003 needs the
-   order), and FR-013 reuses exit 3 rather than adding a code (`preflight.sh` already branches on
-   it).
+   `.gitignore`), the de-duplication is `awk '!seen[$0]++'` rather than `sort -u`, and FR-013 reuses
+   exit 3 rather than adding a code (`preflight.sh` already branches on it).
+6. **`templates/manifest.json` and `src/cli/` get no fixture in the meta-test** (2026-08-26). The
+   review found the pathspec literals claiming an independent opinion about four prefixes while
+   witnessing one. `templates/harness-specific/` now has a fixture — it is the prefix #551 was
+   about. The other two do not, and the comment beside them says so rather than implying coverage:
+   `manifest.json` is a named category exemption that produces no finding either way, so an
+   assertion on it could not fail, and `src/cli/` is already witnessed by the non-fatal
+   outside-surface bucket. Naming the gap beats claiming the coverage.

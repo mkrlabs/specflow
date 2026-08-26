@@ -75,6 +75,21 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# The source tree is a PARAMETER, and git has three environment variables that
+# quietly override one. `git -C <dir>` does NOT beat an ambient `GIT_DIR`:
+# measured on this repository, exporting GIT_DIR at another repo made this
+# script take that repo's tag as the baseline and report 28 TRACKED files as
+# "(untracked)", with ten fabricated coverage gaps. The header above states the
+# rule this restores — "an explicit PARAMETER with a default (R2), never an
+# ambient value" — and until #564 gave the collection a second git query the
+# breach was invisible, because only the baseline lookup could see it.
+#
+# Unset once, here, rather than neutralised per invocation: six `git -C` calls
+# in this file sit outside the shared prefix, one of them the toplevel
+# assertion immediately below, and an enumeration of call sites is exactly the
+# shape that goes blind when the seventh is added.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
 if ! git -C "$SRC_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "audit.sh: '$SRC_ROOT' is not a git work tree" >&2
   exit 3

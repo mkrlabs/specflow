@@ -107,8 +107,9 @@ assumed.
       prefixes is not collected — a different mechanism from T015 and it gets its own check, so
       neither can stand in for the other.
 - [ ] T017 [US2] **Observe red**: remove `--exclude-standard` from the `ls-files` line, confirm T015
-      fails; restore, then remove one prefix from `SURFACE_PATHSPEC` and confirm T016 fails. FR-006,
-      SC-004.
+      fails; restore, then **widen `SURFACE_PATHSPEC` to `.`** and confirm T016 fails — the first
+      draft said "remove one prefix", which cannot reach T016, whose fixture sits at the synthetic
+      root; removing a prefix is a separate mutation and reddens T033 instead. FR-006, SC-004.
 
 ## Phase 5 — User Story 3 (P3): the verdict is a property of the tree, and stable
 
@@ -118,8 +119,26 @@ assumed.
 output; a configured `core.excludesFile` does not change the verdict.
 
 - [ ] T018 [P] [US3] Assert idempotence in `smoke-audit.sh`: run the audit twice on the unchanged
-      synthetic tree and compare the captured output byte-for-byte. SC-003 — and it is the assertion
-      that would have caught a `sort -u` regression on T008.
+      synthetic tree, compare byte-for-byte, **plus a non-emptiness control** — two identical
+      crashes are byte-identical too. SC-003. It does **not** witness T008: `sort -u` is
+      deterministic, so byte-equality passes under the very substitution the first draft claimed it
+      caught. That witness is T032.
+- [ ] T032 [US3] Assert FR-012's actual decision — **first-seen order**. A tracked gap (source 1)
+      must be reported before an untracked one (source 3) whose name sorts first alphabetically.
+- [ ] T033 Plant an untracked fixture under `templates/harness-specific/`. Until it existed, every
+      fixture in `smoke-audit.sh` sat under `templates/core/`, so the pathspec literals claimed an
+      independent opinion about four prefixes while witnessing one — and the #551 drift they cite as
+      their own justification would still have passed.
+- [ ] T034 Unset `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` after the argument loop in
+      `audit.sh`, and witness it: the same audit with and without an exported `GIT_DIR` must produce
+      **identical reports**. Not `rc == 0` — the observed failure was 28 tracked files reported as
+      `(untracked)` on a run already non-zero for unrelated reasons. FR-015.
+- [ ] T035 Give the `chmod 000` probe its own control (`[ -r … ]` → fail) so it cannot go vacuous as
+      uid 0. FR-014.
+- [ ] T036 Guard every assertion-feeding capture with `|| true`. Under `set -e` a `grep` that finds
+      nothing kills the whole file — and "finds nothing" is exactly the state the assertion exists
+      to detect, so the defect aborts the run before its own assertion is reached. The red battery
+      reported that crash as a PASS until its classifier learned to tell a crash from a red.
 - [ ] T019 [US3] Assert machine-independence: run the audit against the synthetic tree with
       `-c core.excludesFile=<a temp file listing a planted surface path>` set in the
       **environment/config**, and confirm the verdict is unchanged because `GIT_SRC` pins it to
