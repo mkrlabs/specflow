@@ -1,28 +1,38 @@
-**If you scaffolded with 4.0.0 on anything but Claude Code, the first thing Specnaut told you to
-type did not exist.**
+**Specnaut now refuses to write, move, delete or read through a symlink that leaves your project.**
 
-`init`'s "Next steps" hardcoded the Claude command surface and printed it under every harness. On
-the five that namespace their skills the board is `/specnaut-board`, so `/board add` — the headline
-command of 4.0.0 — was a no-op. Windsurf was wrong twice over: its phases are flat sibling
-workflows, so `/specnaut plan` is `/specnaut-plan` there. And GitHub Copilot has no slash commands
-at all — it applies `.github/instructions/` by context — so every line it was handed was fiction.
+Every filesystem operation resolves its destination the way the kernel does — following the whole
+symlink chain, applying `..` from where each component actually lands — and refuses anything that
+resolves outside the project root. The message names the path you asked for, where it really
+resolved to, and the root it escaped, so a refusal tells you what to fix rather than that something
+went wrong.
 
-Nothing about the scaffolded projects was wrong; only the instructions were. Re-running `init` is
-not necessary, and `upgrade` is not either — the fix is entirely in what the binary prints.
+**This can refuse a layout that used to work.** If a directory inside your project is a symlink to
+somewhere outside it — a `.claude/` shared between checkouts, a skills folder linked to a dotfiles
+repo — `init`, `upgrade` and `diff` will now stop rather than write through it. That is the point:
+`diff` previously rendered the contents of a linked-to file on stdout, and this tool's stdout is
+routinely read into an agent's context and into CI logs. If you rely on such a layout, replace the
+link with a real directory, or point Specnaut at the directory the link resolves to.
 
-The command shapes are not a preference. They fall out of where each harness puts a phase and a
-board skill: phases nested under the router's own folder mean the router takes the phase as an
-argument, phases emitted as siblings mean each is its own command. So the fix is a table checked
-against the destinations each harness actually emits, rather than a table someone maintains by hand
-— a harness that changes its layout now takes a test red instead of quietly making `init` lie.
+The reason this shipped as one change rather than as a run of near-misses: two review rounds each
+found a real defect in the same thirty-line resolver, one hop further out than the last. The space
+of layouts is not enumerable by imagination. So the resolver is now checked against the kernel
+itself — ninety-six enumerated layouts, ground truth obtained by performing the write and asking
+where the bytes landed. Both previously-found defects fail that check in a single run.
 
-Three smaller contradictions between the binary and its own documentation, from the same pass:
-`--help` said the backlog default was `local` when it is `cloud`, and a non-interactive `init` takes
-that default and produces a project with no credentials — the one reference that should have warned
-you stated the opposite. `specnaut cloud token` ships and works but was missing from `--help`,
-leaving the only scriptable auth primitive invisible to anyone starting there. And `UPGRADING.md`
-quoted "2 added, 2 removed" for the 4.0.0 migration; a real upgrade from 3.2.0 removes five, and one
-of them is `.claude/commands/`, which a user who does not expect it will not commit.
+**Epics are one branch, chained over their children, merged once.** Previously an epic produced a
+branch per child and a merge per child. Now the chain loops over the children on a single branch,
+fixups fold into the commit of the child they belong to, the merge is flat, and every card the merge
+touches is closed and reconciled — including the parent, which cannot close while a child is open.
 
-None of these came from a check firing. They came from running the released binary against a clean
-project and reading what it said.
+**If you install the plugin rather than scaffolding, you were missing the board skill entirely.**
+Three bundled agents dispatch to `/board`, one of them blocking outright without its output, and the
+plugin shipped none of it — not removed, never added. It ships now. The backend scripts still come
+from `specnaut init`; a plugin-only install has the documents and needs an init before the mechanics
+apply, which the skill now says on its own page.
+
+Smaller, and worth knowing if you use the GitHub backlog backend: a wrong `project_number` in
+`backlog-config.yml` used to be invisible. The read commands address the board through `repo:` alone,
+so they kept working while every project write was dead. The four writing scripts now resolve the
+number when the config is read and tell you which project numbers do exist for that owner. The two
+`project_node_id` / `status_field_id` keys are gone — nothing ever read them, and nothing ever
+populated them, despite the documentation promising both.
