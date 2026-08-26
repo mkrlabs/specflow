@@ -11,11 +11,33 @@ export type LegacyMigrationResult =
   | { kind: "migrated" }
   | { kind: "already-current" }
   | { kind: "conflict" }
+  | { kind: "symlinked"; path: string }
   | { kind: "nothing-to-migrate" };
 
-async function isDir(p: string): Promise<boolean> {
+// `lstat`, not `stat` (cli#574). `stat` follows a symlink, so a link pointing
+// at any directory reported `isDirectory: true` — and `Deno.rename` then moved
+// the LINK, leaving `.specnaut/` as a symlink pointing wherever the link
+// pointed. A repository could ship one file named `.specflow` and every write
+// for the rest of the run went outside the project: the lock, the marker, the
+// preserve list, the spec cache and its recursive delete. Reproduced end to
+// end before this was changed — the migrator reported `migrated` and the
+// result was an out-of-project `.specnaut`.
+//
+// This runs FIRST in both `init` and `upgrade`, before anything else, which is
+// what made it the cheapest possible foothold.
+async function isRealDir(p: string): Promise<boolean> {
   try {
-    return (await Deno.stat(p)).isDirectory;
+    return (await Deno.lstat(p)).isDirectory;
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) return false;
+    throw e;
+  }
+}
+
+/** True when the path exists AND is a symlink — a directory link included. */
+async function isSymlinkPath(p: string): Promise<boolean> {
+  try {
+    return (await Deno.lstat(p)).isSymlink;
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) return false;
     throw e;
@@ -31,8 +53,8 @@ export type LegacyDirState = "legacy-only" | "current-only" | "both" | "neither"
  * migrator and reading its result, which is a rename that already happened.
  */
 export async function inspectLegacyConfigDir(projectDir: string): Promise<LegacyDirState> {
-  const hasCurrent = await isDir(join(projectDir, ".specnaut"));
-  const hasLegacy = await isDir(join(projectDir, ".specflow"));
+  const hasCurrent = await isRealDir(join(projectDir, ".specnaut"));
+  const hasLegacy = await isRealDir(join(projectDir, ".specflow"));
   if (hasCurrent && hasLegacy) return "both";
   if (hasCurrent) return "current-only";
   if (hasLegacy) return "legacy-only";
@@ -49,6 +71,16 @@ export async function inspectLegacyConfigDir(projectDir: string): Promise<Legacy
 export async function migrateLegacyConfigDir(
   projectDir: string,
 ): Promise<LegacyMigrationResult> {
+  // Refused, and NAMED, rather than quietly skipped. `lstat` above already
+  // makes a symlinked `.specflow` invisible to the state machine, so this
+  // branch changes no outcome — it changes what the user is told. A project
+  // that deliberately links its config dir deserves to hear why nothing
+  // happened; one that did not deserves to hear that something is wrong.
+  for (const name of [".specflow", ".specnaut"]) {
+    if (await isSymlinkPath(join(projectDir, name))) {
+      return { kind: "symlinked", path: name };
+    }
+  }
   const state = await inspectLegacyConfigDir(projectDir);
   if (state === "both") return { kind: "conflict" };
   if (state === "current-only") return { kind: "already-current" };

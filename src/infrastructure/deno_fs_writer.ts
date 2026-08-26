@@ -1,5 +1,6 @@
 import { basename, dirname, join, resolve } from "@std/path";
 import { assertSafeDestination, type Bundle, isInside } from "../domain/template.ts";
+import { assertInsideProject, resolveProjectRoot } from "./fs_containment.ts";
 import { mergeIntoFile } from "../domain/merge_block.ts";
 import { mergeClaudeSettings } from "../domain/claude_settings_merge.ts";
 import type { BackupReport, FsWriter } from "../application/ports.ts";
@@ -138,6 +139,7 @@ export class DenoFsWriter implements FsWriter {
     const resolved = resolve(targetDir);
 
     for (const dest of Object.keys(bundle)) assertSafeDestination(dest);
+    const root = await resolveProjectRoot(resolved);
 
     if (!overwrite) {
       const conflicts = await this.detectConflicts(bundle, resolved);
@@ -152,9 +154,28 @@ export class DenoFsWriter implements FsWriter {
     const backups: { dest: string; backupPath: string }[] = [];
     const skippedSkipIfExists: string[] = [];
 
+    // PHASE 1 — check every destination, THEN create directories.
+    //
+    // The ordering is the requirement, not a detail. `Deno.mkdir` with
+    // `recursive: true` walks through a symlinked component and creates real
+    // directories on the other side, so running it first — which is what this
+    // loop used to do, per destination, before anything was checked — is
+    // itself an escape. It is also the common path rather than an exotic one:
+    // 145 of the 260 destinations a real `init` writes are five segments deep.
+    //
+    // Checking all of them before writing any content also means a refusal
+    // never leaves a half-written bundle. It does not make the operation
+    // atomic and is not claimed to: cleared destinations keep the directories
+    // made for them, which `pruneEmptyParents` already exists to tidy.
+    for (const dest of Object.keys(bundle)) {
+      const abs = join(resolved, dest);
+      await assertInsideProject(root, abs);
+      await Deno.mkdir(dirname(abs), { recursive: true });
+    }
+
+    // PHASE 2 — write.
     for (const [dest, file] of Object.entries(bundle)) {
       const abs = join(resolved, dest);
-      await Deno.mkdir(dirname(abs), { recursive: true });
 
       // Mergeable files are never backed up: merge is non-destructive and
       // writing a backup of an unchanged user file is noisy. They also
@@ -226,6 +247,13 @@ export class DenoFsWriter implements FsWriter {
 
       await Deno.writeTextFile(abs, file.content);
       if (file.executable && Deno.build.os !== "windows") {
+        // Re-asserted rather than inherited from phase 1. `chmod` is its own
+        // syscall on the same path and it follows a leaf symlink exactly as
+        // `writeTextFile` does — and phase 1's verdict was taken before this
+        // run created anything, so a destination that became a link in between
+        // has not been judged. Cheap, and the alternative is a mode change on
+        // a file outside the project.
+        await assertInsideProject(root, abs);
         await Deno.chmod(abs, 0o755);
       }
     }
@@ -239,6 +267,7 @@ export class DenoFsWriter implements FsWriter {
     options: { backupExisting: boolean },
   ): Promise<BackupReport> {
     const resolved = resolve(targetDir);
+    const root = await resolveProjectRoot(resolved);
     const backups: { dest: string; backupPath: string }[] = [];
     const emptied = new Set<string>();
 
@@ -246,6 +275,12 @@ export class DenoFsWriter implements FsWriter {
       assertSafeDestination(dest);
       const abs = join(resolved, dest);
       if (!(await fileExists(abs))) continue;
+      // Before the rename AND before the remove. `Deno.remove` and
+      // `Deno.rename` operate on the LINK rather than its target, so neither
+      // reaches outside on its own — but the path may cross a symlinked
+      // ANCESTOR, and then both do. Measured: with `.claude/` a link out,
+      // `deletePaths` deleted the file at the target.
+      await assertInsideProject(root, abs);
 
       if (options.backupExisting) {
         const suffix = await backupAside(abs);

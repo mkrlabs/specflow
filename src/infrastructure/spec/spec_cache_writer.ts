@@ -1,5 +1,6 @@
 import type { SpecCacheStore } from "../../application/ports.ts";
 import type { SpecStep } from "../../domain/spec/spec_step.ts";
+import { assertInsideProject, resolveProjectRoot } from "../fs_containment.ts";
 
 /**
  * Filesystem adapter for the gitignored spec materialisation cache (spec 020,
@@ -34,6 +35,15 @@ export class SpecCacheWriter implements SpecCacheStore {
     taskNumber: number,
     steps: readonly SpecStep[],
   ): Promise<string[]> {
+    // Before `clear`, not after: `clear` is the only RECURSIVE delete in this
+    // codebase (cli#574). With `.specnaut/` a symlink out of the project it
+    // removed the target's tree — measured, a file planted there was
+    // destroyed — and then wrote the cache outside. `slug()` cannot help: it
+    // sanitises the leaf, and the escape is in the prefix.
+    await assertInsideProject(
+      await resolveProjectRoot(projectDir),
+      this.cacheDir(projectDir, taskNumber),
+    );
     await this.clear(projectDir, taskNumber);
     const dir = this.cacheDir(projectDir, taskNumber);
     await Deno.mkdir(dir, { recursive: true });
@@ -107,6 +117,13 @@ export class SpecCacheWriter implements SpecCacheStore {
 
   async clear(projectDir: string, taskNumber: number): Promise<void> {
     try {
+      // Guarded here as well as at `write`'s call above: `clear` is public and
+      // `spec_handler` calls it on its own. A check that only the caller
+      // performs is a check the next caller does not have.
+      await assertInsideProject(
+        await resolveProjectRoot(projectDir),
+        this.cacheDir(projectDir, taskNumber),
+      );
       await Deno.remove(this.cacheDir(projectDir, taskNumber), { recursive: true });
     } catch (e) {
       if (e instanceof Deno.errors.NotFound) return; // already absent — idempotent

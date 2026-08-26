@@ -1,4 +1,5 @@
 import { dirname, join } from "@std/path";
+import { assertInsideProject, resolveProjectRoot } from "./fs_containment.ts";
 import { type InstalledLock, parseLock, serializeLock } from "../domain/installed_lock.ts";
 import type { LockStore } from "../application/ports.ts";
 
@@ -20,6 +21,7 @@ export class FsLockStore implements LockStore {
 
   async write(projectDir: string, lock: InstalledLock): Promise<void> {
     const path = this.lockPath(projectDir);
+    await assertInsideProject(await resolveProjectRoot(projectDir), path);
     await Deno.mkdir(dirname(path), { recursive: true });
     await Deno.writeTextFile(path, serializeLock(lock));
   }

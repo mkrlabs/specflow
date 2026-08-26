@@ -38,6 +38,7 @@ import { isAgenticPath, isParentManaged } from "../../domain/parent_managed.ts";
 import { resolvePreserveDeclarations } from "./preserve_resolution.ts";
 import { CORE_BUNDLE } from "../../templates_bundle.ts";
 import type { Bundle } from "../../domain/template.ts";
+import { assertInsideProject, resolveProjectRoot } from "../../infrastructure/fs_containment.ts";
 
 export type InitIntent = {
   kind: "init";
@@ -293,6 +294,9 @@ async function writeBacklogConfigStub(
   } catch {
     // not present → write the stub
   }
+  // cli#574 — the backlog-config stub is written straight to disk here,
+  // outside the bundle writer, so it needs the guard on its own.
+  await assertInsideProject(await resolveProjectRoot(targetDir), path);
   await Deno.mkdir(`${targetDir}/.specnaut`, { recursive: true });
   await Deno.writeTextFile(path, stub);
   for (const msg of strategy.initConfigMessages(ctx)) {
@@ -391,6 +395,17 @@ export async function runInit(intent: InitIntent): Promise<number> {
   // Rebrand migration: an existing project on the legacy `.specflow/` layout is
   // moved to `.specnaut/` before any conflict check or write.
   const migration = await migrateLegacyConfigDir(targetDir);
+  if (migration.kind === "symlinked") {
+    console.error(
+      red(
+        `error: ${migration.path} is a symlink — refusing to continue.\n` +
+          `  Specnaut writes its whole config tree under .specnaut/, and a link there ` +
+          `sends every one of those writes, and a recursive delete, outside this project.\n` +
+          `  Replace the link with a real directory, or run Specnaut where the directory is.`,
+      ),
+    );
+    return 2;
+  }
   if (migration.kind === "conflict") {
     console.error(
       red("error: both .specflow/ (legacy) and .specnaut/ exist — remove one before continuing"),

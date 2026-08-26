@@ -1,4 +1,5 @@
 import { dirname, join } from "@std/path";
+import { assertInsideProject, resolveProjectRoot } from "./fs_containment.ts";
 import {
   diagnosePreserveConfig,
   EMPTY_PRESERVE_CONFIG,
@@ -45,6 +46,7 @@ export class FsPreserveStore implements PreserveStore {
 
   async write(projectDir: string, cfg: PreserveConfig): Promise<void> {
     const path = this.preservePath(projectDir);
+    await assertInsideProject(await resolveProjectRoot(projectDir), path);
     await Deno.mkdir(dirname(path), { recursive: true });
     await Deno.writeTextFile(path, serializePreserveConfig(cfg));
   }

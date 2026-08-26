@@ -60,3 +60,54 @@ Deno.test("migrate: conflict when BOTH dirs exist — neither is touched", async
     assertEquals(await Deno.readTextFile(join(dir, ".specnaut/marker")), "current");
   });
 });
+
+Deno.test("a symlinked .specflow is refused, not migrated", async () => {
+  // The foothold (cli#574). `isDir` used `Deno.stat`, which follows a link, so
+  // a symlink to any directory reported `isDirectory: true`; `Deno.rename`
+  // then moved the LINK, and `.specnaut/` became a pointer out of the project.
+  // Reproduced end to end before this changed: the migrator returned
+  // `migrated` and left an out-of-project config tree that the lock, the
+  // marker, the preserve list and the spec cache's RECURSIVE delete all then
+  // wrote through.
+  //
+  // One file in a cloned repository, and it runs first in both `init` and
+  // `upgrade`, before anything else.
+  const root = await Deno.makeTempDir({ prefix: "legacy-link-" });
+  try {
+    const proj = `${root}/proj`;
+    const outside = `${root}/outside`;
+    await Deno.mkdir(proj);
+    await Deno.mkdir(outside);
+    await Deno.writeTextFile(`${outside}/marker.txt`, "not ours");
+    await Deno.symlink(outside, `${proj}/.specflow`);
+
+    const res = await migrateLegacyConfigDir(proj);
+    assertEquals(res.kind, "symlinked");
+
+    const after = await Deno.lstat(`${proj}/.specnaut`).catch(() => null);
+    assertEquals(after, null, ".specnaut must not exist — nothing was renamed");
+    assertEquals(
+      (await Deno.lstat(`${proj}/.specflow`)).isSymlink,
+      true,
+      "and the link is left exactly as the project had it",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("a symlinked .specnaut is refused too", async () => {
+  // The other end of the same rule: nothing to migrate, and still a link the
+  // rest of the run would write through.
+  const root = await Deno.makeTempDir({ prefix: "current-link-" });
+  try {
+    const proj = `${root}/proj`;
+    const outside = `${root}/outside`;
+    await Deno.mkdir(proj);
+    await Deno.mkdir(outside);
+    await Deno.symlink(outside, `${proj}/.specnaut`);
+    assertEquals((await migrateLegacyConfigDir(proj)).kind, "symlinked");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

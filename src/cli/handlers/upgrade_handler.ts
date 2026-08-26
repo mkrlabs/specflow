@@ -382,6 +382,17 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
     }
   } else {
     const migration = await migrateLegacyConfigDir(projectDir);
+    if (migration.kind === "symlinked") {
+      console.error(
+        red(
+          `error: ${migration.path} is a symlink — refusing to continue.\n` +
+            `  Specnaut writes its whole config tree under .specnaut/, and a link there ` +
+            `sends every one of those writes, and a recursive delete, outside this project.\n` +
+            `  Replace the link with a real directory, or run Specnaut where the directory is.`,
+        ),
+      );
+      return 2;
+    }
     if (migration.kind === "conflict") {
       console.error(
         red("error: both .specflow/ (legacy) and .specnaut/ exist — remove one before continuing"),

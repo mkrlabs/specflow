@@ -30,6 +30,7 @@ import { defaultCredentialStore } from "../../infrastructure/credential_store.ts
 import { openInBrowser } from "../../infrastructure/browser_opener.ts";
 import { makeStdinSelectIO, selectInteractive, type SelectItem } from "../select.ts";
 import { generateProjectKey } from "../../domain/cloud/project_key.ts";
+import { assertInsideProject, resolveProjectRoot } from "../../infrastructure/fs_containment.ts";
 
 export type CloudIntent = {
   kind: "cloud";
@@ -326,7 +327,18 @@ async function runLogin(intent: CloudIntent): Promise<number> {
     return 1;
   }
 
-  await writeCloudConfig(Deno.cwd(), apiUrl, projectKey);
+  // cli#574 — `writeCloudConfig` writes under `.specnaut/` directly, without
+  // going through `DenoFsWriter`. The guard sits HERE rather than inside it
+  // because that function lives in the domain: it already performs IO, which
+  // predates this change, but adding a domain→infrastructure import would turn
+  // a smell into a compile-time dependency edge. The call site is in the CLI
+  // layer, where reaching infrastructure is normal.
+  const cloudDir = Deno.cwd();
+  await assertInsideProject(
+    await resolveProjectRoot(cloudDir),
+    `${cloudDir}/.specnaut/backlog-config.yml`,
+  );
+  await writeCloudConfig(cloudDir, apiUrl, projectKey);
   console.log(green(`✓ linked to project ${bold(projectKey)}`));
   console.log(
     dim("  wrote .specnaut/backlog-config.yml — /board now runs against Specnaut Cloud"),
