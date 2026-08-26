@@ -1,0 +1,54 @@
+# Files the manifest installs that are deliberately NOT mirrored into plugin/.
+#
+# THE POPULATION HERE IS THE OTHER DIRECTION. `mirror-exclusions.txt` beside
+# this file answers "every asset under plugin/ is accounted for". It cannot
+# express this defect at all: a file under templates/core/ with no plugin
+# counterpart has no row under plugin/ to occupy, so it is invisible to a walk
+# rooted there. That blindness is how the whole `board` skill was absent from
+# the plugin since it was created, while eight plugin assets dispatched to it.
+#
+# A guard is never "is there one" but "what does it not look at". This file is
+# the answer to what the first one did not look at.
+#
+# FORMAT: <path relative to templates/><whitespace><reason>
+# A prefix ending in `/` excuses everything beneath it. An entry with no
+# written reason is not an entry.
+
+# --- Shell scripts: mirroring them would ship broken files -----------------
+# Not a preference. Backend scripts are backend-filtered at init and land
+# FLATTENED at `.specnaut/scripts/backlog/<name>.sh`, and `_config.sh` resolves
+# `ROOT="$(dirname "$0")/../../.."` from that flattened destination. Under
+# `plugin/skills/<skill>/scripts/<backend>/` those three levels land inside the
+# plugin, so `CONFIG` would point at a file that cannot exist. The skills' own
+# documents already reference `.specnaut/scripts/backlog/` — the project's
+# installed location — so they are self-sufficient without them.
+#
+# The plugin ships no shell script today except its own `hooks/session-start`,
+# which is plugin-only and has no template source.
+core/skills/board/scripts/  46 backend scripts; see the ROOT-resolution reason above — mirrored, they would resolve a config path that cannot exist
+core/skills/code-audit/scripts/collect-audit-scope.sh  same rule: a scope collector that resolves paths from its installed location, not from the plugin
+
+# --- Not installed by init, so not the plugin's to carry -------------------
+# `alias-example` needs no row: the manifest never installs it, so it is
+# outside this population by construction rather than by exception. Its own
+# frontmatter says so — "Specnaut itself never installs this file". Recorded
+# here only so the next reader does not go looking for its entry.
+
+# --- Agent memory seeds: written BY the agent, never carried ---------------
+# `init` seeds an empty memory file so the agent has somewhere to write. The
+# plugin carrying one would ship a memory that belongs to no project — and the
+# whole justification for a memory file is provenance: the agent writes it, and
+# no template can reconstruct what was learned. A mirrored seed would be
+# byte-identical on day one and wrong every day after.
+core/agents/developer/memory/MEMORY.md  agent memory seed — written by its agent after install, never a plugin asset
+core/agents/devops-sre/memory/MEMORY.md  same
+core/agents/product-owner/memory/MEMORY.md  same
+core/agents/qa-tester/memory/MEMORY.md  same
+core/agents/security-expert/memory/MEMORY.md  same
+
+# --- The release scripts: same ROOT-resolution rule as the board backends ---
+# `/specnaut tag-version` and `/release-version` drive these from the project's
+# installed `.specnaut/scripts/`, and the phase docs that call them already name
+# that path. Mirrored into the plugin they would resolve against the plugin's
+# own tree.
+core/skills/specnaut/scripts/  5 release scripts; driven from the project's installed .specnaut/scripts/, and the phase docs already reference that path

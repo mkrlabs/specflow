@@ -203,6 +203,36 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     plugin: "plugin/agents/README.md",
     source: "templates/core/agents/README.md",
   },
+  // The `board` skill's own documents (#571). It was never in the plugin at
+  // all, while EIGHT plugin assets — `developer`, `product-owner` and
+  // `specnaut-guide`, plus five skills — dispatch to `/board`. Installing the
+  // plugin gave you agents pointing at a skill that is not there.
+  //
+  // Its `scripts/` are deliberately NOT mirrored, and that is not a
+  // preference. They are backend-filtered at init and land FLATTENED at
+  // `.specnaut/scripts/backlog/<name>.sh`, and `_config.sh` resolves
+  // `ROOT="$(dirname "$0")/../../.."` from that flattened destination. Under
+  // `plugin/skills/board/scripts/github/` those three levels land inside the
+  // plugin, so every script would resolve a `CONFIG` that cannot exist — 46
+  // broken files rather than a working backend. The skill's own text already
+  // points at `.specnaut/scripts/backlog/`, the project's installed location,
+  // so the documents are self-sufficient without them.
+  ...[
+    "SKILL.md",
+    "groom.md",
+    "groom-report.md",
+    "spec-autogen.md",
+  ].map((name) => ({
+    plugin: `plugin/skills/board/${name}`,
+    source: `templates/core/skills/board/${name}`,
+  })),
+  // `/code-audit`, missing from the plugin for the same reason and found by
+  // the same sweep. Six plugin skills route to it. Its
+  // `scripts/collect-audit-scope.sh` is excluded under the same rule.
+  {
+    plugin: "plugin/skills/code-audit/SKILL.md",
+    source: "templates/core/skills/code-audit/SKILL.md",
+  },
 ];
 
 function abs(rel: string): string {
@@ -397,3 +427,110 @@ Deno.test(
     assertEquals(typeof manifest.version, "string");
   },
 );
+
+// ─── The REVERSE sweep (#571) ───────────────────────────────────────────
+//
+// The sweep above walks `plugin/` and asks whether every asset there has a
+// source. It is structurally blind to the other direction — a file the product
+// SHIPS that the plugin does not carry has no row under `plugin/` to be missing
+// from — and that blindness is not hypothetical: the entire `board` skill was
+// absent from the plugin from the day it was created, while eight plugin assets
+// dispatched to `/board`, and `code-audit` was absent while six did. Both stayed
+// green under a completeness test whose own comment claims to measure a tree
+// rather than its claims.
+//
+// The population is DERIVED from `templates/manifest.json` — what `init`
+// actually installs — not from a list beside this test. That is what makes
+// `alias-example` fall out on its own: the manifest never installs it, so it is
+// outside the population by construction rather than by an exception someone
+// remembered to write.
+
+const SOURCE_EXCLUSIONS_FILE = "tests/plugin/source-exclusions.txt";
+
+type ManifestEntry = { category?: string; name?: string; source?: string };
+
+/** Every `templates/`-relative path the manifest installs from a mirrorable
+ * category. Agents and skills are what the plugin carries; everything else
+ * (`root/`, `specnaut/`, harness-specific) has no plugin counterpart by
+ * design. */
+function installedMirrorableSources(): string[] {
+  const manifest = JSON.parse(
+    Deno.readTextFileSync(abs("templates/manifest.json")),
+  ) as { core?: ManifestEntry[] };
+  const out = new Set<string>();
+  for (const entry of manifest.core ?? []) {
+    const src = entry.source;
+    if (typeof src !== "string") continue;
+    if (src.startsWith("core/skills/") || src.startsWith("core/agents/")) out.add(src);
+  }
+  return [...out].sort();
+}
+
+Deno.test("every skill and agent the manifest installs is mirrored, or excused with a reason", () => {
+  const sources = installedMirrorableSources();
+
+  // A FLOOR. A manifest that failed to parse, or a filter that matched
+  // nothing, would otherwise pass this test in silence — which is the exact
+  // shape of guard this ticket exists to remove, arriving inside its own fix.
+  assertGreaterOrEqual(
+    sources.length,
+    100,
+    `the manifest yielded ${sources.length} mirrorable sources; it yielded 129 when this ` +
+      `landed, so a much smaller number means the parse broke, not that the product shrank`,
+  );
+
+  // A row in SYNC_PAIRS is a CLAIM; the file on disk is the fact. Checking
+  // membership alone, this test stayed green with `plugin/skills/board/`
+  // deleted from the tree — the rows still said it was mirrored. That is the
+  // defect this sweep exists to remove, reproduced inside the sweep itself, so
+  // the pair is only counted when its plugin file is actually there.
+  const mirrored = new Set(
+    SYNC_PAIRS
+      .filter((p) => {
+        try {
+          return Deno.statSync(abs(p.plugin)).isFile;
+        } catch {
+          return false;
+        }
+      })
+      .map((p) => p.source.replace(/^templates\//, "")),
+  );
+  const exclusions = readExclusions(
+    Deno.readTextFileSync(abs(SOURCE_EXCLUSIONS_FILE)),
+  );
+
+  const unmirrored = sources.filter((src) => {
+    if (mirrored.has(src)) return false;
+    for (const [pattern] of exclusions) {
+      if (pattern.endsWith("/") ? src.startsWith(pattern) : src === pattern) return false;
+    }
+    return true;
+  });
+
+  assertEquals(
+    unmirrored,
+    [],
+    `The product installs ${unmirrored.length} file(s) the plugin does not carry:\n` +
+      unmirrored.map((u) => `  - ${u}`).join("\n") +
+      `\n\nEither mirror them into plugin/ and add a SYNC_PAIRS row, or add a line to ` +
+      `${SOURCE_EXCLUSIONS_FILE} saying why the plugin should not carry them.`,
+  );
+});
+
+Deno.test("every source exclusion names something the manifest actually installs", () => {
+  // The exclusion list's own hygiene, in the direction nobody checks: an entry
+  // for a path the product no longer ships excuses nothing while looking like
+  // it does, and it hides the day that path comes back.
+  const sources = installedMirrorableSources();
+  const exclusions = readExclusions(
+    Deno.readTextFileSync(abs(SOURCE_EXCLUSIONS_FILE)),
+  );
+  const orphans = [...exclusions.keys()].filter((pattern) =>
+    !sources.some((s) => (pattern.endsWith("/") ? s.startsWith(pattern) : s === pattern))
+  );
+  assertEquals(
+    orphans,
+    [],
+    `excused, but the manifest installs no such file:\n${orphans.join("\n")}`,
+  );
+});
