@@ -1,5 +1,6 @@
-import { assertEquals } from "@std/assert";
-import { fromFileUrl } from "@std/path";
+import { assertEquals, assertGreaterOrEqual } from "@std/assert";
+import { fromFileUrl, relative } from "@std/path";
+import { walk } from "@std/fs";
 
 /**
  * Plugin → source-of-truth byte-identical contract.
@@ -41,6 +42,20 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     "audit-accessibility",
     "audit-architecture",
     "audit-dependencies",
+    // Seven docs the list had never claimed, found by the completeness sweep
+    // (monorepo#32). All seven were already byte-identical to their sources —
+    // correct by luck, since nothing compared them. `auto-chain` is the
+    // contract the router loads when it chains; the `epic-*` and `merge-*`
+    // docs and `quality-gates` are loaded by `merge` and `implement`. Every
+    // one of them is a mirror; the only reason they were absent is that
+    // nobody added them.
+    "auto-chain",
+    "epic-commits",
+    "epic-fixups",
+    "epic-loop",
+    "merge-close",
+    "merge-squash",
+    "quality-gates",
   ].map((name) => ({
     plugin: `plugin/skills/specnaut/phases/${name}.md`,
     source: `templates/core/skills/specnaut/phases/${name}.md`,
@@ -112,6 +127,11 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     "alert-triage-contract",
     "backlog-frontmatter",
     "specnaut-facts",
+    // Also found by the completeness sweep, and also already identical. #547
+    // is the reason its own basename could not have caught this: every skill
+    // file is named SKILL.md, so the token that identifies it is the runtime
+    // path, not the name.
+    "backlog-reference-contract",
   ].map((name) => ({
     plugin: `plugin/skills/${name}/SKILL.md`,
     source: `templates/core/skills/${name}/SKILL.md`,
@@ -204,6 +224,116 @@ for (const pair of SYNC_PAIRS) {
     );
   });
 }
+
+// ─── The completeness sweep (monorepo#32) ───────────────────────────────
+//
+// SYNC_PAIRS asserts that every listed pair is byte-identical. Nothing asserted
+// that the list COVERS `plugin/`, so an asset added without a row was governed
+// by nothing and the suite stayed green — a coverage map measuring its own
+// claims rather than its tree. Measured when this landed: 65 Markdown assets,
+// 56 pairs, 9 covered by nothing, eight of the nine genuine mirrors that
+// happened to be byte-identical. Correct by luck, not by guard.
+//
+// The population is EVERY file under `plugin/`, and the reason that is not a
+// glob lives in `mirror-exclusions.txt`'s header.
+
+const EXCLUSIONS_FILE = "tests/plugin/mirror-exclusions.txt";
+
+/** One exclusion entry: a path, and the written reason that makes it one. */
+function readExclusions(): Map<string, string> {
+  const out = new Map<string, string>();
+  const raw = Deno.readTextFileSync(abs(EXCLUSIONS_FILE));
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+    const m = trimmed.match(/^(\S+)\s+(.*)$/);
+    // An entry with no written reason is NOT an entry. Deliberately dropped
+    // rather than reported here: the sweep below then names the file as
+    // uncovered, which is the right verdict and the right message. This is the
+    // same refusal `scripts/smoke/coverage-allowlist.txt` applies.
+    if (!m || m[2].trim() === "") continue;
+    out.set(m[1], m[2].trim());
+  }
+  return out;
+}
+
+Deno.test("every file under plugin/ is either mirrored or excluded with a reason", async () => {
+  const root = abs("plugin");
+  const exclusions = readExclusions();
+  const paired = new Set(SYNC_PAIRS.map((p) => p.plugin));
+
+  const assets: string[] = [];
+  for await (
+    // followSymlinks stays false — the default. `deno task test` runs with an
+    // unscoped --allow-read, so the runtime adds no second boundary and the
+    // walk's own configuration is the only one. Each path is checked to resolve
+    // INSIDE the root before it is reported: resolve then verify containment,
+    // never strip "..".
+    const entry of walk(root, { includeDirs: false, followSymlinks: false })
+  ) {
+    const rel = relative(abs(""), entry.path);
+    if (rel.startsWith("..")) {
+      throw new Error(
+        `plugin walk escaped the repository root: ${entry.path}. ` +
+          `followSymlinks must stay false.`,
+      );
+    }
+    assets.push(rel);
+  }
+
+  // The floor. A walk that resolves the wrong root, or yields nothing, would
+  // otherwise report zero uncovered and pass — reporting coverage that does not
+  // exist, which is the class this sweep exists to close. The bound is derived
+  // from SYNC_PAIRS' own length, so it cannot go stale: there cannot be fewer
+  // assets on disk than there are pairs claiming to point at them.
+  assertGreaterOrEqual(
+    assets.length,
+    SYNC_PAIRS.length,
+    `The plugin walk found ${assets.length} asset(s) but SYNC_PAIRS holds ` +
+      `${SYNC_PAIRS.length} pair(s). That is a failed walk, not a clean tree.`,
+  );
+
+  const uncovered = assets
+    .filter((a) => !paired.has(a) && !exclusions.has(a))
+    .sort();
+
+  assertEquals(
+    uncovered,
+    [],
+    `${uncovered.length} plugin asset(s) are governed by nothing — neither a ` +
+      `SYNC_PAIRS row nor an entry in ${EXCLUSIONS_FILE}:\n` +
+      uncovered.map((u) => `  - ${u}`).join("\n") +
+      `\n\nAdd a pair if the file mirrors one under templates/core/, or an ` +
+      `exclusion WITH A WRITTEN REASON if it does not. An entry carrying no ` +
+      `reason is not an entry and will not clear this.`,
+  );
+});
+
+Deno.test("no exclusion entry excuses a file that no longer exists", () => {
+  // `scripts/smoke/audit.sh` scans its allow-list for this and treats it as
+  // fatal; `scripts/check-scaffold-drift.sh` in the monorepo never had the scan
+  // and its absence went unnoticed for as long as the list happened to be
+  // clean. This is the third reader of that rule and it is not going to be the
+  // second copy that loses it.
+  const stale = [...readExclusions().keys()]
+    .filter((path) => {
+      try {
+        Deno.statSync(abs(path));
+        return false;
+      } catch {
+        return true;
+      }
+    })
+    .sort();
+  assertEquals(
+    stale,
+    [],
+    `${stale.length} exclusion entr(y/ies) name a file that no longer exists:\n` +
+      stale.map((s) => `  - ${s}`).join("\n") +
+      `\n\nPrune them. An entry that excuses nothing while looking like it ` +
+      `does is exactly what this sweep exists to remove.`,
+  );
+});
 
 Deno.test(
   "plugin/.claude-plugin/plugin.json declares name 'specnaut-plugin'",
