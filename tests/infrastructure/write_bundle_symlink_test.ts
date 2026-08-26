@@ -158,3 +158,68 @@ Deno.test({
     }
   },
 });
+
+Deno.test({
+  name: "a backup that moved a LINK says so, instead of claiming it saved content",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    // The accounting, not the rename (cli#574). `Deno.rename` moves the link,
+    // so the target survives and nothing leaves the project — that part was
+    // always right. What was wrong is what the user was told: `BackupReport`
+    // recorded an ordinary backup, the handler printed "backed up", and the
+    // user's actual bytes were still at the link's target. Restoring that
+    // backup restores an arrow.
+    //
+    // Worse quietly: the moved link is now named `*.specnaut.bak`, which the
+    // scaffolded `.gitignore` excludes — so a project that had deliberately
+    // consolidated its context files onto one had that undone with no trace in
+    // the tree and no accurate line in the output.
+    const dir = await Deno.makeTempDir({ prefix: "linkbak-" });
+    try {
+      await Deno.writeTextFile(`${dir}/real.md`, "THE USER'S CONTENT");
+      await Deno.symlink(`${dir}/real.md`, `${dir}/AGENTS.md`);
+
+      const report = await new DenoFsWriter().writeBundle(
+        { "AGENTS.md": { content: "bundle", executable: false, skipIfExists: true } },
+        dir,
+        { overwrite: true, backupExisting: true },
+      );
+
+      const entry = report.backups.find((b) => b.dest === "AGENTS.md");
+      assertEquals(entry?.wasSymlink, true, "the report must say a link was moved");
+      assertEquals(
+        await Deno.readTextFile(`${dir}/real.md`),
+        "THE USER'S CONTENT",
+        "and the content the link pointed at is untouched — which is why calling this a content backup was wrong",
+      );
+      assertEquals(
+        (await Deno.lstat(`${dir}/AGENTS.md.specnaut.bak`)).isSymlink,
+        true,
+        "what sits at the .bak path is the link itself",
+      );
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name: "an ordinary backup is NOT marked as a moved link",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    // The positive control. Without it, `wasSymlink: true` on every backup
+    // satisfies the assertion above.
+    const dir = await Deno.makeTempDir({ prefix: "filebak-" });
+    try {
+      await Deno.writeTextFile(`${dir}/x.md`, "old");
+      const report = await new DenoFsWriter().writeBundle(
+        { "x.md": { content: "new", executable: false } },
+        dir,
+        { overwrite: true, backupExisting: true },
+      );
+      assertEquals(report.backups[0]?.wasSymlink, undefined);
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  },
+});

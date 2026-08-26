@@ -617,6 +617,17 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
       console.log(dim(`↳ backed up ${b} → ${b}.specnaut.bak`));
     }
   }
+  if (result.linksMoved.length > 0) {
+    console.log();
+    for (const b of result.linksMoved) {
+      console.log(
+        dim(
+          `↳ ${b} was a SYMLINK — the link was moved to ${b}.specnaut.bak, not its content.\n` +
+            `  Your file is still where the link pointed. Restoring the backup restores a pointer.`,
+        ),
+      );
+    }
+  }
   console.log();
   console.log(green(`✓ upgraded to templates ${result.fromVersion} → ${result.toVersion}`));
 

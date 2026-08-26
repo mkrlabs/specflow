@@ -1,0 +1,16 @@
+# Modules that mutate the filesystem and are NOT bound by the project-containment
+# rule (cli#574). Every line is `<path><whitespace><reason>`, and a reason must
+# be a fact about the file — not a date, and not "checked, fine".
+#
+# The sweep beside this file fails on a mutating module that is neither guarded
+# nor listed here. That is the whole point: nine modules mutated the filesystem
+# when this rule was written and the first version of the plan hardened two, so
+# the rule needed a membership test rather than a longer list.
+#
+# Before adding a line: the question is not "is this file dangerous" but "does
+# it build a path from a PROJECT directory". If it does, guard it.
+
+src/infrastructure/credential_store.ts  writes under the user's own config directory, resolved from the environment and never from a project path — a project cannot influence where it lands
+src/infrastructure/github_api.ts  writes beside the RUNNING BINARY during self-update; the path comes from Deno.execPath(), not from any project
+src/domain/cloud/cloud_config.ts  writes under a project, but the guard sits at its CLI call site on purpose: this module is in the domain and already performs IO, and importing infrastructure here would turn a smell into a compile-time dependency edge
+src/infrastructure/fs_legacy_migrator.ts  refuses a symlinked .specflow/.specnaut with lstat BEFORE renaming, which is a stronger check than containment: it is the file that CREATES the out-of-project condition rather than one that walks into it

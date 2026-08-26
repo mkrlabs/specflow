@@ -23,6 +23,8 @@ export type InitResult =
     filesMerged: string[];
     warnings: string[];
     backups: string[];
+    /** Backups that moved a SYMLINK rather than content (cli#574). */
+    linksMoved: string[];
     lockWritten: boolean;
     /**
      * Destination paths skipped from the WRITE set because they were declared
@@ -174,6 +176,7 @@ export class InitProjectUseCase {
         filesMerged: mergedPaths,
         warnings,
         backups: [],
+        linksMoved: [],
         lockWritten: false,
         preserved,
       };
@@ -259,7 +262,8 @@ export class InitProjectUseCase {
       filesWritten: writtenCount,
       filesMerged: mergedPaths,
       warnings,
-      backups: report.backups.map((b) => b.dest),
+      backups: report.backups.filter((b) => b.wasSymlink !== true).map((b) => b.dest),
+      linksMoved: report.backups.filter((b) => b.wasSymlink === true).map((b) => b.dest),
       lockWritten: true,
       preserved,
     };

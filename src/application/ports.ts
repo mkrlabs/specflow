@@ -19,7 +19,18 @@ export interface FsWriter {
 }
 
 export type BackupReport = {
-  readonly backups: ReadonlyArray<{ readonly dest: string; readonly backupPath: string }>;
+  /**
+   * `wasSymlink` marks a backup that moved a LINK rather than file content
+   * (cli#574). `Deno.rename` operates on the link, so the user's actual bytes
+   * are still at the target and restoring this backup restores a pointer.
+   * Reporting it as an ordinary backup told the user their file was saved when
+   * what was saved was an arrow — and the moved link lands under
+   * `*.specnaut.bak`, which the scaffolded `.gitignore` hides, so the project's
+   * deliberate consolidation was dismantled without a trace.
+   */
+  readonly backups: ReadonlyArray<
+    { readonly dest: string; readonly backupPath: string; readonly wasSymlink?: true }
+  >;
   /**
    * Dests that were silently skipped because the file pre-existed AND the
    * bundle entry had `skipIfExists: true` (placeholder semantics — the

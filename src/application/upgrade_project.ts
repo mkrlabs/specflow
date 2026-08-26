@@ -1,4 +1,11 @@
-import type { FsReader, FsWriter, Harness, LockStore, PluginDetector } from "./ports.ts";
+import type {
+  BackupReport,
+  FsReader,
+  FsWriter,
+  Harness,
+  LockStore,
+  PluginDetector,
+} from "./ports.ts";
 import type { Bundle, TemplateFile } from "../domain/template.ts";
 import { sha256Hex } from "../domain/sha256.ts";
 import type { InstalledLock, LockEntry } from "../domain/installed_lock.ts";
@@ -76,6 +83,8 @@ export type UpgradeProjectResult =
     fromVersion: string;
     toVersion: string;
     backups: ReadonlyArray<string>;
+    /** Backups that moved a SYMLINK rather than content (cli#574). */
+    linksMoved: ReadonlyArray<string>;
     managedSections: ReadonlyArray<ManagedSectionOutcome>;
     /**
      * Dests whose content this run actually wrote from the bundle.
@@ -428,7 +437,7 @@ export class UpgradeProjectUseCase {
       )
       .map((a) => a.dest);
 
-    let extraBackups: ReadonlyArray<{ dest: string; backupPath: string }> = [];
+    let extraBackups: BackupReport["backups"] = [];
     if (cleanRemovals.length > 0) {
       const r = await writer.deletePaths(cleanRemovals, input.projectDir, {
         backupExisting: false,
@@ -568,7 +577,12 @@ export class UpgradeProjectUseCase {
       plan,
       fromVersion: lock.templatesVersion,
       toVersion: templatesVersion,
-      backups: [...backupReport.backups, ...extraBackups].map((b) => b.dest),
+      backups: [...backupReport.backups, ...extraBackups]
+        .filter((b) => b.wasSymlink !== true)
+        .map((b) => b.dest),
+      linksMoved: [...backupReport.backups, ...extraBackups]
+        .filter((b) => b.wasSymlink === true)
+        .map((b) => b.dest),
       managedSections: appliedSections,
       written: Object.keys(toWrite).sort(),
     };

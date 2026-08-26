@@ -593,6 +593,14 @@ export async function runInit(intent: InitIntent): Promise<number> {
     }
   }
   for (const b of result.backups) console.log(dim(`↳ backed up ${b} → ${b}.specnaut.bak`));
+  for (const b of result.linksMoved) {
+    console.log(
+      dim(
+        `↳ ${b} was a SYMLINK — the link was moved to ${b}.specnaut.bak, not its content.\n` +
+          `  Your file is still where the link pointed. Restoring the backup restores a pointer.`,
+      ),
+    );
+  }
   const mergedSuffix = result.filesMerged.length > 0
     ? ` (+ merged: ${result.filesMerged.join(", ")})`
     : "";

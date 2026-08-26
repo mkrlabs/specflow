@@ -241,8 +241,14 @@ export class DenoFsWriter implements FsWriter {
       }
 
       if (backupExisting && (await fileExists(abs))) {
+        // Read BEFORE the rename — afterwards there is nothing at `abs` to ask.
+        const wasSymlink = await isSymlink(abs);
         const suffix = await backupAside(abs);
-        backups.push({ dest, backupPath: `${dest}${suffix}` });
+        backups.push({
+          dest,
+          backupPath: `${dest}${suffix}`,
+          ...(wasSymlink ? { wasSymlink: true as const } : {}),
+        });
       }
 
       await Deno.writeTextFile(abs, file.content);
@@ -283,8 +289,13 @@ export class DenoFsWriter implements FsWriter {
       await assertInsideProject(root, abs);
 
       if (options.backupExisting) {
+        const wasSymlink = await isSymlink(abs);
         const suffix = await backupAside(abs);
-        backups.push({ dest, backupPath: `${dest}${suffix}` });
+        backups.push({
+          dest,
+          backupPath: `${dest}${suffix}`,
+          ...(wasSymlink ? { wasSymlink: true as const } : {}),
+        });
       } else {
         await Deno.remove(abs);
         emptied.add(dirname(abs));
