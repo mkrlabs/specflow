@@ -46,37 +46,87 @@ exit 0
 const SEP = Deno.build.os === "windows" ? ";" : ":";
 
 /**
- * The inherited PATH with every directory that actually contains `gh` removed.
+ * A PATH that reaches the stubbed `gh` and the platform's own tools.
  *
- * Two requirements pull against each other. The scripts need the platform's
- * own `sed` / `tr` / `awk`, so the environment cannot simply be cleared — an
- * earlier version hard-coded `/usr/bin:/bin`, which is meaningless on
- * windows-latest where `bash` is Git Bash, and all seven cases failed there
- * for a reason unrelated to the guard. But the "gh is absent" case needs `gh`
- * to be genuinely unreachable, and merely PREPENDING a stub directory does not
- * make it so on a developer machine that has the real one installed — the
- * skip-path assertion then exercises the real `gh` against a fake project
- * number and fails for the opposite wrong reason.
+ * Two earlier versions were wrong in opposite directions, and both were caught
+ * by a runner rather than by a local run:
  *
- * Filtering is what satisfies both, and it is exact rather than approximate:
- * a directory is dropped only if the executable is really in it.
+ *   - `clearEnv` with a hard-coded `/usr/bin:/bin` broke windows-latest, where
+ *     `bash` is Git Bash and those directories mean nothing.
+ *   - Filtering out every directory that CONTAINS `gh` broke ubuntu, where
+ *     `gh` lives in `/usr/bin` — so dropping that directory took `awk`, `sed`
+ *     and `tr` with it. A blunt exclusion removes far more than it names.
+ *
+ * Prepending is enough for every case that WANTS a `gh`: the stub shadows any
+ * real one. The absent-`gh` case is handled by `emptyBin()` below instead,
+ * because PATH surgery cannot express "absent" without collateral damage.
  */
-function pathWithoutRealGh(): string {
-  const names = Deno.build.os === "windows" ? ["gh.exe", "gh.cmd", "gh"] : ["gh"];
-  return (Deno.env.get("PATH") ?? "")
-    .split(SEP)
-    .filter((dir) => {
-      if (dir.length === 0) return false;
-      return !names.some((n) => {
-        try {
-          return Deno.statSync(join(dir, n)).isFile;
-        } catch {
-          return false;
-        }
-      });
-    })
-    .join(SEP);
+function pathWithStub(binDir: string): string {
+  return `${binDir}${SEP}${Deno.env.get("PATH") ?? ""}`;
 }
+
+/** Absolute path of `name` on the inherited PATH, or null. */
+function whichOnPath(name: string): string | null {
+  for (const dir of (Deno.env.get("PATH") ?? "").split(SEP)) {
+    if (dir.length === 0) continue;
+    for (const candidate of [name, `${name}.exe`]) {
+      try {
+        if (Deno.statSync(join(dir, candidate)).isFile) return join(dir, candidate);
+      } catch { /* not here */ }
+    }
+  }
+  return null;
+}
+
+/**
+ * The only tools `_config.sh` uses before `require_project` reaches its
+ * `command -v gh` line. Copying exactly these into an otherwise empty
+ * directory is what lets the absent-`gh` case be tested honestly: `gh` is
+ * genuinely unreachable, and nothing else the script needs went missing with
+ * it. If the config reader grows a new dependency this list must grow too —
+ * the failure would be loud, naming the missing program.
+ */
+/**
+ * `bash`'s absolute path, resolved once against the INHERITED PATH.
+ *
+ * `Deno.Command("bash", { env: { PATH } })` resolves the program name against
+ * the CHILD's PATH, so the absent-`gh` case — which hands the child a directory
+ * holding two programs — could not spawn a shell at all. Resolving here keeps
+ * "what PATH the script sees" independent of "which shell runs it".
+ */
+function bashPath(): string {
+  return whichOnPath("bash") ?? "bash";
+}
+
+/** Symlink where the platform allows it, copy where it does not. */
+async function link(src: string, dest: string): Promise<void> {
+  try {
+    await Deno.symlink(src, dest);
+  } catch {
+    await Deno.copyFile(src, dest);
+    await Deno.chmod(dest, 0o755);
+  }
+}
+
+/** Run an arbitrary script with an explicit PATH, returning both streams. */
+async function runScript(
+  script: string,
+  args: string[],
+  path: string,
+  cwd: string,
+): Promise<{ stdout: string; stderr: string }> {
+  const { stdout, stderr } = await new Deno.Command(bashPath(), {
+    args: [script, ...args],
+    cwd,
+    env: { PATH: path },
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  const d = new TextDecoder();
+  return { stdout: d.decode(stdout), stderr: d.decode(stderr) };
+}
+
+const TOOLS_BEFORE_THE_GUARD = ["awk", "dirname"];
 
 interface Box {
   dir: string;
@@ -110,6 +160,7 @@ async function run(
   b: Box,
   script: string,
   args: string[],
+  pathOverride?: string,
 ): Promise<{ code: number; stderr: string }> {
   // The stub directory is PREPENDED to the inherited PATH rather than
   // replacing it. An earlier version cleared the environment and hard-coded
@@ -118,10 +169,10 @@ async function run(
   // `tr` or `gh` — so all seven cases failed for a reason that had nothing to
   // do with the guard. Prepending keeps the stub authoritative for `gh` while
   // the platform's own tools stay reachable.
-  const { code, stderr } = await new Deno.Command("bash", {
+  const { code, stderr } = await new Deno.Command(bashPath(), {
     args: [b.script(script), ...args],
     cwd: b.dir,
-    env: { PATH: `${b.binDir}${SEP}${pathWithoutRealGh()}` },
+    env: { PATH: pathOverride ?? pathWithStub(b.binDir) },
     stdout: "piped",
     stderr: "piped",
   }).output();
@@ -182,11 +233,43 @@ Deno.test("require_project: a resolving project is not the guard's business", as
 
 Deno.test("require_project: a missing gh is not a config error", async () => {
   // Skipping when the tool is absent is the guard's stated contract: the
-  // callers report a missing `gh` themselves, and turning that into
-  // "your project number is wrong" would send the user to fix the wrong file.
+  // callers report a missing `gh` themselves, and turning that into "your
+  // project number is wrong" would send the user to fix the wrong file.
+  //
+  // Proved POSITIVELY, with a marker the guard has to return in order to
+  // reach. The first version of this test asserted only that the guard's
+  // message was ABSENT, and it stayed green with BOTH skip lines deleted from
+  // `_config.sh` — because the script was dying at its `. _config.sh` line
+  // and never reaching the guard at all. An absence proves nothing about a
+  // path that was never taken.
+  //
+  // "Absent" is built rather than filtered: the child gets a PATH holding
+  // nothing but SYMLINKS to the two programs the config reader needs before
+  // `command -v gh`. Symlinks, not copies — a copied system binary on macOS
+  // loses its signature and fails to execute, which is precisely how the
+  // earlier version died silently inside a command substitution.
   const b = await box(null);
   try {
-    const { stderr } = await run(b, "move.sh", ["1", "Done"]);
+    const onlyBin = join(b.dir, "onlybin");
+    await Deno.mkdir(onlyBin);
+    for (const tool of TOOLS_BEFORE_THE_GUARD) {
+      const src = whichOnPath(tool);
+      assert(src !== null, `${tool} is not on PATH — this harness cannot run here`);
+      await link(src, join(onlyBin, tool));
+    }
+
+    const driver = join(b.dir, ".specnaut/scripts/backlog/_probe.sh");
+    await Deno.writeTextFile(
+      driver,
+      '. "$(dirname "$0")/_config.sh"\nrequire_project\necho GUARD_RETURNED\n',
+    );
+
+    const { stdout, stderr } = await runScript(driver, [], onlyBin, b.dir);
+    assert(
+      stdout.includes("GUARD_RETURNED"),
+      `the guard did not return — with no gh on PATH it must skip, not exit. ` +
+        `stdout: ${JSON.stringify(stdout)} stderr: ${JSON.stringify(stderr)}`,
+    );
     assert(
       !stderr.includes("does not resolve"),
       `a missing gh must not become a config error, got: ${JSON.stringify(stderr)}`,
