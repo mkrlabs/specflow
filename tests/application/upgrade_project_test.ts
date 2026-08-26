@@ -86,13 +86,25 @@ function fakeHarness(): Harness {
     key: "claude",
     displayName: "Claude Code (fake)",
     mapBundle: (core) => {
-      const out: Record<string, { content: string; executable: boolean }> = {};
+      // Flags are carried through, not dropped. The first version copied only
+      // `content` and `executable`, so `skipIfExists`, `mergeBlock` and
+      // `managedSection` were unreachable at this layer — every branch keyed on
+      // them was untestable here, and a test that tried read as passing while
+      // exercising nothing.
+      const out: Record<string, Record<string, unknown>> = {};
       for (const e of core) {
+        const entry = e as unknown as Record<string, unknown>;
         if (e.category === "project-root" && e.suffix) {
-          out[e.suffix] = { content: e.content, executable: e.executable };
+          out[e.suffix] = {
+            content: e.content,
+            executable: e.executable,
+            ...(entry.skipIfExists !== undefined ? { skipIfExists: entry.skipIfExists } : {}),
+            ...(entry.mergeBlock !== undefined ? { mergeBlock: entry.mergeBlock } : {}),
+            ...(entry.managedSection !== undefined ? { managedSection: entry.managedSection } : {}),
+          };
         }
       }
-      return out;
+      return out as never;
     },
   };
 }
@@ -1137,5 +1149,246 @@ Deno.test(
       await sha256Hex(absent),
       "an absent entry is healed, not skipped — otherwise the rewrite repeats forever",
     );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase does not stage a preserve the lock cannot speak for",
+  async () => {
+    // `ReconcilePathUseCase` answers `no-lock-entry` for a dest the lock does
+    // not carry, so staging one produces a path `reconcile --status` lists
+    // forever and `reconcile <path>` refuses. Since #572 an unwritten preserve
+    // with no prior entry deliberately gets no entry — which is exactly the
+    // population that would strand there.
+    const userEdit = "the user's own edit";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "1.12.0",
+      entries: new Map(),
+    };
+    const writer = fakeWriter();
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": userEdit }),
+      writer,
+      lockStore: fakeLockStore(lock),
+      core: coreFromBundle({ "a.md": { content: "shipped", executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+    assertEquals(
+      writer.written.has(".specnaut/upgrade-staging/a.md"),
+      false,
+      "nothing is staged for a reconcile that would reject it",
+    );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase's up-to-date path derives its entries instead of copying them",
+  async () => {
+    // The `staleVersion` clause made this branch the ordinary post-release
+    // path, and it used to carry `lock.entries` verbatim — so an orphan row the
+    // bundle no longer contains survived here while the rebuild loop dropped
+    // it. Two lock builders, opposite rules, and the common one had the laxer
+    // set.
+    const content = "current";
+    const sha = await sha256Hex(content);
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "2.0.1",
+      entries: new Map([
+        ["a.md", {
+          sha256: sha,
+          installedAt: "2026-05-26T00:00:00Z",
+          templatesVersion: "2.0.1",
+        }],
+        // A row for a dest the bundle no longer ships.
+        ["gone.md", {
+          sha256: await sha256Hex("removed upstream"),
+          installedAt: "2026-05-26T00:00:00Z",
+          templatesVersion: "1.12.0",
+        }],
+      ]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+
+    const entries = store.last?.entries;
+    assert(entries !== undefined);
+    assertEquals(
+      entries.has("gone.md"),
+      false,
+      "a row the bundle no longer carries is dropped here too",
+    );
+    // And the entry-level version advances with the header, so `staleSince`
+    // cannot fire on a file that was never behind.
+    assertEquals(entries.get("a.md")?.templatesVersion, "4.0.1");
+    assertEquals(entries.get("a.md")?.installedAt, "2026-05-26T00:00:00Z");
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase's two lock paths agree on the entry version",
+  async () => {
+    // The same state, run through both builders, must produce the same entry.
+    // It did not: the early return keyed its repair on the sha alone, so an
+    // entry could keep a lagging `templatesVersion` while the header advanced —
+    // which makes `staleSince` report "behind since 1.12.0" about a file that
+    // matches the bundle, and `--reset-baseline` is bounded by exactly that
+    // predicate.
+    const stable = "stable";
+    const stableSha = await sha256Hex(stable);
+    const mkLock = (): InstalledLock => ({
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "1.12.0",
+      entries: new Map([["stable.md", {
+        sha256: stableSha,
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "1.12.0",
+      }]]),
+    });
+
+    // Path A: everything unchanged -> the up-to-date early return.
+    const storeA = fakeLockStore(mkLock());
+    await new UpgradeProjectUseCase({
+      reader: fakeReader({ "stable.md": stable }),
+      writer: fakeWriter(),
+      lockStore: storeA,
+      core: coreFromBundle({ "stable.md": { content: stable, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    }).execute({ projectDir: "/p", dryRun: false, force: false });
+
+    // Path B: the same dest, on a run that also has real work -> the rebuild loop.
+    const base = mkLock();
+    const lockB: InstalledLock = {
+      ...base,
+      entries: new Map([
+        ...base.entries,
+        ["moving.md", {
+          sha256: await sha256Hex("old"),
+          installedAt: "2026-05-26T00:00:00Z",
+          templatesVersion: "1.12.0",
+        }],
+      ]),
+    };
+    const storeB = fakeLockStore(lockB);
+    await new UpgradeProjectUseCase({
+      reader: fakeReader({ "stable.md": stable, "moving.md": "old" }),
+      writer: fakeWriter(),
+      lockStore: storeB,
+      core: coreFromBundle({
+        "stable.md": { content: stable, executable: false },
+        "moving.md": { content: "new", executable: false },
+      }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    }).execute({ projectDir: "/p", dryRun: false, force: false });
+
+    assertEquals(
+      storeA.last?.entries.get("stable.md"),
+      storeB.last?.entries.get("stable.md"),
+      "identical state must produce an identical entry, whichever path built it",
+    );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase does not adopt a skipIfExists file on the up-to-date path",
+  async () => {
+    // The rebuild loop refuses to record a `skipIfExists` file the run did not
+    // write — it is the user's, and adopting it makes every later upgrade call
+    // it "customized" and offer to overwrite it. The up-to-date path derives
+    // its entries independently, so it needs the same refusal, and nothing
+    // tested that it had one.
+    const content = "the user's own AGENTS.md";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "2.0.1",
+      entries: new Map(),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "owned.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: [{
+        category: "project-root" as const,
+        name: "root",
+        suffix: "owned.md",
+        content,
+        executable: false,
+        skipIfExists: true,
+      }] as unknown as CoreBundle,
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+    assertEquals(
+      store.last?.entries.has("owned.md"),
+      false,
+      "a file the user already had is theirs; the lock must not adopt it",
+    );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase repairs a header that lags entries which are already current",
+  async () => {
+    // The one state `staleEntries` cannot see: every entry already carries the
+    // right sha AND the right version, and only the header is behind. Without
+    // its own clause nothing would trigger a write, and the run would keep
+    // reporting a version it does not record.
+    const content = "current";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "2.0.1",
+      entries: new Map([["a.md", {
+        sha256: await sha256Hex(content),
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "4.0.1",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+    assertEquals(store.writes, 1, "a lagging header is reason enough on its own");
+    assertEquals(store.last?.templatesVersion, "4.0.1");
   },
 );

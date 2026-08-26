@@ -110,10 +110,24 @@ export async function switchBacklogBackend(
   // escape hatch.
   const customized: string[] = [];
   for (const dest of Object.keys(partial)) {
-    const lockEntry = lock.entries.get(dest);
-    if (!lockEntry) continue;
     const onDisk = await reader.readText(projectDir, dest);
     if (onDisk === null) continue;
+    const lockEntry = lock.entries.get(dest);
+    if (!lockEntry) {
+      // FAIL CLOSED. This used to `continue`, which reads as "no entry, nothing
+      // to compare, carry on" — and carrying on means the write below runs with
+      // `backupExisting: false`. So a file the lock cannot speak for was
+      // overwritten without a backup, precisely because nothing was known about
+      // it.
+      //
+      // Since #572 an unwritten preserve with no prior entry deliberately gets
+      // no entry, which grew that population: the very files a user edited are
+      // the ones the lock stops describing. Absence of evidence is not evidence
+      // of vanilla, and `--force` is the escape hatch that already exists for a
+      // deliberate overwrite.
+      customized.push(dest);
+      continue;
+    }
     const sha = await sha256Hex(onDisk);
     if (sha !== lockEntry.sha256) customized.push(dest);
   }

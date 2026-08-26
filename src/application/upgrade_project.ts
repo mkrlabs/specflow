@@ -255,16 +255,35 @@ export class UpgradeProjectUseCase {
       // A stale entry here is not ambiguous: `unchanged` means the file equals
       // the bundle, so the bundle's sha is what the entry should have said all
       // along.
-      const staleUnchanged = plan.filter((a) =>
-        a.kind === "unchanged" &&
-        lock.entries.get(a.dest)?.sha256 !== newShas.get(a.dest)
-      ).map((a) => a.dest);
+      // Every dest here is `unchanged`, so the entry set is fully derivable:
+      // sha and version come from the bundle, `installedAt` is kept when known.
+      // Built from `newShas`, NOT from `lock.entries`, so an orphan row the
+      // bundle no longer contains is dropped — the prune the rebuild loop gets
+      // for free by iterating the same map, which this branch used to skip
+      // because it copied the lock verbatim.
+      const upToDateEntries = deriveUnchangedEntries(
+        lock.entries,
+        newShas,
+        bundle,
+        templatesVersion,
+        (this.deps.now ?? (() => new Date()))().toISOString(),
+      );
+      // Stale on EITHER axis. Keying only on the sha let an entry keep a
+      // lagging `templatesVersion` while the header advanced, which makes
+      // `staleSince` fire on a file that was never behind — and
+      // `--reset-baseline` is bounded by exactly that predicate, so a genuine
+      // user edit gets swept into an overwrite by a report that was wrong.
+      const staleEntries = [...upToDateEntries].some(([dest, e]) => {
+        const prev = lock.entries.get(dest);
+        return prev === undefined || prev.sha256 !== e.sha256 ||
+          prev.templatesVersion !== e.templatesVersion;
+      }) || [...lock.entries.keys()].some((d) => !upToDateEntries.has(d));
       const staleVersion = lock.templatesVersion !== templatesVersion;
       const staleAgentic = parentManaged &&
         [...lock.entries.keys()].some((dest) => isAgenticPath(dest));
       if (
         parentManaged !== lockParentManaged || staleAgentic ||
-        staleUnchanged.length > 0 || staleVersion
+        staleEntries || staleVersion
       ) {
         const correctedLock: InstalledLock = {
           version: 2,
@@ -274,13 +293,7 @@ export class UpgradeProjectUseCase {
           specBackend: lock.specBackend,
           specAutogen: lock.specAutogen,
           templatesVersion,
-          entries: restampUnchanged(
-            parentManaged ? pruneAgenticEntries(lock.entries) : lock.entries,
-            staleUnchanged,
-            newShas,
-            templatesVersion,
-            (this.deps.now ?? (() => new Date()))().toISOString(),
-          ),
+          entries: parentManaged ? pruneAgenticEntries(upToDateEntries) : upToDateEntries,
           ...(parentManaged ? { parentManaged: true as const } : {}),
         };
         // NOT on a dry run. `input.dryRun` is first consulted below, AFTER
@@ -321,6 +334,13 @@ export class UpgradeProjectUseCase {
       // Stage only `customized` preserves for reconcile; a declared-preserve is
       // a deliberate freeze, not a pending reconciliation.
       if (action.kind !== "preserve" || action.reason !== "customized") continue;
+      // And only if the lock can speak for it. `ReconcilePathUseCase` answers
+      // `no-lock-entry` for a dest the lock does not carry, so staging one
+      // produces a path `reconcile --status` lists forever and
+      // `reconcile <path>` refuses — a pending item no command can clear.
+      // Since #572 an unwritten preserve with no prior entry deliberately gets
+      // no entry, which is exactly the population that would strand here.
+      if (!lock.entries.has(action.dest)) continue;
       const file = bundle[action.dest];
       if (!file) continue;
       stagingWrites[`.specnaut/upgrade-staging/${action.dest}`] = file;
@@ -627,38 +647,38 @@ function managedSectionEntries(bundle: Bundle): Array<[string, string, string]> 
 }
 
 /**
- * Re-stamp the lock entries for dests the plan called `unchanged` but whose
- * recorded sha disagrees with the bundle (#572).
+ * The lock entry set for a project where every dest is `unchanged` (#572).
  *
- * `installedAt` is deliberately NOT touched: the content matches the bundle,
- * but it did not arrive now — it arrived whenever it was last written, and
- * that is what the recorded value says. Trading a known date for a false one
- * buys nothing.
+ * Derived from the BUNDLE, not copied from the previous lock, so it applies the
+ * same three rules the rebuild loop applies by iterating the same map: a dest
+ * the bundle no longer carries is dropped, a `skipIfExists` dest the run did not
+ * write is dropped, and everything else records the bundle's sha and the current
+ * version. The early return used to copy `lock.entries` verbatim and skip all
+ * three — harmless while that branch was near-unreachable, and not once
+ * `staleVersion` made it the ordinary post-release path.
+ *
+ * `installedAt` is kept when the entry existed: the content matches the bundle,
+ * but it did not arrive now, and trading a known date for a false one buys
+ * nothing.
  */
-function restampUnchanged(
-  entries: ReadonlyMap<string, LockEntry>,
-  dests: readonly string[],
+function deriveUnchangedEntries(
+  previous: ReadonlyMap<string, LockEntry>,
   newShas: Map<string, string>,
+  bundle: Bundle,
   templatesVersion: string,
   now: string,
-): ReadonlyMap<string, LockEntry> {
-  if (dests.length === 0) return entries;
-  const out = new Map(entries);
-  for (const dest of dests) {
-    const sha = newShas.get(dest);
-    if (sha === undefined) continue;
-    const existing = out.get(dest);
-    // Absent is a legitimate state here and must be HEALED, not skipped. The
-    // detection above treats `undefined !== sha` as stale, so skipping meant
-    // the lock was rewritten identically on every run and the dest stayed
-    // untracked forever — while the rebuild loop, for the identical state,
-    // adopted it. One rule, two implementations, opposite outcomes.
-    out.set(
-      dest,
-      existing === undefined
-        ? { sha256: sha, installedAt: now, templatesVersion }
-        : { ...existing, sha256: sha, templatesVersion },
-    );
+): Map<string, LockEntry> {
+  const out = new Map<string, LockEntry>();
+  for (const [dest, sha] of newShas) {
+    const existing = previous.get(dest);
+    // Same refusal as the rebuild loop: a `skipIfExists` file the user already
+    // had is theirs, and an upgrade that did not write it must not adopt it.
+    if (existing === undefined && bundle[dest]?.skipIfExists === true) continue;
+    out.set(dest, {
+      sha256: sha,
+      installedAt: existing?.installedAt ?? now,
+      templatesVersion,
+    });
   }
   return out;
 }
