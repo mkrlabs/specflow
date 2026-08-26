@@ -10792,6 +10792,47 @@ REPO_NAME="\${REPO##*/}"
 
 export REPO REPO_OWNER REPO_NAME PROJECT_NUMBER
 
+# Fail here, not four calls deeper.
+#
+# This config carries TWO independent addressing keys — \`repo:\` and
+# \`project_number:\` — and the read paths use only the first. \`list.sh\` and
+# \`view.sh\` go through \`gh issue list\` / \`gh issue view\`, which never touch the
+# project, so a wrong \`project_number\` leaves every visible command working
+# while every project WRITE is dead. Nothing says so until someone moves a
+# card, and by then the failure surfaces as a resolution error four calls
+# inside a mutation — the worst possible place to learn the config is wrong.
+#
+# So the number is checked once, when the config is read, and the message says
+# which project numbers DO exist for the owner.
+#
+# Skipped when \`gh\` is absent or unauthenticated: this must not turn a missing
+# tool into a config error, and the callers report those separately.
+require_project() {
+  command -v gh >/dev/null 2>&1 || return 0
+  gh auth status >/dev/null 2>&1 || return 0
+  if gh project view "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "error: project #\$PROJECT_NUMBER does not resolve for owner '\$REPO_OWNER'." >&2
+  echo "  configured in: \$CONFIG" >&2
+  local available
+  # \`grep -o\` per occurrence, not \`sed -n s/.*"number":\\\\([0-9]*\\\\).*/\` — \`.*\`
+  # is greedy, so on \`gh\`'s single-line JSON that captures only the LAST
+  # project and the message names one number while claiming to list them all.
+  # \`|| true\` because a no-match \`grep\` exits 1, and a failed substitution is
+  # the assignment's status: under \`set -e\` this function would die here
+  # instead of reaching the fallback message two lines down.
+  available="\$(gh project list --owner "\$REPO_OWNER" --format json 2>/dev/null |
+    grep -o '"number"[[:space:]]*:[[:space:]]*[0-9]*' |
+    sed 's/.*[^0-9]//' | tr '\\n' ' ' || true)"
+  if [ -n "\$available" ]; then
+    echo "  projects that exist for '\$REPO_OWNER': \$available" >&2
+  else
+    echo "  could not list this owner's projects — check 'gh auth status' has the 'project' scope." >&2
+  fi
+  exit 2
+}
+
 # Browser URL for one item, per \`backlog-reference-contract\`. Prints nothing
 # when it cannot be resolved — callers degrade to "#<n> — <title>" rather than
 # guessing. Never fails: a reference must never block a workflow.
@@ -10917,6 +10958,7 @@ LABELS="\${ARGS[2]:-}"
 
 # shellcheck source=./_config.sh
 . "\$(dirname "\$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 # When --parent is set, fail fast if the parent issue doesn't exist —
 # GitHub's sub_issues POST returns a confusing 404 otherwise.
@@ -11023,6 +11065,7 @@ set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "\$(dirname "\$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 if [ "\$#" -lt 2 ]; then
   echo 'usage: move.sh <number> <Status>' >&2
@@ -11367,6 +11410,7 @@ set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "\$(dirname "\$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 FIELDS_JSON=\$(gh project field-list "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" --format json)
 
@@ -11477,6 +11521,7 @@ set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "\$(dirname "\$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 if [ "\$#" -lt 3 ]; then
   echo 'usage: set-field.sh <issue-number> <Priority|Size|IssueType|StartDate|TargetDate|Estimate> <value>' >&2
@@ -11915,6 +11960,12 @@ if [ -z "\$PARENT_NUM" ]; then
 fi
 
 # 2. Resolve the project node id (lazy lookup, mirrors move.sh).
+# Deliberately NOT guarded by \`require_project\`, unlike the four
+# project-writing scripts. This hook's contract is that it always exits 0 —
+# propagation must never block the primary child move — so it cannot adopt a
+# check that exits 2. The failure still surfaces loudly: the actual write is
+# delegated to \`move.sh\`, which is guarded. What this line swallows is only the
+# node-id lookup, and an empty value degrades rather than lying.
 PROJECT_NODE_ID=\$(gh project view "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" --format json --jq '.id' 2>/dev/null) || PROJECT_NODE_ID=""
 if [ -z "\$PROJECT_NODE_ID" ]; then
   echo "::warning::propagate-parent-status: cannot resolve project node id — skipping promotion of parent #\${PARENT_NUM}" >&2
@@ -12102,6 +12153,21 @@ if [ -z "\$HOST" ] || [ -z "\$PROJECT_ID" ]; then
   echo "Edit \$CONFIG before running this command." >&2
   exit 2
 fi
+
+# No \`require_project\` guard here, and that is deliberate — do not add one to
+# "restore parity" with the GitHub backend.
+#
+# The GitHub config carries two independent addressing keys, \`repo:\` and
+# \`project_number:\`, and its read paths use only the first. That asymmetry is
+# what lets a wrong project number sit there silently while every visible
+# command works and every write is dead, so that backend checks the number once
+# when the config is read.
+#
+# This backend has one addressing key. \`project_id\` is what \`list.sh\` and
+# \`view.sh\` pass straight to \`glab issue list\` / \`glab issue view\` via --repo,
+# so a wrong value fails on the very first read, loudly, with \`glab\`'s own
+# error. There is no silent write-only path to guard, so a guard would buy
+# nothing and add a second way to fail.
 
 # \`glab\` reads the host from the GITLAB_HOST env var; the --repo flag
 # accepts either a numeric id or a "group/project" path.

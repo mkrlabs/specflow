@@ -37,6 +37,47 @@ REPO_NAME="${REPO##*/}"
 
 export REPO REPO_OWNER REPO_NAME PROJECT_NUMBER
 
+# Fail here, not four calls deeper.
+#
+# This config carries TWO independent addressing keys — `repo:` and
+# `project_number:` — and the read paths use only the first. `list.sh` and
+# `view.sh` go through `gh issue list` / `gh issue view`, which never touch the
+# project, so a wrong `project_number` leaves every visible command working
+# while every project WRITE is dead. Nothing says so until someone moves a
+# card, and by then the failure surfaces as a resolution error four calls
+# inside a mutation — the worst possible place to learn the config is wrong.
+#
+# So the number is checked once, when the config is read, and the message says
+# which project numbers DO exist for the owner.
+#
+# Skipped when `gh` is absent or unauthenticated: this must not turn a missing
+# tool into a config error, and the callers report those separately.
+require_project() {
+  command -v gh >/dev/null 2>&1 || return 0
+  gh auth status >/dev/null 2>&1 || return 0
+  if gh project view "$PROJECT_NUMBER" --owner "$REPO_OWNER" >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "error: project #$PROJECT_NUMBER does not resolve for owner '$REPO_OWNER'." >&2
+  echo "  configured in: $CONFIG" >&2
+  local available
+  # `grep -o` per occurrence, not `sed -n s/.*"number":\\([0-9]*\\).*/` — `.*`
+  # is greedy, so on `gh`'s single-line JSON that captures only the LAST
+  # project and the message names one number while claiming to list them all.
+  # `|| true` because a no-match `grep` exits 1, and a failed substitution is
+  # the assignment's status: under `set -e` this function would die here
+  # instead of reaching the fallback message two lines down.
+  available="$(gh project list --owner "$REPO_OWNER" --format json 2>/dev/null |
+    grep -o '"number"[[:space:]]*:[[:space:]]*[0-9]*' |
+    sed 's/.*[^0-9]//' | tr '\n' ' ' || true)"
+  if [ -n "$available" ]; then
+    echo "  projects that exist for '$REPO_OWNER': $available" >&2
+  else
+    echo "  could not list this owner's projects — check 'gh auth status' has the 'project' scope." >&2
+  fi
+  exit 2
+}
+
 # Browser URL for one item, per `backlog-reference-contract`. Prints nothing
 # when it cannot be resolved — callers degrade to "#<n> — <title>" rather than
 # guessing. Never fails: a reference must never block a workflow.

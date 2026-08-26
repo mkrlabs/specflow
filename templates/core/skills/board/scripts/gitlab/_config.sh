@@ -31,6 +31,21 @@ if [ -z "$HOST" ] || [ -z "$PROJECT_ID" ]; then
   exit 2
 fi
 
+# No `require_project` guard here, and that is deliberate — do not add one to
+# "restore parity" with the GitHub backend.
+#
+# The GitHub config carries two independent addressing keys, `repo:` and
+# `project_number:`, and its read paths use only the first. That asymmetry is
+# what lets a wrong project number sit there silently while every visible
+# command works and every write is dead, so that backend checks the number once
+# when the config is read.
+#
+# This backend has one addressing key. `project_id` is what `list.sh` and
+# `view.sh` pass straight to `glab issue list` / `glab issue view` via --repo,
+# so a wrong value fails on the very first read, loudly, with `glab`'s own
+# error. There is no silent write-only path to guard, so a guard would buy
+# nothing and add a second way to fail.
+
 # `glab` reads the host from the GITLAB_HOST env var; the --repo flag
 # accepts either a numeric id or a "group/project" path.
 export GITLAB_HOST="$HOST"

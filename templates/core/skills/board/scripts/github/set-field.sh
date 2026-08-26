@@ -39,6 +39,7 @@ set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "$(dirname "$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 if [ "$#" -lt 3 ]; then
   echo 'usage: set-field.sh <issue-number> <Priority|Size|IssueType|StartDate|TargetDate|Estimate> <value>' >&2

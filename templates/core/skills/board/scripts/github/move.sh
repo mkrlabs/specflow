@@ -11,6 +11,7 @@ set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "$(dirname "$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 if [ "$#" -lt 2 ]; then
   echo 'usage: move.sh <number> <Status>' >&2

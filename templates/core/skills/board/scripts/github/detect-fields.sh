@@ -15,6 +15,7 @@ set -euo pipefail
 
 # shellcheck source=./_config.sh
 . "$(dirname "$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 FIELDS_JSON=$(gh project field-list "$PROJECT_NUMBER" --owner "$REPO_OWNER" --format json)
 

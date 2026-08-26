@@ -47,6 +47,7 @@ LABELS="${ARGS[2]:-}"
 
 # shellcheck source=./_config.sh
 . "$(dirname "$0")/_config.sh"
+require_project   # a project that does not resolve fails here, not mid-write
 
 # When --parent is set, fail fast if the parent issue doesn't exist —
 # GitHub's sub_issues POST returns a confusing 404 otherwise.

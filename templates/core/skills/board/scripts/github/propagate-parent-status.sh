@@ -79,6 +79,12 @@ if [ -z "$PARENT_NUM" ]; then
 fi
 
 # 2. Resolve the project node id (lazy lookup, mirrors move.sh).
+# Deliberately NOT guarded by `require_project`, unlike the four
+# project-writing scripts. This hook's contract is that it always exits 0 —
+# propagation must never block the primary child move — so it cannot adopt a
+# check that exits 2. The failure still surfaces loudly: the actual write is
+# delegated to `move.sh`, which is guarded. What this line swallows is only the
+# node-id lookup, and an empty value degrades rather than lying.
 PROJECT_NODE_ID=$(gh project view "$PROJECT_NUMBER" --owner "$REPO_OWNER" --format json --jq '.id' 2>/dev/null) || PROJECT_NODE_ID=""
 if [ -z "$PROJECT_NODE_ID" ]; then
   echo "::warning::propagate-parent-status: cannot resolve project node id — skipping promotion of parent #${PARENT_NUM}" >&2
