@@ -1521,3 +1521,60 @@ Deno.test(
     assertEquals(store.last?.entries.has("gone.md"), false);
   },
 );
+
+Deno.test(
+  "UpgradeProjectUseCase adopts an untracked dest that already holds the bundle's bytes",
+  async () => {
+    // The `!matchesBundle` conjunct of the no-entry refusal, isolated. The
+    // refusal exists so an unwritten dest is never described by an entry that
+    // did not come from it — but a file whose bytes ARE the bundle's is
+    // described truthfully by the bundle's sha, and it reaches this branch as
+    // `unchanged` (the plan tests `diskSha === newSha` before it tests the
+    // lock, so a byte-identical file is `unchanged` whether or not it is
+    // tracked). Dropping the conjunct refuses those too, and the project keeps
+    // a file Specnaut ships permanently outside the lock: no `auto-update`
+    // when the template moves on, and a `customized` preserve the first time
+    // it does. Every other fixture here has either an entry or a diverged
+    // disk, so the conjunct had no witness and its removal left the suite
+    // green.
+    const content = "identical to the bundle";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "2.0.1",
+      // No entry for `a.md` — the state this branch heals.
+      entries: new Map(),
+    };
+    const store = fakeLockStore(lock);
+    await new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      // `b.md` is absent from disk, so the plan is not all-`unchanged` and the
+      // run goes through the rebuild loop rather than the up-to-date early
+      // return. Without it this fixture exercises `deriveUnchangedEntries`,
+      // which reaches the same conclusion by a different route — and the
+      // conjunct under test stays unwatched.
+      core: coreFromBundle({
+        "a.md": { content, executable: false },
+        "b.md": { content: "new upstream", executable: false },
+      }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    }).execute({ projectDir: "/p", dryRun: false, force: false });
+
+    assertEquals(
+      store.last?.entries.get("a.md")?.sha256,
+      await sha256Hex(content),
+      "an untracked file holding the bundle's bytes is adopted, at the bundle's sha",
+    );
+    assertEquals(
+      store.last?.entries.get("a.md")?.templatesVersion,
+      "4.0.1",
+      "and at this run's templates version — the content is this bundle's",
+    );
+  },
+);

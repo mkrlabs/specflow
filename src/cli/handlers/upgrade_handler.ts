@@ -41,6 +41,17 @@ export type UpgradeIntent = {
   resetPreserved: boolean;
 };
 
+type SwitchResult = {
+  readonly switched: boolean;
+  readonly from: BacklogBackend;
+  /**
+   * Project-relative paths of every `.specnaut.bak` this switch left behind —
+   * from the overwrites AND from the deletes. The caller prints them; the
+   * function itself never writes to stdout.
+   */
+  readonly backups: ReadonlyArray<string>;
+};
+
 /**
  * One-shot routine: switch the recorded backlog backend, re-render the
  * bundled backlog skill files for the new backend, and update the lock.
@@ -59,7 +70,7 @@ export async function switchBacklogBackend(
    * worse than one naming none: it sends the reader in a circle.
    */
   force = false,
-): Promise<{ switched: boolean; from: BacklogBackend }> {
+): Promise<SwitchResult> {
   const lockStore = new FsLockStore();
   const lock = await lockStore.read(projectDir);
   if (lock === null) {
@@ -68,7 +79,7 @@ export async function switchBacklogBackend(
     );
   }
   const from = lock.backlogBackend;
-  if (from === newBackend) return { switched: false, from };
+  if (from === newBackend) return { switched: false, from, backups: [] };
 
   const harness = findHarness(lock.harness);
   if (!harness) throw new Error(`unknown harness in lock: ${lock.harness}`);
@@ -153,13 +164,26 @@ export async function switchBacklogBackend(
   // path was unreachable, and this change is about making that path reachable.
   // Order matters: wiring `--force` before this would have converted a refusal
   // into a silent data-loss button, on exactly the edits the refusal protects.
+  //
+  // Keyed on `force`, and only on `force`, because that is the exact scope of
+  // the promise: a switch that clears the guard has proved every dest it
+  // overwrites is vanilla, and copying files Specnaut generated and can
+  // regenerate buried the one backup that matters under thirty that do not.
   const report = await writer.writeBundle(partial, projectDir, {
     overwrite: true,
-    backupExisting: true,
+    backupExisting: force,
   });
-  if (oldOnly.size > 0) {
-    await writer.deletePaths([...oldOnly], projectDir, { backupExisting: true });
-  }
+  // A switch removes the files the old backend owned — on `local → github`
+  // that is `.specnaut/backlog.md`, the user's entire backlog. Unconditional
+  // here, unlike the write above: the customization guard walks only what gets
+  // WRITTEN, so nothing has established that a dest about to be deleted is
+  // vanilla. Both reports are kept: a backup nobody is told about is
+  // indistinguishable from a deletion, and "items were NOT migrated
+  // automatically" reads as "they are gone" when the line that says where they
+  // went is missing.
+  const removed = oldOnly.size > 0
+    ? await writer.deletePaths([...oldOnly], projectDir, { backupExisting: true })
+    : null;
 
   const updatedEntries = new Map(lock.entries);
   for (const [dest, file] of Object.entries(partial)) {
@@ -187,8 +211,11 @@ export async function switchBacklogBackend(
     ...(lock.parentManaged ? { parentManaged: true as const } : {}),
   };
   await lockStore.write(projectDir, newLock);
-  void report;
-  return { switched: true, from };
+  return {
+    switched: true,
+    from,
+    backups: [...report.backups, ...(removed?.backups ?? [])].map((b) => b.backupPath),
+  };
 }
 
 /**
@@ -369,7 +396,7 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
   if (!intent.dryRun) {
     if (intent.backlog !== null) {
       try {
-        const { switched, from } = await switchBacklogBackend(
+        const { switched, from, backups } = await switchBacklogBackend(
           projectDir,
           intent.backlog,
           intent.force,
@@ -383,6 +410,7 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
               `  existing items in the previous backend were NOT migrated automatically.`,
             ),
           );
+          for (const b of backups) console.log(dim(`  kept a copy at ${b}`));
         } else {
           console.log(dim(`↳ already using backend: ${intent.backlog} — nothing to switch`));
         }

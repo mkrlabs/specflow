@@ -120,7 +120,16 @@ Deno.test("writeBundle with backupExisting renames existing file to .specnaut.ba
   });
 });
 
-Deno.test("writeBundle with backupExisting overwrites a pre-existing .specnaut.bak", async () => {
+// This assertion is INVERTED on purpose. It used to require that a second
+// backup overwrite the first, which is what `Deno.rename` does and what the
+// code did — but every one of these paths is reached because a file is about
+// to be destroyed, so overwriting the record of the last time is the one thing
+// it must not do. `local → github → local → github` saved the user's real
+// `.specnaut/backlog.md` on switch one and replaced that copy with the
+// re-scaffolded template on switch three; a repeated `--force` did the same to
+// the edits it had saved the run before. The old expectation was the defect
+// written down.
+Deno.test("writeBundle with backupExisting never overwrites a pre-existing .specnaut.bak", async () => {
   await withTempDir(async (dir) => {
     await Deno.mkdir(join(dir, ".claude"), { recursive: true });
     const destRel = ".claude/x.md";
@@ -128,14 +137,48 @@ Deno.test("writeBundle with backupExisting overwrites a pre-existing .specnaut.b
     await Deno.writeTextFile(join(dir, `${destRel}.specnaut.bak`), "ANCIENT");
 
     const writer = new DenoFsWriter();
-    await writer.writeBundle(
+    const report = await writer.writeBundle(
       { [destRel]: { content: "NEWEST\n", executable: false } },
       dir,
       { overwrite: true, backupExisting: true },
     );
 
-    const bakContent = await Deno.readTextFile(join(dir, `${destRel}.specnaut.bak`));
-    assertEquals(bakContent, "CURRENT");
+    assertEquals(
+      await Deno.readTextFile(join(dir, `${destRel}.specnaut.bak`)),
+      "ANCIENT",
+      "the older backup is the one holding content nothing else has",
+    );
+    assertEquals(
+      await Deno.readTextFile(join(dir, `${destRel}.2.specnaut.bak`)),
+      "CURRENT",
+      "and the new one rolls to the next free slot",
+    );
+    // The rolled name keeps the `.specnaut.bak` tail so the scaffolded
+    // `.gitignore`'s `*.specnaut.bak` still covers it.
+    assertEquals(report.backups[0].backupPath, `${destRel}.2.specnaut.bak`);
+  });
+});
+
+Deno.test("deletePaths with backupExisting never overwrites a pre-existing .specnaut.bak", async () => {
+  await withTempDir(async (dir) => {
+    await Deno.mkdir(join(dir, ".specnaut"), { recursive: true });
+    const destRel = ".specnaut/backlog.md";
+    await Deno.writeTextFile(join(dir, destRel), "CURRENT");
+    await Deno.writeTextFile(join(dir, `${destRel}.specnaut.bak`), "THE USER'S BACKLOG");
+
+    const writer = new DenoFsWriter();
+    const report = await writer.deletePaths([destRel], dir, { backupExisting: true });
+
+    assertEquals(
+      await Deno.readTextFile(join(dir, `${destRel}.specnaut.bak`)),
+      "THE USER'S BACKLOG",
+      "the delete path carries the same guarantee — it is the one a backend switch takes",
+    );
+    assertEquals(
+      await Deno.readTextFile(join(dir, `${destRel}.2.specnaut.bak`)),
+      "CURRENT",
+    );
+    assertEquals(report.backups[0].backupPath, `${destRel}.2.specnaut.bak`);
   });
 });
 

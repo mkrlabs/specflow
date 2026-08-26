@@ -55,6 +55,33 @@ async function isSymlink(path: string): Promise<boolean> {
   }
 }
 
+/**
+ * Moves `abs` aside to a backup that destroys nothing, and returns the suffix
+ * that was actually used.
+ *
+ * `Deno.rename` overwrites its destination silently, so a second backup of the
+ * same path erased the first. That is not a tidiness problem: switching backlog
+ * backend `local → github → local → github` backed up the user's real
+ * `.specnaut/backlog.md` on the first switch and then overwrote that backup
+ * with the freshly-scaffolded template on the third. Same shape for a repeated
+ * `--force`: run one saves the user's edits, run two replaces them with the
+ * bundle content the force had just written. Every path here is reached
+ * BECAUSE a file was about to be destroyed, so the one thing this must never
+ * do is destroy the record of the last time.
+ *
+ * The rolled names keep the `.specnaut.bak` tail (`x.2.specnaut.bak`, not
+ * `x.specnaut.bak.2`) because the scaffolded `.gitignore` ignores
+ * `*.specnaut.bak` — a suffix appended after it would be committed.
+ */
+async function backupAside(abs: string): Promise<string> {
+  let suffix = BACKUP_SUFFIX;
+  for (let n = 2; await fileExists(`${abs}${suffix}`); n++) {
+    suffix = `.${n}${BACKUP_SUFFIX}`;
+  }
+  await Deno.rename(abs, `${abs}${suffix}`);
+  return suffix;
+}
+
 async function fileExists(path: string): Promise<boolean> {
   try {
     await Deno.lstat(path);
@@ -187,9 +214,8 @@ export class DenoFsWriter implements FsWriter {
       }
 
       if (backupExisting && (await fileExists(abs))) {
-        const backupAbs = `${abs}${BACKUP_SUFFIX}`;
-        await Deno.rename(abs, backupAbs);
-        backups.push({ dest, backupPath: `${dest}${BACKUP_SUFFIX}` });
+        const suffix = await backupAside(abs);
+        backups.push({ dest, backupPath: `${dest}${suffix}` });
       }
 
       await Deno.writeTextFile(abs, file.content);
@@ -216,9 +242,8 @@ export class DenoFsWriter implements FsWriter {
       if (!(await fileExists(abs))) continue;
 
       if (options.backupExisting) {
-        const backupAbs = `${abs}${BACKUP_SUFFIX}`;
-        await Deno.rename(abs, backupAbs);
-        backups.push({ dest, backupPath: `${dest}${BACKUP_SUFFIX}` });
+        const suffix = await backupAside(abs);
+        backups.push({ dest, backupPath: `${dest}${suffix}` });
       } else {
         await Deno.remove(abs);
         emptied.add(dirname(abs));

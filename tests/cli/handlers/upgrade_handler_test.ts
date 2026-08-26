@@ -201,6 +201,81 @@ Deno.test("a forced backend switch backs up what it overwrites", async () => {
   }
 });
 
+// The other half of the same promise, and the one that was never watched: a
+// backend switch DELETES the files the old backend owned. `.specnaut/backlog.md`
+// is the whole local backlog, and until this branch the delete passed
+// `backupExisting: false` — switching to github removed it outright, with no
+// copy and no line in the summary. The overwrite test above cannot see this:
+// `writeBundle` and `deletePaths` carry separate flags, and flipping the delete
+// one back to `false` left all 1488 tests green. No `--force` here on purpose —
+// this is what a plain, guard-clearing switch does by default.
+Deno.test("a backend switch backs up what it deletes", async () => {
+  const dir = await initializedPlainProject();
+  try {
+    const deleted = join(dir, ".specnaut/backlog.md");
+    const original = await Deno.readTextFile(deleted);
+
+    const { switched, backups } = await switchBacklogBackend(dir, "github");
+    assertEquals(switched, true);
+
+    assertEquals(
+      await Deno.stat(deleted).then(() => true).catch(() => false),
+      false,
+      "precondition: the local backlog is one of the files the switch removes",
+    );
+    const bak = `${deleted}.specnaut.bak`;
+    assertEquals(
+      (await bakFiles(dir)).includes(bak),
+      true,
+      "the user's backlog must survive the switch as a .specnaut.bak",
+    );
+    assertEquals(
+      await Deno.readTextFile(bak),
+      original,
+      "and hold every item that was in it",
+    );
+    // And the caller must be able to say so. A backup nobody is told about is
+    // indistinguishable from a deletion, next to a line that already says
+    // "items were NOT migrated automatically".
+    assertEquals(
+      backups.includes(".specnaut/backlog.md.specnaut.bak"),
+      true,
+      `the switch must report where it put the copy, got: ${JSON.stringify(backups)}`,
+    );
+    // …and nothing it merely rewrote. `.claude/skills/board/SKILL.md` ships
+    // under both backends, so this switch overwrote it — and the forced test
+    // above proves that overwrite CAN produce a `.bak`. Here it must not: the
+    // guard this switch cleared proves the file was vanilla, and copying aside
+    // what Specnaut generated and can regenerate buried the one backup that
+    // matters under thirty that do not.
+    assertEquals(
+      (await bakFiles(dir)).some((f) => f.endsWith("board/SKILL.md.specnaut.bak")),
+      false,
+      "an unforced switch leaves no .bak for a vanilla file it rewrote",
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// The print, separately — for the same reason the `--force` wiring needed its
+// own test. `switchBacklogBackend` returning the paths proves nothing about
+// whether anyone renders them: the previous version computed a full report and
+// discarded it with `void report`, and no assertion at this layer noticed.
+Deno.test("the CLI names the copy it kept of a deleted backlog", async () => {
+  const dir = await initializedPlainProject();
+  try {
+    const r = await runSpecnaut(["upgrade", "--backlog", "github"], { cwd: dir });
+    assertEquals(r.code, 0, `switch failed: ${r.stderr}`);
+    assert(
+      r.stdout.includes(".specnaut/backlog.md.specnaut.bak"),
+      `stdout must name the backup, got:\n${r.stdout}`,
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 // The call site, separately. The defect was there and not in the function: the
 // signature took two parameters and the caller passed two, so `--force` never
 // arrived and the advertised remedy re-entered the identical throw forever. A
