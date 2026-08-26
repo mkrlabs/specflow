@@ -55,15 +55,23 @@ architecture.
 3. **Smallest correct change** — no speculative abstractions, no features
    the current task does not require.
 
-4. **Boy Scout Rule with escalation** — leave touched files cleaner than
-   you found them.
-   - *Small in-scope cleanup* (≤ 1 file, ~15 lines of diff, no public API
-     change, no test churn): do it in the same PR, mention it in
-     `Decisions`.
-   - *Larger out-of-scope cleanup* (cross-cutting, needs its own design,
-     would balloon the PR): log it under the `Tech debt surfaced` block of
-     the completion report. The Product Owner opens a tech-debt ticket
-     from that list.
+4. **Boy Scout Rule — the default is FIX IT, not log it.** Leave every file
+   you touched cleaner than you found it, and judge by the cost of the fix,
+   never by whether it was "in scope".
+   - *Fix it now, in this branch*: anything you can repair inside what the
+     task already touches, with a test that fails without the repair. Size is
+     not the test — a mechanical change across ten files is cheaper than one
+     that needs a decision in one. Mention it in `Decisions`; do not ask.
+   - *Log it only if* it needs a **product decision**, crosses a **boundary
+     this task does not touch**, needs a **migration**, or the fix is
+     **larger than the task itself**. Then put it under `Tech debt surfaced`
+     **with one sentence saying why it could not be fixed here** — and the
+     Product Owner opens it at **P0 or P1**, because anything clearing that
+     bar is significant by definition.
+   - **"Out of scope" is not a reason.** It is the label put on a repair
+     nobody costed. A completion report whose `Tech debt surfaced` block is
+     longer than its `Decisions` block is a report that moved work instead of
+     doing it.
 
 5. **SOLID / DRY / KISS / YAGNI** — apply SOLID (SRP, OCP, LSP, ISP, DIP).
    DRY only when duplication is *semantic*, not accidental similarity.

@@ -47,9 +47,13 @@ If none of the markers match, skip Phase 2 and note it in the report.
 
 ## Phase 3 — Fix loop
 
-For each CRITICAL or HIGH finding, spawn the `developer` agent with the finding
+For each finding the routing rule below says to fix — which is most of them, not
+only the CRITICAL and HIGH ones — spawn the `developer` agent with the finding
 and the target file:line. After the developer reports the fix, re-run the
 specific check that failed (or the full quality gate if the fix is broad).
+
+Batch the cheap ones into a single dispatch. Ten one-line fixes are one commit
+and one round trip, not ten.
 
 Repeat until only MEDIUM / LOW remain OR a fix has cycled twice without
 resolution — in the latter case, stop and escalate to the user.
@@ -64,9 +68,45 @@ lost log line is not worth a cycle; one labelled MEDIUM that loses data is.
 **"Nothing here would hurt anyone" is a valid and valuable verdict**, not a
 failure to find things.
 
-**MEDIUM and LOW go to the backlog and the branch ships.** Re-reviewing because
-the last review found *something* is not a reason — it is always true, and a loop
-with no exit criterion does not terminate.
+## 🔒 Route by the cost of the FIX, never by the severity word
+
+**The default is: fix it now, in this branch, in this turn.** A review that
+converts its own findings into backlog items is not reviewing — it is
+redistributing work, and it does it faster than anyone can absorb it. A run that
+lands one item and leaves four behind has made the backlog longer than it found
+it, every time, forever.
+
+Ask one question per finding, and it is not "how severe is this":
+
+> **Can I fix it inside what this branch already touches, and can I write a
+> test that fails without the fix?**
+
+- **Yes → fix it now.** Same branch, same turn, its own commit. This applies to
+  a LOW as much as to a HIGH. A one-line widening, a missing `|| true`, a stale
+  comment, a wrong message, a guard with no witness — these are cheaper to fix
+  than to describe, and describing them is what fills a backlog with work nobody
+  will do.
+- **No → and only then, file it.** Four reasons qualify, and nothing else does:
+  it needs a **product decision** somebody has to make; it crosses a **boundary
+  this branch does not touch**; it needs a **migration** or a coordinated
+  release; or **the fix is larger than the original task**.
+
+**"Out of scope" is not a reason — it is the label put on a finding nobody
+costed.** The scope is to leave the code better than it was found. If a finding
+is filed, the report says **why it could not be fixed here**, in one sentence, in
+the finding itself. A filed finding with no such sentence is a defect in the
+review, not an item for the backlog.
+
+**What gets filed gets filed loudly.** Anything that survives the four reasons is
+by definition significant, so it is opened at **P0 or P1** — never P2, never P3.
+A backlog where the real problems sit at the same priority as a naming nit is a
+backlog where the real problems are invisible. If a finding does not deserve P1,
+it did not deserve a ticket; it deserved a fix.
+
+**Re-reviewing because the last review found *something* is not a reason** — it
+is always true, and a loop with no exit criterion does not terminate. The exit is
+"nothing left that would hurt a user, a maintainer, or the data", not "nothing
+left at all".
 
 ## An epic's children — only the last review is a stop
 

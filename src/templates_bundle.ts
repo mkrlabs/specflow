@@ -868,6 +868,22 @@ branch, the fast gate after each, and no return to the user between children.
 It carries the commit format and the gate tiers by reference. On a standalone
 item none of it applies — implement and commit as usual.
 
+## 🔒 What you find while building, you fix while building
+
+You will hit things the task did not name: a stale comment, a guard with no
+test, a message promising something the code does not do, a helper that swallows
+an error. **Fix them, in this branch, in their own commit.** That is the job, not
+an interruption to it.
+
+Log one instead of fixing it only when it needs a **product decision**, crosses a
+**boundary this task does not touch**, needs a **migration**, or the fix is
+**larger than the task itself** — and then say, in one sentence, why. Anything
+that clears that bar is significant enough to be opened at **P0 or P1**.
+
+A run that lands one task and leaves four behind has made the backlog longer than
+it found it. Do that a few times and the backlog is the work, and the work never
+happens.
+
 ## Ending this phase — freeze, then INVOKE \`review\`, same turn
 
 **An implementation that has not been through review is not finished.** \`review\` is this phase's
@@ -1498,9 +1514,13 @@ If none of the markers match, skip Phase 2 and note it in the report.
 
 ## Phase 3 — Fix loop
 
-For each CRITICAL or HIGH finding, spawn the \`developer\` agent with the finding
+For each finding the routing rule below says to fix — which is most of them, not
+only the CRITICAL and HIGH ones — spawn the \`developer\` agent with the finding
 and the target file:line. After the developer reports the fix, re-run the
 specific check that failed (or the full quality gate if the fix is broad).
+
+Batch the cheap ones into a single dispatch. Ten one-line fixes are one commit
+and one round trip, not ten.
 
 Repeat until only MEDIUM / LOW remain OR a fix has cycled twice without
 resolution — in the latter case, stop and escalate to the user.
@@ -1515,9 +1535,45 @@ lost log line is not worth a cycle; one labelled MEDIUM that loses data is.
 **"Nothing here would hurt anyone" is a valid and valuable verdict**, not a
 failure to find things.
 
-**MEDIUM and LOW go to the backlog and the branch ships.** Re-reviewing because
-the last review found *something* is not a reason — it is always true, and a loop
-with no exit criterion does not terminate.
+## 🔒 Route by the cost of the FIX, never by the severity word
+
+**The default is: fix it now, in this branch, in this turn.** A review that
+converts its own findings into backlog items is not reviewing — it is
+redistributing work, and it does it faster than anyone can absorb it. A run that
+lands one item and leaves four behind has made the backlog longer than it found
+it, every time, forever.
+
+Ask one question per finding, and it is not "how severe is this":
+
+> **Can I fix it inside what this branch already touches, and can I write a
+> test that fails without the fix?**
+
+- **Yes → fix it now.** Same branch, same turn, its own commit. This applies to
+  a LOW as much as to a HIGH. A one-line widening, a missing \`|| true\`, a stale
+  comment, a wrong message, a guard with no witness — these are cheaper to fix
+  than to describe, and describing them is what fills a backlog with work nobody
+  will do.
+- **No → and only then, file it.** Four reasons qualify, and nothing else does:
+  it needs a **product decision** somebody has to make; it crosses a **boundary
+  this branch does not touch**; it needs a **migration** or a coordinated
+  release; or **the fix is larger than the original task**.
+
+**"Out of scope" is not a reason — it is the label put on a finding nobody
+costed.** The scope is to leave the code better than it was found. If a finding
+is filed, the report says **why it could not be fixed here**, in one sentence, in
+the finding itself. A filed finding with no such sentence is a defect in the
+review, not an item for the backlog.
+
+**What gets filed gets filed loudly.** Anything that survives the four reasons is
+by definition significant, so it is opened at **P0 or P1** — never P2, never P3.
+A backlog where the real problems sit at the same priority as a naming nit is a
+backlog where the real problems are invisible. If a finding does not deserve P1,
+it did not deserve a ticket; it deserved a fix.
+
+**Re-reviewing because the last review found *something* is not a reason** — it
+is always true, and a loop with no exit criterion does not terminate. The exit is
+"nothing left that would hurt a user, a maintainer, or the data", not "nothing
+left at all".
 
 ## An epic's children — only the last review is a stop
 
@@ -1701,6 +1757,22 @@ A child fixed after its commit was written — here, or earlier when its fast ga
 \`fixup!\` commit on the branch. Load \`phases/epic-fixups.md\` and follow it: the fixups fold into
 their own children, and three checks confirm the tree did not move, the worktree is clean, and the
 branch is one commit per child in order. Do not merge past a failed fold.
+
+## 🔒 Merge is not a filing desk
+
+Nothing gets opened here that could have been fixed in \`implement\` or \`review\`.
+If a leftover surfaces at merge time and it is repairable inside what the branch
+already touches, **fix it and amend the branch** — you are one commit away, and
+that is the cheapest this repair will ever be.
+
+Open an item at merge only for the four reasons the earlier phases use: a
+**product decision**, a **boundary this branch does not touch**, a **migration**,
+or a fix **larger than the work being merged**. Those are opened at **P0 or P1**;
+anything smaller was a fix, not a ticket.
+
+The measure of a good merge is a backlog that is **shorter** than before it —
+one item closed, none opened. When that is not true, the report says why, by
+name, in one sentence per item.
 
 ## Output
 
@@ -6872,15 +6944,23 @@ architecture.
 3. **Smallest correct change** — no speculative abstractions, no features
    the current task does not require.
 
-4. **Boy Scout Rule with escalation** — leave touched files cleaner than
-   you found them.
-   - *Small in-scope cleanup* (≤ 1 file, ~15 lines of diff, no public API
-     change, no test churn): do it in the same PR, mention it in
-     \`Decisions\`.
-   - *Larger out-of-scope cleanup* (cross-cutting, needs its own design,
-     would balloon the PR): log it under the \`Tech debt surfaced\` block of
-     the completion report. The Product Owner opens a tech-debt ticket
-     from that list.
+4. **Boy Scout Rule — the default is FIX IT, not log it.** Leave every file
+   you touched cleaner than you found it, and judge by the cost of the fix,
+   never by whether it was "in scope".
+   - *Fix it now, in this branch*: anything you can repair inside what the
+     task already touches, with a test that fails without the repair. Size is
+     not the test — a mechanical change across ten files is cheaper than one
+     that needs a decision in one. Mention it in \`Decisions\`; do not ask.
+   - *Log it only if* it needs a **product decision**, crosses a **boundary
+     this task does not touch**, needs a **migration**, or the fix is
+     **larger than the task itself**. Then put it under \`Tech debt surfaced\`
+     **with one sentence saying why it could not be fixed here** — and the
+     Product Owner opens it at **P0 or P1**, because anything clearing that
+     bar is significant by definition.
+   - **"Out of scope" is not a reason.** It is the label put on a repair
+     nobody costed. A completion report whose \`Tech debt surfaced\` block is
+     longer than its \`Decisions\` block is a report that moved work instead of
+     doing it.
 
 5. **SOLID / DRY / KISS / YAGNI** — apply SOLID (SRP, OCP, LSP, ISP, DIP).
    DRY only when duplication is *semantic*, not accidental similarity.

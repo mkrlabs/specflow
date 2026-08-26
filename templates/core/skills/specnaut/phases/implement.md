@@ -163,6 +163,22 @@ branch, the fast gate after each, and no return to the user between children.
 It carries the commit format and the gate tiers by reference. On a standalone
 item none of it applies — implement and commit as usual.
 
+## 🔒 What you find while building, you fix while building
+
+You will hit things the task did not name: a stale comment, a guard with no
+test, a message promising something the code does not do, a helper that swallows
+an error. **Fix them, in this branch, in their own commit.** That is the job, not
+an interruption to it.
+
+Log one instead of fixing it only when it needs a **product decision**, crosses a
+**boundary this task does not touch**, needs a **migration**, or the fix is
+**larger than the task itself** — and then say, in one sentence, why. Anything
+that clears that bar is significant enough to be opened at **P0 or P1**.
+
+A run that lands one task and leaves four behind has made the backlog longer than
+it found it. Do that a few times and the backlog is the work, and the work never
+happens.
+
 ## Ending this phase — freeze, then INVOKE `review`, same turn
 
 **An implementation that has not been through review is not finished.** `review` is this phase's

@@ -115,6 +115,22 @@ A child fixed after its commit was written — here, or earlier when its fast ga
 their own children, and three checks confirm the tree did not move, the worktree is clean, and the
 branch is one commit per child in order. Do not merge past a failed fold.
 
+## 🔒 Merge is not a filing desk
+
+Nothing gets opened here that could have been fixed in `implement` or `review`.
+If a leftover surfaces at merge time and it is repairable inside what the branch
+already touches, **fix it and amend the branch** — you are one commit away, and
+that is the cheapest this repair will ever be.
+
+Open an item at merge only for the four reasons the earlier phases use: a
+**product decision**, a **boundary this branch does not touch**, a **migration**,
+or a fix **larger than the work being merged**. Those are opened at **P0 or P1**;
+anything smaller was a fix, not a ticket.
+
+The measure of a good merge is a backlog that is **shorter** than before it —
+one item closed, none opened. When that is not true, the report says why, by
+name, in one sentence per item.
+
 ## Output
 
 Every backlog item this report names is named per the `backlog-reference-contract` skill — number,
