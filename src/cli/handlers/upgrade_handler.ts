@@ -51,6 +51,14 @@ export type UpgradeIntent = {
 export async function switchBacklogBackend(
   projectDir: string,
   newBackend: BacklogBackend,
+  /**
+   * The escape hatch the refusal below advertises. It used to advertise a flag
+   * that never reached this function — the signature took two parameters and
+   * the call site passed two — so re-running with `--force` re-entered the
+   * identical throw. An error message naming a remedy that does not exist is
+   * worse than one naming none: it sends the reader in a circle.
+   */
+  force = false,
 ): Promise<{ switched: boolean; from: BacklogBackend }> {
   const lockStore = new FsLockStore();
   const lock = await lockStore.read(projectDir);
@@ -131,7 +139,7 @@ export async function switchBacklogBackend(
     const sha = await sha256Hex(onDisk);
     if (sha !== lockEntry.sha256) customized.push(dest);
   }
-  if (customized.length > 0) {
+  if (customized.length > 0 && !force) {
     throw new Error(
       `refusing to switch backlog backend: the following files were customized locally:\n` +
         customized.map((c) => `  - ${c}`).join("\n") +
@@ -140,12 +148,17 @@ export async function switchBacklogBackend(
     );
   }
 
+  // The refusal above promises "existing files are backed up to *.specnaut.bak".
+  // This passed `false`, so the promise was false — inert only while the force
+  // path was unreachable, and this change is about making that path reachable.
+  // Order matters: wiring `--force` before this would have converted a refusal
+  // into a silent data-loss button, on exactly the edits the refusal protects.
   const report = await writer.writeBundle(partial, projectDir, {
     overwrite: true,
-    backupExisting: false,
+    backupExisting: true,
   });
   if (oldOnly.size > 0) {
-    await writer.deletePaths([...oldOnly], projectDir, { backupExisting: false });
+    await writer.deletePaths([...oldOnly], projectDir, { backupExisting: true });
   }
 
   const updatedEntries = new Map(lock.entries);
@@ -359,6 +372,7 @@ export async function runUpgrade(intent: UpgradeIntent): Promise<number> {
         const { switched, from } = await switchBacklogBackend(
           projectDir,
           intent.backlog,
+          intent.force,
         );
         if (switched) {
           console.log(

@@ -671,9 +671,15 @@ function deriveUnchangedEntries(
   const out = new Map<string, LockEntry>();
   for (const [dest, sha] of newShas) {
     const existing = previous.get(dest);
-    // Same refusal as the rebuild loop: a `skipIfExists` file the user already
-    // had is theirs, and an upgrade that did not write it must not adopt it.
-    if (existing === undefined && bundle[dest]?.skipIfExists === true) continue;
+    // Same refusal as the rebuild loop, and it must be the SAME condition. The
+    // first version added `existing === undefined`, which the rebuild loop does
+    // not require: there, nothing is written on any dest this branch can see, so
+    // a `skipIfExists` entry is dropped whether or not the lock already carried
+    // it. Keeping it here meant the two builders disagreed on precisely the
+    // input this helper exists to make them agree on — and the helper's version
+    // re-stamped the user's own file with the bundle's sha, which is the
+    // adoption the rebuild loop's comment refuses in as many words.
+    if (bundle[dest]?.skipIfExists === true) continue;
     out.set(dest, {
       sha256: sha,
       installedAt: existing?.installedAt ?? now,

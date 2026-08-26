@@ -1392,3 +1392,132 @@ Deno.test(
     assertEquals(store.last?.templatesVersion, "4.0.1");
   },
 );
+
+Deno.test(
+  "UpgradeProjectUseCase drops a skipIfExists entry on the up-to-date path too",
+  async () => {
+    // The divergence the unification was supposed to close and did not. The
+    // rebuild loop drops a `skipIfExists` dest whenever the run did not write
+    // it — whether or not the lock already carried an entry. The helper's first
+    // version also required `existing === undefined`, so a dest WITH an entry
+    // was kept and re-stamped with the BUNDLE's sha: the adoption the rebuild
+    // loop's own comment refuses in as many words, arriving through the other
+    // door. It also self-reverted — a run with real work dropped the entry, the
+    // next no-op run put it back.
+    const content = "the user's own AGENTS.md";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "2.0.1",
+      // The entry exists. That is the whole point of this fixture — the
+      // previous one seeded an empty map and so exercised only the branch that
+      // already worked.
+      entries: new Map([["owned.md", {
+        sha256: await sha256Hex(content),
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "2.0.1",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    const uc = new UpgradeProjectUseCase({
+      reader: fakeReader({ "owned.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: [{
+        category: "project-root" as const,
+        name: "root",
+        suffix: "owned.md",
+        content,
+        executable: false,
+        skipIfExists: true,
+      }] as unknown as CoreBundle,
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    });
+    await uc.execute({ projectDir: "/p", dryRun: false, force: false });
+    assertEquals(
+      store.last?.entries.has("owned.md"),
+      false,
+      "a skipIfExists dest is dropped on BOTH paths, entry or no entry",
+    );
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase repairs an entry whose version lags while the header is current",
+  async () => {
+    // The `staleEntries` version axis, isolated. Every other fixture had the
+    // header stale too, so dropping this axis left the suite green.
+    const content = "current";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "4.0.1",
+      entries: new Map([["a.md", {
+        sha256: await sha256Hex(content),
+        installedAt: "2026-05-26T00:00:00Z",
+        templatesVersion: "2.0.1",
+      }]]),
+    };
+    const store = fakeLockStore(lock);
+    await new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    }).execute({ projectDir: "/p", dryRun: false, force: false });
+
+    assertEquals(store.writes, 1, "a lagging entry version is stale on its own");
+    assertEquals(store.last?.entries.get("a.md")?.templatesVersion, "4.0.1");
+  },
+);
+
+Deno.test(
+  "UpgradeProjectUseCase repairs a lock whose only defect is an orphan row",
+  async () => {
+    // The `staleEntries` orphan axis, isolated. Header current, every surviving
+    // entry current, and one row for a dest the bundle no longer ships. Without
+    // this axis nothing triggers a write and the row lives forever.
+    const content = "current";
+    const lock: InstalledLock = {
+      version: 2,
+      harness: "claude",
+      backlogBackend: "local",
+      versionScheme: "semver",
+      specBackend: "local",
+      templatesVersion: "4.0.1",
+      entries: new Map([
+        ["a.md", {
+          sha256: await sha256Hex(content),
+          installedAt: "2026-05-26T00:00:00Z",
+          templatesVersion: "4.0.1",
+        }],
+        ["gone.md", {
+          sha256: await sha256Hex("removed upstream"),
+          installedAt: "2026-05-26T00:00:00Z",
+          templatesVersion: "4.0.1",
+        }],
+      ]),
+    };
+    const store = fakeLockStore(lock);
+    await new UpgradeProjectUseCase({
+      reader: fakeReader({ "a.md": content }),
+      writer: fakeWriter(),
+      lockStore: store,
+      core: coreFromBundle({ "a.md": { content, executable: false } }),
+      findHarness: findFakeHarness,
+      templatesVersion: "4.0.1",
+    }).execute({ projectDir: "/p", dryRun: false, force: false });
+
+    assertEquals(store.writes, 1, "an orphan row is stale on its own");
+    assertEquals(store.last?.entries.has("gone.md"), false);
+  },
+);

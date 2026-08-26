@@ -88,3 +88,139 @@ Deno.test("switchBacklogBackend preserves parent_managed and excludes agentic en
     await Deno.remove(root, { recursive: true });
   }
 });
+
+/** Strip every entry from the lock: nothing on disk changes, only the lock's
+ * ability to say whether it changed. That is the state #572 made more common,
+ * and the files it makes common are the ones a user edited. */
+async function stripLockEntries(child: string): Promise<void> {
+  const lockPath = join(child, ".specnaut/installed.lock");
+  const before = parseLock(await Deno.readTextFile(lockPath));
+  await Deno.writeTextFile(
+    lockPath,
+    JSON.stringify(
+      {
+        version: 2,
+        harness: before.harness,
+        backlog_backend: before.backlogBackend,
+        version_scheme: before.versionScheme,
+        spec_backend: before.specBackend,
+        templates_version: before.templatesVersion,
+        ...(before.parentManaged ? { parent_managed: true } : {}),
+        files: {},
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+/** A plain project, NOT parent-managed. The distinction is load-bearing for the
+ * backup assertion: a parent-managed child excludes agentic entries, so nothing
+ * `writeBundle` writes during a backend switch pre-exists, and the backup flag
+ * is unobservable there. `.claude/skills/board/SKILL.md` ships under both
+ * backends, so in a plain project the switch overwrites it — which is the only
+ * shape where "was it backed up" is a question with an answer. */
+async function initializedPlainProject(): Promise<string> {
+  const dir = await Deno.makeTempDir({ prefix: "specnaut-switch-plain-" });
+  const { code, stderr } = await runSpecnaut(
+    ["init", "--here", "--no-git", "--backlog", "local"],
+    { cwd: dir },
+  );
+  assertEquals(code, 0, `init precondition failed: ${stderr}`);
+  return dir;
+}
+
+async function bakFiles(dir: string, out: string[] = []): Promise<string[]> {
+  for await (const entry of Deno.readDir(dir)) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory) await bakFiles(full, out);
+    else if (entry.name.endsWith(".specnaut.bak")) out.push(full);
+  }
+  return out;
+}
+
+// #572 — the customization guard must FAIL CLOSED, and the escape it advertises
+// must both exist and keep its promise. Three mechanisms, and each needs its own
+// witness: reverting the guard to `continue`, unwiring `--force` at the call
+// site, and dropping the backup all left the suite green at different times.
+Deno.test("switchBacklogBackend refuses a dest the lock cannot speak for", async () => {
+  const { root, child } = await initializedParentManagedChild();
+  try {
+    await stripLockEntries(child);
+
+    let refused = false;
+    try {
+      await switchBacklogBackend(child, "github");
+    } catch (err) {
+      refused = true;
+      assert(err instanceof Error);
+      assert(
+        err.message.includes("refusing to switch backlog backend"),
+        `unexpected error: ${err.message}`,
+      );
+    }
+    assert(refused, "absence of evidence is not evidence of vanilla");
+
+    // The forced switch clears the guard.
+    const { switched } = await switchBacklogBackend(child, "github", true);
+    assertEquals(switched, true, "--force must clear the guard");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// The backup the refusal promises. Separate test and a PLAIN project, because
+// the message says "existing files are backed up to *.specnaut.bak" and the
+// write passed `false` — inert only while the force path was unreachable, which
+// is exactly what wiring `--force` changed. Called directly so nothing else
+// runs: a full upgrade backs files up for its own reasons and the assertion
+// could not tell whose backup it found.
+Deno.test("a forced backend switch backs up what it overwrites", async () => {
+  const dir = await initializedPlainProject();
+  try {
+    const overwritten = join(dir, ".claude/skills/board/SKILL.md");
+    const original = await Deno.readTextFile(overwritten);
+    await stripLockEntries(dir);
+
+    const { switched } = await switchBacklogBackend(dir, "github", true);
+    assertEquals(switched, true);
+
+    const bak = `${overwritten}.specnaut.bak`;
+    assertEquals(
+      (await bakFiles(dir)).includes(bak),
+      true,
+      "the file the switch overwrote must have a .specnaut.bak beside it",
+    );
+    assertEquals(
+      await Deno.readTextFile(bak),
+      original,
+      "and the backup must hold what was there before, not what replaced it",
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// The call site, separately. The defect was there and not in the function: the
+// signature took two parameters and the caller passed two, so `--force` never
+// arrived and the advertised remedy re-entered the identical throw forever. A
+// direct call cannot see that — it reads as covering the flag while testing the
+// signature.
+Deno.test("upgrade --backlog --force reaches the guard through the CLI", async () => {
+  const { root, child } = await initializedParentManagedChild();
+  try {
+    await stripLockEntries(child);
+    const refused = await runSpecnaut(["upgrade", "--backlog", "github"], { cwd: child });
+    assert(
+      refused.code !== 0,
+      `the CLI must refuse without --force, got exit 0:\n${refused.stdout}`,
+    );
+    const forced = await runSpecnaut(
+      ["upgrade", "--backlog", "github", "--force"],
+      { cwd: child },
+    );
+    assertEquals(forced.code, 0, `--force must reach the guard: ${forced.stderr}`);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
