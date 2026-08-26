@@ -1,4 +1,4 @@
-import { isAbsolute, normalize, SEPARATOR } from "@std/path";
+import { isAbsolute, normalize, relative, SEPARATOR } from "@std/path";
 
 export type TemplateFile = {
   content: string;
@@ -68,6 +68,31 @@ export type TemplateFile = {
 };
 
 export type Bundle = Record<string, TemplateFile>;
+
+/**
+ * True when `target` is `root` itself or lies beneath it. Pure — no IO, and
+ * that is the whole point: this is the half of containment that can be decided
+ * from two strings, so it can live here beside the string rule below instead of
+ * inside the adapter that happens to need it first.
+ *
+ * **Both arguments must already be resolved the same way.** Comparing a
+ * `realPath`'d root against a lexical candidate returns a `../..` chain for
+ * every path on macOS, where a temp directory sits under the `/var` →
+ * `/private/var` link — so the caller either resolves both sides or neither.
+ * Reproduced in both directions before this function existed.
+ *
+ * `relative()`, never a string prefix. A prefix test hardcodes the POSIX
+ * separator, so it silently never fires on Windows — `pruneEmptyParents` below
+ * shipped exactly that bug once — and it is wrong on POSIX too: `/a/bc` starts
+ * with `/a/b` while being nowhere inside it.
+ *
+ * Equality counts as inside: `relative(root, root)` is `""`, and a root is not
+ * outside itself.
+ */
+export function isInside(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel !== ".." && !rel.startsWith(`..${SEPARATOR}`) && !isAbsolute(rel);
+}
 
 /**
  * Throws if the destination path is unsafe: absolute, or attempts to escape

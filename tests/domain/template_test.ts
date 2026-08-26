@@ -1,5 +1,5 @@
-import { assertThrows } from "@std/assert";
-import { assertSafeDestination } from "../../src/domain/template.ts";
+import { assertEquals, assertThrows } from "@std/assert";
+import { assertSafeDestination, isInside } from "../../src/domain/template.ts";
 
 Deno.test("assertSafeDestination accepts normal relative paths", () => {
   assertSafeDestination(".claude/commands/hello.md");
@@ -22,4 +22,34 @@ Deno.test("assertSafeDestination rejects parent-dir traversal", () => {
 
 Deno.test("assertSafeDestination rejects plain '..' and its prefix", () => {
   assertThrows(() => assertSafeDestination(".."), Error, "escape");
+});
+
+// `isInside` is the pure half of containment (cli#574). The filesystem half —
+// resolving symlinks on both sides — lives in the adapter; everything below is
+// decidable from two strings.
+Deno.test("isInside accepts a path beneath the root, and the root itself", () => {
+  assertEquals(isInside("/p", "/p/a/b.md"), true);
+  assertEquals(isInside("/p", "/p"), true, "a root is not outside itself");
+});
+
+Deno.test("isInside refuses a path above or beside the root", () => {
+  assertEquals(isInside("/p", "/p/.."), false);
+  assertEquals(isInside("/p", "/outside/x.md"), false);
+});
+
+Deno.test("isInside is not a string prefix test", () => {
+  // The case a `startsWith` implementation gets wrong on EVERY platform, not
+  // just on Windows: `/a/bc` starts with `/a/b` while being nowhere inside it.
+  // Without this assertion the cheap wrong implementation passes the suite.
+  assertEquals(isInside("/a/b", "/a/bc/secret.md"), false);
+});
+
+Deno.test("isInside answers on the host's separator", () => {
+  // `relative()` returns the HOST's separator, so a hardcoded `../` in the
+  // predicate is a Windows-only silent pass — the bug `pruneEmptyParents`
+  // already shipped once. Asserting the escape is refused here catches it on
+  // whichever platform CI is running.
+  const root = Deno.build.os === "windows" ? "C:\\p" : "/p";
+  const out = Deno.build.os === "windows" ? "C:\\outside\\x.md" : "/outside/x.md";
+  assertEquals(isInside(root, out), false);
 });

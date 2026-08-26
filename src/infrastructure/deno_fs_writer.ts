@@ -1,13 +1,10 @@
-import { dirname, isAbsolute, join, relative, resolve } from "@std/path";
-import { assertSafeDestination, type Bundle } from "../domain/template.ts";
+import { basename, dirname, join, resolve } from "@std/path";
+import { assertSafeDestination, type Bundle, isInside } from "../domain/template.ts";
 import { mergeIntoFile } from "../domain/merge_block.ts";
 import { mergeClaudeSettings } from "../domain/claude_settings_merge.ts";
 import type { BackupReport, FsWriter } from "../application/ports.ts";
 
 const BACKUP_SUFFIX = ".specnaut.bak";
-
-/** Native path separator — `\\` on Windows, `/` everywhere else. */
-const SEP = Deno.build.os === "windows" ? "\\" : "/";
 
 /**
  * Removes `dir` and each now-empty ancestor, stopping below `stopAt`.
@@ -31,8 +28,17 @@ async function pruneEmptyParents(dir: string, stopAt: string): Promise<void> {
     // separator: on Windows `resolve` yields `C:\a\b`, the prefix never
     // matched, and the prune silently never ran — the ghost directory this
     // whole function exists to remove survived on exactly one platform.
-    const rel = relative(stopAt, current);
-    if (rel === "" || rel === ".." || rel.startsWith(`..${SEP}`) || isAbsolute(rel)) return;
+    // The predicate moved to the domain (cli#574) so seven other adapters can
+    // ask the same question without importing this file. The equality case is
+    // handled by the `while` condition above, not by the predicate: `isInside`
+    // counts a root as inside itself, and stopping AT `stopAt` is this walk's
+    // own business.
+    //
+    // RETURNS, does not throw — and that is why the predicate is shared while
+    // the verdict is not. This walk is best-effort by construction; a throw
+    // here would fail an upgrade whose files are already written, for a
+    // directory that could not be tidied.
+    if (!isInside(stopAt, current)) return;
     try {
       for await (const _ of Deno.readDir(current)) return; // still in use — stop
       await Deno.remove(current);

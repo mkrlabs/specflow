@@ -148,3 +148,44 @@ Deno.test("nothing outside the target directory is ever pruned", async () => {
     await Deno.remove(parent, { recursive: true });
   }
 });
+
+Deno.test("the walk still prunes when the project is reached through a symlink", async () => {
+  // The failure mode this pins is SILENCE, so it asserts the directory is
+  // GONE — never merely that no error was raised (cli#574, F6).
+  //
+  // `pruneEmptyParents` compares two paths, and the whole walk stops the
+  // instant they are resolved differently: a `realPath`'d root against a
+  // lexical candidate returns a `../..` chain for every path, the predicate
+  // says "outside", and the function returns on its first iteration. Nothing
+  // throws, nothing is reported, and the ghost directory this walk exists to
+  // remove simply survives — which is the Windows prefix bug the predicate's
+  // own comment commemorates, arriving from the opposite direction.
+  //
+  // Every other case here reaches the box by its literal path, so the two
+  // sides agree by accident. This one reaches it through a link, where they
+  // only agree if the code resolves both or neither.
+  const real = await box();
+  const linkParent = await Deno.makeTempDir();
+  const viaLink = join(linkParent, "project");
+  await Deno.symlink(real, viaLink);
+
+  await new DenoFsWriter().deletePaths(
+    [".claude/skills/backlog/SKILL.md", ".claude/skills/backlog/groom.md"],
+    viaLink,
+    { backupExisting: false },
+  );
+
+  assertEquals(
+    await exists(join(real, ".claude/skills/backlog")),
+    false,
+    "the emptied directory must be pruned when the project is reached through a link",
+  );
+  assertEquals(
+    await exists(join(real, ".claude/skills/specnaut")),
+    true,
+    "and the surviving sibling must be left alone — a walk that deleted everything would also pass the assertion above",
+  );
+
+  await Deno.remove(linkParent, { recursive: true });
+  await Deno.remove(real, { recursive: true });
+});
