@@ -26,3 +26,4 @@ templates/core/skills/board/scripts/cloud/list.sh  cloud backlog backend has no 
 templates/core/skills/board/scripts/cloud/move.sh  cloud backlog backend has no smoke of its own yet; tracked as a follow-up
 templates/core/skills/board/scripts/cloud/reconcile.sh  cloud backlog backend has no smoke of its own yet; tracked as a follow-up
 templates/core/skills/board/scripts/cloud/view.sh  cloud backlog backend has no smoke of its own yet; tracked as a follow-up
+templates/core/root/README.md	maintainer note, not shipped — absent from templates/manifest.json, so no consumer receives it and no smoke can assert on it

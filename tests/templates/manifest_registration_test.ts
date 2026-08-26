@@ -40,6 +40,14 @@ const NOT_SHIPPED: ReadonlyArray<{ path: string; why: string }> = [
     why: "documentation of the alias_of/overlays convention, for humans reading " +
       "this repo. Its own description says Specnaut never installs it.",
   },
+  {
+    path: "core/root/README.md",
+    why: "maintainer note warning that the .gitignore beside it is BOTH shipped " +
+      "product content and a live per-directory ignore rule over a surface " +
+      "audit.sh maps. It has to sit in this directory to be read before that " +
+      "file is edited, and must never be scaffolded — shipping it would change " +
+      "a consumer's tree for a maintainer's benefit.",
+  },
 ];
 
 async function authoredFiles(): Promise<string[]> {
