@@ -2,9 +2,9 @@
 #
 # THE POPULATION IS EVERY FILE UNDER plugin/ — not the Markdown ones. That is a
 # written decision and it lives here, where it is visible, rather than in a glob
-# in the test, where it would be silent. The first draft of monorepo#32's plan
-# scoped the sweep to `*.md` and recorded the non-Markdown case as a *future*
-# risk; there were four such assets at the time, and one of them —
+# in the test, where it would be silent. An earlier design scoped the sweep to
+# `*.md` and treated the non-Markdown case as a *future* risk; there were four
+# such assets at the time, and one of them —
 # `plugin/hooks/session-start` — is the plugin's only executable, running on
 # every consumer session start. It also has no extension, so even widening the
 # glob to `*.md`/`*.json`/`*.sh` would still have missed it. A file type is not
@@ -12,10 +12,10 @@
 #
 # FORMAT: <path><whitespace><reason>
 # An entry with no written reason is NOT an entry — the same refusal
-# `scripts/smoke/coverage-allowlist.txt` applies, and the same one
-# `scripts/check-scaffold-drift.sh` applies in the monorepo. Three readers, one
-# rule; see that plan's §5 and §9 for why they are not unified and what replaced
-# "a grep for the sentence finds all three".
+# `scripts/smoke/coverage-allowlist.txt` applies. Two readers of one rule, in two
+# languages, deliberately not unified: they answer to different owners and change
+# for different reasons, so a shared implementation would be an abstraction both
+# callers fight.
 #
 # An entry naming a file that no longer exists is reported as stale. An
 # exclusion that excuses nothing while looking like it does is the shape this

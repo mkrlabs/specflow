@@ -43,7 +43,7 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     "audit-architecture",
     "audit-dependencies",
     // Seven docs the list had never claimed, found by the completeness sweep
-    // (monorepo#32). All seven were already byte-identical to their sources —
+    // All seven were already byte-identical to their sources —
     // correct by luck, since nothing compared them. `auto-chain` is the
     // contract the router loads when it chains; the `epic-*` and `merge-*`
     // docs and `quality-gates` are loaded by `merge` and `implement`. Every
@@ -225,7 +225,7 @@ for (const pair of SYNC_PAIRS) {
   });
 }
 
-// ─── The completeness sweep (monorepo#32) ───────────────────────────────
+// ─── The completeness sweep ─────────────────────────────────────────────
 //
 // SYNC_PAIRS asserts that every listed pair is byte-identical. Nothing asserted
 // that the list COVERS `plugin/`, so an asset added without a row was governed
@@ -362,10 +362,10 @@ Deno.test("an exclusion entry with no written reason grants nothing", () => {
 
 Deno.test("no exclusion entry excuses a file that no longer exists", () => {
   // `scripts/smoke/audit.sh` scans its allow-list for this and treats it as
-  // fatal; `scripts/check-scaffold-drift.sh` in the monorepo never had the scan
-  // and its absence went unnoticed for as long as the list happened to be
-  // clean. This is the third reader of that rule and it is not going to be the
-  // second copy that loses it.
+  // fatal. A second reader of the same rule, elsewhere, shipped without the scan
+  // and nobody noticed — because that list happened to stay clean. An allow-list
+  // that excuses nothing while looking like it does is the defect this sweep is
+  // about, one level up, so this reader has the scan from the start.
   const stale = [...readExclusions().keys()]
     .filter((path) => {
       try {
