@@ -6,6 +6,7 @@
 // REFUSES to act when both dirs exist — it never merges or overwrites.
 
 import { join } from "@std/path";
+import { assertInsideProject, resolveProjectRoot } from "./fs_containment.ts";
 
 export type LegacyMigrationResult =
   | { kind: "migrated" }
@@ -27,20 +28,44 @@ export type LegacyMigrationResult =
 // what made it the cheapest possible foothold.
 async function isRealDir(p: string): Promise<boolean> {
   try {
-    return (await Deno.lstat(p)).isDirectory;
+    // `stat`, which FOLLOWS a link — deliberately, and not a revert. The escape
+    // is refused by `escapesProject` before this runs, so what reaches here is
+    // either a real directory or a link that stays inside the project, and a
+    // project that linked its config dir inside itself should keep working
+    // exactly as it did. Making this `lstat` refused nothing extra; it only
+    // made an in-project link INVISIBLE to the state machine, which reported
+    // `nothing-to-migrate` for a project that plainly had a config dir.
+    return (await Deno.stat(p)).isDirectory;
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) return false;
     throw e;
   }
 }
 
-/** True when the path exists AND is a symlink — a directory link included. */
-async function isSymlinkPath(p: string): Promise<boolean> {
+/**
+ * True when the path is a symlink that leaves the project.
+ *
+ * NOT "is a symlink". The first version refused any link at either name, which
+ * also refused `.specnaut -> config/specnaut` entirely inside the project — a
+ * layout that containment itself allows, and a blanket symlink refusal is named
+ * in this feature's decision table as the thing that must not happen. Over-
+ * refusing is a real cost: it breaks a project that did something reasonable,
+ * and the user has no way to tell it from a bug.
+ */
+async function escapesProject(projectDir: string, p: string): Promise<boolean> {
+  let info: Deno.FileInfo;
   try {
-    return (await Deno.lstat(p)).isSymlink;
+    info = await Deno.lstat(p);
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) return false;
     throw e;
+  }
+  if (!info.isSymlink) return false;
+  try {
+    await assertInsideProject(await resolveProjectRoot(projectDir), p);
+    return false;
+  } catch {
+    return true;
   }
 }
 
@@ -77,7 +102,7 @@ export async function migrateLegacyConfigDir(
   // that deliberately links its config dir deserves to hear why nothing
   // happened; one that did not deserves to hear that something is wrong.
   for (const name of [".specflow", ".specnaut"]) {
-    if (await isSymlinkPath(join(projectDir, name))) {
+    if (await escapesProject(projectDir, join(projectDir, name))) {
       return { kind: "symlinked", path: name };
     }
   }

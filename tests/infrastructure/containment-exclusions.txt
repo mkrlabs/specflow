@@ -14,3 +14,10 @@ src/infrastructure/credential_store.ts  writes under the user's own config direc
 src/infrastructure/github_api.ts  writes beside the RUNNING BINARY during self-update; the path comes from Deno.execPath(), not from any project
 src/domain/cloud/cloud_config.ts  writes under a project, but the guard sits at its CLI call site on purpose: this module is in the domain and already performs IO, and importing infrastructure here would turn a smell into a compile-time dependency edge
 src/infrastructure/fs_legacy_migrator.ts  refuses a symlinked .specflow/.specnaut with lstat BEFORE renaming, which is a stronger check than containment: it is the file that CREATES the out-of-project condition rather than one that walks into it
+
+# Per-METHOD exemptions, written `<path>::<method>`. These sit inside modules
+# that ARE guarded; the entry says why this particular sink does not carry its
+# own `assertInsideProject`.
+src/infrastructure/deno_fs_writer.ts::pruneEmptyParents  asks `isInside` and RETURNS instead of throwing — it is a best-effort cleanup walk, and a throw here would fail an upgrade whose files are already written
+src/infrastructure/deno_fs_writer.ts::backupAside  a private helper with two callers, both of which assert containment on the same path immediately before calling it
+src/cli/handlers/init_handler.ts::runInit  its only mutation is the git adapter's ensureDir, which receives the target directory itself rather than a path built under it

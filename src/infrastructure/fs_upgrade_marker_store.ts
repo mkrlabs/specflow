@@ -38,6 +38,10 @@ export class FsUpgradeMarkerStore implements UpgradeMarkerStore {
 
   async delete(projectDir: string): Promise<void> {
     const path = resolve(projectDir, MARKER_REL);
+    // `write()` above guarded and `delete()` did not — one method of a pair,
+    // which is the shape the file-level sweep is structurally unable to see.
+    // Outside the try for the swallowed-`NotFound` reason.
+    await assertInsideProject(await resolveProjectRoot(projectDir), path);
     try {
       await Deno.remove(path);
     } catch (err) {

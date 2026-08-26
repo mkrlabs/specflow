@@ -161,3 +161,39 @@ Deno.test("the stores still work on an ordinary project", async () => {
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("FsUpgradeMarkerStore.delete refuses a redirected .specnaut", async () => {
+  // `write()` guarded and `delete()` did not — one method of a pair, which is
+  // the shape a file-level sweep is structurally unable to see. It is why the
+  // sweep beside this file now attributes each sink to its own method.
+  const { root, proj, outside } = await redirected();
+  try {
+    await Deno.writeTextFile(join(outside, "upgrade-pending.json"), "{}");
+    await assertRejects(() => new FsUpgradeMarkerStore().delete(proj));
+    assertEquals(
+      await Deno.stat(join(outside, "upgrade-pending.json")).then(() => true).catch(() => false),
+      true,
+      "the file outside must survive",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("FsStagingStore.cleanupIfEmpty refuses a redirected .specnaut", async () => {
+  // `Deno.readDir` FOLLOWS a symlinked directory and lists the TARGET's
+  // entries, so an empty out-of-project directory made this decide "prune it"
+  // on evidence gathered somewhere else entirely — and then removed it.
+  const { root, proj, outside } = await redirected();
+  try {
+    await Deno.mkdir(join(outside, "upgrade-staging"));
+    await assertRejects(() => new FsStagingStore().cleanupIfEmpty(proj));
+    assertEquals(
+      await Deno.stat(join(outside, "upgrade-staging")).then(() => true).catch(() => false),
+      true,
+      "the empty directory outside must survive",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

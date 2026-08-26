@@ -111,3 +111,22 @@ Deno.test("a symlinked .specnaut is refused too", async () => {
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("a .specnaut symlink that stays INSIDE the project is not refused", async () => {
+  // Over-refusal is a real cost, not a safe default (cli#574 round 2). The
+  // first version refused any link at either name, which also refused a project
+  // that had linked `.specnaut -> config/specnaut` inside itself — a layout
+  // containment allows, and a blanket symlink refusal is named in this
+  // feature's decision table as the thing that must not happen.
+  //
+  // Without this assertion, "refuse every symlink" satisfies the two escape
+  // tests above and nobody notices until a user's project stops working.
+  const root = await Deno.makeTempDir({ prefix: "inside-link-" });
+  try {
+    await Deno.mkdir(`${root}/config/specnaut`, { recursive: true });
+    await Deno.symlink(`${root}/config/specnaut`, `${root}/.specnaut`);
+    assertEquals((await migrateLegacyConfigDir(root)).kind, "already-current");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

@@ -53,18 +53,23 @@ export async function resolveProjectRoot(projectDir: string): Promise<string> {
  * Three states, distinguished with `lstat` and never by catching one exception:
  *
  *  1. **Absent** — resolve the parent and append the leaf. Nothing to follow.
- *  2. **A symlink** — resolve the link explicitly. A *dangling* link resolves
- *     to where it points rather than to nothing: `Deno.writeTextFile` on a
- *     dangling link CREATES the target, so treating "cannot resolve" as "does
- *     not exist" is itself the escape this function exists to close.
+ *  2. **A symlink** — follow it, one hop at a time, until the leaf is not a
+ *     link. A *dangling* link resolves to where it points rather than to
+ *     nothing: `Deno.writeTextFile` on a dangling link CREATES the target, so
+ *     treating "cannot resolve" as "does not exist" is itself the escape this
+ *     function exists to close.
  *  3. **Anything else** — `realPath`.
  *
  * The naive version of this is "try `realPath(abs)`, fall back to the parent on
- * `NotFound`". It is wrong, and quietly: a dangling link and an absent file
- * raise the same error, so the fallback says "inside" for a link pointing
- * anywhere at all. Measured here that `Deno.realPath` does not even throw on a
- * dangling link on macOS — which means a predicate written that way behaves
- * differently on two of the three platforms this suite runs on.
+ * `NotFound`". It is wrong, and quietly: `realPath` raises `NotFound` for a
+ * dangling link and for an absent file alike, so the fallback says "inside" for
+ * a link pointing anywhere at all.
+ *
+ * An earlier version of this comment claimed `realPath` does NOT throw on a
+ * dangling link. That was false, and it was false because the probe that
+ * "measured" it had already written through the link and created the target
+ * before asking. The correction is kept here: a measurement taken after the
+ * state it measures has changed is not a measurement.
  */
 /**
  * The deepest ancestor of `p` that exists, resolved, with whatever remainder
@@ -98,46 +103,55 @@ async function resolveDeepestExisting(p: string): Promise<string> {
   }
 }
 
+/**
+ * Deno's own limit is around 40; anything past a handful is a cycle in practice.
+ */
+const MAX_SYMLINK_HOPS = 40;
+
 export async function resolveTarget(abs: string): Promise<string> {
-  let info: Deno.FileInfo | null;
-  try {
-    info = await Deno.lstat(abs);
-  } catch (err) {
-    if (!(err instanceof Deno.errors.NotFound)) throw err;
-    info = null;
+  let cur = abs;
+  for (let hops = 0; hops <= MAX_SYMLINK_HOPS; hops++) {
+    let info: Deno.FileInfo | null;
+    try {
+      info = await Deno.lstat(cur);
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) throw err;
+      info = null;
+    }
+
+    // Absent: nothing left to follow. Resolve through the ancestors that do
+    // exist and keep the rest lexically.
+    if (info === null) return await resolveDeepestExisting(cur);
+
+    if (!info.isSymlink) return await Deno.realPath(cur);
+
+    // ITERATES. The first version followed exactly ONE hop and handed the
+    // result to `resolveDeepestExisting`, which treats a second hop whose
+    // target does not exist as "missing" and re-appends it lexically. Two
+    // links were enough:
+    //
+    //     proj/a -> proj/b
+    //     proj/b -> outside/target      (target absent)
+    //
+    // `resolveTarget` returned `proj/b` — inside — while a write to `proj/a`
+    // created `outside/target`. Reproduced. It is the round-1 defect one hop
+    // further out, in the same function, surviving the round-1 fix: the reason
+    // to loop rather than to special-case is that any fixed depth is the same
+    // bug waiting for one more link.
+    //
+    // The parent is resolved before the join for the round-1 reason: `join`
+    // collapses `..` lexically, the kernel applies it from where it landed.
+    const link = await Deno.readLink(cur);
+    const realParent = await resolveDeepestExisting(dirname(cur));
+    cur = isAbsolute(link) ? link : join(realParent, link);
   }
-
-  if (info === null) return await resolveDeepestExisting(abs);
-
-  if (info.isSymlink) {
-    const link = await Deno.readLink(abs);
-    // The parent is RESOLVED before the join, and that is the whole finding.
-    //
-    // `join` collapses `..` lexically; the kernel resolves each component in
-    // turn and applies `..` from wherever it actually landed. The two disagree
-    // exactly when the parent is itself a link out of the project — and two
-    // symlinks committed to a repository are enough:
-    //
-    //     proj/.claude      -> outside/dir
-    //     outside/dir/x.md  -> ../victim.md
-    //
-    // Joining `../victim.md` against the unresolved `proj/.claude` yields
-    // `proj/victim.md`, which is inside. The kernel yields `outside/victim.md`,
-    // which is not. Measured before this line changed: `writeBundle` did not
-    // refuse, and the file outside was overwritten and chmod 755'd. Write,
-    // delete and chmod all escaped — the three sinks this module exists to
-    // close, defeated by the resolver at their centre.
-    const realParent = await resolveDeepestExisting(dirname(abs));
-    const lexical = isAbsolute(link) ? link : join(realParent, link);
-    // Through `resolveDeepestExisting`, not `realPath` directly: a dangling
-    // link must still be resolved against the real filesystem as far as it
-    // goes, or its verdict is a lexical path compared against a resolved root —
-    // which on macOS reports every in-project target as outside. That is the
-    // resolve-one-side-only bug, arriving inside the fix for it.
-    return await resolveDeepestExisting(lexical);
-  }
-
-  return await Deno.realPath(abs);
+  // A cycle never reaches a non-symlink, so the cap is what ends it.
+  // `FilesystemLoop` on purpose: `assertInsideProject` already turns that into
+  // a refusal that names the path, and a cycle and a 41-deep chain are the same
+  // unusable path from a caller's side.
+  throw new Deno.errors.FilesystemLoop(
+    `more than ${MAX_SYMLINK_HOPS} symlink hops from ${abs}`,
+  );
 }
 
 /**

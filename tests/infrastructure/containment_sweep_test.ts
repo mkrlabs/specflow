@@ -27,7 +27,49 @@ const MUTATORS =
 /** The generated bundle is 27k lines of template literals, not code that runs. */
 const NOT_CODE = /src\/templates_bundle\.ts$/;
 
+/** Block openers that are not functions. Without this filter an `if` inside a
+ * guarded method reads as its own unguarded "function". */
+const NOT_A_FUNCTION = new Set(["if", "while", "for", "switch", "catch", "do", "try"]);
+
+/**
+ * Attributes each mutating call to the method it sits in, lexically.
+ *
+ * No brace parsing and no AST: for every mutating call, walk BACKWARDS to the
+ * nearest preceding signature and ask whether `assertInsideProject` appears
+ * between the two. That is enough to answer the only question this test asks —
+ * "did anybody put a guard in front of this sink" — and it fails toward a false
+ * ALARM (a name in the report that turns out fine) rather than a false clean.
+ */
+function unguardedSinks(src: string): string[] {
+  const sig =
+    /(?:^|\n)[ \t]*(?:export )?(?:async )?(?:function )?([A-Za-z_$][\w$]*)\s*\([^)]*\)[^{;=]*\{/g;
+  const sigs: Array<{ at: number; name: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = sig.exec(src)) !== null) {
+    if (!NOT_A_FUNCTION.has(m[1])) sigs.push({ at: m.index, name: m[1] });
+  }
+
+  const out = new Set<string>();
+  const mut = new RegExp(MUTATORS.source, "g");
+  while ((m = mut.exec(src)) !== null) {
+    const call = m.index;
+    let owner = { at: 0, name: "<module>" };
+    for (const s2 of sigs) {
+      if (s2.at < call) owner = s2;
+      else break;
+    }
+    if (!src.slice(owner.at, call).includes("assertInsideProject")) out.add(owner.name);
+  }
+  return [...out];
+}
+
 type Exclusion = { path: string; reason: string };
+
+/** An entry is either `<path>` or `<path>::<method>`; both name the same file. */
+function fileOf(entry: string): string {
+  const i = entry.indexOf("::");
+  return i === -1 ? entry : entry.slice(0, i);
+}
 
 function readExclusions(text: string): Exclusion[] {
   const out: Exclusion[] = [];
@@ -70,7 +112,22 @@ Deno.test("every mutating module is guarded or excused with a reason", async () 
   for (const rel of modules) {
     if (excused.has(rel)) continue;
     const src = await Deno.readTextFile(fromFileUrl(new URL(`../../${rel}`, import.meta.url)));
-    if (!src.includes("fs_containment")) unguarded.push(rel);
+    // PER CALL SITE, not per file. The first version asked whether the module
+    // mentioned `fs_containment` anywhere — so one guarded method excused every
+    // other sink beside it, and that is exactly what it failed to see:
+    // `FsUpgradeMarkerStore.write` guarded while `.delete` did not, and
+    // `FsStagingStore.cleanupIfEmpty` reached a `Deno.remove` with nothing in
+    // front of it. Both sat in files this test called covered.
+    //
+    // The rule is crude on purpose and it is a FLOOR, not a proof: every
+    // mutating call must have an `assertInsideProject` somewhere above it in
+    // the same function body. It cannot tell that the guard checks the right
+    // path — only `sink_containment_test.ts`'s per-site refusals do that — but
+    // it does catch the sink nobody put a guard in front of at all.
+    for (const fn of unguardedSinks(src)) {
+      const key = `${rel}::${fn}`;
+      if (!excused.has(key)) unguarded.push(key);
+    }
   }
 
   assertEquals(
@@ -92,7 +149,7 @@ Deno.test("every exclusion names a file that exists and gives a reason", async (
   const stale: string[] = [];
   for (const e of exclusions) {
     if (e.reason === "") stale.push(`${e.path} — no reason`);
-    const abs = fromFileUrl(new URL(`../../${e.path}`, import.meta.url));
+    const abs = fromFileUrl(new URL(`../../${fileOf(e.path)}`, import.meta.url));
     if (!(await Deno.stat(abs).then(() => true).catch(() => false))) {
       stale.push(`${e.path} — file is gone`);
     }
@@ -106,7 +163,7 @@ Deno.test("every exclusion is actually in the population it excuses", async () =
   // day that module starts mutating for real.
   const modules = new Set(await mutatingModules());
   const exclusions = readExclusions(await Deno.readTextFile(EXCLUSIONS));
-  const orphans = exclusions.map((e) => e.path).filter((p) => !modules.has(p));
+  const orphans = exclusions.map((e) => fileOf(e.path)).filter((p) => !modules.has(p));
   assertEquals(orphans, [], `excused but not mutating any more:\n${orphans.join("\n")}`);
 });
 

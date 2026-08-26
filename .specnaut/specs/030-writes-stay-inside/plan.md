@@ -162,7 +162,8 @@ cost.
   true` currently renames it and records `{dest, backupPath}`, which the handler
   surfaces as "your file was backed up". It was not: the content is still at the
   target, the `.bak` is a link, and the scaffolded `.gitignore` hides it. The
-  two branches agree after this change.
+  accounting is corrected; the rename itself is unchanged, because editing the
+  case that pins it would make this a scope change rather than a fix (T019).
 - **FR-011** — A **completeness sweep** enumerates every module under
   `src/infrastructure/` (plus the two named sinks outside it) that calls a Deno
   filesystem-mutation API, and fails when one neither consults the predicate nor
@@ -416,7 +417,7 @@ finding.
 | **F5** | **Reads are wholly unguarded and the bytes reach stdout.** `DenoFsReader.readText` is three lines with no validator of any kind. A bundle dest symlinked to a file outside the project makes `specnaut diff` render that file's contents as a unified diff. The lock amplifies it: `parseLock` validates every entry *value* and no entry *key*, and `.specnaut/installed.lock` is not in the scaffolded `.gitignore`, so a cloned repo supplies the key set. | **ACCEPTED, and re-measured here with the real binary**: a file outside the project was printed to stdout, line for line, by `specnaut diff`. This is an exfiltration primitive and it needs no `..`, no absolute path and no lock tampering. § 1's severity bound — *"a hostile repo already has other ways to run code"* — is fair for the write findings and **does not bound this one**: this CLI's stdout is routinely read into a coding agent's context and into CI logs, so "prints to the terminal" is not a local-only outcome. Reads come into scope. |
 | **F6** | **FR-004's throw collides with `pruneEmptyParents`'s best-effort contract**, and — the part neither the plan nor F-08 saw — **if FR-003 makes the root `realPath`'d while the prune walk's `current` stays lexical, the predicate returns "outside" for every path on macOS and the prune silently stops running.** Reproduced. | **ACCEPTED, and this is the trap that would have shipped.** It is the Windows prefix bug that function's comment commemorates, re-entering from the opposite direction — a guard that reports clean because it never runs. FR-002 requires both sides resolved the same way, at every caller. |
 | **F7** | **Hardlinks defeat any path-resolution check**: `realPath` returns the in-project path and `isSymlink` is false, so the write goes through the shared inode. SC-001's absolute wording is false. | **ACCEPTED as a limit, not fixed.** Git cannot ship a hardlink, so it is outside the stated threat model, and the seat said so rather than inflating it. SC-001 is narrowed to symlinks and § 9 carries the limit. |
-| **F8** | **A backup of a symlinked dest moves the LINK and reports it as a content backup.** The `.specnaut.bak` is itself a symlink, the user's content is still at the target, restoring it restores a pointer — and the moved link is now named `*.specnaut.bak`, which the scaffolded `.gitignore` hides. | **ACCEPTED.** The asymmetry is the tell: `backupExisting: false` refuses to touch the link, `backupExisting: true` dismantles it, and the code comment justifies the second as "the caller is already safe" — safe against destroying the target, silent about destroying the link. FR-005 is amended: the two branches agree. |
+| **F8** | **A backup of a symlinked dest moves the LINK and reports it as a content backup.** The `.specnaut.bak` is itself a symlink, the user's content is still at the target, restoring it restores a pointer — and the moved link is now named `*.specnaut.bak`, which the scaffolded `.gitignore` hides. | **ACCEPTED.** The asymmetry is the tell: `backupExisting: false` refuses to touch the link, `backupExisting: true` dismantles it, and the code comment justifies the second as "the caller is already safe" — safe against destroying the target, silent about destroying the link. FR-010 corrects the ACCOUNTING; the rename is unchanged (see § 12 item 6). |
 | **F9** | `realPath` on the ROOT can only move it up a link, never down, so a root that resolves broader makes everything under it "inside". | **ACCEPTED as cheap insurance.** The attacker does not control the root in this threat model and the seat labelled it theoretical rather than dressing it up. Two mitigations cost nothing: refuse a resolved root of `/` or `$HOME`, and print the resolved root in the refusal so a widening is visible the first time it happens. |
 | **F10** | The TOCTOU scope-out is right; the justification is not. "An attacker who already has write access" understates the actor set — an editor, a file watcher and a package manager touch the tree during a run — and the window spans the whole bundle loop rather than two syscalls, because of F2. | **ACCEPTED.** Kept out of scope; the reasoning is restated. Deno exposes no `O_NOFOLLOW`, no `openat` and no fd-relative write, so check-then-write is the only shape available and there is no cheap closure to defer. |
 
@@ -460,10 +461,13 @@ one line each rather than buried.
    what it examined, and wrong about what it did not.
 5. **Hardlinks are a stated limit, not a gap** (SC-001, § 9). Recorded so the
    next reader does not file it as a miss.
-6. **The `skipIfExists` symlink branches are unified** (FR-010), reversing the
-   first version's "the existing skip stays exactly as it is". `backupExisting:
-   false` refusing to touch a project's deliberate link while `true` renames it
-   and calls the pointer a content backup is one decision with two answers.
+6. **What a backup of a symlinked dest REPORTS is corrected; the branches are
+   not unified** (FR-010). An earlier draft of this plan said "unified" in two
+   places and the review was right that the code disagreed with it — but it was
+   the plan that was wrong. FR-010 only ever asked that a backup stop reporting
+   a pointer as content, and unifying the branches would require editing the
+   case in `write_bundle_symlink_test.ts` that pins the rename, which T019 makes
+   the signal that a fix has become a scope change.
 7. **`.specnaut/installed.lock` is repo-controlled**, and the first version of
    FR-006 asserted the opposite — that lock keys have already passed
    `assertSafeDestination`. They have, in a lock this binary wrote; a cloned

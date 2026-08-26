@@ -72,6 +72,16 @@ export class FsStagingStore implements StagingStore {
 
   async cleanupIfEmpty(projectDir: string): Promise<boolean> {
     const stagingDir = resolve(projectDir, STAGING_REL);
+    // OUTSIDE the try, like `SpecCacheWriter.clear`'s guard and for the same
+    // reason: the catch below swallows `NotFound` to make the cleanup
+    // idempotent, and that is exactly what `resolveProjectRoot` raises on a
+    // missing project. A refusal that becomes a silent `return false` in front
+    // of a `Deno.remove` is worse than no refusal.
+    //
+    // `readDir` FOLLOWS a symlinked directory and lists the target's entries,
+    // so an empty out-of-project directory made this decide "prune it" on
+    // evidence gathered somewhere else entirely.
+    await assertInsideProject(await resolveProjectRoot(projectDir), stagingDir);
     try {
       const entries = [];
       for await (const _ of Deno.readDir(stagingDir)) entries.push(_);
