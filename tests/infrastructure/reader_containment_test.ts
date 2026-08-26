@@ -3,6 +3,26 @@ import { join } from "@std/path";
 import { DenoFsReader } from "../../src/infrastructure/fs_reader.ts";
 import { parseLock } from "../../src/domain/installed_lock.ts";
 
+/**
+ * Registers a test that needs `Deno.symlink`.
+ *
+ * Windows refuses symlink creation without Developer Mode or elevation, so
+ * every fixture in this file fails there for a reason that has nothing to do
+ * with the code under test. Registered as IGNORED rather than short-circuited
+ * inside the body: a test that returns early reports as PASSED, and a green
+ * that never ran is the exact failure this whole feature is about.
+ *
+ * The consequence is stated rather than hidden: **containment is not covered on
+ * Windows.** The code is platform-neutral by construction — `relative()` and
+ * `@std/path` throughout, never a hardcoded separator — but that is an argument,
+ * not a measurement. `write_bundle_symlink_test.ts` has skipped Windows the same
+ * way since before this change.
+ */
+const WINDOWS = Deno.build.os === "windows";
+function symlinkTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({ name, ignore: WINDOWS, fn });
+}
+
 async function box(): Promise<{ root: string; proj: string; outside: string }> {
   const root = await Deno.makeTempDir({ prefix: "read-" });
   const proj = join(root, "proj");
@@ -12,7 +32,7 @@ async function box(): Promise<{ root: string; proj: string; outside: string }> {
   return { root, proj, outside };
 }
 
-Deno.test("a read through a leaf symlink out of the project is refused", async () => {
+symlinkTest("a read through a leaf symlink out of the project is refused", async () => {
   // The exfiltration primitive (cli#574). `DenoFsReader.readText` was three
   // lines with no validator at all, and it is the only `FsReader`. With a
   // bundle destination symlinked out, `specnaut diff` rendered the target's
@@ -29,7 +49,7 @@ Deno.test("a read through a leaf symlink out of the project is refused", async (
   }
 });
 
-Deno.test("a read through a symlinked ancestor is refused", async () => {
+symlinkTest("a read through a symlinked ancestor is refused", async () => {
   const { root, proj, outside } = await box();
   try {
     await Deno.writeTextFile(join(outside, "secret.txt"), "SECRET");
@@ -40,7 +60,7 @@ Deno.test("a read through a symlinked ancestor is refused", async () => {
   }
 });
 
-Deno.test("a traversing relative path is refused by the string rule", async () => {
+symlinkTest("a traversing relative path is refused by the string rule", async () => {
   const { root, proj } = await box();
   try {
     await assertRejects(() => new DenoFsReader().readText(proj, "../../etc/passwd"));
@@ -49,7 +69,7 @@ Deno.test("a traversing relative path is refused by the string rule", async () =
   }
 });
 
-Deno.test("an ordinary read still works, and a missing file is still null", async () => {
+symlinkTest("an ordinary read still works, and a missing file is still null", async () => {
   // The positive control. Every assertion above is a refusal, and a reader
   // that refused everything would satisfy all of them.
   const { root, proj } = await box();
@@ -62,7 +82,7 @@ Deno.test("an ordinary read still works, and a missing file is still null", asyn
   }
 });
 
-Deno.test("parseLock rejects an entry KEY that is not a legal destination", async () => {
+symlinkTest("parseLock rejects an entry KEY that is not a legal destination", async () => {
   // The amplifier. Every VALUE in an entry was type-checked and the path it
   // names was not — and the path is the part that reaches the filesystem.
   // `.specnaut/installed.lock` is committed and absent from the scaffolded

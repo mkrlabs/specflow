@@ -3,6 +3,26 @@ import { join } from "@std/path";
 import { DenoFsWriter } from "../../src/infrastructure/deno_fs_writer.ts";
 
 /**
+ * Registers a test that needs `Deno.symlink`.
+ *
+ * Windows refuses symlink creation without Developer Mode or elevation, so
+ * every fixture in this file fails there for a reason that has nothing to do
+ * with the code under test. Registered as IGNORED rather than short-circuited
+ * inside the body: a test that returns early reports as PASSED, and a green
+ * that never ran is the exact failure this whole feature is about.
+ *
+ * The consequence is stated rather than hidden: **containment is not covered on
+ * Windows.** The code is platform-neutral by construction — `relative()` and
+ * `@std/path` throughout, never a hardcoded separator — but that is an argument,
+ * not a measurement. `write_bundle_symlink_test.ts` has skipped Windows the same
+ * way since before this change.
+ */
+const WINDOWS = Deno.build.os === "windows";
+function symlinkTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({ name, ignore: WINDOWS, fn });
+}
+
+/**
  * The escapes cli#574 measured, at the sink rather than at the predicate.
  *
  * Every case asserts TWO things: that the command refused, AND that the file
@@ -21,7 +41,7 @@ async function box(): Promise<{ root: string; proj: string; outside: string }> {
 
 const w = new DenoFsWriter();
 
-Deno.test("shape A — a symlinked ancestor cannot receive a write", async () => {
+symlinkTest("shape A — a symlinked ancestor cannot receive a write", async () => {
   const { root, proj, outside } = await box();
   try {
     await Deno.symlink(outside, join(proj, ".claude"));
@@ -41,7 +61,7 @@ Deno.test("shape A — a symlinked ancestor cannot receive a write", async () =>
   }
 });
 
-Deno.test("shape A' — mkdir -p may not create directories through the link either", async () => {
+symlinkTest("shape A' — mkdir -p may not create directories through the link either", async () => {
   // The sink the plan's first version omitted, and the reason the check moved
   // ahead of `mkdir`. Damage is bounded — empty directories, no content — but a
   // guard blind to a sink it never reads is the class this change closes.
@@ -65,7 +85,7 @@ Deno.test("shape A' — mkdir -p may not create directories through the link eit
   }
 });
 
-Deno.test("shape B — a leaf symlink cannot be written through", async () => {
+symlinkTest("shape B — a leaf symlink cannot be written through", async () => {
   // The case the plan's first algorithm allowed: the parent is a normal
   // in-project directory, so resolve-the-parent-and-append-the-leaf says
   // "inside" and the write lands on the victim.
@@ -86,7 +106,7 @@ Deno.test("shape B — a leaf symlink cannot be written through", async () => {
   }
 });
 
-Deno.test("shape B' — an executable dest cannot be chmodded through a link", async () => {
+symlinkTest("shape B' — an executable dest cannot be chmodded through a link", async () => {
   const { root, proj, outside } = await box();
   try {
     const victim = join(outside, "victim.sh");
@@ -107,7 +127,7 @@ Deno.test("shape B' — an executable dest cannot be chmodded through a link", a
   }
 });
 
-Deno.test("shape C — a delete cannot reach through a symlinked ancestor", async () => {
+symlinkTest("shape C — a delete cannot reach through a symlinked ancestor", async () => {
   const { root, proj, outside } = await box();
   try {
     await Deno.writeTextFile(join(outside, "z.md"), "keep");
@@ -119,7 +139,7 @@ Deno.test("shape C — a delete cannot reach through a symlinked ancestor", asyn
   }
 });
 
-Deno.test("a backup rename cannot move a file out of the project either", async () => {
+symlinkTest("a backup rename cannot move a file out of the project either", async () => {
   const { root, proj, outside } = await box();
   try {
     await Deno.writeTextFile(join(outside, "z.md"), "keep");
@@ -135,7 +155,7 @@ Deno.test("a backup rename cannot move a file out of the project either", async 
   }
 });
 
-Deno.test("the refusal names the path, where it resolved, and the root", async () => {
+symlinkTest("the refusal names the path, where it resolved, and the root", async () => {
   const { root, proj, outside } = await box();
   try {
     await Deno.symlink(outside, join(proj, ".claude"));
@@ -157,7 +177,7 @@ Deno.test("the refusal names the path, where it resolved, and the root", async (
   }
 });
 
-Deno.test("an ordinary project is written exactly as before", async () => {
+symlinkTest("an ordinary project is written exactly as before", async () => {
   // The positive control. Every assertion above is a refusal, and a guard that
   // refuses everything would satisfy all of them.
   const { root, proj } = await box();

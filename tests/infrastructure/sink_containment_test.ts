@@ -8,6 +8,26 @@ import { SpecCacheWriter } from "../../src/infrastructure/spec/spec_cache_writer
 import type { InstalledLock } from "../../src/domain/installed_lock.ts";
 
 /**
+ * Registers a test that needs `Deno.symlink`.
+ *
+ * Windows refuses symlink creation without Developer Mode or elevation, so
+ * every fixture in this file fails there for a reason that has nothing to do
+ * with the code under test. Registered as IGNORED rather than short-circuited
+ * inside the body: a test that returns early reports as PASSED, and a green
+ * that never ran is the exact failure this whole feature is about.
+ *
+ * The consequence is stated rather than hidden: **containment is not covered on
+ * Windows.** The code is platform-neutral by construction — `relative()` and
+ * `@std/path` throughout, never a hardcoded separator — but that is an argument,
+ * not a measurement. `write_bundle_symlink_test.ts` has skipped Windows the same
+ * way since before this change.
+ */
+const WINDOWS = Deno.build.os === "windows";
+function symlinkTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({ name, ignore: WINDOWS, fn });
+}
+
+/**
  * One refusal assertion per guard CALL SITE.
  *
  * The completeness sweep beside this file checks that a mutating module
@@ -50,7 +70,7 @@ const LOCK: InstalledLock = {
   entries: new Map(),
 };
 
-Deno.test("FsLockStore.write refuses a redirected .specnaut", async () => {
+symlinkTest("FsLockStore.write refuses a redirected .specnaut", async () => {
   const { root, proj, outside } = await redirected();
   try {
     await assertRejects(() => new FsLockStore().write(proj, LOCK));
@@ -60,7 +80,7 @@ Deno.test("FsLockStore.write refuses a redirected .specnaut", async () => {
   }
 });
 
-Deno.test("FsPreserveStore.write refuses a redirected .specnaut", async () => {
+symlinkTest("FsPreserveStore.write refuses a redirected .specnaut", async () => {
   const { root, proj, outside } = await redirected();
   try {
     await assertRejects(() => new FsPreserveStore().write(proj, { preserved: ["x.md"] }));
@@ -70,7 +90,7 @@ Deno.test("FsPreserveStore.write refuses a redirected .specnaut", async () => {
   }
 });
 
-Deno.test("FsUpgradeMarkerStore.write refuses a redirected .specnaut", async () => {
+symlinkTest("FsUpgradeMarkerStore.write refuses a redirected .specnaut", async () => {
   const { root, proj, outside } = await redirected();
   try {
     await assertRejects(() =>
@@ -82,7 +102,7 @@ Deno.test("FsUpgradeMarkerStore.write refuses a redirected .specnaut", async () 
   }
 });
 
-Deno.test("FsStagingStore.read refuses a redirected .specnaut", async () => {
+symlinkTest("FsStagingStore.read refuses a redirected .specnaut", async () => {
   const { root, proj, outside } = await redirected();
   try {
     await Deno.mkdir(join(outside, "upgrade-staging"), { recursive: true });
@@ -93,7 +113,7 @@ Deno.test("FsStagingStore.read refuses a redirected .specnaut", async () => {
   }
 });
 
-Deno.test("FsStagingStore.delete refuses a redirected .specnaut", async () => {
+symlinkTest("FsStagingStore.delete refuses a redirected .specnaut", async () => {
   const { root, proj, outside } = await redirected();
   try {
     await Deno.mkdir(join(outside, "upgrade-staging"), { recursive: true });
@@ -105,7 +125,7 @@ Deno.test("FsStagingStore.delete refuses a redirected .specnaut", async () => {
   }
 });
 
-Deno.test("SpecCacheWriter.write refuses a redirected .specnaut", async () => {
+symlinkTest("SpecCacheWriter.write refuses a redirected .specnaut", async () => {
   const { root, proj, outside } = await redirected();
   try {
     await assertRejects(() =>
@@ -119,29 +139,32 @@ Deno.test("SpecCacheWriter.write refuses a redirected .specnaut", async () => {
   }
 });
 
-Deno.test("SpecCacheWriter.clear refuses a redirected .specnaut, and does NOT swallow it", async () => {
-  // The most valuable one here. `clear` is the only recursive delete in this
-  // codebase, and its guard used to sit INSIDE the `try` whose catch swallows
-  // `NotFound` to keep the method idempotent — the same error
-  // `resolveProjectRoot` raises when the project directory is gone. A refusal
-  // that becomes a silent return in front of `Deno.remove(..., recursive)` is
-  // worse than no refusal, because the report then says the cache was cleared.
-  const { root, proj, outside } = await redirected();
-  try {
-    await Deno.mkdir(join(outside, "specs/.cache/7"), { recursive: true });
-    await Deno.writeTextFile(join(outside, "specs/.cache/7/precious.md"), "PRECIOUS");
-    await assertRejects(() => new SpecCacheWriter().clear(proj, 7));
-    assertEquals(
-      await Deno.readTextFile(join(outside, "specs/.cache/7/precious.md")),
-      "PRECIOUS",
-      "the recursive delete must not have run",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
+symlinkTest(
+  "SpecCacheWriter.clear refuses a redirected .specnaut, and does NOT swallow it",
+  async () => {
+    // The most valuable one here. `clear` is the only recursive delete in this
+    // codebase, and its guard used to sit INSIDE the `try` whose catch swallows
+    // `NotFound` to keep the method idempotent — the same error
+    // `resolveProjectRoot` raises when the project directory is gone. A refusal
+    // that becomes a silent return in front of `Deno.remove(..., recursive)` is
+    // worse than no refusal, because the report then says the cache was cleared.
+    const { root, proj, outside } = await redirected();
+    try {
+      await Deno.mkdir(join(outside, "specs/.cache/7"), { recursive: true });
+      await Deno.writeTextFile(join(outside, "specs/.cache/7/precious.md"), "PRECIOUS");
+      await assertRejects(() => new SpecCacheWriter().clear(proj, 7));
+      assertEquals(
+        await Deno.readTextFile(join(outside, "specs/.cache/7/precious.md")),
+        "PRECIOUS",
+        "the recursive delete must not have run",
+      );
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  },
+);
 
-Deno.test("the stores still work on an ordinary project", async () => {
+symlinkTest("the stores still work on an ordinary project", async () => {
   // The positive control for this whole file. Seven refusals above, and a set
   // of stores that refused unconditionally would satisfy every one of them.
   const root = await Deno.makeTempDir({ prefix: "sink-ok-" });
@@ -162,7 +185,7 @@ Deno.test("the stores still work on an ordinary project", async () => {
   }
 });
 
-Deno.test("FsUpgradeMarkerStore.delete refuses a redirected .specnaut", async () => {
+symlinkTest("FsUpgradeMarkerStore.delete refuses a redirected .specnaut", async () => {
   // `write()` guarded and `delete()` did not — one method of a pair, which is
   // the shape a file-level sweep is structurally unable to see. It is why the
   // sweep beside this file now attributes each sink to its own method.
@@ -180,7 +203,7 @@ Deno.test("FsUpgradeMarkerStore.delete refuses a redirected .specnaut", async ()
   }
 });
 
-Deno.test("FsStagingStore.cleanupIfEmpty refuses a redirected .specnaut", async () => {
+symlinkTest("FsStagingStore.cleanupIfEmpty refuses a redirected .specnaut", async () => {
   // `Deno.readDir` FOLLOWS a symlinked directory and lists the TARGET's
   // entries, so an empty out-of-project directory made this decide "prune it"
   // on evidence gathered somewhere else entirely — and then removed it.

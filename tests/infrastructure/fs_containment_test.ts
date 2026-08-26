@@ -6,6 +6,26 @@ import {
   resolveTarget,
 } from "../../src/infrastructure/fs_containment.ts";
 
+/**
+ * Registers a test that needs `Deno.symlink`.
+ *
+ * Windows refuses symlink creation without Developer Mode or elevation, so
+ * every fixture in this file fails there for a reason that has nothing to do
+ * with the code under test. Registered as IGNORED rather than short-circuited
+ * inside the body: a test that returns early reports as PASSED, and a green
+ * that never ran is the exact failure this whole feature is about.
+ *
+ * The consequence is stated rather than hidden: **containment is not covered on
+ * Windows.** The code is platform-neutral by construction — `relative()` and
+ * `@std/path` throughout, never a hardcoded separator — but that is an argument,
+ * not a measurement. `write_bundle_symlink_test.ts` has skipped Windows the same
+ * way since before this change.
+ */
+const WINDOWS = Deno.build.os === "windows";
+function symlinkTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({ name, ignore: WINDOWS, fn });
+}
+
 /** A project directory beside an `outside/` sibling, both under one temp root. */
 async function box(): Promise<{ root: string; proj: string; outside: string }> {
   const root = await Deno.makeTempDir({ prefix: "containment-" });
@@ -16,7 +36,7 @@ async function box(): Promise<{ root: string; proj: string; outside: string }> {
   return { root, proj, outside };
 }
 
-Deno.test("a temp-dir project is inside itself", async () => {
+symlinkTest("a temp-dir project is inside itself", async () => {
   // The assertion that fails FIRST if the two sides are resolved differently.
   // `makeTempDir` returns a path under /var on macOS, which is a symlink to
   // /private/var — so a lexical root against a realPath'd candidate reports
@@ -30,7 +50,7 @@ Deno.test("a temp-dir project is inside itself", async () => {
   }
 });
 
-Deno.test("an absent destination is judged on its parent", async () => {
+symlinkTest("an absent destination is judged on its parent", async () => {
   const { root, proj } = await box();
   try {
     const r = await resolveProjectRoot(proj);
@@ -40,7 +60,7 @@ Deno.test("an absent destination is judged on its parent", async () => {
   }
 });
 
-Deno.test("a symlink resolving INSIDE the project is allowed", async () => {
+symlinkTest("a symlink resolving INSIDE the project is allowed", async () => {
   // FR-005 / SC-003. This is the case the existing skipIfExists guard was
   // written to protect — a project consolidating its context files — and the
   // one an over-correction into a blanket symlink refusal breaks.
@@ -55,7 +75,7 @@ Deno.test("a symlink resolving INSIDE the project is allowed", async () => {
   }
 });
 
-Deno.test("a leaf symlink resolving outside is refused", async () => {
+symlinkTest("a leaf symlink resolving outside is refused", async () => {
   // Shape B. The plan's first algorithm — resolve the PARENT and append the
   // leaf — says "inside" here, because the parent is a normal in-project
   // directory. Measured before this test existed: rel="link.md", contained,
@@ -75,7 +95,7 @@ Deno.test("a leaf symlink resolving outside is refused", async () => {
   }
 });
 
-Deno.test("a symlinked ANCESTOR is refused", async () => {
+symlinkTest("a symlinked ANCESTOR is refused", async () => {
   // Shape A and C. The dest is a clean relative path the whole way; the escape
   // is one directory up.
   const { root, proj, outside } = await box();
@@ -88,7 +108,7 @@ Deno.test("a symlinked ANCESTOR is refused", async () => {
   }
 });
 
-Deno.test("a DANGLING symlink is judged on where it points, not treated as absent", async () => {
+symlinkTest("a DANGLING symlink is judged on where it points, not treated as absent", async () => {
   // The trap in the obvious fix. "Try realPath, fall back to the parent on
   // NotFound" cannot tell a dangling link from a file that does not exist, and
   // writeTextFile on a dangling link CREATES the target — so the fallback is
@@ -104,7 +124,7 @@ Deno.test("a DANGLING symlink is judged on where it points, not treated as absen
   }
 });
 
-Deno.test("a dangling symlink pointing INSIDE is still allowed", async () => {
+symlinkTest("a dangling symlink pointing INSIDE is still allowed", async () => {
   // The other half of the rule: a dangling link is judged on its target, not
   // refused for being dangling. Without this, the previous test passes against
   // a blanket "refuse every unresolvable link".
@@ -118,7 +138,7 @@ Deno.test("a dangling symlink pointing INSIDE is still allowed", async () => {
   }
 });
 
-Deno.test("resolveTarget follows a chain of links to its end", async () => {
+symlinkTest("resolveTarget follows a chain of links to its end", async () => {
   const { root, proj, outside } = await box();
   try {
     await Deno.writeTextFile(join(outside, "end.md"), "x");
@@ -131,52 +151,55 @@ Deno.test("resolveTarget follows a chain of links to its end", async () => {
   }
 });
 
-Deno.test("the filesystem root is refused as a project", async () => {
+symlinkTest("the filesystem root is refused as a project", async () => {
   await assertRejects(() => resolveProjectRoot("/"));
 });
 
-Deno.test("the home directory is refused as a project", async () => {
+symlinkTest("the home directory is refused as a project", async () => {
   const home = Deno.env.get("HOME");
   if (home === undefined || home === "") return; // not applicable on this host
   await assertRejects(() => resolveProjectRoot(home));
 });
 
-Deno.test("a relative leaf link under a symlinked parent is resolved the way the kernel does", async () => {
-  // The CRITICAL the review reproduced, and the sharpest case in this file.
-  //
-  //     proj/.claude      -> outside/dir
-  //     outside/dir/x.md  -> ../victim.md
-  //
-  // `join` collapses `..` LEXICALLY; the kernel resolves each component in turn
-  // and applies `..` from wherever it actually landed. Joining `../victim.md`
-  // against the unresolved `proj/.claude` gives `proj/victim.md` — inside. The
-  // kernel gives `outside/victim.md` — not. Measured before the fix:
-  // `writeBundle` did not refuse, and the file outside was overwritten and
-  // chmod 755'd.
-  //
-  // Two symlinks, both committable to a repository, and they defeated the
-  // resolver at the centre of every guard in this change.
-  const { root, proj, outside } = await box();
-  try {
-    await Deno.mkdir(join(outside, "dir"));
-    await Deno.writeTextFile(join(outside, "victim.md"), "SENTINEL");
-    await Deno.symlink(join(outside, "dir"), join(proj, ".claude"));
-    await Deno.symlink("../victim.md", join(outside, "dir/x.md"));
+symlinkTest(
+  "a relative leaf link under a symlinked parent is resolved the way the kernel does",
+  async () => {
+    // The CRITICAL the review reproduced, and the sharpest case in this file.
+    //
+    //     proj/.claude      -> outside/dir
+    //     outside/dir/x.md  -> ../victim.md
+    //
+    // `join` collapses `..` LEXICALLY; the kernel resolves each component in turn
+    // and applies `..` from wherever it actually landed. Joining `../victim.md`
+    // against the unresolved `proj/.claude` gives `proj/victim.md` — inside. The
+    // kernel gives `outside/victim.md` — not. Measured before the fix:
+    // `writeBundle` did not refuse, and the file outside was overwritten and
+    // chmod 755'd.
+    //
+    // Two symlinks, both committable to a repository, and they defeated the
+    // resolver at the centre of every guard in this change.
+    const { root, proj, outside } = await box();
+    try {
+      await Deno.mkdir(join(outside, "dir"));
+      await Deno.writeTextFile(join(outside, "victim.md"), "SENTINEL");
+      await Deno.symlink(join(outside, "dir"), join(proj, ".claude"));
+      await Deno.symlink("../victim.md", join(outside, "dir/x.md"));
 
-    const abs = join(proj, ".claude/x.md");
-    assertEquals(
-      await resolveTarget(abs),
-      await Deno.realPath(abs),
-      "the resolver must agree with the kernel, which is the only definition of where a write lands",
-    );
-    const r = await resolveProjectRoot(proj);
-    await assertRejects(() => assertInsideProject(r, abs));
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
+      const abs = join(proj, ".claude/x.md");
+      assertEquals(
+        await resolveTarget(abs),
+        await Deno.realPath(abs),
+        "the resolver must agree with the kernel, which is the only definition of where a write lands",
+      );
+      const r = await resolveProjectRoot(proj);
+      await assertRejects(() => assertInsideProject(r, abs));
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  },
+);
 
-Deno.test("a relative leaf link that stays inside is still allowed", async () => {
+symlinkTest("a relative leaf link that stays inside is still allowed", async () => {
   // The positive control for the case above: `..` in a link target is not
   // itself the defect, and refusing every relative link would satisfy the
   // assertion above while breaking ordinary layouts.
@@ -191,26 +214,29 @@ Deno.test("a relative leaf link that stays inside is still allowed", async () =>
   }
 });
 
-Deno.test("a symlink cycle is refused with a message about the project, not about realpath", async () => {
-  // Not an escape — the kernel refuses a cycle too — but it surfaced as a raw
-  // `FilesystemLoop` naming `realpath`, which tells a user nothing about their
-  // own tree. Narrow on purpose: every other error still propagates, so a
-  // permission problem is never reported as a bad layout.
-  const { root, proj } = await box();
-  try {
-    await Deno.symlink(join(proj, "b"), join(proj, "a"));
-    await Deno.symlink(join(proj, "a"), join(proj, "b"));
-    const r = await resolveProjectRoot(proj);
-    const err = await assertRejects(() => assertInsideProject(r, join(proj, "a")));
-    assert(err instanceof Error);
-    assert(err.message.includes("cycle"), err.message);
-    assert(err.message.includes(join(proj, "a")), "and names the path");
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
+symlinkTest(
+  "a symlink cycle is refused with a message about the project, not about realpath",
+  async () => {
+    // Not an escape — the kernel refuses a cycle too — but it surfaced as a raw
+    // `FilesystemLoop` naming `realpath`, which tells a user nothing about their
+    // own tree. Narrow on purpose: every other error still propagates, so a
+    // permission problem is never reported as a bad layout.
+    const { root, proj } = await box();
+    try {
+      await Deno.symlink(join(proj, "b"), join(proj, "a"));
+      await Deno.symlink(join(proj, "a"), join(proj, "b"));
+      const r = await resolveProjectRoot(proj);
+      const err = await assertRejects(() => assertInsideProject(r, join(proj, "a")));
+      assert(err instanceof Error);
+      assert(err.message.includes("cycle"), err.message);
+      assert(err.message.includes(join(proj, "a")), "and names the path");
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  },
+);
 
-Deno.test("a CHAIN of symlinks is followed to its end, not one hop", async () => {
+symlinkTest("a CHAIN of symlinks is followed to its end, not one hop", async () => {
   // Round 2's CRITICAL, and the round-1 defect one hop further out — same
   // function, surviving the round-1 fix.
   //
@@ -239,7 +265,7 @@ Deno.test("a CHAIN of symlinks is followed to its end, not one hop", async () =>
   }
 });
 
-Deno.test("a long chain that stays inside is still allowed", async () => {
+symlinkTest("a long chain that stays inside is still allowed", async () => {
   // The positive control for the loop. A hop cap that refused ordinary depth,
   // or a loop that gave up early, would satisfy the assertion above.
   const { root, proj } = await box();

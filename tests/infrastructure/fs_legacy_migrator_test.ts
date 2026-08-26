@@ -3,6 +3,16 @@ import { exists } from "@std/fs";
 import { join } from "@std/path";
 import { migrateLegacyConfigDir } from "../../src/infrastructure/fs_legacy_migrator.ts";
 
+/** Needs `Deno.symlink`, which Windows refuses without Developer Mode or
+ * elevation. Registered as IGNORED rather than short-circuited inside the body:
+ * a test that returns early reports as PASSED, and a green that never ran is
+ * the failure this feature exists to remove. Containment is not covered on
+ * Windows, and that is stated rather than implied. */
+const WINDOWS = Deno.build.os === "windows";
+function symlinkTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({ name, ignore: WINDOWS, fn });
+}
+
 async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = await Deno.makeTempDir({ prefix: "specnaut-migrate-" });
   try {
@@ -61,7 +71,7 @@ Deno.test("migrate: conflict when BOTH dirs exist — neither is touched", async
   });
 });
 
-Deno.test("a symlinked .specflow is refused, not migrated", async () => {
+symlinkTest("a symlinked .specflow is refused, not migrated", async () => {
   // The foothold (cli#574). `isDir` used `Deno.stat`, which follows a link, so
   // a symlink to any directory reported `isDirectory: true`; `Deno.rename`
   // then moved the LINK, and `.specnaut/` became a pointer out of the project.
@@ -96,7 +106,7 @@ Deno.test("a symlinked .specflow is refused, not migrated", async () => {
   }
 });
 
-Deno.test("a symlinked .specnaut is refused too", async () => {
+symlinkTest("a symlinked .specnaut is refused too", async () => {
   // The other end of the same rule: nothing to migrate, and still a link the
   // rest of the run would write through.
   const root = await Deno.makeTempDir({ prefix: "current-link-" });
@@ -112,7 +122,7 @@ Deno.test("a symlinked .specnaut is refused too", async () => {
   }
 });
 
-Deno.test("a .specnaut symlink that stays INSIDE the project is not refused", async () => {
+symlinkTest("a .specnaut symlink that stays INSIDE the project is not refused", async () => {
   // Over-refusal is a real cost, not a safe default (cli#574 round 2). The
   // first version refused any link at either name, which also refused a project
   // that had linked `.specnaut -> config/specnaut` inside itself — a layout

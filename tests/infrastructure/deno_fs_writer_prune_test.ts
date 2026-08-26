@@ -2,6 +2,16 @@ import { assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import { DenoFsWriter } from "../../src/infrastructure/deno_fs_writer.ts";
 
+/** Needs `Deno.symlink`, which Windows refuses without Developer Mode or
+ * elevation. Registered as IGNORED rather than short-circuited inside the body:
+ * a test that returns early reports as PASSED, and a green that never ran is
+ * the failure this feature exists to remove. Containment is not covered on
+ * Windows, and that is stated rather than implied. */
+const WINDOWS = Deno.build.os === "windows";
+function symlinkTest(name: string, fn: () => Promise<void>): void {
+  Deno.test({ name, ignore: WINDOWS, fn });
+}
+
 /**
  * A renamed skill must not leave its old name behind as an empty folder.
  *
@@ -149,7 +159,7 @@ Deno.test("nothing outside the target directory is ever pruned", async () => {
   }
 });
 
-Deno.test("the walk still prunes when the project is reached through a symlink", async () => {
+symlinkTest("the walk still prunes when the project is reached through a symlink", async () => {
   // The failure mode this pins is SILENCE, so it asserts the directory is
   // GONE — never merely that no error was raised (cli#574, F6).
   //
