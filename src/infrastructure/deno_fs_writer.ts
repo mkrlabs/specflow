@@ -1,4 +1,4 @@
-import { basename, dirname, join, resolve } from "@std/path";
+import { dirname, join, resolve } from "@std/path";
 import { assertSafeDestination, type Bundle, isInside } from "../domain/template.ts";
 import { assertInsideProject, resolveProjectRoot } from "./fs_containment.ts";
 import { mergeIntoFile } from "../domain/merge_block.ts";
