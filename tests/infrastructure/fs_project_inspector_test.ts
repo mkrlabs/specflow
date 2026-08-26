@@ -611,6 +611,10 @@ Deno.test("inspect surfaces backlog backend = local with pass status (zero-confi
 });
 
 Deno.test("inspect warns when github backend has empty repo and project_number", async () => {
+  // Deliberately the PRE-#566 config shape, keys and all. Those two keys were
+  // removed from the generated stub because nothing ever read them, and this
+  // fixture is the standing proof that an existing config still carrying them
+  // inspects exactly as before — which is what UPGRADING.md promises.
   await withProjectDir(
     (dir) =>
       backlogProject(

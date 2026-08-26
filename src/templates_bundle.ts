@@ -9613,13 +9613,13 @@ mutation.
 \`\`\`yaml
 # .specnaut/backlog-config.yml
 repo: myorg/myproject              # GitHub repo (owner/name)
-project_number: 4                   # GitHub Project V2 number
-project_node_id: ""                 # cached on first run
-status_field_id: ""                 # cached on first run
+project_number: <N>                # GitHub Project V2 number
 \`\`\`
 
-The PO will refresh \`project_node_id\` / \`status_field_id\` automatically
-on first invocation if they are blank.
+Both are placeholders; resolve the number with
+\`gh project list --owner <org>\`. A wrong \`project_number\` is invisible to
+\`list.sh\` / \`view.sh\` — they address the board through \`repo:\` alone — and
+refused up front by every writing script.
 
 ### Two paths to GitHub: MCP (preferred) and shell (always available)
 

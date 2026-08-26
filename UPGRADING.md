@@ -1,5 +1,25 @@
 # Upgrading Specnaut
 
+## 4.0.x → 4.1.0
+
+### `backlog-config.yml` no longer carries `project_node_id` / `status_field_id`
+
+`specnaut init --backlog github` used to generate two extra keys with a comment saying they were
+"cached on first run", and the board skill documented a PO that would refresh them automatically
+when blank.
+
+**Nothing ever implemented that.** A sweep of the whole repository found writers of the literal
+empty string and the claim itself — no reader of either key, and nothing that would ever populate
+one. Both keys are removed from the generated stub and from the documentation.
+
+**An existing `backlog-config.yml` carrying them needs no edit.** The keys were inert, the config
+reader only extracts `repo` and `project_number`, and an unrecognised key is ignored. Delete them or
+leave them; the behaviour is identical either way.
+
+The worked example's `project_number` is now a `<N>` placeholder rather than an integer, so it
+cannot be copied as a working value, and the block names `gh project list --owner <org>` as the way
+to resolve the real one.
+
 ## 3.2.x → 4.0.0
 
 ### `/backlog` is now `/board`
