@@ -190,3 +190,22 @@ Deno.test("a relative leaf link that stays inside is still allowed", async () =>
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("a symlink cycle is refused with a message about the project, not about realpath", async () => {
+  // Not an escape — the kernel refuses a cycle too — but it surfaced as a raw
+  // `FilesystemLoop` naming `realpath`, which tells a user nothing about their
+  // own tree. Narrow on purpose: every other error still propagates, so a
+  // permission problem is never reported as a bad layout.
+  const { root, proj } = await box();
+  try {
+    await Deno.symlink(join(proj, "b"), join(proj, "a"));
+    await Deno.symlink(join(proj, "a"), join(proj, "b"));
+    const r = await resolveProjectRoot(proj);
+    const err = await assertRejects(() => assertInsideProject(r, join(proj, "a")));
+    assert(err instanceof Error);
+    assert(err.message.includes("cycle"), err.message);
+    assert(err.message.includes(join(proj, "a")), "and names the path");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

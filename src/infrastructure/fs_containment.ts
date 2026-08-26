@@ -155,7 +155,24 @@ export async function resolveTarget(abs: string): Promise<string> {
  * otherwise invisible.
  */
 export async function assertInsideProject(root: string, abs: string): Promise<void> {
-  const resolved = await resolveTarget(abs);
+  let resolved: string;
+  try {
+    resolved = await resolveTarget(abs);
+  } catch (err) {
+    // A symlink cycle cannot be written through — the kernel refuses it too —
+    // but it surfaced as a raw `FilesystemLoop` with a `realpath` in the text,
+    // which tells the user nothing about their project. Refuse it the same way
+    // as an escape: the path is unusable either way, and the message should say
+    // which path. Deliberately narrow — every other error still propagates, so
+    // a permission problem is not silently reported as a bad layout.
+    if (!(err instanceof Deno.errors.FilesystemLoop)) throw err;
+    throw new Error(
+      `refusing to touch a path whose symlinks form a cycle:\n` +
+        `  path:    ${abs}\n` +
+        `  project: ${root}\n` +
+        `Follow the links from that path and break the loop.`,
+    );
+  }
   if (isInside(root, resolved)) return;
   throw new Error(
     `refusing to touch a path that leaves the project:\n` +
