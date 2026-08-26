@@ -239,10 +239,22 @@ for (const pair of SYNC_PAIRS) {
 
 const EXCLUSIONS_FILE = "tests/plugin/mirror-exclusions.txt";
 
+/**
+ * Repo-relative POSIX path. `relative()` answers in the HOST's separator, so on
+ * Windows it returns `plugin\\README.md` while every literal in `SYNC_PAIRS`
+ * and in the exclusion list is `/`-separated — which made all 69 assets fall
+ * through as uncovered and turned `cross-smoke (windows-latest)` red on `main`
+ * while ubuntu, macos and lint-test all passed. The three green legs are why it
+ * was invisible locally.
+ */
+function posix(rel: string): string {
+  return rel.replaceAll("\\", "/");
+}
+
 /** One exclusion entry: a path, and the written reason that makes it one. */
-function readExclusions(): Map<string, string> {
+function readExclusions(text?: string): Map<string, string> {
   const out = new Map<string, string>();
-  const raw = Deno.readTextFileSync(abs(EXCLUSIONS_FILE));
+  const raw = text ?? Deno.readTextFileSync(abs(EXCLUSIONS_FILE));
   for (const line of raw.split("\n")) {
     const trimmed = line.trim();
     if (trimmed === "" || trimmed.startsWith("#")) continue;
@@ -271,14 +283,20 @@ Deno.test("every file under plugin/ is either mirrored or excluded with a reason
     // never strip "..".
     const entry of walk(root, { includeDirs: false, followSymlinks: false })
   ) {
-    const rel = relative(abs(""), entry.path);
-    if (rel.startsWith("..")) {
+    // Containment against the WALK root, not the repository root. Checking the
+    // latter was unsatisfiable in principle — a walk yields lexical descendants
+    // of its own root, which are trivially inside the repo — so the guard read
+    // as a live safeguard while being unable to fire. Against `plugin/` it can:
+    // that is what a symlink out of the tree would produce if `followSymlinks`
+    // were ever turned on.
+    const fromWalkRoot = posix(relative(root, entry.path));
+    if (fromWalkRoot.startsWith("..") || fromWalkRoot.startsWith("/")) {
       throw new Error(
-        `plugin walk escaped the repository root: ${entry.path}. ` +
+        `plugin walk escaped plugin/: ${entry.path}. ` +
           `followSymlinks must stay false.`,
       );
     }
-    assets.push(rel);
+    assets.push(posix(relative(abs(""), entry.path)));
   }
 
   // The floor. A walk that resolves the wrong root, or yields nothing, would
@@ -286,11 +304,23 @@ Deno.test("every file under plugin/ is either mirrored or excluded with a reason
   // exist, which is the class this sweep exists to close. The bound is derived
   // from SYNC_PAIRS' own length, so it cannot go stale: there cannot be fewer
   // assets on disk than there are pairs claiming to point at them.
+  // The floor bounds the POPULATION, not just a zero-length walk. Against
+  // SYNC_PAIRS.length alone it had 8 files of slack — enough that re-scoping the
+  // walk to `exts: [".md"]` (the scoping FR-001 forbids, and the one the plan's
+  // security audit reversed the decision on) left 65 assets, 64 paired, 1
+  // Markdown exclusion, zero uncovered, and the whole suite green. That is the
+  // requirement enforced by prose and by no assertion.
+  //
+  // Every asset is either paired or excluded, so the two counts sum to the
+  // population and the floor is exact. A file added with its pair raises both;
+  // a file re-scoped OUT of the walk lowers only the left-hand side.
   assertGreaterOrEqual(
     assets.length,
-    SYNC_PAIRS.length,
-    `The plugin walk found ${assets.length} asset(s) but SYNC_PAIRS holds ` +
-      `${SYNC_PAIRS.length} pair(s). That is a failed walk, not a clean tree.`,
+    SYNC_PAIRS.length + exclusions.size,
+    `The plugin walk found ${assets.length} asset(s), but ${SYNC_PAIRS.length} ` +
+      `pair(s) + ${exclusions.size} exclusion(s) claim ${SYNC_PAIRS.length + exclusions.size}. ` +
+      `Something narrowed the walk — a failed enumeration, or a file-type scope ` +
+      `that FR-001 forbids. Either way it is not a clean tree.`,
   );
 
   const uncovered = assets
@@ -307,6 +337,27 @@ Deno.test("every file under plugin/ is either mirrored or excluded with a reason
       `exclusion WITH A WRITTEN REASON if it does not. An entry carrying no ` +
       `reason is not an entry and will not clear this.`,
   );
+});
+
+Deno.test("an exclusion entry with no written reason grants nothing", () => {
+  // FR-002 had no witness on this half. The reader drops a reason-less entry
+  // and the comment claimed the sweep then names the file as uncovered — true,
+  // and asserted by nothing. The two bash readers of the same rule REPORT it
+  // and are fatal, so the three spellings already disagreed on behaviour, which
+  // is precisely what the plan's §9 says the duplication costs.
+  //
+  // Synthetic input, so this cannot go quiet the day the real list happens to
+  // hold no such entry.
+  const parsed = readExclusions(
+    [
+      "# a comment",
+      "plugin/with-reason.md  a fact about the file",
+      "plugin/no-reason.md",
+      "plugin/whitespace-only.md   ",
+    ].join("\n"),
+  );
+  assertEquals([...parsed.keys()], ["plugin/with-reason.md"]);
+  assertEquals(parsed.get("plugin/with-reason.md"), "a fact about the file");
 });
 
 Deno.test("no exclusion entry excuses a file that no longer exists", () => {
