@@ -9,3 +9,17 @@ spec-kit/
 sandbox/
 docs-dist/
 .env
+
+# Credential shapes, beside the `.env` above (#567).
+# Every one of these was checked with `git ls-files` at landing time and
+# matched nothing tracked — the widening cannot hide existing content.
+# Each pattern also narrows what `scripts/smoke/audit.sh`'s untracked-surface
+# scan can report under a mapped prefix (#564); that trade is deliberate,
+# because a credential landing in the working tree is the worse outcome.
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+.npmrc
+secrets.json
