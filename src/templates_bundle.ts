@@ -27414,7 +27414,7 @@ whose target surface is genuinely narrower says so once, in
     executable: false,
     backend: null,
     skipIfExists: true,
-    managedSection: ["chain-stops","ui-defaults"],
+    managedSection: ["chain-stops", "ui-defaults"],
   },
   {
     category: "mergeable-project-root",

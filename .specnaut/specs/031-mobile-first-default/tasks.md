@@ -188,19 +188,38 @@ instance.
 
 ## Review round 3 — the round that looked at what ships
 
-Rounds 1 and 2 spent their effort on the test suite. Round 3 was briefed to read
-the artefact as a user receives it, and found three defects there — none of
-which the first two rounds could have caught by looking where they looked.
+Rounds 1 and 2 spent their effort on the test suite. Round 3 was briefed to read the artefact as a
+user receives it, and found three defects there — none of which the first two rounds could have
+caught by looking where they looked.
 
-- [X] R16 **The documented opt-out did not work.** The contract said write `## Target surface` (H2); both constitution files instructed `### Target surface` (H3). A user following the instruction exactly would have been ignored. One level now, in all three files, and the level is stated as part of the form — a constitution has other sections and a stray H2 must not read as a declaration.
-- [X] R17 **The constitution TEMPLATE still reproduced the literal opt-out**, verbatim in a fence. Copy the template, forget to delete the subsection, and mobile-first ships OFF. R06 had removed exactly this from the seed and not from the template: a decision not to do something has to hold at every stage.
-- [X] R18 **`ui-ux-designer` was given two orders it could not both obey** — record the exception in the constitution, and write nothing outside `DESIGN.md`. It now surfaces and instructs; recording is the user's.
-- [X] R19 The restatement sweep covered rule bold-leads in one section. Widened to every normative sentence across both sections, emphasis stripped on both sides. The framing intro stays outside it on purpose: its one shared sentence is boilerplate this contract holds in common with `backlog-reference-contract`.
-- [X] R20 FR-009 required the keyword and the literal on the SAME LINE of a hard-wrapped file, so the same defect passed or failed on where the wrap fell. Flattened first.
+- [x] R16 **The documented opt-out did not work.** The contract said write `## Target surface` (H2);
+      both constitution files instructed `### Target surface` (H3). A user following the instruction
+      exactly would have been ignored. One level now, in all three files, and the level is stated as
+      part of the form — a constitution has other sections and a stray H2 must not read as a
+      declaration.
+- [x] R17 **The constitution TEMPLATE still reproduced the literal opt-out**, verbatim in a fence.
+      Copy the template, forget to delete the subsection, and mobile-first ships OFF. R06 had
+      removed exactly this from the seed and not from the template: a decision not to do something
+      has to hold at every stage.
+- [x] R18 **`ui-ux-designer` was given two orders it could not both obey** — record the exception in
+      the constitution, and write nothing outside `DESIGN.md`. It now surfaces and instructs;
+      recording is the user's.
+- [x] R19 The restatement sweep covered rule bold-leads in one section. Widened to every normative
+      sentence across both sections, emphasis stripped on both sides. The framing intro stays
+      outside it on purpose: its one shared sentence is boilerplate this contract holds in common
+      with `backlog-reference-contract`.
+- [x] R20 FR-009 required the keyword and the literal on the SAME LINE of a hard-wrapped file, so
+      the same defect passed or failed on where the wrap fell. Flattened first.
 
 ### Rejected, with the reason
 
-- **`backupExisting: true` on the managed-section graft.** Filed as a HIGH data-loss path: an orphaned fence supposedly makes the next `upgrade` delete from the marker to EOF. **Measured — it does not.** `locateBlock` requires both fences; with either missing it returns null and `mergeIntoFile` takes the APPEND branch. Three orphan shapes tested (opening only, closing only, reversed): every one grew the file and lost no user content. Changing write semantics on a false premise is the worse trade. The real residual is a duplicate block, which `merge_block.ts` already documents as a deliberate non-repair.
+- **`backupExisting: true` on the managed-section graft.** Filed as a HIGH data-loss path: an
+  orphaned fence supposedly makes the next `upgrade` delete from the marker to EOF. **Measured — it
+  does not.** `locateBlock` requires both fences; with either missing it returns null and
+  `mergeIntoFile` takes the APPEND branch. Three orphan shapes tested (opening only, closing only,
+  reversed): every one grew the file and lost no user content. Changing write semantics on a false
+  premise is the worse trade. The real residual is a duplicate block, which `merge_block.ts` already
+  documents as a deliberate non-repair.
 
 ## Final Phase — Polish and cross-cutting
 

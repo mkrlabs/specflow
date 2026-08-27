@@ -126,9 +126,19 @@ async function buildCoreEntries(m: Manifest): Promise<string[]> {
     const suffix = entry.suffix === undefined ? "null" : JSON.stringify(entry.suffix);
     const backend = entry.backend === undefined ? "null" : JSON.stringify(entry.backend);
     const skipIfExists = entry.skipIfExists === true ? "true" : "false";
-    const managedSection = entry.managedSection === undefined
+    // Emitted so `deno fmt` leaves it alone. `JSON.stringify` on an array
+    // produces `["a","b"]` with no space after the comma, which fmt rewrites —
+    // so `deno task bundle` would dirty the tree for `fmt --check` on every
+    // run, and only CI would ever say so. It was a string until #576 and the
+    // question could not arise.
+    const labels = managedSectionLabels(entry.managedSection);
+    const managedSection = labels.length === 0
       ? ""
-      : `    managedSection: ${JSON.stringify(entry.managedSection)},\n`;
+      : `    managedSection: ${
+        labels.length === 1
+          ? JSON.stringify(labels[0])
+          : `[${labels.map((l) => JSON.stringify(l)).join(", ")}]`
+      },\n`;
     lines.push(
       `  {\n` +
         `    category: ${JSON.stringify(entry.category)},\n` +

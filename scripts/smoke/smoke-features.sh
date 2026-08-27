@@ -979,6 +979,30 @@ check "handoff-protocol .claude/skills/handoff-protocol/SKILL.md carries a paylo
 # canonical rendering instead.
 check "backlog-reference-contract .claude/skills/backlog-reference-contract/SKILL.md defines the canonical rendering" \
   'grep -qF "[#<number> — <title>](<url>)" .claude/skills/backlog-reference-contract/SKILL.md'
+
+# --- #576: mobile-first is the assumed default ------------------------------
+# The contract ships as one file and is reached by pointer. What the smoke can
+# see that the unit suite cannot is the SCAFFOLDED result: the file a user
+# actually receives, at the path their harness puts it.
+check "mobile-first-contract .claude/skills/mobile-first-contract/SKILL.md ships" \
+  'test -f .claude/skills/mobile-first-contract/SKILL.md'
+check "mobile-first-contract states the default and its opt-out" \
+  'grep -q "A default, not a mandate" .claude/skills/mobile-first-contract/SKILL.md'
+# The heading level IS the form — a scaffolded project whose contract and
+# constitution disagree on it has a documented opt-out that does nothing.
+check "mobile-first-contract and the constitution agree on the declaration heading" \
+  'grep -q "### Target surface" .claude/skills/mobile-first-contract/SKILL.md \
+     && grep -q "### Target surface" .specnaut/memory/constitution.md'
+check "the scaffolded constitution does not ship a live opt-out declaration" \
+  '! grep -q "This project targets" .specnaut/memory/constitution.md'
+check "constitution-template.md carries Front-end patterns pointing at the contract" \
+  'grep -q "mobile-first-contract" .specnaut/templates/constitution-template.md'
+check "constitution-template.md does not reproduce the declaration sentence" \
+  '! grep -q "This project targets" .specnaut/templates/constitution-template.md'
+check "AGENTS.md carries the ui-defaults managed section" \
+  'grep -q "Specnaut: ui-defaults" AGENTS.md'
+check "the ui-defaults block points at the contract" \
+  'grep -q "mobile-first-contract" AGENTS.md'
 check "backlog-reference-contract bans a bare number" \
   'grep -q "bare .#42. is opaque" .claude/skills/backlog-reference-contract/SKILL.md'
 
