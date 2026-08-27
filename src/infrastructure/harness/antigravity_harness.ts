@@ -1,3 +1,4 @@
+import { managedSectionField } from "./harness_managed.ts";
 import type { BundleOptions, Harness } from "../../application/ports.ts";
 import { HARNESS_STATIC } from "../../templates_bundle.ts";
 import type { CoreBundle, CoreEntry } from "../../domain/core_bundle.ts";
@@ -101,7 +102,7 @@ export class AntigravityHarness implements Harness {
         executable: entry.executable,
         ...(entry.category === "mergeable-project-root" ? { mergeBlock: "gitignore" } : {}),
         ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
-        ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
+        ...managedSectionField(entry),
       };
     }
     // Layer the harness's own static files last, so a harness-specific file

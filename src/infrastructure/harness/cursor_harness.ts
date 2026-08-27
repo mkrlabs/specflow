@@ -1,3 +1,4 @@
+import { managedSectionField } from "./harness_managed.ts";
 import type { BundleOptions, Harness } from "../../application/ports.ts";
 import type { CoreBundle, CoreEntry } from "../../domain/core_bundle.ts";
 import type { Bundle, TemplateFile } from "../../domain/template.ts";
@@ -69,7 +70,7 @@ export class CursorHarness implements Harness {
         executable: entry.executable,
         ...(entry.category === "mergeable-project-root" ? { mergeBlock: "gitignore" } : {}),
         ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
-        ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
+        ...managedSectionField(entry),
       } satisfies TemplateFile;
     }
     const staticFiles = HARNESS_STATIC[this.key] ?? {};

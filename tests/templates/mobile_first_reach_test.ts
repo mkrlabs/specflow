@@ -1,4 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
+import { fromFileUrl } from "@std/path";
 import { CORE_BUNDLE, HARNESS_STATIC } from "../../src/templates_bundle.ts";
 import { HARNESSES } from "../../src/cli/harnesses.ts";
 import { extractBlock } from "../../src/domain/merge_block.ts";
@@ -7,21 +8,30 @@ import { extractBlock } from "../../src/domain/merge_block.ts";
  * REACH, not shape (#576, FR-015).
  *
  * Every other assertion about this contract asks whether the templates have the
- * right shape — the file exists, is registered, is mirrored, is pointed at.
- * None of them can fail when the contract reaches no turn on a given harness.
- * A reviewer greps the rule set, gets one authored hit, sees the suite green,
- * and concludes the contract is live. It might not be.
+ * right shape. None of them can fail when the contract reaches no turn.
  *
- * This file asks the other question: on harness X, is the contract reachable
- * from a surface that harness loads WITHOUT anyone invoking anything? That is
- * where the reported failure lives — a UI request in an ordinary turn, no
- * phase, no plan, no dispatched agent.
+ * The first version of this file was green for the wrong reason twice over, and
+ * both holes are pinned below. It looped over `HARNESS_STATIC` and over the
+ * `ui-defaults` fence and passed if EITHER carried the pointer — so the fence
+ * alone satisfied all seven harnesses and the static loop could never decide
+ * anything. Observed: deleting the pointer from all three harness context files
+ * left it green. And it asserted that a pointer EXISTS while never asserting the
+ * pointed-at skill is delivered, so a project could be told to read a file it
+ * never received.
  *
- * There is no declared-uncovered escape hatch. Every harness must pass.
+ * Each route is now asserted on its own terms, and delivery is asserted apart
+ * from reference. No harness is exempt.
  */
 
 const CONTRACT = "mobile-first-contract";
 const UI_LABEL = "ui-defaults";
+/**
+ * A sentence from the contract BODY, not its frontmatter. `copilot_harness`
+ * rebuilds frontmatter into `applyTo: "**"` and `codex`/`opencode` rewrite it
+ * from other fields, so a probe keyed on `name:` reports three harnesses as
+ * not delivering a file they deliver. The body survives every adapter.
+ */
+const BODY_MARKER = "The narrow viewport is the base case";
 
 const OPTS = {
   backlogBackend: "local",
@@ -30,60 +40,83 @@ const OPTS = {
   specAutogen: false,
 } as const;
 
-Deno.test("every harness can reach the contract without invoking anything", () => {
-  const unreached: string[] = [];
+/** The always-on destinations, from `alwaysOn` in the manifest — not a hand list. */
+async function alwaysOnDestinations(): Promise<Map<string, string[]>> {
+  const raw = await Deno.readTextFile(
+    fromFileUrl(new URL("../../templates/manifest.json", import.meta.url)),
+  );
+  const m = JSON.parse(raw) as {
+    harness_static: Array<{ harness: string; destination: string; alwaysOn?: boolean }>;
+  };
+  const out = new Map<string, string[]>();
+  for (const e of m.harness_static) {
+    if (!e.alwaysOn) continue;
+    out.set(e.harness, [...(out.get(e.harness) ?? []), e.destination]);
+  }
+  return out;
+}
 
+Deno.test("the contract is actually DELIVERED by every harness, not merely referenced", () => {
+  // A pointer to a file the project never received is worse than no pointer:
+  // it reads as wired and resolves to nothing.
   for (const harness of HARNESSES) {
     const bundle = harness.mapBundle(CORE_BUNDLE, OPTS);
-    const statics = HARNESS_STATIC[harness.key] ?? {};
-
-    // Two kinds of always-on surface, and both count.
-    //   1. The harness's own context file, where it has one — three of seven do.
-    //   2. The project-root AGENTS.md `ui-defaults` fence, which every harness
-    //      scaffolds and which `upgrade` grafts into EXISTING projects too,
-    //      independently of skipIfExists. That second one is what makes this
-    //      pass on the four harnesses with no context file of their own.
-    const surfaces: Array<[string, string]> = [];
-    for (const [dest, file] of Object.entries(statics)) {
-      surfaces.push([`${harness.key}:${dest}`, file.content]);
-    }
-    const agents = bundle["AGENTS.md"];
-    if (agents) {
-      const fenced = extractBlock(agents.content, UI_LABEL, "html");
-      // Read the FENCED body, not the whole file: a pointer sitting outside the
-      // fence reaches new projects only, which is the hole this feature exists
-      // to close. Asserting on the file would pass for the version that fails.
-      if (fenced) surfaces.push([`${harness.key}:AGENTS.md#${UI_LABEL}`, fenced]);
-    }
-
-    if (!surfaces.some(([, content]) => content.includes(CONTRACT))) {
-      unreached.push(harness.key);
-    }
+    const delivered = Object.entries(bundle).some(([dest, file]) =>
+      dest.includes(CONTRACT) && file.content.includes(BODY_MARKER)
+    );
+    assert(delivered, `${harness.key} references the contract but never writes it`);
   }
-
-  assertEquals(
-    unreached,
-    [],
-    "these harnesses scaffold the contract but can never load it in an ordinary turn",
-  );
 });
 
-Deno.test("the reach does not depend on the harnesses that have a context file", () => {
-  // The three with their own always-on file would mask the other four. Remove
-  // them from consideration and the assertion must still hold — otherwise this
-  // suite is green on 3 of 7 and reporting 7.
-  const WITH_CONTEXT_FILE = new Set(["claude", "codex", "cursor"]);
-  const rest = HARNESSES.filter((h) => !WITH_CONTEXT_FILE.has(h.key));
-  assert(rest.length > 0, "the split matched nothing — the harness keys moved");
+Deno.test("every always-on context file carries the pointer", async () => {
+  // This is the route the three harnesses that HAVE a context file take. It is
+  // asserted alone so the AGENTS.md fence cannot stand in for it — which is
+  // exactly how the first version of this test passed with all three stripped.
+  const alwaysOn = await alwaysOnDestinations();
+  assert(alwaysOn.size > 0, "no alwaysOn entries — the manifest flag is gone, not clean");
 
-  for (const harness of rest) {
-    const agents = harness.mapBundle(CORE_BUNDLE, OPTS)["AGENTS.md"];
-    assert(agents !== undefined, `${harness.key} does not scaffold AGENTS.md at all`);
-    const fenced = extractBlock(agents.content, UI_LABEL, "html");
-    assert(fenced !== null && fenced.length > 0, `${harness.key}: no ${UI_LABEL} block`);
-    assert(
-      fenced.includes(CONTRACT),
-      `${harness.key} has no context file of its own, so the ${UI_LABEL} fence is its ONLY route`,
-    );
+  const missing: string[] = [];
+  for (const [harnessKey, dests] of alwaysOn) {
+    const statics = HARNESS_STATIC[harnessKey] ?? {};
+    for (const dest of dests) {
+      const file = statics[dest];
+      if (!file) missing.push(`${harnessKey}:${dest} (not in HARNESS_STATIC)`);
+      else if (!file.content.includes(CONTRACT)) missing.push(`${harnessKey}:${dest}`);
+    }
   }
+  assertEquals(missing, [], "always-on surfaces with no pointer");
+});
+
+Deno.test("the ui-defaults fence carries the pointer, for every harness", () => {
+  // The only route on the four harnesses with no context file of their own —
+  // and the only route that reaches EXISTING projects, since managed sections
+  // are grafted independently of skipIfExists.
+  const missing: string[] = [];
+  for (const harness of HARNESSES) {
+    const agents = harness.mapBundle(CORE_BUNDLE, OPTS)["AGENTS.md"];
+    if (!agents) {
+      missing.push(`${harness.key}: no AGENTS.md at all`);
+      continue;
+    }
+    // The FENCED body, not the file: a pointer outside the fence reaches new
+    // projects only, which is the hole this feature exists to close.
+    const fenced = extractBlock(agents.content, UI_LABEL, "html");
+    if (!fenced || !fenced.includes(CONTRACT)) missing.push(`${harness.key}:AGENTS.md#${UI_LABEL}`);
+  }
+  assertEquals(missing, [], "harnesses whose ui-defaults fence does not carry the pointer");
+});
+
+Deno.test("the fence is declared on the entry that ships it, so upgrade grafts it", () => {
+  // Reference and delivery are not enough: `managedSectionEntries` only grafts
+  // labels the entry DECLARES. A fence present in the content but undeclared
+  // reaches new projects and no existing one — silently.
+  const root = CORE_BUNDLE.find((e) => e.category === "project-root" && e.suffix === "AGENTS.md");
+  assert(root, "no project-root AGENTS.md entry");
+  const declared = typeof root!.managedSection === "string"
+    ? [root!.managedSection]
+    : [...(root!.managedSection ?? [])];
+  assert(
+    declared.includes(UI_LABEL),
+    `AGENTS.md carries the ${UI_LABEL} fence but does not declare it: ${JSON.stringify(declared)}`,
+  );
 });

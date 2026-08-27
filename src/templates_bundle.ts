@@ -8229,15 +8229,21 @@ When in discovery mode, write this skeleton, filled in:
 
 ## Typography
 
-| Role     | Family                     | Weight    | Size   | Line height |
-| -------- | -------------------------- | --------- | ------ | ----------- |
-| Display  | <e.g. Inter, ui-sans-serif> | 700       | 48px   | 1.1         |
-| H1       | Inter                       | 700       | 32px   | 1.2         |
-| H2       | Inter                       | 600       | 24px   | 1.3         |
-| H3       | Inter                       | 600       | 18px   | 1.4         |
-| Body     | Inter                       | 400       | 16px   | 1.6         |
-| Caption  | Inter                       | 400       | 13px   | 1.5         |
-| Code     | JetBrains Mono              | 400       | 14px   | 1.5         |
+| Role    | Family                      | Weight | Size (narrow → wide)   | Line height |
+| ------- | --------------------------- | ------ | ---------------------- | ----------- |
+| Display | <e.g. Inter, ui-sans-serif> | 700    | \`--fs-display\` 32 → 48 | 1.1         |
+| H1      | Inter                       | 700    | \`--fs-h1\` 26 → 32      | 1.2         |
+| H2      | Inter                       | 600    | \`--fs-h2\` 21 → 24      | 1.3         |
+| H3      | Inter                       | 600    | \`--fs-h3\` 17 → 18      | 1.4         |
+| Body    | Inter                       | 400    | \`--fs-body\` 16         | 1.6         |
+| Caption | Inter                       | 400    | \`--fs-caption\` 13      | 1.5         |
+| Code    | JetBrains Mono              | 400    | \`--fs-code\` 14         | 1.5         |
+
+The Size column is a **token and a range**, not a number. A single fixed value
+at every width is what the Responsive section calls non-conforming — and a
+skeleton that ships one teaches the opposite of the contract. Roles that
+genuinely do not scale (Body, Caption, Code) say so by carrying one value; the
+ones that do carry both ends and are interpolated or stepped at \`--bp-*\`.
 
 **Pairings rule of thumb:** one sans (Inter / IBM Plex Sans) for UI,
 one mono (JetBrains Mono / IBM Plex Mono) for code blocks. Add a
@@ -14520,15 +14526,14 @@ continuous supervision of long headless work, use \`/loop 5m /status-audit\`.
 
 ### Target surface
 
-*Absent or not matching the form below, mobile-first is assumed. Declare the
-exception only if this project genuinely targets a narrower surface — an
-operator console, an internal dashboard, a known desktop-only audience.*
+*This project has NOT declared an exception, so mobile-first is assumed.*
 
-\`\`\`markdown
-## Target surface
-
-This project targets desktop viewports only.
-\`\`\`
+If it genuinely targets a narrower surface — an operator console, an internal
+dashboard, a known desktop-only audience — the \`mobile-first-contract\` skill
+names the exact heading and sentence to write here. Read it there; the literal
+form is deliberately not reproduced in this file, because a copy of it sitting
+in a shipped seed is indistinguishable from a project that made the
+declaration.
 `,
     executable: false,
     backend: null,

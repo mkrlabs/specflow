@@ -17,12 +17,11 @@
 
 ### Target surface
 
-*Absent or not matching the form below, mobile-first is assumed. Declare the
-exception only if this project genuinely targets a narrower surface — an
-operator console, an internal dashboard, a known desktop-only audience.*
+*This project has NOT declared an exception, so mobile-first is assumed.*
 
-```markdown
-## Target surface
-
-This project targets desktop viewports only.
-```
+If it genuinely targets a narrower surface — an operator console, an internal
+dashboard, a known desktop-only audience — the `mobile-first-contract` skill
+names the exact heading and sentence to write here. Read it there; the literal
+form is deliberately not reproduced in this file, because a copy of it sitting
+in a shipped seed is indistinguishable from a project that made the
+declaration.

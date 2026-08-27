@@ -1,3 +1,4 @@
+import { managedSectionField } from "./harness_managed.ts";
 import { stringify as stringifyToml } from "@std/toml";
 import type { BundleOptions, Harness } from "../../application/ports.ts";
 import type { CoreBundle, CoreEntry } from "../../domain/core_bundle.ts";
@@ -104,7 +105,7 @@ export class CodexHarness implements Harness {
             content: entry.content,
             executable: entry.executable,
             ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
-            ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
+            ...managedSectionField(entry),
           };
           break;
         case "project-root":
@@ -113,7 +114,7 @@ export class CodexHarness implements Harness {
             content: entry.content,
             executable: entry.executable,
             ...(entry.skipIfExists ? { skipIfExists: true as const } : {}),
-            ...(entry.managedSection ? { managedSection: entry.managedSection } : {}),
+            ...managedSectionField(entry),
           };
           break;
         case "mergeable-project-root":

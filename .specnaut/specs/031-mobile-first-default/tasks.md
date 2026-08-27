@@ -72,22 +72,22 @@ that harness loads without invocation. No harness may be exempt.
       extend `chain-stops`.
 - [x] T012 [US1] Declare the second `managedSection` label on the `project-root` entry in
       `apps/specnaut-cli/templates/manifest.json` — FR-019
-- [X] T013 [P] [US1] Add the prose pointer (Channel B) to
+- [x] T013 [P] [US1] Add the prose pointer (Channel B) to
       `apps/specnaut-cli/templates/harness-specific/claude/CLAUDE.md`
-- [X] T014 [P] [US1] Add the prose pointer to
+- [x] T014 [P] [US1] Add the prose pointer to
       `apps/specnaut-cli/templates/harness-specific/codex/AGENTS.md`
-- [X] T015 [P] [US1] Add the prose pointer to
+- [x] T015 [P] [US1] Add the prose pointer to
       `apps/specnaut-cli/templates/harness-specific/cursor/specify-rules.mdc`
-- [X] T016 [US1] Add `alwaysOn: true` as data to the three always-on `harness_static` entries in
+- [x] T016 [US1] Add `alwaysOn: true` as data to the three always-on `harness_static` entries in
       `apps/specnaut-cli/templates/manifest.json` — FR-011. Home: this flag is the decision; no test
       may re-classify the other 14 entries by hand.
-- [X] T017 [US1] Derive the per-harness table as `HARNESSES × harness_static.filter(alwaysOn)`,
+- [x] T017 [US1] Derive the per-harness table as `HARNESSES × harness_static.filter(alwaysOn)`,
       taking `HARNESSES` from `apps/specnaut-cli/src/domain/installed_lock.ts` — FR-011.
       `harness_static` alone cannot name `windsurf` or `antigravity`; they have zero entries.
-- [X] T018 [US1] Write the reach assertion — render per harness, assert reachability per harness, no
+- [x] T018 [US1] Write the reach assertion — render per harness, assert reachability per harness, no
       declared-uncovered escape — in `apps/specnaut-cli/tests/templates/mobile_first_reach_test.ts`
       — FR-015. **This is the only assertion in the set about reach rather than shape.**
-- [X] T019 [US1] Observe T018 red by removing the `ui-defaults` fence from
+- [x] T019 [US1] Observe T018 red by removing the `ui-defaults` fence from
       `apps/specnaut-cli/templates/core/root/AGENTS.md`, then restore and confirm green, running
       `apps/specnaut-cli/tests/templates/mobile_first_reach_test.ts` — FR-012
 
@@ -96,10 +96,10 @@ that harness loads without invocation. No harness may be exempt.
 **Goal.** `/specnaut plan` on a UI feature carries adaptive behaviour into its requirements unasked.
 **Independent test.** The FE-gated branch of the phase doc points at the contract.
 
-- [X] T020 [US2] Add the pointer to the existing FE-gated branch (`## Visual Prototyping…`) in
+- [x] T020 [US2] Add the pointer to the existing FE-gated branch (`## Visual Prototyping…`) in
       `apps/specnaut-cli/templates/core/skills/specnaut/phases/plan.md` — one line; the file has 355
       chars of Windsurf headroom, so budget it
-- [X] T021 [US2] Mirror to `apps/specnaut-cli/plugin/skills/specnaut/phases/plan.md`
+- [x] T021 [US2] Mirror to `apps/specnaut-cli/plugin/skills/specnaut/phases/plan.md`
 
 ## Phase 5 — US3: the design system (P3)
 
@@ -107,21 +107,21 @@ that harness loads without invocation. No harness may be exempt.
 **Independent test.** The canonical template contains a breakpoint concept and exactly one touch
 number.
 
-- [X] T022 [US3] Add the responsive/adaptive section — declared breakpoint tokens, declared
+- [x] T022 [US3] Add the responsive/adaptive section — declared breakpoint tokens, declared
       touch-target minimum, adapting type/spacing scale — to the canonical `DESIGN.md` template in
       `apps/specnaut-cli/templates/core/agents/ui-ux-designer.md` — FR-009
-- [X] T023 [US3] Replace the `Min height 40px (touch-friendly)` literal with a reference to the
+- [x] T023 [US3] Replace the `Min height 40px (touch-friendly)` literal with a reference to the
       declared token in `apps/specnaut-cli/templates/core/agents/ui-ux-designer.md` — FR-009. Home:
       the value lives in the project's `DESIGN.md`; this file must stop deciding it. 40 is also
       below both platform minimums.
-- [X] T024 [US3] Make discovery mode assume mobile-first without asking, and ask about the exception
+- [x] T024 [US3] Make discovery mode assume mobile-first without asking, and ask about the exception
       only on a desktop-only signal, in `apps/specnaut-cli/templates/core/agents/ui-ux-designer.md`
       — FR-009
-- [X] T025 [P] [US3] Add the `skills:` frontmatter pointer (Channel A) to
+- [x] T025 [P] [US3] Add the `skills:` frontmatter pointer (Channel A) to
       `apps/specnaut-cli/templates/core/agents/ui-ux-designer.md` — FR-017
-- [X] T026 [P] [US3] Add the `skills:` frontmatter pointer to
+- [x] T026 [P] [US3] Add the `skills:` frontmatter pointer to
       `apps/specnaut-cli/templates/core/agents/developer.md` — FR-017
-- [X] T027 [US3] Mirror both agents byte-identically to
+- [x] T027 [US3] Mirror both agents byte-identically to
       `apps/specnaut-cli/plugin/agents/ui-ux-designer.md` and
       `apps/specnaut-cli/plugin/agents/developer.md`
 
@@ -130,41 +130,52 @@ number.
 **Goal.** A desktop-only project declares that once, in one place, and is not asked again.
 **Independent test.** The named home has a heading to declare under, in a project fresh from `init`.
 
-- [X] T028 [US4] Add § `Front-end patterns` carrying the default bullet and opt-out convention by
+- [x] T028 [US4] Add § `Front-end patterns` carrying the default bullet and opt-out convention by
       pointer to the **seed** `apps/specnaut-cli/templates/core/specnaut/memory/constitution.md` —
       FR-006. It has two headings today and no such section; `developer.md` already reads one that
       has never existed.
-- [X] T029 [US4] Add the same to
+- [x] T029 [US4] Add the same to
       `apps/specnaut-cli/templates/core/specnaut/templates/constitution-template.md` — FR-006.
       Editing only this one leaves the opt-out's home with nowhere to declare.
-- [X] T030 [US4] Add the fallback binding site — the constitution's `Front-end patterns` when no
+- [x] T030 [US4] Add the fallback binding site — the constitution's `Front-end patterns` when no
       `DESIGN.md` exists — to
       `apps/specnaut-cli/templates/core/skills/mobile-first-contract/SKILL.md`. Home: two sites in
       priority order, never "the code".
 
+## Review round 1 — the gate returned fail (7 HIGH)
+
+- [X] R01 Reach test rewritten: each route asserted alone, delivery asserted apart from reference, and the fence's DECLARATION asserted — `tests/templates/mobile_first_reach_test.ts`
+- [X] R02 `TUNABLE_SHAPES` widened to relative units, spelled-out units, token assignments and bare integers, with citations stripped first — `tests/templates/mobile_first_contract_test.ts`
+- [X] R03 Restatement pinned by LOCATION and swept over `HARNESS_STATIC`, not by count over `CORE_BUNDLE` alone
+- [X] R04 Typography Size column tokenised with a narrow → wide range — `templates/core/agents/ui-ux-designer.md`
+- [X] R05 `alwaysOn` is no longer dead data: the reach test derives the always-on set from it
+- [X] R06 The constitution seed no longer ships a live instance of the opt-out form — `templates/core/specnaut/memory/constitution.md`
+- [X] R07 The union resolves in one place: seven adapters route through `managedSectionField` — `src/infrastructure/harness/harness_managed.ts`
+- [X] R08 FR-005, FR-013 and FR-014 gain executable assertions; `code-reviewer` recorded in `POINTED_BY_DECISION`
+
 ## Final Phase — Polish and cross-cutting
 
-- [X] T031 Write the derived-candidate-minus-justified-exclusions enumeration, never a positive
+- [x] T031 Write the derived-candidate-minus-justified-exclusions enumeration, never a positive
       list, in `apps/specnaut-cli/tests/templates/mobile_first_contract_test.ts` — FR-008. The
       precedent's positive list still carves out `specify.md`, deleted two releases ago.
-- [X] T032 Assert the contract is manifest-registered, mirror-identical, pointed at through both
+- [x] T032 Assert the contract is manifest-registered, mirror-identical, pointed at through both
       channels, restated by none, framework-name-free (scoped to the contract file), and
       tunable-free by named tunable rather than by digit, in
       `apps/specnaut-cli/tests/templates/mobile_first_contract_test.ts` — FR-003, FR-004, FR-010,
       FR-017
-- [X] T033 Assert `user-invocable: false` and the literal marker sentence in
+- [x] T033 Assert `user-invocable: false` and the literal marker sentence in
       `apps/specnaut-cli/tests/templates/mobile_first_contract_test.ts` — FR-016
-- [X] T034 Observe every assertion in
+- [x] T034 Observe every assertion in
       `apps/specnaut-cli/tests/templates/mobile_first_contract_test.ts` red on the defect it guards
       — pointer removed from a surface, manifest entry dropped, mirror desynced, framework name
       introduced, tunable introduced — then green, and record each observation in the commit body —
       FR-012
-- [X] T035 [P] Run `deno fmt`, `deno lint`, `deno check` and `deno task test` from
+- [x] T035 [P] Run `deno fmt`, `deno lint`, `deno check` and `deno task test` from
       `apps/specnaut-cli` — `deno task test` is `bundle && test` and does NOT run fmt or lint
-- [X] T036 [P] Verify Windsurf headroom held with `WINDSURF_WORKFLOW_BUDGET_CHARS` in
+- [x] T036 [P] Verify Windsurf headroom held with `WINDSURF_WORKFLOW_BUDGET_CHARS` in
       `apps/specnaut-cli/src/infrastructure/harness/windsurf_harness.ts` — four workflows sit under
       200 chars of slack
-- [X] T037 Run the adoption gate:
+- [x] T037 Run the adoption gate:
       `deno run --allow-run scripts/check-adoption.ts --from main --to HEAD` from
       `apps/specnaut-cli`
 - [ ] T038 Land with `scripts/land.sh cli 031-mobile-first-default`, run from the monorepo root
