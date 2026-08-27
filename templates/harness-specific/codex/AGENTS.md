@@ -10,6 +10,8 @@
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
 
+**UI work** follows the `mobile-first-contract` skill — read it; never restate it here.
+
 ## Optional integrations
 
 These are Codex CLI features Specnaut does NOT configure by default, but

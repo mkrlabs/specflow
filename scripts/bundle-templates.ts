@@ -6,6 +6,7 @@
 // Runtime code reads nothing from disk.
 
 import { relative } from "@std/path";
+import { managedSectionLabels } from "../src/domain/template.ts";
 
 type CoreManifestEntry = {
   category: string;
@@ -17,8 +18,8 @@ type CoreManifestEntry = {
   backend?: "local" | "github" | "gitlab";
   /** When true, the file is only written if absent (placeholder semantics). */
   skipIfExists?: boolean;
-  /** Label of the one Specnaut-owned section fenced inside the source (#466). */
-  managedSection?: string;
+  /** Labels of the Specnaut-owned sections fenced inside the source (#466, #576). */
+  managedSection?: string | readonly string[];
 };
 
 type HarnessStaticManifestEntry = {
@@ -73,7 +74,12 @@ async function assertManagedSectionsFenced(m: Manifest): Promise<void> {
   const broken: string[] = [];
   const wrongFormat: string[] = [];
   for (const e of m.core) {
-    if (e.managedSection === undefined) continue;
+    // Every declared label is checked, not just the first. A destination may
+    // declare several (#576), and a loop that stopped at one would let the
+    // second ship unfenced — which is precisely the silent no-delivery this
+    // check exists to prevent, arriving through the door the fix opened.
+    const labels = managedSectionLabels(e.managedSection);
+    if (labels.length === 0) continue;
     // The fence is an HTML comment, which is invisible in Markdown and literal
     // visible text anywhere else. The mechanism reads as format-agnostic and is
     // not: a second entry pointing at a non-Markdown destination would render
@@ -81,16 +87,18 @@ async function assertManagedSectionsFenced(m: Manifest): Promise<void> {
     // fix is to derive the fence style from the destination, not to add an HTML
     // comment to a file that has no such thing.
     if (!e.source.endsWith(".md")) {
-      wrongFormat.push(`${e.source} (label "${e.managedSection}")`);
+      for (const label of labels) wrongFormat.push(`${e.source} (label "${label}")`);
       continue;
     }
     const content = await Deno.readTextFile(new URL(e.source, TEMPLATES_DIR));
-    const start = `<!-- --- Specnaut: ${e.managedSection} --- -->`;
-    const end = `<!-- --- End Specnaut: ${e.managedSection} --- -->`;
-    const s = content.indexOf(start);
-    const t = content.indexOf(end);
-    if (s === -1 || t === -1 || t <= s) {
-      broken.push(`${e.source} (label "${e.managedSection}")`);
+    for (const label of labels) {
+      const start = `<!-- --- Specnaut: ${label} --- -->`;
+      const end = `<!-- --- End Specnaut: ${label} --- -->`;
+      const s = content.indexOf(start);
+      const t = content.indexOf(end);
+      if (s === -1 || t === -1 || t <= s) {
+        broken.push(`${e.source} (label "${label}")`);
+      }
     }
   }
   if (wrongFormat.length > 0) {

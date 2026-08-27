@@ -36,10 +36,17 @@ const AGENT_WIRING: Record<string, readonly string[]> = {
   "security-expert": ["review-findings-contract", "workflow-contract", "alert-triage-contract"],
   "accessibility-expert": ["review-findings-contract", "workflow-contract"],
   "dependency-expert": ["review-findings-contract", "workflow-contract"],
-  "code-reviewer": ["review-findings-contract", "workflow-contract"],
+  // #576: this seat reviews whatever the developer wrote, UI included, so it
+  // is where a fixed-width layout is caught after the fact.
+  "code-reviewer": ["review-findings-contract", "workflow-contract", "mobile-first-contract"],
   "test-reviewer": ["review-findings-contract", "workflow-contract"],
   "review-coordinator": ["workflow-contract", "handoff-protocol", "review-findings-contract"],
-  "developer": ["workflow-contract", "handoff-protocol", "backlog-reference-contract"],
+  "developer": [
+    "workflow-contract",
+    "handoff-protocol",
+    "backlog-reference-contract",
+    "mobile-first-contract",
+  ],
   "workflow-manager": ["workflow-contract", "handoff-protocol", "backlog-reference-contract"],
   "qa-tester": ["qa-report-contract", "workflow-contract"],
   // The single biggest emitter of backlog references — and, until now, the
@@ -48,6 +55,10 @@ const AGENT_WIRING: Record<string, readonly string[]> = {
   // Same #562 split; this seat had no `skills:` line before #378 and none of
   // its own content asserted before this ticket.
   "specnaut-guide": ["specnaut-facts"],
+  // #576. Had no `skills:` line before, like product-owner and specnaut-guide
+  // before their own tickets — it owns DESIGN.md, so it decides the tokens the
+  // contract obliges a project to declare.
+  "ui-ux-designer": ["mobile-first-contract"],
 };
 
 function skillEntry(name: string): CoreEntry | undefined {

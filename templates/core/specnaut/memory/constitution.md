@@ -9,3 +9,20 @@
 ## Principles
 
 (none defined yet)
+
+## Front-end patterns
+
+- **Mobile-first is the default** — any UI, web or native, follows the
+  `mobile-first-contract` skill. Read it; never restate it here.
+
+### Target surface
+
+*Absent or not matching the form below, mobile-first is assumed. Declare the
+exception only if this project genuinely targets a narrower surface — an
+operator console, an internal dashboard, a known desktop-only audience.*
+
+```markdown
+## Target surface
+
+This project targets desktop viewports only.
+```

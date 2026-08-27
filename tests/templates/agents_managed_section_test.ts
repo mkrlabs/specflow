@@ -3,6 +3,7 @@ import { CORE_BUNDLE } from "../../src/templates_bundle.ts";
 import type { CoreEntry } from "../../src/domain/core_bundle.ts";
 import { HARNESSES } from "../../src/cli/harnesses.ts";
 import { endFence, extractBlock, startFence } from "../../src/domain/merge_block.ts";
+import { managedSectionLabels } from "../../src/domain/template.ts";
 
 /**
  * #466 — the packaging half of "deliver the two-stop section on upgrade".
@@ -15,6 +16,8 @@ import { endFence, extractBlock, startFence } from "../../src/domain/merge_block
  */
 
 const LABEL = "chain-stops";
+/** The second block, added by #576. One fence, one subject. */
+const UI_LABEL = "ui-defaults";
 
 function rootAgents(): CoreEntry {
   const e = CORE_BUNDLE.find(
@@ -24,12 +27,20 @@ function rootAgents(): CoreEntry {
   return e;
 }
 
-Deno.test("AGENTS.md stays user-owned AND declares its one managed section", () => {
+Deno.test("AGENTS.md stays user-owned AND declares its managed sections", () => {
   const entry = rootAgents();
   // Both halves matter: skipIfExists is why upgrade never rewrites the file,
   // managedSection is why the rule still reaches it.
   assertEquals(entry.skipIfExists, true);
-  assertEquals(entry.managedSection, LABEL);
+  // `includes`, not equality against a single string. This assertion pinned the
+  // singular until #576 needed a second, separately-revocable block on the same
+  // file. The intent it was written for — a harness must not DROP the
+  // declaration — is preserved exactly; what is dropped is the incidental claim
+  // that there can only ever be one. UI_LABEL is asserted alongside so the
+  // relaxation cannot hide a regression on the new block.
+  const labels = managedSectionLabels(entry.managedSection);
+  assert(labels.includes(LABEL), `chain-stops missing from ${JSON.stringify(labels)}`);
+  assert(labels.includes(UI_LABEL), `ui-defaults missing from ${JSON.stringify(labels)}`);
 });
 
 Deno.test("the two-stop rule is inside the fences, not merely in the file", () => {
@@ -67,11 +78,13 @@ Deno.test("every harness carries the declaration through to the bundle", () => {
     });
     const file = bundle["AGENTS.md"];
     assert(file !== undefined, `${harness.key} does not scaffold AGENTS.md`);
-    assertEquals(
-      file.managedSection,
-      LABEL,
-      `${harness.key} drops managedSection — its users never get the section on upgrade`,
-    );
+    const labels = managedSectionLabels(file.managedSection);
+    for (const label of [LABEL, UI_LABEL]) {
+      assert(
+        labels.includes(label),
+        `${harness.key} drops managedSection "${label}" — its users never get that section on upgrade`,
+      );
+    }
     assertEquals(file.skipIfExists, true, `${harness.key} drops skipIfExists`);
   }
 });

@@ -7,6 +7,7 @@ import type {
   PluginDetector,
 } from "./ports.ts";
 import type { Bundle, TemplateFile } from "../domain/template.ts";
+import { managedSectionLabels } from "../domain/template.ts";
 import { sha256Hex } from "../domain/sha256.ts";
 import type { InstalledLock, LockEntry } from "../domain/installed_lock.ts";
 import type { CoreBundle } from "../domain/core_bundle.ts";
@@ -651,11 +652,13 @@ export class UpgradeProjectUseCase {
 function managedSectionEntries(bundle: Bundle): Array<[string, string, string]> {
   const out: Array<[string, string, string]> = [];
   for (const [dest, file] of Object.entries(bundle)) {
-    const label = file.managedSection;
-    if (label === undefined) continue;
-    const body = extractBlock(file.content, label, "html");
-    if (body === null || body.length === 0) continue;
-    out.push([dest, label, body]);
+    // A destination may declare several labels (#576). Each is grafted
+    // independently, so one being unfenced never silently suppresses another.
+    for (const label of managedSectionLabels(file.managedSection)) {
+      const body = extractBlock(file.content, label, "html");
+      if (body === null || body.length === 0) continue;
+      out.push([dest, label, body]);
+    }
   }
   return out;
 }

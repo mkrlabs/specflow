@@ -111,6 +111,7 @@ One file, read whole by whoever implements. Twelve sections, in order, **none op
    `## Visual Prototyping with Claude Artifacts` subsection. Detect that surface with the SAME
    signals the accessibility gate uses — the `accessibility-expert` FE-surface list; don't invent a second
    heuristic. No front-end surface → the plan **must not mention** artifacts at all.
+   The plan's requirements follow the `mobile-first-contract` skill — read it; never restate it here.
 9. **Risks** — each with its mitigation.
 10. **Architecture audit** — findings, and what was done with each. Step 6.
 11. **Security audit** — same, and kept **separate**: the two answer different questions and a

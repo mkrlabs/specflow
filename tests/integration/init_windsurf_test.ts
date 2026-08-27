@@ -99,7 +99,7 @@ Deno.test("specnaut init --ai windsurf scaffolds a Windsurf layout", async () =>
     const workflowsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".windsurf/workflows")),
     )).length;
-    assertEquals(workflowsCount, 63);
+    assertEquals(workflowsCount, 64);
 
     // Shared (cross-harness)
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);

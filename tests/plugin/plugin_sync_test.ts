@@ -132,6 +132,9 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     // file is named SKILL.md, so the token that identifies it is the runtime
     // path, not the name.
     "backlog-reference-contract",
+    // #576. Same shape, same reason: one authored contract, referenced by
+    // pointer from every surface that must honour it, restated by none.
+    "mobile-first-contract",
   ].map((name) => ({
     plugin: `plugin/skills/${name}/SKILL.md`,
     source: `templates/core/skills/${name}/SKILL.md`,

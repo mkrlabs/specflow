@@ -4,6 +4,7 @@ description: Owns the project's `DESIGN.md` design system. Three modes auto-sele
 model: opus
 effort: high
 tools: Read, Edit, Write, Glob, Grep
+skills: mobile-first-contract
 maxTurns: 30
 disable-model-invocation: true
 color: pink
@@ -170,6 +171,28 @@ block.
 
 ## Component primitives
 
+## Responsive and adaptive
+
+**Mobile-first is assumed** — you never ask whether the user wants it. Ask
+about the exception only when their brief signals a genuinely narrow target
+(an operator console, an internal dashboard, a stated desktop-only audience),
+and record that exception where the `mobile-first-contract` skill says it goes,
+not here.
+
+`DESIGN.md` is where the **values** live. Declare, as tokens:
+
+- `--bp-*` — the breakpoint ladder, smallest first. Name them for intent, not
+  for devices; a device list dates and a ladder does not.
+- `--touch-min` — the minimum hit area for anything interactive. One number,
+  used everywhere; a primitive that states its own is a second decider.
+- A type and spacing scale that **adapts** — fluid, or stepped at the
+  breakpoints above. A single fixed scale for every width does not satisfy the
+  contract.
+
+Author the narrow layout first and treat wider ones as enhancement. What each
+of those obligations means is the `mobile-first-contract` skill's to say — read
+it; never restate it here.
+
 For each primitive, declare states + a one-line behaviour rule. Don't
 ship implementation code here — the developer agent does that.
 
@@ -177,7 +200,7 @@ ship implementation code here — the developer agent does that.
   States: rest, hover, active, focus-visible (2px ring `--brand-accent`),
   disabled (opacity 0.5, no events).
 - **Input** — border `--neutral-300`, focus border `--brand-primary`,
-  error border `--danger`. Min height 40px (touch-friendly).
+  error border `--danger`. Min height `--touch-min` (see Responsive).
 - **Card** — surface `--neutral-50`, border `--neutral-100`,
   radius `--radius-md`, shadow `--shadow-sm`.
 - **Modal** — overlay `rgb(0 0 0 / 0.4)`, surface `--neutral-0`,

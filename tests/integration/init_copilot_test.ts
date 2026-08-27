@@ -107,7 +107,7 @@ Deno.test("specnaut init --ai copilot scaffolds a Copilot layout", async () => {
     const instructionsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".github/instructions")),
     )).length;
-    assertEquals(instructionsCount, 63);
+    assertEquals(instructionsCount, 64);
 
     // Shared (cross-harness)
     assertEquals(await exists(join(root, ".specnaut/memory/constitution.md")), true);

@@ -4,7 +4,7 @@ description: Reviews code quality, architecture, DRY/YAGNI, readability, and con
 model: opus
 effort: high
 tools: Read, Grep, Glob
-skills: review-findings-contract, workflow-contract
+skills: review-findings-contract, workflow-contract, mobile-first-contract
 maxTurns: 20
 color: yellow
 ---

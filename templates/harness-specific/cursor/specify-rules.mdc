@@ -41,6 +41,8 @@ clarifications needed) STOP #2 (pre-merge validation)
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
 
+**UI work** follows the `mobile-first-contract` skill — read it; never restate it here.
+
 ## Project context
 
 - Constitution lives at `.specnaut/memory/constitution.md` — treat as non-negotiable rules.

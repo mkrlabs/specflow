@@ -33,12 +33,15 @@ export type CoreEntry = {
    */
   readonly skipIfExists?: boolean;
   /**
-   * Label of the single Specnaut-owned section fenced inside `content`. The
-   * harness's `mapBundle` propagates it to `TemplateFile.managedSection`, which
-   * is what lets `upgrade` deliver that section into a user-owned file without
-   * rewriting the rest of it (#466).
+   * Labels of the Specnaut-owned sections fenced inside `content`. The
+   * harness's `mapBundle` propagates them to `TemplateFile.managedSection`,
+   * which is what lets `upgrade` deliver those sections into a user-owned file
+   * without rewriting the rest of it (#466).
+   *
+   * One label or several — see `managedSectionLabels` in `template.ts`, which
+   * is the only place the union is resolved.
    */
-  readonly managedSection?: string;
+  readonly managedSection?: string | readonly string[];
 };
 
 export type CoreBundle = ReadonlyArray<CoreEntry>;

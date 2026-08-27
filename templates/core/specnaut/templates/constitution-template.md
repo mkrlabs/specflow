@@ -87,6 +87,22 @@ Each bounded context gets its own subtree: `domain/<context>/`,
   from a component; route it through a service / repository layer.
 - **Accessibility is non-optional** — semantic HTML, keyboard paths,
   visible focus, ARIA only when semantic HTML doesn't suffice.
+- **Mobile-first is the default** — any UI, web or native, follows the
+  `mobile-first-contract` skill. Read it; never restate it here. It is a
+  default, not a mandate: declare the exception under `### Target surface`
+  below, in the literal form the contract names, or leave it out and
+  mobile-first is assumed.
+
+### Target surface
+
+*Delete this whole subsection unless it applies. Anything not matching the
+form below is treated as absent, and mobile-first stays on.*
+
+```markdown
+## Target surface
+
+This project targets desktop viewports only.
+```
 
 ## Core Principles
 

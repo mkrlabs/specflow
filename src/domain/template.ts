@@ -51,8 +51,15 @@ export type TemplateFile = {
    * that upgrades rather than one that inits fresh.
    *
    * Always paired with `skipIfExists`.
+   *
+   * A destination may declare **more than one** label. It was a single string
+   * until #576, which needed a second, separately-revocable block on the same
+   * file: one fence, one subject, so a user deleting a block knows what they
+   * are revoking. Read it through `managedSectionLabels` rather than branching
+   * on the union at each call site — three call sites branching their own way
+   * is how the two shapes drift apart.
    */
-  managedSection?: string;
+  managedSection?: string | readonly string[];
   /**
    * When `true`, the file is treated as a placeholder: the bundled `content`
    * is only written when no file already exists at the destination. If a
@@ -111,4 +118,20 @@ export function assertSafeDestination(dest: string): void {
   ) {
     throw new Error(`Unsafe destination (escape attempt): ${dest}`);
   }
+}
+
+/**
+ * The declared managed-section labels of a template file, as a list.
+ *
+ * The single home for normalising `string | readonly string[] | undefined`.
+ * `bundle-templates.ts` imports it rather than keeping its own copy: the
+ * validator and the runtime must agree on what "declared" means, and two
+ * spellings of that answer is exactly the defect a build-time fence check
+ * exists to catch.
+ */
+export function managedSectionLabels(
+  declared: string | readonly string[] | undefined,
+): readonly string[] {
+  if (declared === undefined) return [];
+  return typeof declared === "string" ? [declared] : declared;
 }
