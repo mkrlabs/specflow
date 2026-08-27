@@ -237,6 +237,11 @@
     },
     {
       "category": "skill",
+      "name": "response-style-contract",
+      "source": "core/skills/response-style-contract/SKILL.md"
+    },
+    {
+      "category": "skill",
       "name": "handoff-protocol",
       "source": "core/skills/handoff-protocol/SKILL.md"
     },
@@ -1774,7 +1779,8 @@
       "skipIfExists": true,
       "managedSection": [
         "chain-stops",
-        "ui-defaults"
+        "ui-defaults",
+        "response-style"
       ]
     },
     {

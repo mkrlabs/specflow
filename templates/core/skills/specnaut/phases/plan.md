@@ -30,10 +30,10 @@ result. Non-empty `condition`s are deferred to the HookExecutor.
 Judge the input on one question: **can this be planned as written?** A brief naming an outcome, an
 actor and a rough scope can; "something to keep track of runs" cannot.
 
-When it cannot, run a short discovery dialogue **before** writing anything: **one question at a
-time** via the harness's structured question mechanism, 2–4 real options each, recommendation first
-— never a numbered wall of prose. Offer 2–3 genuinely different shapes, not three phrasings of one.
-Stop as soon as you can state the outcome, the actor, and what is out of scope.
+When it cannot, run a short discovery dialogue **before** writing anything. How a question is put
+is decided by the `response-style-contract` skill — read it; never restate it here. What is specific
+to discovery: offer genuinely different **shapes**, not three phrasings of one, and stop as soon as
+you can state the outcome, the actor, and what is out of scope.
 
 Then **continue into step 2 in the same turn.** Discovery opens this phase; it is not a phase of its
 own, and not a reason to hand control back.
@@ -170,8 +170,9 @@ chain's two stops. Present, in this order:
    plan, or accepted the objection with a reason. Never as a formality that passed, never folded
    together.
 3. **The open questions** — business rules, thresholds, what happens to existing data, anything
-   where two readings lead to materially different work. **One at a time**, 2–4 real options each,
-   recommendation first, ordered so the answer that invalidates the most others comes first.
+   where two readings lead to materially different work. Put them per the
+   `response-style-contract` skill, ordered so the answer that invalidates the most others comes
+   first.
 4. **Anything you decided yourself** because the code or a standing decision already answered it —
    one line each, so a wrong assumption is visible rather than buried.
 

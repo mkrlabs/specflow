@@ -516,8 +516,14 @@ check "brainstorming skill scaffolded" \
   '[ -f .claude/skills/brainstorming/SKILL.md ]'
 check "brainstorming frontmatter declares name" \
   'head -5 .claude/skills/brainstorming/SKILL.md | grep -q "name: brainstorming"'
-check "brainstorming mandates one-question-at-a-time" \
-  'grep -q "one at a time\|ONE at a time" .claude/skills/brainstorming/SKILL.md'
+# INVERTED by #575, deliberately. This asserted that `brainstorming` states the
+# one-question-at-a-time rule ITSELF. It now must not: the rule has exactly one
+# author, and every other surface points at it. Asserting the pointer is the same
+# guarantee for the user and a stronger one for the tree — the old form was
+# satisfied by any of the six copies that used to exist.
+check "brainstorming points at the response-style contract for how to ask" \
+  'grep -q "response-style-contract" .claude/skills/brainstorming/SKILL.md \
+   && ! grep -qi "one at a time" .claude/skills/brainstorming/SKILL.md'
 check "brainstorming hands off to writing-plans" \
   'grep -q "hand off to .writing-plans.\|writing-plans" .claude/skills/brainstorming/SKILL.md'
 check "brainstorming documents coexistence with the spec flow" \
@@ -1003,6 +1009,35 @@ check "AGENTS.md carries the ui-defaults managed section" \
   'grep -q "Specnaut: ui-defaults" AGENTS.md'
 check "the ui-defaults block points at the contract" \
   'grep -q "mobile-first-contract" AGENTS.md'
+
+# --- #575 · the response-style contract ------------------------------------
+check "response-style-contract .claude/skills/response-style-contract/SKILL.md ships" \
+  'test -f .claude/skills/response-style-contract/SKILL.md'
+check "response-style-contract is preloaded, never invocable" \
+  'grep -q "user-invocable: false" .claude/skills/response-style-contract/SKILL.md'
+check "response-style-contract carries the four badge rows" \
+  'test "$(grep -cE "^\| (🟢|🔵|🟠|🔴) \|" .claude/skills/response-style-contract/SKILL.md)" = 4'
+check "response-style-contract states the badge rule, not just the palette" \
+  'grep -q "A badge describes the state at the time of reading" .claude/skills/response-style-contract/SKILL.md'
+check "response-style-contract grants no tools in its frontmatter" \
+  '! sed -n "2,/^---$/p" .claude/skills/response-style-contract/SKILL.md | grep -qE "^(tools|allowed-tools|permissionMode):"'
+check "AGENTS.md carries the response-style managed section" \
+  'grep -q "Specnaut: response-style" AGENTS.md'
+check "the response-style block points at the contract rather than restating it" \
+  'grep -q "response-style-contract" AGENTS.md \
+   && ! grep -q "A badge describes the state at the time of reading" AGENTS.md'
+check "the always-on context file carries the response-style pointer" \
+  'grep -q "response-style-contract" .claude/CLAUDE.md'
+# Case-INSENSITIVE, and matching the phrase rather than one word order. The
+# first version of this check was `-E "one question at a time"` with no `-i`,
+# over a corpus whose only spelling is "ONE at a time" — so it grepped an empty
+# file list and passed every run without reading anything.
+check "the selection rule is pointed at, not restated, in the scaffolded skills" \
+  '! grep -rliE "one at a time" .claude/skills/ --include="*.md" \
+     | grep -v response-style-contract \
+     | xargs -r grep -liE "question|ask" \
+     | xargs -r grep -Li "response-style-contract" \
+     | grep -q .'
 check "backlog-reference-contract bans a bare number" \
   'grep -q "bare .#42. is opaque" .claude/skills/backlog-reference-contract/SKILL.md'
 

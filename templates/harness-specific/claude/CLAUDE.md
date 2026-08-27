@@ -10,6 +10,8 @@
 
 **Backlog references** follow the `backlog-reference-contract` skill — read it; never restate it here.
 
+**Response style** — brevity, visual order, questions as selections, badge colours — follows the `response-style-contract` skill; read it, never restate it here.
+
 **UI work** follows the `mobile-first-contract` skill — read it; never restate it here.
 
 ## Optional integrations

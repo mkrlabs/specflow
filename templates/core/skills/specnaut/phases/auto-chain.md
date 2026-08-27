@@ -17,7 +17,7 @@ plan → tasks → implement → review → merge
 
 1. **The end of `plan`.** Always. The architecture is presented as a proposal with the alternatives
    that were rejected and why; both audits' findings are presented **separately**; the open
-   questions are asked **one at a time**. See `phases/plan.md` step 8.
+   the open questions are asked. See `phases/plan.md` step 8.
 2. **The review verdict.** Its findings are triaged, then the merge is requested. There is no
    separate pre-merge stop — the verdict and the merge question are the same moment.
 

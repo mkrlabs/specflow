@@ -135,6 +135,10 @@ const SYNC_PAIRS: ReadonlyArray<{ plugin: string; source: string }> = [
     // #576. Same shape, same reason: one authored contract, referenced by
     // pointer from every surface that must honour it, restated by none.
     "mobile-first-contract",
+    // #575. The third of these, and the first that is in force on EVERY turn
+    // rather than on a topic — so it is reached by the always-on leg and the
+    // AGENTS.md fence, never by a per-seat `skills:` enumeration.
+    "response-style-contract",
   ].map((name) => ({
     plugin: `plugin/skills/${name}/SKILL.md`,
     source: `templates/core/skills/${name}/SKILL.md`,

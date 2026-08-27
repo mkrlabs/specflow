@@ -17,6 +17,8 @@ when_to_use: |
 
 # Specnaut router
 
+**Response style** — brevity, visual order, questions as selections, badge colours — follows the `response-style-contract` skill; read it, never restate it here.
+
 `$ARGUMENTS` carries the user's input. Parse it as `[--manual] <phase> [rest]`:
 
 1. **Chain mode parsing** — scan the tokens for `--manual`. It is the only chain flag.
@@ -94,7 +96,7 @@ behaviour, and do not route it silently.
 |------|----------------------------|
 | `brainstorm` | `plan`, step 1 — the discovery dialogue when the input is too fuzzy to plan. |
 | `specify` | `plan` — the same document, sections 1–4. |
-| `clarify` | `plan`, step 8 — questions asked one at a time at the stop, before any code exists. |
+| `clarify` | `plan`, step 8 — questions asked at the stop, before any code exists. |
 | `analyze` | Replaced, not moved. With one document there are no artefacts to hold in agreement; the plan-time architecture and security audits are its successor and run *before* the code. |
 | `checklist` | `plan`'s success criteria and decision table. |
 | `list-skills` | `.specnaut/installed.lock` is readable directly. |
@@ -139,7 +141,7 @@ plan → tasks → implement → review → merge
 **There are exactly two stops in this chain**, and no third:
 
 1. **The end of `plan`** — the architecture is presented with its alternatives, both audits' findings
-   are presented separately, and the open questions are asked one at a time. Always.
+   are presented separately, and the open questions are asked. Always.
 2. **The review verdict** — which *is* the merge request. There is no separate pre-merge stop.
 
 Every other boundary is crossed by invoking the next phase yourself, in the same turn. See
@@ -152,7 +154,7 @@ Every other boundary is crossed by invoking the next phase yourself, in the same
   → discovery dialogue only if the brief is too fuzzy to plan
   → writes plan.md (one document)
   → architecture + security audits run concurrently on the plan
-  → STOP 1 — architecture proposal, audit findings, questions one at a time
+  → STOP 1 — architecture proposal, audit findings, the open questions
   → /specnaut tasks       (same turn as the last answer)
   → /specnaut implement   (same turn)
   → /specnaut review      (same turn)

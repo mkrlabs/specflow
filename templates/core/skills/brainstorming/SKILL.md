@@ -1,13 +1,14 @@
 ---
 name: brainstorming
-description: Use when the user has an idea, feature request, or rough requirement that is NOT yet ready to plan — when the spec needs to be discovered through clarifying questions before any planning. Trigger phrases include "I want to build X", "I have an idea for Y", "let's brainstorm Z", "design how we should do W", "spec out V before we plan it". Asks questions one at a time, proposes 2-3 approaches, presents a design for approval, then hands off to writing-plans.
+description: Use when the user has an idea, feature request, or rough requirement that is NOT yet ready to plan — when the spec needs to be discovered through clarifying questions before any planning. Trigger phrases include "I want to build X", "I have an idea for Y", "let's brainstorm Z", "design how we should do W", "spec out V before we plan it". Asks clarifying questions, proposes 2-3 approaches, presents a design for approval, then hands off to writing-plans.
 ---
 
 # Brainstorming
 
 Help turn ideas into fully formed designs and specs through natural
 collaborative dialogue. Start by understanding the current project
-context, then ask questions **one at a time** to refine the idea. Once
+context, then ask clarifying questions to refine the idea — following the
+`response-style-contract` skill, which decides how a question is put. Once
 you understand what's being built, present the design and get user
 approval. Then hand off to `writing-plans`.
 
@@ -78,11 +79,14 @@ breaking it into separate brainstorming sessions, one per subsystem.
 Each session produces its own spec → plan → implementation cycle. A
 3-subsystem idea is an Epic, not a single design.
 
-### Step 3 — ask clarifying questions, ONE at a time
+### Step 3 — ask clarifying questions
 
-Ask the user one question at a time. Don't batch. Prefer multiple-choice
-when possible ("would the auth state live in cookies or in the user
-table?"), open-ended only when the choice space is too large.
+Ask per the `response-style-contract` skill — read it; never restate it here.
+Open-ended is the exception, for when the choice space is genuinely too large
+to enumerate.
+
+What is specific to discovery, and not in that contract: keep going until you
+can state the outcome, the actor and what is out of scope, and stop there.
 
 Aim to understand:
 
@@ -204,8 +208,8 @@ implementation code). `writing-plans` is the next step.
 
 ## Key principles
 
-- **One question at a time** — don't overwhelm
-- **Multiple-choice preferred** — easier to answer than open-ended
+- **Questions follow the `response-style-contract` skill** — how one is put is
+  decided there, not here
 - **YAGNI ruthlessly** — remove unnecessary features from all designs
 - **Explore alternatives** — always 2–3 approaches before settling
 - **Incremental validation** — present, get approval, move on

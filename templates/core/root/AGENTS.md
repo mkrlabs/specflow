@@ -27,7 +27,7 @@ _(Naming, testing, commits, branches.)_
 `plan → tasks → implement → review → merge`. It stops at exactly two points, and no third:
 
 1. **The end of `plan`** — the architecture is presented with the alternatives that were rejected,
-   both audits' findings are presented separately, and the open questions are asked one at a time.
+   both audits' findings are presented separately, and the open questions are asked.
 2. **The review verdict** — which *is* the merge request. There is no separate pre-merge stop.
 
 Every other boundary is crossed by **invoking the next phase yourself, in the same turn** — your own
@@ -84,3 +84,15 @@ whose target surface is genuinely narrower says so once, in
 `.specnaut/memory/constitution.md`, and is not asked again.
 
 <!-- --- End Specnaut: ui-defaults --- -->
+
+<!-- --- Specnaut: response-style --- -->
+
+## Response style
+
+*Owned by Specnaut — this section is not a placeholder to fill in. Edit the rest freely.*
+
+**How you answer — brevity, visual order, how a question is put, and what a badge colour
+means — follows the `response-style-contract` skill.** Read it; never restate it here.
+It is in force on **every** turn, not only when a skill or an agent is involved.
+
+<!-- --- End Specnaut: response-style --- -->

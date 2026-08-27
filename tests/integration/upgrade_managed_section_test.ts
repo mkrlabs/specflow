@@ -212,3 +212,52 @@ Deno.test("the ui-defaults graft carries the pointer, not just its fences", asyn
     assertEquals(occurrences(after, UI_START), 1, "grafted twice");
   });
 });
+
+const RS_START = "<!-- --- Specnaut: response-style --- -->";
+const RS_END = "<!-- --- End Specnaut: response-style --- -->";
+
+Deno.test("the response-style graft carries the pointer, not just its fences", async () => {
+  // #575. The AGENTS.md fence is the ONLY route by which an existing project
+  // receives this contract — `AGENTS.md` is skipIfExists, so the pointer line
+  // outside the fence reaches new projects and nobody else.
+  await withTempDir(async (dir) => {
+    await Deno.writeTextFile(join(dir, "AGENTS.md"), "# AGENTS.md\n\nOurs.\n");
+    assertEquals((await runSpecnaut(INIT, dir)).code, 0);
+    assertEquals((await runSpecnaut(["upgrade"], dir)).code, 0);
+
+    const after = await Deno.readTextFile(join(dir, "AGENTS.md"));
+    const body = after.slice(after.indexOf(RS_START), after.indexOf(RS_END));
+    assert(body.length > 0, "no response-style block");
+    // The BODY, not the file: fences wrapped around nothing would satisfy every
+    // assertion above and deliver no instruction at all.
+    assertStringIncludes(body, "response-style-contract");
+    assertEquals(occurrences(after, RS_START), 1, "grafted twice");
+    assertStringIncludes(after, "Ours.");
+  });
+});
+
+Deno.test("an orphan fence above the block does not cost the user their content", async () => {
+  // The state probed in tests/domain/merge_block_orphan_test.ts, driven through
+  // the real upgrade path — because the guard lives in the domain but the harm
+  // lands here, on a file written with backupExisting: false.
+  await withTempDir(async (dir) => {
+    await Deno.writeTextFile(join(dir, "AGENTS.md"), "# AGENTS.md\n\nOurs.\n");
+    assertEquals((await runSpecnaut(INIT, dir)).code, 0);
+    assertEquals((await runSpecnaut(["upgrade"], dir)).code, 0);
+
+    const scaffolded = await Deno.readTextFile(join(dir, "AGENTS.md"));
+    // Someone pastes a stray start marker above the block, then writes below it.
+    const sabotaged = scaffolded.replace(
+      "# AGENTS.md",
+      `# AGENTS.md\n\n${RS_START}\n\n## My own notes\nKEEP-ME-1\nKEEP-ME-2\n`,
+    );
+    await Deno.writeTextFile(join(dir, "AGENTS.md"), sabotaged);
+    assertEquals((await runSpecnaut(["upgrade"], dir)).code, 0);
+
+    const after = await Deno.readTextFile(join(dir, "AGENTS.md"));
+    assertStringIncludes(after, "KEEP-ME-1");
+    assertStringIncludes(after, "KEEP-ME-2");
+    assertStringIncludes(after, "## My own notes");
+    assertStringIncludes(after, "response-style-contract");
+  });
+});

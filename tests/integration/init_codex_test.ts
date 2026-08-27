@@ -101,8 +101,14 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     // workflow-contract, handoff-protocol, review-findings-contract,
     // qa-report-contract, backlog-reference-contract) + code-audit (#379) + 5 per-axis audit skills
     // (#380: arch-audit, sec-audit, perf-audit, dep-audit, a11y-audit) +
-    // status-audit (#381) = 21 (specnaut-auto removed in #409,
-    // specnaut-review in #534).
+    // status-audit (#381), and since then mobile-first-contract (#576),
+    // response-style-contract (#575), specnaut-facts, alert-triage-contract and
+    // backlog-frontmatter (#562).
+    //
+    // The running tally this comment used to carry said 21 next to an assertion
+    // of 25 — it had been stale for four features, because nothing checks a
+    // comment. Do not restore it: the number below is the fact, and the list
+    // above is history. Bump the number when a skill is added, and say which.
     // The audit-security phase (#303) lands under specnaut/phases/, not as a
     // top-level skill — no bump there. code-audit's scope script ships under
     // .specnaut/scripts/code-audit/, not as a skill folder; status-audit's
@@ -110,7 +116,7 @@ Deno.test("specnaut init --ai codex scaffolds a Codex layout", async () => {
     const agentsSkillsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".agents/skills")),
     )).length;
-    assertEquals(agentsSkillsCount, 25);
+    assertEquals(agentsSkillsCount, 26); // +response-style-contract (#575)
     const codexAgentsCount = (await Array.fromAsync(
       Deno.readDir(join(root, ".codex/agents")),
     )).length;

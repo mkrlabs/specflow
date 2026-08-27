@@ -174,7 +174,7 @@ audit. Kept separate on purpose — the two answer different questions.*
 
 ## 12. Open questions
 
-*Asked at the stop that ends the plan phase — one at a time — and answered before any code exists.*
+*Asked at the stop that ends the plan phase, and answered before any code exists.*
 
 | Question | Answer | Date |
 | :--- | :--- | :--- |
