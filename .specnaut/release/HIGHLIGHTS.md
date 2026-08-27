@@ -1,38 +1,45 @@
-**Specnaut now refuses to write, move, delete or read through a symlink that leaves your project.**
+**Specnaut now specifies how the assistant answers you, once, instead of leaving it to whichever
+harness and model happen to be driving.**
 
-Every filesystem operation resolves its destination the way the kernel does — following the whole
-symlink chain, applying `..` from where each component actually lands — and refuses anything that
-resolves outside the project root. The message names the path you asked for, where it really
-resolved to, and the root it escaped, so a refusal tells you what to fix rather than that something
-went wrong.
+Until now this tool shipped hundreds of files telling an assistant _what to do_ and not one saying
+_how to reply_. The result was the thing everyone recognises: long tirades, the same point made
+three ways, a wall of prose where a table and three lines would do — and a different interaction
+quality per harness from the same tool.
 
-**This can refuse a layout that used to work.** If a directory inside your project is a symlink to
-somewhere outside it — a `.claude/` shared between checkouts, a skills folder linked to a dotfiles
-repo — `init`, `upgrade` and `diff` will now stop rather than write through it. That is the point:
-`diff` previously rendered the contents of a linked-to file on stdout, and this tool's stdout is
-routinely read into an agent's context and into CI logs. If you rely on such a layout, replace the
-link with a real directory, or point Specnaut at the directory the link resolves to.
+There is now one contract, `response-style-contract`, and every surface that must honour it points
+at it rather than restating it. It asks for concise, visually ordered answers, for a question to the
+user to be a small selection with a recommendation rather than an open prompt, and for technical
+topics to be explained as simply as the topic allows unless you ask for depth.
 
-The reason this shipped as one change rather than as a run of near-misses: two review rounds each
-found a real defect in the same thirty-line resolver, one hop further out than the last. The space
-of layouts is not enumerable by imagination. So the resolver is now checked against the kernel
-itself — ninety-six enumerated layouts, ground truth obtained by performing the write and asking
-where the bytes landed. Both previously-found defects fail that check in a single run.
+**Reports now say where things stand, not what the journey was.** Four badges, four meanings: green
+success, blue information, orange still open, red failing now. The rule that picks one is the part
+worth knowing — _a badge describes the state at the time of reading, not the path taken to reach
+it._ Work that found and fixed three defects reads as a success, because it is one. Previously such
+a report showed three red circles and looked at a glance like three standing failures.
 
-**Epics are one branch, chained over their children, merged once.** Previously an epic produced a
-branch per child and a merge per child. Now the chain loops over the children on a single branch,
-fixups fold into the commit of the child they belong to, the merge is flat, and every card the merge
-touches is closed and reconciled — including the parent, which cannot close while a child is open.
+Two limits ship with it, both deliberate. Brevity removes restatement — never a finding, a required
+field, or a constraint enumeration; where this contract and a contract defining a machine-readable
+block disagree, the block wins. And badges stay out of those fenced blocks entirely, so a report
+carries a badged summary for you and an untouched block for tooling.
 
-**If you install the plugin rather than scaffolding, you were missing the board skill entirely.**
-Three bundled agents dispatch to `/board`, one of them blocking outright without its output, and the
-plugin shipped none of it — not removed, never added. It ships now. The backend scripts still come
-from `specnaut init`; a plugin-only install has the documents and needs an init before the mechanics
-apply, which the skill now says on its own page.
+It arrives in existing projects as a `## Response style` section in your `AGENTS.md` on the next
+`specnaut upgrade`, and reaches all seven harnesses.
 
-Smaller, and worth knowing if you use the GitHub backlog backend: a wrong `project_number` in
-`backlog-config.yml` used to be invisible. The read commands address the board through `repo:`
-alone, so they kept working while every project write was dead. The four writing scripts now resolve
-the number when the config is read and tell you which project numbers do exist for that owner. The
-two `project_node_id` / `status_field_id` keys are gone — nothing ever read them, and nothing ever
-populated them, despite the documentation promising both.
+**Any UI you build — web or native — is now assumed mobile-first, without you asking.** Nothing in
+the shipped tree previously told an agent that an interface should adapt to the device it runs on;
+the only responsive vocabulary anywhere was WCAG criteria applied by an _invoked_ audit, after the
+code exists. So you had to say it, every time.
+
+`mobile-first-contract` states obligations and never values — the narrow viewport is the base case,
+breakpoints are declared tokens, input modality is not assumed, zoom is not disabled, native UI is
+held to the same rules in its own terms. The numbers stay yours, in your `DESIGN.md` or your
+constitution, because a number in the contract would compete with them. It is a default, not a
+mandate: a project genuinely targeting a narrower surface declares that once and is never asked
+again.
+
+**A fix worth knowing about if you hand-edit `AGENTS.md`.** A stray Specnaut fence marker sitting
+above a real managed block — an HTML comment, invisible in a rendered diff — made `upgrade` delete
+every line you had written between the two. The file is written without a backup, and the report
+said `refreshed` on one line with no indication of volume. Upgrade now resolves the closing fence
+first and walks back to the nearest opening one, stepping over the stray marker instead of treating
+it as the block's start.
