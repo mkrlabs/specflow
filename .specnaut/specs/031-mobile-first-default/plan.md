@@ -158,13 +158,26 @@ effect.
   made `init --ai antigravity` produce a lock `upgrade` refused to read.
 - **FR-012** Every assertion added under FR-010 was **observed failing** on the
   defect it guards before being accepted.
+- **FR-018** `CoreEntry.managedSection` accepts **more than one** section per
+  destination. Today `src/domain/core_bundle.ts` declares it as a single
+  optional string — "the **single** Specnaut-owned section" — and
+  `templates/manifest.json` has exactly one declaration. Widen the field to a
+  list and update its two consumers: `managedSectionEntries` in
+  `src/application/upgrade_project.ts`, and the fence validator in
+  `scripts/bundle-templates.ts` that fails the build on a declared-but-unfenced
+  label.
+- **FR-019** The project-root `AGENTS.md` template gains a second fenced block,
+  `ui-defaults`, carrying the pointer and nothing else. It is separate from
+  `chain-stops` by decision, not by accident: one fence, one subject, so a
+  reader who deletes a block knows what they are revoking.
 - **FR-015** **At least one assertion connects registration to reach.** Every
   other assertion in FR-010 is about the *shape* of the templates — the file
   exists, is registered, is mirrored, is pointed at. None of them can fail when
   the contract reaches no turn on a given harness. Render a project per harness
   and assert, per harness, that the contract is reachable from a surface that
-  harness loads without invocation — or that the harness is on the declared
-  uncovered list. A suite that is green on shape while the feature is inert is
+  harness loads without invocation. With Q1 answered, there is **no declared
+  uncovered list** — every harness must pass, and a harness that cannot is a
+  failure rather than a footnote. A suite that is green on shape while the feature is inert is
   the failure this requirement exists to prevent.
 - **FR-016** The contract ships **preloaded and non-invocable** —
   `user-invocable: false` in its frontmatter, asserted — matching
@@ -191,7 +204,9 @@ from `harness_static` in the manifest. Neither is decomposed by example.
 
 - **SC-001** A user asking for a UI component, in a project with no
   declaration and no mention of responsiveness in the request, receives output
-  that treats the narrow viewport as the base case.
+  that treats the narrow viewport as the base case — **on any of the seven
+  harnesses, in a project scaffolded before this shipped**. The second clause is
+  the one Q1 bought; without it the criterion was silently true of three.
 - **SC-002** A user who wants desktop-only writes that statement **once**, in
   one place, and is not asked about it again.
 - **SC-003** A reader of the contract can tell whether a given piece of UI
@@ -368,7 +383,7 @@ feature's reach.** Recorded here rather than left to the implementer:
 | :--- | :--- | :--- |
 | **Outside** the fence, beside the existing `backlog-reference-contract` line | New projects only. On `copilot`, `opencode`, `windsurf`, `antigravity` — which have no other always-on surface — the feature does nothing for existing projects. | None. Matches the precedent exactly. |
 | **Inside** the `chain-stops` fence | Every project, every harness, on the next `upgrade`. | Semantically wrong — that fence is named and scoped to the chain's two stops. |
-| **A new second fence** in `AGENTS.md` | Same as inside. | **Measured, three files in `src/` + `scripts/`, zero template churn:** `CoreEntry.managedSection` in `src/domain/core_bundle.ts` is `readonly managedSection?: string` — "the **single** Specnaut-owned section" — so it widens to a list; then `managedSectionEntries` in `src/application/upgrade_project.ts` and the fence validator in `scripts/bundle-templates.ts`. Plus the standing cost: Specnaut owns more of a file the user owns, and `src/domain/merge_block.ts` documents a deliberate non-repair — deleting exactly one of the two markers orphans the block and the next merge appends a duplicate, so a user cannot cleanly revoke it by deleting a marker. |
+| ✅ **CHOSEN — a new second fence** in `AGENTS.md` | Same as inside: every project, every harness, next `upgrade`. | **Measured, three files in `src/` + `scripts/`, zero template churn:** `CoreEntry.managedSection` in `src/domain/core_bundle.ts` is `readonly managedSection?: string` — "the **single** Specnaut-owned section" — so it widens to a list; then `managedSectionEntries` in `src/application/upgrade_project.ts` and the fence validator in `scripts/bundle-templates.ts`. Plus the standing cost: Specnaut owns more of a file the user owns, and `src/domain/merge_block.ts` documents a deliberate non-repair — deleting exactly one of the two markers orphans the block and the next merge appends a duplicate, so a user cannot cleanly revoke it by deleting a marker. |
 
 `applyManagedSections` writes with `{ overwrite: true }` and its outcome type
 is `"added" | "refreshed"` — **`"added"` is the case where an existing user
@@ -515,11 +530,43 @@ its rejected alternatives enumerated, which is correct by construction.
 
 ### Open — asked at the stop, one at a time
 
-**Q1 — the placement decision, and with it the feature's reach.** Ordered first
-because every other answer depends on it: it decides what FR-015 asserts, what
-SC-001 can promise, and whether the item is still M-sized.
+**Q1 — the placement decision, and with it the feature's reach.**
+**Answered (Kevin, 2026-08-27): a new managed fence.** The pointer gets its own
+`ui-defaults` fenced block in the project-root `AGENTS.md`, not the existing
+`chain-stops` fence and not a line outside the fences.
 
-**Q2 — scope.** The plan grew during the audits. Whether it ships whole or
-splits is Kevin's call, not the plan's.
+Consequences, now binding:
 
-_Answers recorded here with their date once given._
+- **Reach is 7 of 7 harnesses, existing projects included.** `applyManagedSections`
+  installs the block into files that lack it (`"added"`), so this is not
+  limited to projects that already carry a Specnaut fence. SC-001 no longer
+  needs a per-harness qualifier, and FR-015 asserts reachability on every
+  harness rather than against a declared uncovered list.
+- **The feature now touches `src/`, which it did not before.** Three files,
+  measured: `CoreEntry.managedSection` in `src/domain/core_bundle.ts` widens
+  from `string` to a list; `managedSectionEntries` in
+  `src/application/upgrade_project.ts` iterates it; the fence validator in
+  `scripts/bundle-templates.ts` validates each declared label. FR-018 and
+  FR-019 below.
+- **Rejected, with the reason.** *Outside the fence* — free and matches the
+  precedent exactly, but leaves the reported failure unserved on four harnesses
+  for every existing project, which is most of them. *Inside `chain-stops`* —
+  same reach for no code, rejected because that fence is named and scoped to
+  the chain's two stops; a UI rule under that heading is a lie to the next
+  reader, and cheap wiring bought with a misleading name is how a file stops
+  being trustworthy.
+- **The cost accepted, stated plainly.** Specnaut now owns a second section
+  inside a file the user owns. `src/domain/merge_block.ts` documents a
+  deliberate non-repair: deleting exactly one of the two markers orphans the
+  block and the next merge appends a duplicate. A user cannot cleanly revoke
+  the block by deleting a marker, and that is true of the fence they already
+  have — this adds a second one with the same property.
+
+**Q2 — scope. Settled without asking, and recorded so a wrong call is visible.**
+The plan grew during the audits and Q1's answer grew it again. It ships
+**whole**, not split. The standing instruction in this workspace is to finish
+what is found rather than fan it out, and every part of the growth is load-
+bearing on the same promise: a contract that does not reach a turn is not a
+contract. Splitting would ship the file and defer the reach, which is the
+inert-but-green outcome FR-015 exists to prevent. The backlog item's Size moves
+from M to L to say so.
