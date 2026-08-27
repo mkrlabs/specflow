@@ -6270,11 +6270,16 @@ internal dashboard, a tool with a known desktop-only audience — declares that
 
 **Where.** \`.specnaut/memory/constitution.md\`.
 
-**The literal form.** A heading \`## Target surface\`, followed by exactly one
-sentence beginning \`This project targets\`. Nothing else counts:
+**The literal form.** Under \`## Front-end patterns\`, a heading
+\`### Target surface\`, followed by exactly one sentence beginning
+\`This project targets\`. Nothing else counts — and the heading level is part of
+the form, because a constitution has other sections and a stray H2 anywhere in
+the file must not read as a declaration:
 
 \`\`\`markdown
-## Target surface
+## Front-end patterns
+
+### Target surface
 
 This project targets desktop viewports only.
 \`\`\`
@@ -8302,9 +8307,11 @@ block.
 
 **Mobile-first is assumed** — you never ask whether the user wants it. Ask
 about the exception only when their brief signals a genuinely narrow target
-(an operator console, an internal dashboard, a stated desktop-only audience),
-and record that exception where the \`mobile-first-contract\` skill says it goes,
-not here.
+(an operator console, an internal dashboard, a stated desktop-only audience).
+If they confirm one, **tell them where it goes and stop** — the
+\`mobile-first-contract\` skill names the file and the exact sentence. You own
+\`DESIGN.md\` and write nothing else, so recording it is theirs to do, not
+yours.
 
 \`DESIGN.md\` is where the **values** live. Declare, as tokens:
 
@@ -24152,20 +24159,20 @@ Each bounded context gets its own subtree: \`domain/<context>/\`,
   visible focus, ARIA only when semantic HTML doesn't suffice.
 - **Mobile-first is the default** — any UI, web or native, follows the
   \`mobile-first-contract\` skill. Read it; never restate it here. It is a
-  default, not a mandate: declare the exception under \`### Target surface\`
-  below, in the literal form the contract names, or leave it out and
-  mobile-first is assumed.
+  default, not a mandate: to declare an exception, replace the body of
+  \`### Target surface\` below with the sentence the contract names. Leave it as
+  it is and mobile-first is assumed.
 
 ### Target surface
 
-*Delete this whole subsection unless it applies. Anything not matching the
-form below is treated as absent, and mobile-first stays on.*
+*This project has NOT declared an exception, so mobile-first is assumed.*
 
-\`\`\`markdown
-## Target surface
-
-This project targets desktop viewports only.
-\`\`\`
+If it genuinely targets a narrower surface, the \`mobile-first-contract\` skill
+names the exact sentence to write here. Read it there. The form is deliberately
+not reproduced in this file: a copy of it sitting under this heading is
+indistinguishable from a project that made the declaration, so a template
+carrying one would ship the feature switched off to everyone who copies the
+template without editing it.
 
 ## Core Principles
 

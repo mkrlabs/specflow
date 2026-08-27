@@ -89,20 +89,20 @@ Each bounded context gets its own subtree: `domain/<context>/`,
   visible focus, ARIA only when semantic HTML doesn't suffice.
 - **Mobile-first is the default** — any UI, web or native, follows the
   `mobile-first-contract` skill. Read it; never restate it here. It is a
-  default, not a mandate: declare the exception under `### Target surface`
-  below, in the literal form the contract names, or leave it out and
-  mobile-first is assumed.
+  default, not a mandate: to declare an exception, replace the body of
+  `### Target surface` below with the sentence the contract names. Leave it as
+  it is and mobile-first is assumed.
 
 ### Target surface
 
-*Delete this whole subsection unless it applies. Anything not matching the
-form below is treated as absent, and mobile-first stays on.*
+*This project has NOT declared an exception, so mobile-first is assumed.*
 
-```markdown
-## Target surface
-
-This project targets desktop viewports only.
-```
+If it genuinely targets a narrower surface, the `mobile-first-contract` skill
+names the exact sentence to write here. Read it there. The form is deliberately
+not reproduced in this file: a copy of it sitting under this heading is
+indistinguishable from a project that made the declaration, so a template
+carrying one would ship the feature switched off to everyone who copies the
+template without editing it.
 
 ## Core Principles
 

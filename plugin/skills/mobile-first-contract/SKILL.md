@@ -30,11 +30,16 @@ internal dashboard, a tool with a known desktop-only audience — declares that
 
 **Where.** `.specnaut/memory/constitution.md`.
 
-**The literal form.** A heading `## Target surface`, followed by exactly one
-sentence beginning `This project targets`. Nothing else counts:
+**The literal form.** Under `## Front-end patterns`, a heading
+`### Target surface`, followed by exactly one sentence beginning
+`This project targets`. Nothing else counts — and the heading level is part of
+the form, because a constitution has other sections and a stray H2 anywhere in
+the file must not read as a declaration:
 
 ```markdown
-## Target surface
+## Front-end patterns
+
+### Target surface
 
 This project targets desktop viewports only.
 ```

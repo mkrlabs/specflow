@@ -184,9 +184,11 @@ block.
 
 **Mobile-first is assumed** — you never ask whether the user wants it. Ask
 about the exception only when their brief signals a genuinely narrow target
-(an operator console, an internal dashboard, a stated desktop-only audience),
-and record that exception where the `mobile-first-contract` skill says it goes,
-not here.
+(an operator console, an internal dashboard, a stated desktop-only audience).
+If they confirm one, **tell them where it goes and stop** — the
+`mobile-first-contract` skill names the file and the exact sentence. You own
+`DESIGN.md` and write nothing else, so recording it is theirs to do, not
+yours.
 
 `DESIGN.md` is where the **values** live. Declare, as tokens:
 

@@ -218,26 +218,30 @@ Deno.test("an exclusion names something that is actually a candidate", () => {
 });
 
 /**
- * The rule set lives in ONE file, and every rule is swept — not three of eight
- * sampled by hand. Round 2 found rule 5 restated near-verbatim in
- * `ui-ux-designer.md` two lines above that file's own "never restate it here",
- * on a surface the sweep already read: the surface was covered, the instrument
- * was too weak.
+ * The rule set lives in ONE file, and the sweep covers every NORMATIVE sentence
+ * — not three rules of eight, and not only each rule's bold lead.
  *
- * Derived from the contract's own numbered list, so a ninth rule is swept on
- * the day it is written rather than the day someone remembers to add it here.
+ * Round 2 widened it from three hand-picked sentences to eight derived leads.
+ * Round 3 found the aperture still too narrow twice over: rule BODIES were
+ * never checked, and the window began at the rules section, leaving the
+ * default-and-opt-out section unswept entirely.
+ *
+ * The window is now both normative sections, swept sentence by sentence. The
+ * framing intro is deliberately outside it: its "It exists so the rule is
+ * stated once" is boilerplate this contract shares verbatim with
+ * `backlog-reference-contract`, and a sweep that flagged shared framing as a
+ * restatement would be crying wolf on the one thing that is correct.
  */
-function loadBearing(content: string): string[] {
-  // Bounded at the NEXT heading. Unbounded, it ran on into the numbered list
-  // under "Where the values live" and returned ten rules for eight.
-  const from = content.indexOf("## What mobile-first obliges");
-  const next = content.indexOf("\n## ", from + 1);
-  const section = content.slice(from, next === -1 ? undefined : next);
-  const out: string[] = [];
-  for (const m of section.matchAll(/^\d+\.\s+\*\*(.+?)\*\*/gms)) {
-    out.push(m[1].replace(/\s+/g, " ").trim());
-  }
-  return out;
+function normativeSentences(content: string): string[] {
+  const from = content.indexOf("## A default, not a mandate");
+  const to = content.indexOf("## Where the values live");
+  const section = content.slice(from, to === -1 ? undefined : to);
+  return flat(section.replace(/[*`]/g, ""))
+    .split(/(?<=\.)\s+/)
+    .map((x) => x.trim())
+    // Short fragments match everywhere and say nothing; a sentence long enough
+    // to be a rule is long enough to be evidence.
+    .filter((x) => x.split(" ").length >= 8);
 }
 
 Deno.test("no surface restates a rule — they point", () => {
@@ -249,19 +253,20 @@ Deno.test("no surface restates a rule — they point", () => {
   const statics = Object.entries(HARNESS_STATIC).flatMap(([h, files]) =>
     Object.entries(files).map(([dest, f]) => [`${h}:${dest}`, f.content] as const)
   );
-  const rules = loadBearing(contractEntry().content);
-  assertEquals(
-    rules.length,
-    8,
-    "the derivation does not match the contract's rule count — it is broken, not clean " +
-      `(got ${rules.length}: ${rules.map((r) => r.slice(0, 24)).join(" / ")})`,
+  const sentences = normativeSentences(contractEntry().content);
+  assert(
+    sentences.length >= 20,
+    `the sweep window collapsed to ${sentences.length} sentences — broken, not clean`,
   );
-  for (const sentence of rules) {
+  for (const sentence of sentences) {
     // Whitespace-normalised on BOTH sides: a rule restated with a different
     // line wrap is still a restatement, and exact-substring matching is what
     // let rule 5's paraphrase through in round 2.
-    const core = CORE_BUNDLE.filter((e) => flat(e.content).includes(sentence)).map((e) => e.name);
-    const inStatics = statics.filter(([, c]) => flat(c).includes(sentence)).map(([k]) => k);
+    // Emphasis stripped on both sides: a rule copied with different bolding is
+    // still a copy, and matching the raw markdown let a paraphrase through.
+    const bare = (x: string) => flat(x.replace(/[*`]/g, ""));
+    const core = CORE_BUNDLE.filter((e) => bare(e.content).includes(sentence)).map((e) => e.name);
+    const inStatics = statics.filter(([, c]) => bare(c).includes(sentence)).map(([k]) => k);
     assertEquals(
       [...core, ...inStatics],
       [CONTRACT],
@@ -353,11 +358,16 @@ Deno.test("both constitution files carry Front-end patterns and the pointer", ()
 Deno.test("no interactive primitive decides its own touch size", () => {
   const designer = CORE_BUNDLE.find((e) => e.category === "agent" && e.name === "ui-ux-designer");
   assert(designer, "ui-ux-designer is not in CORE_BUNDLE");
-  const lines = designer!.content.split("\n")
-    .filter((l) => /min[- ]height|min[- ]width|hit area|touch/i.test(l))
-    .filter((l) => /\b\d+\s*(?:px|rem|dp|pt)\b/i.test(l));
+  // Flattened first. A line-based check requires the keyword and the literal to
+  // land on the same line of a hard-wrapped file, so the same defect passes or
+  // fails depending on where the wrap fell.
+  const hits = [
+    ...flat(designer!.content).matchAll(
+      /(?:min[- ]height|min[- ]width|hit area|touch[a-z-]*)[^.]{0,60}?\b\d+\s*(?:px|rem|dp|pt)\b/gi,
+    ),
+  ].map((m) => m[0]);
   assertEquals(
-    lines.map((l) => l.trim()),
+    hits,
     [],
     "a literal size on a touch affordance is a second decider — the value lives in DESIGN.md tokens",
   );
