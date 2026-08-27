@@ -73,7 +73,35 @@ Deno.test("every always-on context file carries the pointer", async () => {
   // asserted alone so the AGENTS.md fence cannot stand in for it — which is
   // exactly how the first version of this test passed with all three stripped.
   const alwaysOn = await alwaysOnDestinations();
-  assert(alwaysOn.size > 0, "no alwaysOn entries — the manifest flag is gone, not clean");
+
+  // `size > 0` was the round-2 hole: the oracle derived its expectation from
+  // the very field a change edits, so dropping ONE harness's flag together with
+  // its pointer left every assertion green. Pin membership, not cardinality.
+  //
+  // The set is inverted rather than hand-listed: a harness whose HARNESS_STATIC
+  // carries a context file of its own — anything that is not the on-demand
+  // `.specnaut/harness-tools.md` — must be flagged, or written down as an
+  // exception. Adding a context file to copilot tomorrow turns this red.
+  const shouldBeFlagged = new Set<string>();
+  for (const [harnessKey, files] of Object.entries(HARNESS_STATIC)) {
+    for (const dest of Object.keys(files)) {
+      if (dest === ".specnaut/harness-tools.md") continue;
+      if (/\.(md|mdc)$/.test(dest) && !dest.includes("/hooks/")) shouldBeFlagged.add(harnessKey);
+    }
+  }
+  /** A harness shipping a context file that is deliberately NOT always-on. Empty
+   * today; a row here is a decision on the record, never a way to quiet a red. */
+  const NOT_ALWAYS_ON = new Map<string, string>();
+
+  const unflagged = [...shouldBeFlagged]
+    .filter((h) => !alwaysOn.has(h))
+    .filter((h) => !NOT_ALWAYS_ON.get(h)?.trim());
+  assertEquals(
+    unflagged,
+    [],
+    "harnesses shipping a context file that is not declared alwaysOn — the reach oracle cannot see them",
+  );
+  assert(alwaysOn.size > 0, "no alwaysOn entries at all — the flag is gone, not clean");
 
   const missing: string[] = [];
   for (const [harnessKey, dests] of alwaysOn) {

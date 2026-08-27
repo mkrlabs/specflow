@@ -93,6 +93,11 @@ Deno.test("the contract names no framework", () => {
  */
 const TUNABLE_SHAPES: ReadonlyArray<[string, RegExp]> = [
   ["absolute unit", /\b\d+(?:\.\d+)?\s*(?:px|rem|em|pt|dp|sp)\b/i],
+  // Round 2: "at least 44 CSS pixels" slipped every rule — `px` sits inside
+  // `pixels`, `\s*` cannot span `CSS`, and 44 is under the 3-digit floor.
+  // WCAG 2.5.5's own wording is "44 by 44 CSS pixels", so this is the literal
+  // an author is most likely to reach for.
+  ["two-digit size", /\b\d{2}\s+(?:\w+\s+)?(?:css\s+)?(?:pixels?|points?|dp|sp)\b/i],
   ["relative unit", /\b\d+(?:\.\d+)?\s*(?:vw|vh|vmin|vmax|ch|ex|%)(?![\w-])/i],
   ["spelled-out unit", /\b\d+\s*(?:pixels?|points?|ems?|rems?)\b/i],
   // A bare integer assigned to a token IS a value: `--touch-min: 44`.
@@ -107,7 +112,12 @@ const TUNABLE_SHAPES: ReadonlyArray<[string, RegExp]> = [
 /** WCAG criteria and version numbers are citations, not values. Remove them
  * before looking for bare integers, so the two questions never fight. */
 function withoutCitations(s: string): string {
-  return s.replace(/\b\d+(?:\.\d+)+\b/g, "§").replace(/\bWCAG\s+[\d.]+/gi, "WCAG");
+  // Only a dotted number NOT followed by a unit is a citation. Round 2: the
+  // stripper rewrote "37.5" in "37.5 em" to § and so created a miss of its own
+  // — a cleaner that removes the evidence.
+  return s
+    .replace(/\b\d+(?:\.\d+)+\b(?!\s*(?:px|rem|em|pt|dp|sp|vw|vh|%))/gi, "§")
+    .replace(/\bWCAG\s+[\d.]+/gi, "WCAG");
 }
 
 Deno.test("the contract declares no tunable value", () => {
@@ -207,12 +217,28 @@ Deno.test("an exclusion names something that is actually a candidate", () => {
   assertEquals(stale, [], "an exclusion outliving its subject is how a carve-out becomes a fossil");
 });
 
-/** The rule set lives in ONE file. Every pointer references; none restates. */
-const LOAD_BEARING = [
-  "The narrow viewport is the base case",
-  "Interactive targets meet a declared minimum touch size",
-  "Input modality is not assumed",
-];
+/**
+ * The rule set lives in ONE file, and every rule is swept — not three of eight
+ * sampled by hand. Round 2 found rule 5 restated near-verbatim in
+ * `ui-ux-designer.md` two lines above that file's own "never restate it here",
+ * on a surface the sweep already read: the surface was covered, the instrument
+ * was too weak.
+ *
+ * Derived from the contract's own numbered list, so a ninth rule is swept on
+ * the day it is written rather than the day someone remembers to add it here.
+ */
+function loadBearing(content: string): string[] {
+  // Bounded at the NEXT heading. Unbounded, it ran on into the numbered list
+  // under "Where the values live" and returned ten rules for eight.
+  const from = content.indexOf("## What mobile-first obliges");
+  const next = content.indexOf("\n## ", from + 1);
+  const section = content.slice(from, next === -1 ? undefined : next);
+  const out: string[] = [];
+  for (const m of section.matchAll(/^\d+\.\s+\*\*(.+?)\*\*/gms)) {
+    out.push(m[1].replace(/\s+/g, " ").trim());
+  }
+  return out;
+}
 
 Deno.test("no surface restates a rule — they point", () => {
   // `length === 1` was not enough: it stays green when a rule MOVES out of the
@@ -223,9 +249,19 @@ Deno.test("no surface restates a rule — they point", () => {
   const statics = Object.entries(HARNESS_STATIC).flatMap(([h, files]) =>
     Object.entries(files).map(([dest, f]) => [`${h}:${dest}`, f.content] as const)
   );
-  for (const sentence of LOAD_BEARING) {
-    const core = CORE_BUNDLE.filter((e) => e.content.includes(sentence)).map((e) => e.name);
-    const inStatics = statics.filter(([, c]) => c.includes(sentence)).map(([k]) => k);
+  const rules = loadBearing(contractEntry().content);
+  assertEquals(
+    rules.length,
+    8,
+    "the derivation does not match the contract's rule count — it is broken, not clean " +
+      `(got ${rules.length}: ${rules.map((r) => r.slice(0, 24)).join(" / ")})`,
+  );
+  for (const sentence of rules) {
+    // Whitespace-normalised on BOTH sides: a rule restated with a different
+    // line wrap is still a restatement, and exact-substring matching is what
+    // let rule 5's paraphrase through in round 2.
+    const core = CORE_BUNDLE.filter((e) => flat(e.content).includes(sentence)).map((e) => e.name);
+    const inStatics = statics.filter(([, c]) => flat(c).includes(sentence)).map(([k]) => k);
     assertEquals(
       [...core, ...inStatics],
       [CONTRACT],
@@ -280,5 +316,49 @@ Deno.test("the contract limits its own authority", () => {
   assert(
     /confers no authority/i.test(flat(contractEntry().content)),
     "an always-on instruction file must say what it does NOT authorise",
+  );
+});
+
+/** FR-006 — BOTH constitution files carry the section, or the opt-out's named
+ * home has nowhere to declare under. The seed is the one a project actually
+ * receives at init; the template is what `/specnaut constitution` fills. */
+Deno.test("both constitution files carry Front-end patterns and the pointer", () => {
+  // Both constitution files ship as category `spec-root`, name `specify` —
+  // indistinguishable by name, so they are told apart by content. Filtering on
+  // the category first matters: the `constitution` PHASE doc also mentions
+  // `[PRINCIPLE_1_NAME]` as prose, and a name-free search finds it instead.
+  const specRoot = CORE_BUNDLE.filter((e) => e.category === "spec-root");
+  const files = [
+    ["seed", specRoot.find((e) => e.content.includes("# Project Constitution"))],
+    ["template", specRoot.find((e) => e.content.includes("[PRINCIPLE_1_NAME]"))],
+  ] as const;
+  for (const [which, entry] of files) {
+    assert(entry, `the ${which} constitution is not in CORE_BUNDLE`);
+    const flatText = flat(entry!.content);
+    assert(
+      flatText.includes("## Front-end patterns"),
+      `the ${which} constitution has no Front-end patterns section`,
+    );
+    assert(
+      flatText.includes(CONTRACT),
+      `the ${which} constitution's Front-end patterns does not point at the contract`,
+    );
+  }
+});
+
+/** FR-009 — plan.md promises this assertion by name. Round 2: regressing the
+ * `40px` literal across all three copies consistently left 1605 tests green,
+ * because only the plugin byte-identity guard noticed, and a consistent edit
+ * satisfies it. Assert the absence where it matters instead. */
+Deno.test("no interactive primitive decides its own touch size", () => {
+  const designer = CORE_BUNDLE.find((e) => e.category === "agent" && e.name === "ui-ux-designer");
+  assert(designer, "ui-ux-designer is not in CORE_BUNDLE");
+  const lines = designer!.content.split("\n")
+    .filter((l) => /min[- ]height|min[- ]width|hit area|touch/i.test(l))
+    .filter((l) => /\b\d+\s*(?:px|rem|dp|pt)\b/i.test(l));
+  assertEquals(
+    lines.map((l) => l.trim()),
+    [],
+    "a literal size on a touch affordance is a second decider — the value lives in DESIGN.md tokens",
   );
 });

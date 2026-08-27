@@ -22,6 +22,18 @@ const START = "<!-- --- Specnaut: chain-stops --- -->";
 const END = "<!-- --- End Specnaut: chain-stops --- -->";
 const HEADING = "## The Specnaut chain has exactly two stops";
 
+/**
+ * #576 added a SECOND label on the same destination. Every assertion above this
+ * line names `chain-stops` literally, so all of them stayed green when
+ * `managedSectionEntries` was reduced to one label — and the label silently
+ * dropped was `ui-defaults`, the whole of #576. A per-label test is not enough
+ * either: what has to be pinned is that the count grafted equals the count
+ * declared, so the next third label is covered by this test on the day it is
+ * added rather than the day someone notices.
+ */
+const UI_START = "<!-- --- Specnaut: ui-defaults --- -->";
+const UI_END = "<!-- --- End Specnaut: ui-defaults --- -->";
+
 async function runSpecnaut(args: string[], cwd: string) {
   const { code, stdout, stderr } = await new Deno.Command("deno", {
     args: ["run", "--allow-read", "--allow-write", "--allow-run", "--allow-env", MAIN, ...args],
@@ -144,5 +156,59 @@ Deno.test("a dry-run reports the section without writing it", async () => {
     assertEquals(dry.code, 0, `dry-run failed: ${dry.stderr}`);
     assertStringIncludes(dry.stdout, "chain-stops");
     assertEquals(await Deno.readTextFile(agents), own, "--dry-run must write nothing");
+  });
+});
+
+Deno.test("upgrade grafts EVERY declared section, not just the first", async () => {
+  await withTempDir(async (dir) => {
+    const own = "# AGENTS.md\n\n## House rules\n\nWe rebase, never merge commits.\n";
+    const agents = join(dir, "AGENTS.md");
+    await Deno.writeTextFile(agents, own);
+
+    assertEquals((await runSpecnaut(INIT, dir)).code, 0);
+    const up = await runSpecnaut(["upgrade"], dir);
+    assertEquals(up.code, 0, `upgrade failed: ${up.stderr}`);
+
+    const after = await Deno.readTextFile(agents);
+
+    // Derived from the manifest, not hand-listed: a third label added tomorrow
+    // is asserted by this test the same day, without anyone editing it.
+    const manifest = JSON.parse(
+      await Deno.readTextFile(
+        fromFileUrl(new URL("../../templates/manifest.json", import.meta.url)),
+      ),
+    ) as { core: Array<{ category: string; suffix?: string; managedSection?: string | string[] }> };
+    const entry = manifest.core.find((e) =>
+      e.category === "project-root" && e.suffix === "AGENTS.md"
+    );
+    assert(entry, "no project-root AGENTS.md manifest entry");
+    const declared = typeof entry!.managedSection === "string"
+      ? [entry!.managedSection]
+      : [...(entry!.managedSection ?? [])];
+    assert(declared.length > 1, "this test is pointless with one label — it must have several");
+
+    const missing = declared.filter((label) =>
+      !after.includes(`<!-- --- Specnaut: ${label} --- -->`)
+    );
+    assertEquals(missing, [], "declared managed sections that never reached the user's file");
+
+    // And the user's own content still leads, unreordered.
+    assert(after.startsWith(own.trimEnd()), "the user's content must survive as the exact prefix");
+  });
+});
+
+Deno.test("the ui-defaults graft carries the pointer, not just its fences", async () => {
+  await withTempDir(async (dir) => {
+    await Deno.writeTextFile(join(dir, "AGENTS.md"), "# AGENTS.md\n\nOurs.\n");
+    assertEquals((await runSpecnaut(INIT, dir)).code, 0);
+    assertEquals((await runSpecnaut(["upgrade"], dir)).code, 0);
+
+    const after = await Deno.readTextFile(join(dir, "AGENTS.md"));
+    const body = after.slice(after.indexOf(UI_START), after.indexOf(UI_END));
+    assert(body.length > 0, "no ui-defaults block");
+    // Asserting on the BODY, not the file: fences wrapped around nothing would
+    // satisfy every assertion above and deliver no instruction at all.
+    assertStringIncludes(body, "mobile-first-contract");
+    assertEquals(occurrences(after, UI_START), 1, "grafted twice");
   });
 });

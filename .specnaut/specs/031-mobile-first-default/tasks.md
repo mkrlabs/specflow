@@ -144,14 +144,35 @@ number.
 
 ## Review round 1 — the gate returned fail (7 HIGH)
 
-- [X] R01 Reach test rewritten: each route asserted alone, delivery asserted apart from reference, and the fence's DECLARATION asserted — `tests/templates/mobile_first_reach_test.ts`
-- [X] R02 `TUNABLE_SHAPES` widened to relative units, spelled-out units, token assignments and bare integers, with citations stripped first — `tests/templates/mobile_first_contract_test.ts`
-- [X] R03 Restatement pinned by LOCATION and swept over `HARNESS_STATIC`, not by count over `CORE_BUNDLE` alone
-- [X] R04 Typography Size column tokenised with a narrow → wide range — `templates/core/agents/ui-ux-designer.md`
-- [X] R05 `alwaysOn` is no longer dead data: the reach test derives the always-on set from it
-- [X] R06 The constitution seed no longer ships a live instance of the opt-out form — `templates/core/specnaut/memory/constitution.md`
-- [X] R07 The union resolves in one place: seven adapters route through `managedSectionField` — `src/infrastructure/harness/harness_managed.ts`
-- [X] R08 FR-005, FR-013 and FR-014 gain executable assertions; `code-reviewer` recorded in `POINTED_BY_DECISION`
+- [x] R01 Reach test rewritten: each route asserted alone, delivery asserted apart from reference,
+      and the fence's DECLARATION asserted — `tests/templates/mobile_first_reach_test.ts`
+- [x] R02 `TUNABLE_SHAPES` widened to relative units, spelled-out units, token assignments and bare
+      integers, with citations stripped first — `tests/templates/mobile_first_contract_test.ts`
+- [x] R03 Restatement pinned by LOCATION and swept over `HARNESS_STATIC`, not by count over
+      `CORE_BUNDLE` alone
+- [x] R04 Typography Size column tokenised with a narrow → wide range —
+      `templates/core/agents/ui-ux-designer.md`
+- [x] R05 `alwaysOn` is no longer dead data: the reach test derives the always-on set from it
+- [x] R06 The constitution seed no longer ships a live instance of the opt-out form —
+      `templates/core/specnaut/memory/constitution.md`
+- [x] R07 The union resolves in one place: seven adapters route through `managedSectionField` —
+      `src/infrastructure/harness/harness_managed.ts`
+- [x] R08 FR-005, FR-013 and FR-014 gain executable assertions; `code-reviewer` recorded in
+      `POINTED_BY_DECISION`
+
+## Review round 2 — fail again, 7 HIGH, and the pattern named
+
+The coordinator's own reading: *each round-1 fix closed the specific instance it
+was given and left the mechanism intact one step over.* Round 2's fixes are
+aimed at the mechanism, not the next instance.
+
+- [X] R09 `## Component primitives` was an EMPTY heading — the Responsive section was inserted at an anchor that was its body. Section moved above it; body rejoined. A real content defect, mirrored identically into `plugin/`.
+- [X] R10 Rule 5 was restated near-verbatim in `ui-ux-designer.md` § Responsive, two lines above that file's own "never restate it here". De-restated.
+- [X] R11 `LOAD_BEARING` sampled 3 of 8 rules by exact substring. Now **derived** from the contract's numbered list, bounded at the next heading, matched whitespace-normalised on both sides — a ninth rule is swept the day it is written.
+- [X] R12 `managedSectionEntries` reduced to one label kept all 1605 green, and the label dropped was `ui-defaults`. Two brownfield graft tests added, the first deriving its expectation from the manifest so a third label is covered on arrival.
+- [X] R13 The `alwaysOn` oracle derived its expectation from the field under test, guarded by `size > 0`. Inverted: a harness shipping a context file must be flagged or written down as an exception.
+- [X] R14 `TUNABLE_SHAPES` missed the whole two-digit range — "at least 44 CSS pixels", which is WCAG 2.5.5's own wording — and `withoutCitations` neutered "37.5 em" by stripping the evidence. Both closed.
+- [X] R15 FR-006 and FR-009 gained assertions. FR-009 was promised **by name** in the plan and did not exist; regressing the literal across all three copies had left 1609 green.
 
 ## Final Phase — Polish and cross-cutting
 

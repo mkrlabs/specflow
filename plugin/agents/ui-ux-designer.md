@@ -159,6 +159,11 @@ rather than tinting toward middle grey.
 `--space-4` 16 · `--space-5` 20 · `--space-6` 24 · `--space-8` 32 ·
 `--space-10` 40 · `--space-12` 48 · `--space-16` 64 · `--space-24` 96
 
+The ladder is one set of steps; what changes across widths is **which step a
+given role uses**, declared alongside the breakpoints. A layout that reaches
+for the same `--space-*` at every width is the fixed scale the Responsive
+section rules out.
+
 No raw pixel values in components. Off-grid sizes are a code-review
 block.
 
@@ -175,8 +180,6 @@ block.
 | `--shadow-md`   | `0 4px 8px rgb(0 0 0 / 0.08)` | Hover, dropdowns |
 | `--shadow-lg`   | `0 10px 24px rgb(0 0 0 / 0.12)` | Modals, popovers |
 
-## Component primitives
-
 ## Responsive and adaptive
 
 **Mobile-first is assumed** — you never ask whether the user wants it. Ask
@@ -191,13 +194,15 @@ not here.
   for devices; a device list dates and a ladder does not.
 - `--touch-min` — the minimum hit area for anything interactive. One number,
   used everywhere; a primitive that states its own is a second decider.
-- A type and spacing scale that **adapts** — fluid, or stepped at the
-  breakpoints above. A single fixed scale for every width does not satisfy the
-  contract.
+- Type and spacing scales that carry a narrow value and a wide one, or a rule
+  for interpolating between them. What "adapts" means is the contract's to
+  define, not this file's.
 
 Author the narrow layout first and treat wider ones as enhancement. What each
 of those obligations means is the `mobile-first-contract` skill's to say — read
 it; never restate it here.
+
+## Component primitives
 
 For each primitive, declare states + a one-line behaviour rule. Don't
 ship implementation code here — the developer agent does that.
