@@ -198,6 +198,12 @@ and five pointers.
       red CI run, not a local one.
 - [x] T045 Run `deno run --allow-run scripts/check-adoption.ts --from main --to HEAD` before
       landing.
+- [x] T046 Run `bash scripts/smoke/audit.sh` before landing. **This task was missing and CI found
+      it.** T043 and T044 ran the smoke suite, fmt, lint and the tests; none of them asks whether a
+      changed user-visible file has _any_ smoke assertion naming it. `plan-template.md` was edited
+      by T033's sweep and no check mentioned it, so `smoke` went red on `main` after the merge. The
+      audit is a separate gate from the suite it audits, and running the suite is not running the
+      audit.
 
 ---
 
@@ -210,7 +216,7 @@ Phase 1 (T001)
        ├─ Phase 4 · US2  (T019…T027)       depends on T005 (the file's body exists)
        ├─ Phase 5 · US3  (T028…T031)       independent of Phases 3–4 except T030
        └─ Phase 6 · US4  (T032…T037)       depends on T005
-            └─ Phase 7   (T038…T045)
+            └─ Phase 7   (T038…T046)
 ```
 
 **US3 is genuinely independent.** T028/T029/T031 touch `merge_block.ts` and its tests only; they can
