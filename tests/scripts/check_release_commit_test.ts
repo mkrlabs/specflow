@@ -97,3 +97,121 @@ Deno.test("versionsIn finds both the JSON field and the TS constant", () => {
   assertEquals(versionsIn('export const VERSION = "1.2.3";'), ["1.2.3"]);
   assertEquals(versionsIn('{"version":"1.0.0"}\nVERSION = "2.0.0"'), ["1.0.0", "2.0.0"]);
 });
+
+/**
+ * The highlights staleness check (#575 follow-up).
+ *
+ * This check shipped with NO test, which is why its hole survived: it asked
+ * whether the last commit touching HIGHLIGHTS.md was an ancestor of the previous
+ * tag, so any later commit cleared the flag — including one that changed nothing
+ * a reader would see. Observed in this repository: `style: reflow HIGHLIGHTS.md
+ * to the fmt width` landed six minutes after v4.1.0 was tagged, and the gate
+ * went green over that release's own lead, word for word.
+ *
+ * The check now compares CONTENT against what was published at the previous tag,
+ * whitespace-insensitively — because reflowing is exactly the edit that must not
+ * count as rewriting, and `deno fmt` performs it unasked.
+ */
+
+const H = ".specnaut/release/HIGHLIGHTS.md";
+const LEAD = "**A thing shipped.**\n\nIt does the thing, and here is why that matters to you.\n";
+
+/** A repo tagged at `prev` carrying `lead`, then bumped to `next`. */
+async function repoWithHighlights(
+  prev: string,
+  next: string,
+  lead: string,
+  after: (dir: string) => Promise<void>,
+): Promise<string> {
+  const dir = await repoAt(prev.slice(1), `chore: release ${prev}`);
+  await Deno.mkdir(`${dir}/.specnaut/release`, { recursive: true });
+  await Deno.writeTextFile(`${dir}/${H}`, lead);
+  await git(dir, "add", "-A");
+  await git(dir, "commit", "-q", "-m", "docs(release): the lead");
+  await git(dir, "tag", "-a", prev, "-m", prev);
+  await after(dir);
+  // The bump to `next`, in its own commit, exactly as the pipeline writes it.
+  for (
+    const p of [
+      "deno.json",
+      "plugin/.claude-plugin/plugin.json",
+      "templates/manifest.json",
+      ".codex-plugin/plugin.json",
+      ".cursor-plugin/plugin.json",
+    ]
+  ) {
+    await Deno.writeTextFile(`${dir}/${p}`, JSON.stringify({ version: next.slice(1) }, null, 2));
+  }
+  await Deno.writeTextFile(
+    `${dir}/src/domain/version.ts`,
+    `export const VERSION = "${next.slice(1)}";\n`,
+  );
+  await git(dir, "add", "-A");
+  await git(dir, "commit", "-q", "-m", `chore: release ${next}`);
+  return dir;
+}
+
+Deno.test("highlights already published at the previous tag are refused", async () => {
+  const dir = await repoWithHighlights("v1.0.0", "v1.1.0", LEAD, async () => {});
+  const { code, err } = await run(dir, "v1.1.0");
+  assertEquals(code, 1);
+  assert(err.includes("already published at v1.0.0"), err);
+});
+
+Deno.test("a whitespace reflow after the tag does NOT make stale highlights fresh", async () => {
+  // THE defect. Under the previous provenance check this passed, because the
+  // reflow commit is not an ancestor of the tag — and the reader sees the same
+  // words either way.
+  const dir = await repoWithHighlights("v1.0.0", "v1.1.0", LEAD, async (d) => {
+    await Deno.writeTextFile(`${d}/${H}`, LEAD.replace(/, and here is why/, ",\nand here is why"));
+    await git(d, "add", "-A");
+    await git(d, "commit", "-q", "-m", "style: reflow HIGHLIGHTS.md to the fmt width");
+  });
+  const { code, err } = await run(dir, "v1.1.0");
+  assertEquals(code, 1, `a reflow must not clear the staleness flag:\n${err}`);
+  assert(err.includes("already published at v1.0.0"), err);
+});
+
+Deno.test("highlights genuinely rewritten for this release are accepted", async () => {
+  const dir = await repoWithHighlights("v1.0.0", "v1.1.0", LEAD, async (d) => {
+    await Deno.writeTextFile(
+      `${d}/${H}`,
+      "**Something else entirely shipped.**\n\nDifferent words.\n",
+    );
+    await git(d, "add", "-A");
+    await git(d, "commit", "-q", "-m", "docs(release): the new lead");
+  });
+  assertEquals((await run(dir, "v1.1.0")).code, 0);
+});
+
+Deno.test("an emptied highlights file is accepted — a release with no lead is normal", async () => {
+  const dir = await repoWithHighlights("v1.0.0", "v1.1.0", LEAD, async (d) => {
+    await Deno.writeTextFile(`${d}/${H}`, "");
+    await git(d, "add", "-A");
+    await git(d, "commit", "-q", "-m", "docs(release): no lead this time");
+  });
+  assertEquals((await run(dir, "v1.1.0")).code, 0);
+});
+
+Deno.test("highlights absent at the previous tag cannot have been republished", async () => {
+  // The file is new since the last release. There is nothing it could repeat.
+  const dir = await repoAt("1.0.0", "chore: release v1.0.0");
+  await git(dir, "tag", "-a", "v1.0.0", "-m", "v1.0.0");
+  await Deno.mkdir(`${dir}/.specnaut/release`, { recursive: true });
+  await Deno.writeTextFile(`${dir}/${H}`, LEAD);
+  for (
+    const p of [
+      "deno.json",
+      "plugin/.claude-plugin/plugin.json",
+      "templates/manifest.json",
+      ".codex-plugin/plugin.json",
+      ".cursor-plugin/plugin.json",
+    ]
+  ) {
+    await Deno.writeTextFile(`${dir}/${p}`, JSON.stringify({ version: "1.1.0" }, null, 2));
+  }
+  await Deno.writeTextFile(`${dir}/src/domain/version.ts`, `export const VERSION = "1.1.0";\n`);
+  await git(dir, "add", "-A");
+  await git(dir, "commit", "-q", "-m", "chore: release v1.1.0");
+  assertEquals((await run(dir, "v1.1.0")).code, 0);
+});

@@ -105,16 +105,31 @@ async function main() {
       // No previous tag — first release, nothing can be stale yet.
     }
     if (prevTag) {
-      const lastTouched = await git("log", "-1", "--format=%H", "--", HIGHLIGHTS);
-      const stale = lastTouched &&
-        (await new Deno.Command("git", {
-          args: ["merge-base", "--is-ancestor", lastTouched, prevTag],
-          stdout: "null",
-          stderr: "null",
-        }).output()).success;
+      // Compare CONTENT against what was published at the previous tag, not the
+      // provenance of the last commit that touched the file.
+      //
+      // The provenance form asked "is the last commit touching HIGHLIGHTS.md an
+      // ancestor of the previous tag?" — so ANY later commit cleared the flag,
+      // including one that changed nothing a reader would see. Observed: a
+      // whitespace reflow landed six minutes after v4.1.0 was tagged and left
+      // the gate green over that release's own lead, word for word. A guard that
+      // reads when a file was touched cannot answer a question about what it
+      // says.
+      //
+      // Whitespace-insensitive on purpose: reflowing is exactly the edit that
+      // must NOT count as rewriting, and `deno fmt` performs it unasked.
+      const flat = (t: string) => t.replace(/\s+/g, " ").trim();
+      let published = "";
+      try {
+        published = await git("show", `${prevTag}:${HIGHLIGHTS}`);
+      } catch {
+        // Absent at the previous tag — nothing to have republished.
+      }
+      const stale = published.trim().length > 0 &&
+        flat(published) === flat(highlightsBody);
       if (stale) {
         problems.push(
-          `${HIGHLIGHTS} has content, but was last written at or before ${prevTag}.\n` +
+          `${HIGHLIGHTS} still carries the lead already published at ${prevTag}.\n` +
             `      Those highlights were already published. Rewrite them for ${tag}, ` +
             `or empty the file — an empty one renders nothing.`,
         );
