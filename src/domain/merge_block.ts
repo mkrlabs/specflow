@@ -22,6 +22,18 @@
  * the user wrote, so neither is a safe guess. Deleting the whole section, or
  * neither marker, both behave correctly.
  *
+ * What that paragraph did NOT say, and what made it read as considered when it
+ * was not: an orphan START is only harmless while it is ALONE. An orphan START
+ * sitting ABOVE a complete block used to make `locateBlock` open its span at the
+ * orphan and close it at the real end fence — so `mergeIntoFile` replaced every
+ * line the user had written between them. Not to end-of-file; the tail after the
+ * real end fence survived, which is why it read as a well-behaved replace. The
+ * trigger is an HTML comment, invisible in a rendered diff, on a file written
+ * with `backupExisting: false`. `locateBlock` now resolves the end
+ * fence first and walks BACK to the nearest start, which steps over the orphan
+ * and replaces the real block. Appending instead would have been non-destructive
+ * but not idempotent: every upgrade would add one more block.
+ *
  * Pure — no IO, no Deno globals. Safe to import from domain or application.
  */
 
@@ -75,10 +87,19 @@ function locateBlock(
     const end = pair.end(label);
     const startIdx = content.indexOf(start);
     if (startIdx === -1) continue;
-    const afterStart = startIdx + start.length;
-    const endIdx = content.indexOf(end, afterStart);
+    // Resolve the END first, then the start NEAREST it. Taking the first start
+    // instead opens the span at an orphan marker and closes it at the real end
+    // fence, so the replace deletes every line the user wrote between them.
+    // Walking back from the end picks the real block and steps over the orphan,
+    // which leaves the user's content untouched AND stays idempotent — appending
+    // instead would add another block on every upgrade, forever.
+    const endIdx = content.indexOf(end, startIdx + start.length);
     if (endIdx === -1) continue;
-    return { startIdx, afterStart, endIdx, afterEnd: endIdx + end.length };
+    const realStart = content.lastIndexOf(start, endIdx);
+    if (realStart === -1) continue;
+    const afterStart = realStart + start.length;
+    if (afterStart > endIdx) continue;
+    return { startIdx: realStart, afterStart, endIdx, afterEnd: endIdx + end.length };
   }
   return null;
 }
