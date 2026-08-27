@@ -1028,6 +1028,10 @@ check "the response-style block points at the contract rather than restating it"
    && ! grep -q "A badge describes the state at the time of reading" AGENTS.md'
 check "the always-on context file carries the response-style pointer" \
   'grep -q "response-style-contract" .claude/CLAUDE.md'
+check "plan-template.md ships and states WHERE questions are asked, not how" \
+  'test -f .specnaut/templates/plan-template.md \
+   && grep -q "Asked at the stop that ends the plan phase" .specnaut/templates/plan-template.md \
+   && ! grep -qi "one at a time" .specnaut/templates/plan-template.md'
 # Case-INSENSITIVE, and matching the phrase rather than one word order. The
 # first version of this check was `-E "one question at a time"` with no `-i`,
 # over a corpus whose only spelling is "ONE at a time" — so it grepped an empty
