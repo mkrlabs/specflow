@@ -235,7 +235,6 @@ Generate a concise short name (2–4 words, action-noun where possible — \`add
 
 \`\`\`bash
 .specnaut/scripts/bash/create-new-feature.sh --json --short-name "<short-name>" [--issue <N>] "<description>"
-.specnaut/scripts/bash/setup-plan.sh --json
 \`\`\`
 
 Read \`BRANCH_NAME\`, \`SPEC_FILE\` and the feature directory from the JSON. \`create-new-feature.sh\` is
@@ -247,6 +246,14 @@ Persist \`{ "feature_directory": "<resolved dir>", "linked_issue": <N or null> }
 \`.specnaut/feature.json\` — the resolved path, not the literal string, since downstream phases locate
 the feature from it. \`linked_issue\` is the backlog item id when \`--issue <N>\` was passed (or a hook
 returned one); \`merge\` reads it to close the item, and its absence is a no-op downstream.
+
+**Persist it before the next command, not after.** Every script that resolves feature paths reads
+\`.specnaut/feature.json\` ahead of the branch name, so one left naming the previous feature sends the
+next command's writes into that feature's directory. Then:
+
+\`\`\`bash
+.specnaut/scripts/bash/setup-plan.sh --json
+\`\`\`
 
 **The card moves itself.** With \`--issue <N>\`, \`create-new-feature.sh\` moves that item to
 \`In progress\` as part of creating the branch, and reports the outcome — including when nothing
@@ -24748,6 +24755,21 @@ spec_kit_effective_branch_name() {
     fi
 }
 
+# True when a branch name follows the feature-branch convention: a sequential
+# prefix of 3+ digits, or a timestamp prefix, excluding malformed timestamps
+# (7-or-8 digit date + 6-digit time with no trailing slug, e.g. "2026031-143022"
+# or "20260319-143022").
+#
+# Extracted so \`check_feature_branch\` and the resolution cross-check in
+# \`get_feature_paths\` cannot come to disagree about what a feature branch is.
+is_feature_branch_name() {
+    local branch="\$1"
+    if [[ "\$branch" =~ ^[0-9]{3,}- ]] && [[ ! "\$branch" =~ ^[0-9]{7}-[0-9]{6}- ]] && [[ ! "\$branch" =~ ^[0-9]{7,8}-[0-9]{6}\$ ]]; then
+        return 0
+    fi
+    [[ "\$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]
+}
+
 check_feature_branch() {
     local raw="\$1"
     local has_git_repo="\$2"
@@ -24761,13 +24783,7 @@ check_feature_branch() {
     local branch
     branch=\$(spec_kit_effective_branch_name "\$raw")
 
-    # Accept sequential prefix (3+ digits) but exclude malformed timestamps
-    # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
-    local is_sequential=false
-    if [[ "\$branch" =~ ^[0-9]{3,}- ]] && [[ ! "\$branch" =~ ^[0-9]{7}-[0-9]{6}- ]] && [[ ! "\$branch" =~ ^[0-9]{7,8}-[0-9]{6}\$ ]]; then
-        is_sequential=true
-    fi
-    if [[ "\$is_sequential" != "true" ]] && [[ ! "\$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
+    if ! is_feature_branch_name "\$branch"; then
         echo "ERROR: Not on a feature branch. Current branch: \$raw" >&2
         echo "Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name" >&2
         return 1
@@ -24835,11 +24851,14 @@ get_feature_paths() {
     #   2. .specnaut/feature.json "feature_directory" key (persisted by /specnaut plan)
     #   3. Branch-name-based prefix lookup (legacy fallback)
     local feature_dir
+    local feature_dir_source
     if [[ -n "\${SPECIFY_FEATURE_DIRECTORY:-}" ]]; then
+        feature_dir_source="env"
         feature_dir="\$SPECIFY_FEATURE_DIRECTORY"
         # Normalize relative paths to absolute under repo root
         [[ "\$feature_dir" != /* ]] && feature_dir="\$repo_root/\$feature_dir"
     elif [[ -f "\$repo_root/.specnaut/feature.json" ]]; then
+        feature_dir_source="feature.json"
         local _fd
         if command -v jq >/dev/null 2>&1; then
             _fd=\$(jq -r '.feature_directory // empty' "\$repo_root/.specnaut/feature.json" 2>/dev/null)
@@ -24857,10 +24876,44 @@ get_feature_paths() {
         elif ! feature_dir=\$(find_feature_dir_by_prefix "\$repo_root" "\$current_branch"); then
             echo "ERROR: Failed to resolve feature directory" >&2
             return 1
+        else
+            feature_dir_source="branch"
         fi
-    elif ! feature_dir=\$(find_feature_dir_by_prefix "\$repo_root" "\$current_branch"); then
-        echo "ERROR: Failed to resolve feature directory" >&2
-        return 1
+    else
+        feature_dir_source="branch"
+        if ! feature_dir=\$(find_feature_dir_by_prefix "\$repo_root" "\$current_branch"); then
+            echo "ERROR: Failed to resolve feature directory" >&2
+            return 1
+        fi
+    fi
+
+    # A resolution that contradicts the branch is an error, not an output.
+    #
+    # \`.specnaut/feature.json\` is written by the \`plan\` phase and names the
+    # feature it was writing at the time. Anything that resolves paths before
+    # the CURRENT feature has been persisted reads the PREVIOUS one — and then
+    # every caller receives a \`CURRENT_BRANCH\` and a \`FEATURE_DIR\` that name
+    # different features, in the same breath, with nothing comparing them.
+    # \`setup-plan.sh\` copied a blank template over the older feature's plan on
+    # exactly that reading.
+    #
+    # Only the \`feature.json\` rule can contradict the branch: the env override
+    # is a deliberate instruction to look elsewhere, and the prefix fallback is
+    # derived from the branch, so neither can disagree with it. The comparison
+    # is skipped off a feature branch, where \`check_feature_branch\` already
+    # reports a better error.
+    if [[ "\$feature_dir_source" == "feature.json" && "\$has_git_repo" == "true" ]]; then
+        local _eff_branch
+        _eff_branch=\$(spec_kit_effective_branch_name "\$current_branch")
+        if is_feature_branch_name "\$_eff_branch" && [[ "\$(basename "\$feature_dir")" != "\$_eff_branch" ]]; then
+            echo "ERROR: .specnaut/feature.json resolves to a different feature than the current branch." >&2
+            echo "  current branch:  \$_eff_branch" >&2
+            echo "  feature.json:    \$(basename "\$feature_dir")" >&2
+            echo "  resolved path:   \$feature_dir" >&2
+            echo "Refusing to act on a contradiction: writing here would touch the other feature's files." >&2
+            echo "Fix .specnaut/feature.json to name the current feature, or set SPECIFY_FEATURE_DIRECTORY to override deliberately." >&2
+            return 1
+        fi
     fi
 
     # Use printf '%q' to safely quote values, preventing shell injection
@@ -25965,15 +26018,31 @@ check_feature_branch "\$CURRENT_BRANCH" "\$HAS_GIT" || exit 1
 # Ensure the feature directory exists
 mkdir -p "\$FEATURE_DIR"
 
-# Copy plan template if it exists
-TEMPLATE=\$(resolve_template "plan-template" "\$REPO_ROOT") || true
-if [[ -n "\$TEMPLATE" ]] && [[ -f "\$TEMPLATE" ]]; then
-    cp "\$TEMPLATE" "\$IMPL_PLAN"
-    echo "Copied plan template to \$IMPL_PLAN"
+# Seed the plan from the template, but NEVER over an existing one.
+#
+# \`create-new-feature.sh\` performs the identical copy, from the same template
+# to the same filename, and guards it with the same existence check. Only this
+# copy was unguarded — so on any feature after the first, a stale
+# \`feature.json\` resolved \`\$IMPL_PLAN\` into the PREVIOUS feature's directory
+# and this line replaced a finished plan with a blank template. No backup, no
+# confirmation, no way back except git.
+#
+# The copy is redundant on the happy path anyway: by the time this runs,
+# \`create-new-feature.sh\` has already written the template into the new
+# feature's directory. Leaving an existing file alone costs nothing and is the
+# only behaviour that cannot destroy work.
+if [[ -f "\$IMPL_PLAN" ]]; then
+    echo "Plan already exists at \$IMPL_PLAN — left untouched"
 else
-    echo "Warning: Plan template not found"
-    # Create a basic plan file if template doesn't exist
-    touch "\$IMPL_PLAN"
+    TEMPLATE=\$(resolve_template "plan-template" "\$REPO_ROOT") || true
+    if [[ -n "\$TEMPLATE" ]] && [[ -f "\$TEMPLATE" ]]; then
+        cp "\$TEMPLATE" "\$IMPL_PLAN"
+        echo "Copied plan template to \$IMPL_PLAN"
+    else
+        echo "Warning: Plan template not found"
+        # Create a basic plan file if template doesn't exist
+        touch "\$IMPL_PLAN"
+    fi
 fi
 
 # Output results
@@ -26292,6 +26361,20 @@ function Get-SpecnautEffectiveBranchName {
     return \$Branch
 }
 
+# True when a branch name follows the feature-branch convention: a sequential
+# prefix of 3+ digits, or a timestamp prefix, excluding malformed timestamps
+# (7-or-8 digit date + 6-digit time with no trailing slug).
+#
+# Extracted so Test-FeatureBranch and the resolution cross-check in
+# Get-FeaturePathsEnv cannot come to disagree about what a feature branch is.
+# Mirrors is_feature_branch_name() in scripts/bash/common.sh.
+function Test-FeatureBranchName {
+    param([string]\$Branch)
+    \$hasMalformedTimestamp = (\$Branch -match '^[0-9]{7}-[0-9]{6}-') -or (\$Branch -match '^(?:\\d{7}|\\d{8})-\\d{6}\$')
+    if ((\$Branch -match '^[0-9]{3,}-') -and (-not \$hasMalformedTimestamp)) { return \$true }
+    return [bool](\$Branch -match '^\\d{8}-\\d{6}-')
+}
+
 function Test-FeatureBranch {
     param(
         [string]\$Branch,
@@ -26306,12 +26389,8 @@ function Test-FeatureBranch {
 
     \$raw = \$Branch
     \$Branch = Get-SpecnautEffectiveBranchName \$raw
-    
-    # Accept sequential prefix (3+ digits) but exclude malformed timestamps
-    # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
-    \$hasMalformedTimestamp = (\$Branch -match '^[0-9]{7}-[0-9]{6}-') -or (\$Branch -match '^(?:\\d{7}|\\d{8})-\\d{6}\$')
-    \$isSequential = (\$Branch -match '^[0-9]{3,}-') -and (-not \$hasMalformedTimestamp)
-    if (-not \$isSequential -and \$Branch -notmatch '^\\d{8}-\\d{6}-') {
+
+    if (-not (Test-FeatureBranchName \$Branch)) {
         [Console]::Error.WriteLine("ERROR: Not on a feature branch. Current branch: \$raw")
         [Console]::Error.WriteLine("Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name")
         return \$false
@@ -26378,7 +26457,9 @@ function Get-FeaturePathsEnv {
     #   2. .specnaut/feature.json "feature_directory" key (persisted by /specnaut.specify)
     #   3. Branch-name-based prefix lookup (same as scripts/bash/common.sh)
     \$featureJson = Join-Path \$repoRoot '.specnaut/feature.json'
+    \$featureDirSource = 'branch'
     if (\$env:SPECIFY_FEATURE_DIRECTORY) {
+        \$featureDirSource = 'env'
         \$featureDir = \$env:SPECIFY_FEATURE_DIRECTORY
         # Normalize relative paths to absolute under repo root
         if (-not [System.IO.Path]::IsPathRooted(\$featureDir)) {
@@ -26393,6 +26474,7 @@ function Get-FeaturePathsEnv {
             exit 1
         }
         if (\$featureConfig.feature_directory) {
+            \$featureDirSource = 'feature.json'
             \$featureDir = \$featureConfig.feature_directory
             # Normalize relative paths to absolute under repo root
             if (-not [System.IO.Path]::IsPathRooted(\$featureDir)) {
@@ -26404,7 +26486,25 @@ function Get-FeaturePathsEnv {
     } else {
         \$featureDir = Get-FeatureDirFromBranchPrefixOrExit -RepoRoot \$repoRoot -CurrentBranch \$currentBranch
     }
-    
+
+    # A resolution that contradicts the branch is an error, not an output.
+    # See the same guard in scripts/bash/common.sh for the reasoning: only the
+    # feature.json rule can disagree with the branch, and every caller used to
+    # receive a CURRENT_BRANCH and a FEATURE_DIR naming different features with
+    # nothing comparing them.
+    if (\$featureDirSource -eq 'feature.json' -and \$hasGit) {
+        \$effBranch = Get-SpecnautEffectiveBranchName \$currentBranch
+        if ((Test-FeatureBranchName \$effBranch) -and ((Split-Path -Leaf \$featureDir) -ne \$effBranch)) {
+            [Console]::Error.WriteLine("ERROR: .specnaut/feature.json resolves to a different feature than the current branch.")
+            [Console]::Error.WriteLine("  current branch:  \$effBranch")
+            [Console]::Error.WriteLine("  feature.json:    \$(Split-Path -Leaf \$featureDir)")
+            [Console]::Error.WriteLine("  resolved path:   \$featureDir")
+            [Console]::Error.WriteLine("Refusing to act on a contradiction: writing here would touch the other feature's files.")
+            [Console]::Error.WriteLine("Fix .specnaut/feature.json to name the current feature, or set SPECIFY_FEATURE_DIRECTORY to override deliberately.")
+            exit 1
+        }
+    }
+
     [PSCustomObject]@{
         REPO_ROOT     = \$repoRoot
         CURRENT_BRANCH = \$currentBranch
@@ -27453,15 +27553,22 @@ if (-not (Test-FeatureBranch -Branch \$paths.CURRENT_BRANCH -HasGit \$paths.HAS_
 # Ensure the feature directory exists
 New-Item -ItemType Directory -Path \$paths.FEATURE_DIR -Force | Out-Null
 
-# Copy plan template if it exists, otherwise note it or create empty file
-\$template = Resolve-Template -TemplateName 'plan-template' -RepoRoot \$paths.REPO_ROOT
-if (\$template -and (Test-Path \$template)) { 
-    Copy-Item \$template \$paths.IMPL_PLAN -Force
-    Write-Output "Copied plan template to \$(\$paths.IMPL_PLAN)"
+# Seed the plan from the template, but NEVER over an existing one.
+# create-new-feature.ps1 performs the identical copy and guards it with
+# Test-Path -PathType Leaf; only this one was unguarded — and it forced the
+# overwrite explicitly. See scripts/bash/setup-plan.sh for the full account.
+if (Test-Path -PathType Leaf \$paths.IMPL_PLAN) {
+    Write-Output "Plan already exists at \$(\$paths.IMPL_PLAN) — left untouched"
 } else {
-    Write-Warning "Plan template not found"
-    # Create a basic plan file if template doesn't exist
-    New-Item -ItemType File -Path \$paths.IMPL_PLAN -Force | Out-Null
+    \$template = Resolve-Template -TemplateName 'plan-template' -RepoRoot \$paths.REPO_ROOT
+    if (\$template -and (Test-Path \$template)) {
+        Copy-Item \$template \$paths.IMPL_PLAN -Force
+        Write-Output "Copied plan template to \$(\$paths.IMPL_PLAN)"
+    } else {
+        Write-Warning "Plan template not found"
+        # Create a basic plan file if template doesn't exist
+        New-Item -ItemType File -Path \$paths.IMPL_PLAN -Force | Out-Null
+    }
 }
 
 # Output results

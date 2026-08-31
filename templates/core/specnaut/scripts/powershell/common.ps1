@@ -137,6 +137,20 @@ function Get-SpecnautEffectiveBranchName {
     return $Branch
 }
 
+# True when a branch name follows the feature-branch convention: a sequential
+# prefix of 3+ digits, or a timestamp prefix, excluding malformed timestamps
+# (7-or-8 digit date + 6-digit time with no trailing slug).
+#
+# Extracted so Test-FeatureBranch and the resolution cross-check in
+# Get-FeaturePathsEnv cannot come to disagree about what a feature branch is.
+# Mirrors is_feature_branch_name() in scripts/bash/common.sh.
+function Test-FeatureBranchName {
+    param([string]$Branch)
+    $hasMalformedTimestamp = ($Branch -match '^[0-9]{7}-[0-9]{6}-') -or ($Branch -match '^(?:\d{7}|\d{8})-\d{6}$')
+    if (($Branch -match '^[0-9]{3,}-') -and (-not $hasMalformedTimestamp)) { return $true }
+    return [bool]($Branch -match '^\d{8}-\d{6}-')
+}
+
 function Test-FeatureBranch {
     param(
         [string]$Branch,
@@ -151,12 +165,8 @@ function Test-FeatureBranch {
 
     $raw = $Branch
     $Branch = Get-SpecnautEffectiveBranchName $raw
-    
-    # Accept sequential prefix (3+ digits) but exclude malformed timestamps
-    # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
-    $hasMalformedTimestamp = ($Branch -match '^[0-9]{7}-[0-9]{6}-') -or ($Branch -match '^(?:\d{7}|\d{8})-\d{6}$')
-    $isSequential = ($Branch -match '^[0-9]{3,}-') -and (-not $hasMalformedTimestamp)
-    if (-not $isSequential -and $Branch -notmatch '^\d{8}-\d{6}-') {
+
+    if (-not (Test-FeatureBranchName $Branch)) {
         [Console]::Error.WriteLine("ERROR: Not on a feature branch. Current branch: $raw")
         [Console]::Error.WriteLine("Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name")
         return $false
@@ -223,7 +233,9 @@ function Get-FeaturePathsEnv {
     #   2. .specnaut/feature.json "feature_directory" key (persisted by /specnaut.specify)
     #   3. Branch-name-based prefix lookup (same as scripts/bash/common.sh)
     $featureJson = Join-Path $repoRoot '.specnaut/feature.json'
+    $featureDirSource = 'branch'
     if ($env:SPECIFY_FEATURE_DIRECTORY) {
+        $featureDirSource = 'env'
         $featureDir = $env:SPECIFY_FEATURE_DIRECTORY
         # Normalize relative paths to absolute under repo root
         if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
@@ -238,6 +250,7 @@ function Get-FeaturePathsEnv {
             exit 1
         }
         if ($featureConfig.feature_directory) {
+            $featureDirSource = 'feature.json'
             $featureDir = $featureConfig.feature_directory
             # Normalize relative paths to absolute under repo root
             if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
@@ -249,7 +262,25 @@ function Get-FeaturePathsEnv {
     } else {
         $featureDir = Get-FeatureDirFromBranchPrefixOrExit -RepoRoot $repoRoot -CurrentBranch $currentBranch
     }
-    
+
+    # A resolution that contradicts the branch is an error, not an output.
+    # See the same guard in scripts/bash/common.sh for the reasoning: only the
+    # feature.json rule can disagree with the branch, and every caller used to
+    # receive a CURRENT_BRANCH and a FEATURE_DIR naming different features with
+    # nothing comparing them.
+    if ($featureDirSource -eq 'feature.json' -and $hasGit) {
+        $effBranch = Get-SpecnautEffectiveBranchName $currentBranch
+        if ((Test-FeatureBranchName $effBranch) -and ((Split-Path -Leaf $featureDir) -ne $effBranch)) {
+            [Console]::Error.WriteLine("ERROR: .specnaut/feature.json resolves to a different feature than the current branch.")
+            [Console]::Error.WriteLine("  current branch:  $effBranch")
+            [Console]::Error.WriteLine("  feature.json:    $(Split-Path -Leaf $featureDir)")
+            [Console]::Error.WriteLine("  resolved path:   $featureDir")
+            [Console]::Error.WriteLine("Refusing to act on a contradiction: writing here would touch the other feature's files.")
+            [Console]::Error.WriteLine("Fix .specnaut/feature.json to name the current feature, or set SPECIFY_FEATURE_DIRECTORY to override deliberately.")
+            exit 1
+        }
+    }
+
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
         CURRENT_BRANCH = $currentBranch

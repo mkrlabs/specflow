@@ -125,6 +125,21 @@ spec_kit_effective_branch_name() {
     fi
 }
 
+# True when a branch name follows the feature-branch convention: a sequential
+# prefix of 3+ digits, or a timestamp prefix, excluding malformed timestamps
+# (7-or-8 digit date + 6-digit time with no trailing slug, e.g. "2026031-143022"
+# or "20260319-143022").
+#
+# Extracted so `check_feature_branch` and the resolution cross-check in
+# `get_feature_paths` cannot come to disagree about what a feature branch is.
+is_feature_branch_name() {
+    local branch="$1"
+    if [[ "$branch" =~ ^[0-9]{3,}- ]] && [[ ! "$branch" =~ ^[0-9]{7}-[0-9]{6}- ]] && [[ ! "$branch" =~ ^[0-9]{7,8}-[0-9]{6}$ ]]; then
+        return 0
+    fi
+    [[ "$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]
+}
+
 check_feature_branch() {
     local raw="$1"
     local has_git_repo="$2"
@@ -138,13 +153,7 @@ check_feature_branch() {
     local branch
     branch=$(spec_kit_effective_branch_name "$raw")
 
-    # Accept sequential prefix (3+ digits) but exclude malformed timestamps
-    # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
-    local is_sequential=false
-    if [[ "$branch" =~ ^[0-9]{3,}- ]] && [[ ! "$branch" =~ ^[0-9]{7}-[0-9]{6}- ]] && [[ ! "$branch" =~ ^[0-9]{7,8}-[0-9]{6}$ ]]; then
-        is_sequential=true
-    fi
-    if [[ "$is_sequential" != "true" ]] && [[ ! "$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
+    if ! is_feature_branch_name "$branch"; then
         echo "ERROR: Not on a feature branch. Current branch: $raw" >&2
         echo "Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name" >&2
         return 1
@@ -212,11 +221,14 @@ get_feature_paths() {
     #   2. .specnaut/feature.json "feature_directory" key (persisted by /specnaut plan)
     #   3. Branch-name-based prefix lookup (legacy fallback)
     local feature_dir
+    local feature_dir_source
     if [[ -n "${SPECIFY_FEATURE_DIRECTORY:-}" ]]; then
+        feature_dir_source="env"
         feature_dir="$SPECIFY_FEATURE_DIRECTORY"
         # Normalize relative paths to absolute under repo root
         [[ "$feature_dir" != /* ]] && feature_dir="$repo_root/$feature_dir"
     elif [[ -f "$repo_root/.specnaut/feature.json" ]]; then
+        feature_dir_source="feature.json"
         local _fd
         if command -v jq >/dev/null 2>&1; then
             _fd=$(jq -r '.feature_directory // empty' "$repo_root/.specnaut/feature.json" 2>/dev/null)
@@ -234,10 +246,44 @@ get_feature_paths() {
         elif ! feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch"); then
             echo "ERROR: Failed to resolve feature directory" >&2
             return 1
+        else
+            feature_dir_source="branch"
         fi
-    elif ! feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch"); then
-        echo "ERROR: Failed to resolve feature directory" >&2
-        return 1
+    else
+        feature_dir_source="branch"
+        if ! feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch"); then
+            echo "ERROR: Failed to resolve feature directory" >&2
+            return 1
+        fi
+    fi
+
+    # A resolution that contradicts the branch is an error, not an output.
+    #
+    # `.specnaut/feature.json` is written by the `plan` phase and names the
+    # feature it was writing at the time. Anything that resolves paths before
+    # the CURRENT feature has been persisted reads the PREVIOUS one — and then
+    # every caller receives a `CURRENT_BRANCH` and a `FEATURE_DIR` that name
+    # different features, in the same breath, with nothing comparing them.
+    # `setup-plan.sh` copied a blank template over the older feature's plan on
+    # exactly that reading.
+    #
+    # Only the `feature.json` rule can contradict the branch: the env override
+    # is a deliberate instruction to look elsewhere, and the prefix fallback is
+    # derived from the branch, so neither can disagree with it. The comparison
+    # is skipped off a feature branch, where `check_feature_branch` already
+    # reports a better error.
+    if [[ "$feature_dir_source" == "feature.json" && "$has_git_repo" == "true" ]]; then
+        local _eff_branch
+        _eff_branch=$(spec_kit_effective_branch_name "$current_branch")
+        if is_feature_branch_name "$_eff_branch" && [[ "$(basename "$feature_dir")" != "$_eff_branch" ]]; then
+            echo "ERROR: .specnaut/feature.json resolves to a different feature than the current branch." >&2
+            echo "  current branch:  $_eff_branch" >&2
+            echo "  feature.json:    $(basename "$feature_dir")" >&2
+            echo "  resolved path:   $feature_dir" >&2
+            echo "Refusing to act on a contradiction: writing here would touch the other feature's files." >&2
+            echo "Fix .specnaut/feature.json to name the current feature, or set SPECIFY_FEATURE_DIRECTORY to override deliberately." >&2
+            return 1
+        fi
     fi
 
     # Use printf '%q' to safely quote values, preventing shell injection

@@ -31,15 +31,22 @@ if (-not (Test-FeatureBranch -Branch $paths.CURRENT_BRANCH -HasGit $paths.HAS_GI
 # Ensure the feature directory exists
 New-Item -ItemType Directory -Path $paths.FEATURE_DIR -Force | Out-Null
 
-# Copy plan template if it exists, otherwise note it or create empty file
-$template = Resolve-Template -TemplateName 'plan-template' -RepoRoot $paths.REPO_ROOT
-if ($template -and (Test-Path $template)) { 
-    Copy-Item $template $paths.IMPL_PLAN -Force
-    Write-Output "Copied plan template to $($paths.IMPL_PLAN)"
+# Seed the plan from the template, but NEVER over an existing one.
+# create-new-feature.ps1 performs the identical copy and guards it with
+# Test-Path -PathType Leaf; only this one was unguarded — and it forced the
+# overwrite explicitly. See scripts/bash/setup-plan.sh for the full account.
+if (Test-Path -PathType Leaf $paths.IMPL_PLAN) {
+    Write-Output "Plan already exists at $($paths.IMPL_PLAN) — left untouched"
 } else {
-    Write-Warning "Plan template not found"
-    # Create a basic plan file if template doesn't exist
-    New-Item -ItemType File -Path $paths.IMPL_PLAN -Force | Out-Null
+    $template = Resolve-Template -TemplateName 'plan-template' -RepoRoot $paths.REPO_ROOT
+    if ($template -and (Test-Path $template)) {
+        Copy-Item $template $paths.IMPL_PLAN -Force
+        Write-Output "Copied plan template to $($paths.IMPL_PLAN)"
+    } else {
+        Write-Warning "Plan template not found"
+        # Create a basic plan file if template doesn't exist
+        New-Item -ItemType File -Path $paths.IMPL_PLAN -Force | Out-Null
+    }
 }
 
 # Output results

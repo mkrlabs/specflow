@@ -45,7 +45,6 @@ Generate a concise short name (2–4 words, action-noun where possible — `add-
 
 ```bash
 .specnaut/scripts/bash/create-new-feature.sh --json --short-name "<short-name>" [--issue <N>] "<description>"
-.specnaut/scripts/bash/setup-plan.sh --json
 ```
 
 Read `BRANCH_NAME`, `SPEC_FILE` and the feature directory from the JSON. `create-new-feature.sh` is
@@ -57,6 +56,14 @@ Persist `{ "feature_directory": "<resolved dir>", "linked_issue": <N or null> }`
 `.specnaut/feature.json` — the resolved path, not the literal string, since downstream phases locate
 the feature from it. `linked_issue` is the backlog item id when `--issue <N>` was passed (or a hook
 returned one); `merge` reads it to close the item, and its absence is a no-op downstream.
+
+**Persist it before the next command, not after.** Every script that resolves feature paths reads
+`.specnaut/feature.json` ahead of the branch name, so one left naming the previous feature sends the
+next command's writes into that feature's directory. Then:
+
+```bash
+.specnaut/scripts/bash/setup-plan.sh --json
+```
 
 **The card moves itself.** With `--issue <N>`, `create-new-feature.sh` moves that item to
 `In progress` as part of creating the branch, and reports the outcome — including when nothing

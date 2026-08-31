@@ -38,15 +38,31 @@ check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 # Ensure the feature directory exists
 mkdir -p "$FEATURE_DIR"
 
-# Copy plan template if it exists
-TEMPLATE=$(resolve_template "plan-template" "$REPO_ROOT") || true
-if [[ -n "$TEMPLATE" ]] && [[ -f "$TEMPLATE" ]]; then
-    cp "$TEMPLATE" "$IMPL_PLAN"
-    echo "Copied plan template to $IMPL_PLAN"
+# Seed the plan from the template, but NEVER over an existing one.
+#
+# `create-new-feature.sh` performs the identical copy, from the same template
+# to the same filename, and guards it with the same existence check. Only this
+# copy was unguarded — so on any feature after the first, a stale
+# `feature.json` resolved `$IMPL_PLAN` into the PREVIOUS feature's directory
+# and this line replaced a finished plan with a blank template. No backup, no
+# confirmation, no way back except git.
+#
+# The copy is redundant on the happy path anyway: by the time this runs,
+# `create-new-feature.sh` has already written the template into the new
+# feature's directory. Leaving an existing file alone costs nothing and is the
+# only behaviour that cannot destroy work.
+if [[ -f "$IMPL_PLAN" ]]; then
+    echo "Plan already exists at $IMPL_PLAN — left untouched"
 else
-    echo "Warning: Plan template not found"
-    # Create a basic plan file if template doesn't exist
-    touch "$IMPL_PLAN"
+    TEMPLATE=$(resolve_template "plan-template" "$REPO_ROOT") || true
+    if [[ -n "$TEMPLATE" ]] && [[ -f "$TEMPLATE" ]]; then
+        cp "$TEMPLATE" "$IMPL_PLAN"
+        echo "Copied plan template to $IMPL_PLAN"
+    else
+        echo "Warning: Plan template not found"
+        # Create a basic plan file if template doesn't exist
+        touch "$IMPL_PLAN"
+    fi
 fi
 
 # Output results
