@@ -126,3 +126,61 @@ for (const entry of agentEntries()) {
     );
   });
 }
+
+/**
+ * Authoritative agent → `maxTurns` assignment.
+ *
+ * Nothing pinned these before, and the gap showed: `specnaut-guide` carried 10
+ * — the lowest in the fleet by a factor of two — while its own `review-upgrade`
+ * protocol prescribes a seven-step interactive walk with two nested per-item
+ * loops, each iteration optionally dispatching a sub-agent and committing. The
+ * budget was not merely low against its siblings; it was arithmetically
+ * incompatible with the procedure the same file prescribes, and the failure
+ * mode is silent: the agent renders an opening line, exhausts the budget, and
+ * returns nothing anyone can act on.
+ *
+ * The tiers, so a new seat can be placed rather than guessed:
+ *   20 — a read-only review lens: read the diff, report, stop.
+ *   30 — writes, or coordinates a fixed set of lenses.
+ *   40 — drives an external surface (a sandbox, a pipeline) with retries.
+ *   60 — walks an interactive protocol that dispatches sub-agents.
+ *   80 — implements, which is the only seat that edits until tests pass.
+ */
+const MAX_TURNS_MAP: Record<string, number> = {
+  "accessibility-expert": 20,
+  "architect-expert": 20,
+  "code-reviewer": 20,
+  "dependency-expert": 20,
+  "performance-expert": 20,
+  "security-expert": 20,
+  "product-owner": 30,
+  "review-coordinator": 30,
+  "ui-ux-designer": 30,
+  "devops-sre": 40,
+  "qa-tester": 40,
+  "test-reviewer": 40,
+  "specnaut-guide": 60,
+  "workflow-manager": 60,
+  "developer": 80,
+};
+
+for (const [name, expected] of Object.entries(MAX_TURNS_MAP)) {
+  Deno.test(`agent "${name}" carries its pinned maxTurns (${expected})`, () => {
+    const entry = agentEntries().find((e) => e.name === name);
+    assert(entry, `agent "${name}" missing from CORE_BUNDLE`);
+    const value = scalarField(frontmatter(entry.content), "maxTurns");
+    assertEquals(
+      value,
+      String(expected),
+      `agent "${name}" maxTurns drifted — a budget change is a decision, make it here too`,
+    );
+  });
+}
+
+// Same reasoning as the effort rubric: the population is the bundle, so a seat
+// added without a budget fails here rather than shipping on whatever default
+// the harness happens to apply.
+Deno.test("the maxTurns table covers exactly the bundled agent fleet", () => {
+  const bundled = agentEntries().map((e) => e.name).sort();
+  assertEquals(bundled, Object.keys(MAX_TURNS_MAP).sort());
+});

@@ -37,7 +37,7 @@ const PINNED = new Map<string, string>([
     "Read, Grep, Glob, Bash, Agent(code-reviewer, security-expert, test-reviewer)",
   ],
   ["security-expert", "Read, Grep, Glob, Bash"],
-  ["specnaut-guide", "Read, WebFetch, Grep, Glob, Bash, Agent"],
+  ["specnaut-guide", "Read, WebFetch, Grep, Glob, Bash, Agent(developer)"],
   [
     "test-reviewer",
     "Read, Grep, Glob, Bash(deno test *), Bash(npm test*), Bash(npx vitest*), Bash(npx jest*), Bash(pytest*), Bash(go test *), Bash(cargo test*)",
@@ -107,3 +107,28 @@ for (const [name, expected] of PINNED) {
     );
   });
 }
+
+/**
+ * An `Agent` grant names the seats it may spawn.
+ *
+ * The population is the directory, not a list here: a future seat that arrives
+ * with a bare `Agent` fails this without anyone remembering to add a row.
+ *
+ * `specnaut-guide` shipped the only unscoped grant in the bundle. Unscoped is
+ * not "slightly wider" — it is every seat, including the orchestrators, so a
+ * question about a local file could spawn a chain that answers nothing and
+ * spends the whole budget doing it. Its own `review-upgrade` protocol names
+ * exactly one seat to dispatch, `developer`, which is what the grant now says.
+ */
+Deno.test("agent tools: every Agent grant names its seats", async () => {
+  const bare: string[] = [];
+  for (const seat of await seatNames()) {
+    const md = await Deno.readTextFile(join(AGENTS, `${seat}.md`));
+    const tools = toolsLineOf(md);
+    assert(tools !== null, `${seat} has no tools: line`);
+    // `Agent` as a whole entry, rather than `Agent(...)`.
+    const entries = tools!.split(",").map((t) => t.trim());
+    if (entries.includes("Agent")) bare.push(seat);
+  }
+  assertEquals(bare, [], "seats granting an unscoped Agent — name the seats they may spawn");
+});
