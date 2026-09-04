@@ -177,7 +177,7 @@ catalog_version=""
 for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
   catalog_version="$(gh api repos/specnaut/specnaut-marketplace/contents/.claude-plugin/marketplace.json \
     --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
-    | jq -r '.plugins[0].version' 2>/dev/null || true)"
+    | jq -r '.plugins[] | select(.name=="specnaut-plugin") | .version' 2>/dev/null || true)"
   [ "$catalog_version" = "${TAG#v}" ] && break
   [ "$attempt" -eq 12 ] || sleep 10
 done
