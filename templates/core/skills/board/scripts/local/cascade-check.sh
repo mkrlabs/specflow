@@ -64,11 +64,13 @@ fi
 # terminal here: `deferred` is a decision not to do the work, and holding a
 # parent open on one would block the epic on a task nobody intends to finish.
 OPEN=0
+TOTAL=0
 OPEN_LIST=""
 for f in "$BACKLOG_DIR"/*.md; do
   [ -e "$f" ] || continue
   [ "$f" = "$PARENT_FILE" ] && continue
   [ "$(_fm "$f" parent)" = "$NUM" ] || continue
+  TOTAL=$((TOTAL + 1))
   st=$(_fm "$f" status)
   case "$st" in
     done | deferred) continue ;;
@@ -79,10 +81,18 @@ for f in "$BACKLOG_DIR"/*.md; do
 done
 
 if [ "$OPEN" -gt 0 ]; then
-  echo "✗ #$NUM has $OPEN open child task(s) — close them first"
+  echo "✗ #$NUM has $OPEN open child task(s) of $TOTAL — close them first"
   printf '%s' "$OPEN_LIST"
   exit 11
 fi
 
-echo "✓ #$NUM safe to close (no open children)"
+# "No child is linked at all" and "every child is terminal" are different
+# facts. Both are safe to close. This backend reads the filesystem, so it has
+# neither the unread-page nor the fails-open defect its API siblings carried —
+# this is the only change it needs.
+if [ "$TOTAL" -eq 0 ]; then
+  echo "✓ #$NUM has no linked children — no cascade applies"
+else
+  echo "✓ #$NUM safe to close — all $TOTAL child task(s) are done or deferred"
+fi
 exit 0

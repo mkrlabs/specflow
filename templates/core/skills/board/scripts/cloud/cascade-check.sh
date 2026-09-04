@@ -81,12 +81,22 @@ OPEN_LIST=$(printf '%s' "$KIDS" | jq -r --arg term "$TERMINAL_ID" --argjson cols
   | .[] | "  - #\(.number) — \(.title) [in \"\($names[.columnId] // "—")\"]"
 ')
 OPEN=$(printf '%s' "$OPEN_LIST" | grep -c '^  - ' || true)
+TOTAL=$(printf '%s' "$KIDS" | jq -r '(.tasks // []) | length')
 
 if [ "$OPEN" -gt 0 ]; then
-  echo "✗ #$NUM has $OPEN open child task(s) — close them first"
+  echo "✗ #$NUM has $OPEN open child task(s) of $TOTAL — close them first"
   printf '%s\n' "$OPEN_LIST"
   exit 11
 fi
 
-echo "✓ #$NUM safe to close (no open children)"
+# "No child is linked at all" and "every child is done" are different facts.
+# Both are safe to close, and a caller deciding whether a cascade even applies
+# could not tell them apart while they shared one sentence. This backend was
+# already correct about the dangerous half — it checks every exit code and
+# refuses rather than guessing — so this is the only change it needs.
+if [ "$TOTAL" -eq 0 ]; then
+  echo "✓ #$NUM has no linked children — no cascade applies"
+else
+  echo "✓ #$NUM safe to close — all $TOTAL child task(s) are in \"$TERMINAL_NAME\""
+fi
 exit 0

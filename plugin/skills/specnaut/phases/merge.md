@@ -140,7 +140,8 @@ a bare number is not checkable.
 
 A structured report with: files merged, commits merged, whether the user chose to push, and — when
 the close ran — whether the linked issue was closed (and via which backend), or skipped (and why:
-no `linked_issue`, user declined, or `cascade-check` blocked the close). It must also quote
+no `linked_issue`, user declined, or `cascade-check` returned any non-zero exit — quote which,
+since "a child is still open" and "the children could not be read" are different reasons to stop). It must also quote
 the branch `HEAD` is on after the merge, from `git rev-parse --abbrev-ref HEAD` — a merge report
 that claims success without naming the branch is unverifiable.
 

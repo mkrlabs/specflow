@@ -18,8 +18,13 @@ one you are on.
        or, equivalently, the presence of `.specnaut/backlog-config.yml` (github/gitlab) vs
        `.specnaut/backlog.md` (local).
     3. **github + gitlab only** — run `bash .specnaut/scripts/backlog/cascade-check.sh <linked_issue>`.
-       Exit 11 means the parent has open sub-issues; do NOT close. Report the open children to the
-       user and stop (the issue stays in `In progress` / `Ready` until the children are closed).
+       **Only exit 0 authorises the close. Treat EVERY non-zero exit as "do not close"** — this is
+       a safety gate, and a gate that could not answer must never read as a yes. Exit 11 means the
+       parent has open sub-issues: report them to the user and stop (the issue stays in
+       `In progress` / `Ready` until the children are closed). Exit 3 means the parent was not
+       found **or its children could not be read** — a token, scope or network problem, not a
+       verdict; say so and stop rather than closing. Exit 12 means it is already closed, so there
+       is nothing to do.
     4. Ask the user to confirm, naming the item per the `backlog-reference-contract`
        skill — number, title, and a resolved link, never a bare number. The user is being
        asked to authorise an action on an item they must be able to identify. On `no`, skip the
@@ -102,9 +107,12 @@ lies.
    and a bare number is not checkable.
 
 3. **Then the epic.** Run `cascade-check.sh <epic>` first, exactly as the
-   standalone path does. Exit 11 means a child is still open — stop and say
-   which. It is a gate, not a formality: if it fires here, step 2 missed a
-   child, and closing the parent over it would hide that permanently.
+   standalone path does. **Only exit 0 authorises the close.** Exit 11 means a
+   child is still open — stop and say which. It is a gate, not a formality: if
+   it fires here, step 2 missed a child, and closing the parent over it would
+   hide that permanently. Exit 3 means the children could not be read at all;
+   that is not a clean bill of health, and closing on it is the failure the
+   gate exists to prevent.
 
 4. **Then reconcile, once, over everything the merge touched.** The sweep in
    the standalone section covers the whole board, so it already sees all N+1
