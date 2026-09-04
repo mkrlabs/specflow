@@ -1,44 +1,49 @@
-**A script whose job is to seed your plan was overwriting the one you had already written.**
+**Four gates that answered "fine" when they had not looked.**
 
-`setup-plan.sh` copied the blank plan template over `plan.md` unconditionally. On the first feature
-of a project that is harmless — the file does not exist yet. On every feature after it,
-`.specnaut/feature.json` still named the _previous_ feature at the moment the script ran,
-`get_feature_paths()` reads that file ahead of the branch name, and the copy landed in the finished
-feature's directory. A completed plan, replaced by an empty template. No backup, no confirmation, no
-way back except git.
+This release is one defect wearing four costumes. In each case a command that decides something
+could not obtain the information it decides on, and said so in the vocabulary of good news.
 
-The ordering that produced it was written down in the phase doc: `plan` ran `create-new-feature.sh`,
-then `setup-plan.sh`, and persisted `feature.json` only afterwards. So the defect was invisible
-exactly once — on the run everybody tests.
+**A close gate that answered yes when it could not see.** `cascade-check.sh` decides whether an epic
+may close, and `merge` runs it before closing a linked item and again before closing the parent.
+Three states printed one `✓ safe to close`: every child genuinely closed; more than one API page of
+children with the first page closed, because the call asked for neither pagination nor a page size;
+and **the query having failed**, because it ended `|| echo 0` and substituted a count it never read.
+The third needed no epic size at all — any parent, at any moment, on a bad token. The GitLab backend
+carried the same defect in a shape no search for that idiom would find, its coercion being a pipe
+into `wc -l`. All four backends now also separate "no child is linked" from "every child is closed":
+both are safe, and they are different facts.
 
-Three things changed, because any one of them alone leaves the next caller exposed. The copy refuses
-to write over an existing plan, which costs nothing: `create-new-feature.sh` has already put the
-template there by the time this runs. A resolution that contradicts the branch is now an error
-rather than an output — previously the same JSON object could carry a `BRANCH` and an `IMPL_PLAN`
-naming different features, with nothing comparing them. And the phase doc persists `feature.json`
-**before** the next command instead of after.
+**A drift detector that reported a clean board it never read.** `sweep-closed.sh` makes three reads
+and discarded the error from each. The project read at least announced itself, but as
+`could not read Project #N for
+owner X` — a permanent misconfiguration's vocabulary for a rate
+limit, sending the reader to check a token that was fine. The two issue reads were silent: a failed
+one produced "nothing was closed", so the drift set was empty, the summary said `drifted 0`, and it
+exited 0. That is not only a bad report — `merge` pipes the drift lines into the correction, so a
+false clean cancels a fix rather than merely failing to mention one.
 
-The PowerShell twin had the same defect and passed an explicit `-Force`. It was also the half
-nothing in this repository executed: no test touched a `.ps1`, and no workflow ran one. Both
-implementations are now driven by the same scenarios from one definition, and the PowerShell arm
-fails the suite rather than skipping when its interpreter is missing on CI.
+**A freeze nothing could tell you had fallen behind.** Declaring a path in `preserve.yml` does more
+than beat `--force`: it takes the file off every surface that reports drift, so `reconcile --status`
+cannot list it. That exclusion is right — a freeze is not a pending reconciliation — but nothing
+else said the frozen copy had gone stale. Upgrade already split preserved files into settled and
+behind; that repair had been applied to one population only, and a declared preserve returned before
+the check was ever computed. It landed under **"customized locally (not touched)"**, wrong twice:
+the file was declared rather than customized, and "not touched" asserted the one thing a declaration
+makes unverifiable. Declared preserves now report four states — level, behind with its freeze point,
+no baseline recorded, and dropped upstream — using the same predicate as the other population, so
+the two cannot part company again. Nothing is applied automatically and the declaration still wins
+over `--force`; this is information, and a declaration is a maintenance obligation you could not
+previously discharge.
 
-**A path rule that only knew one platform's idea of absolute.** The guard above decides which
-feature a path belongs to by reading its directory name — and `get_feature_paths()` tested for a
-leading `/` to decide whether a path was absolute at all. Under Git Bash on Windows, `feature.json`
-legitimately carries `C:\Users\...`, which fails that test; the repo root was then prepended, and
-the resulting string had no usable directory name in it. So on Windows the new guard refused a
-`feature.json` that agreed with the branch perfectly, and the template copy resolved nowhere. The
-PowerShell twin never had it — it asks the platform whether a path is rooted rather than spelling
-the rule by hand.
+**And a check the scheduled loop promised and nothing performed.** The bundled `/loop` prompt says
+`/board groom` flags orphan specs. `groom.md` said the check was not its business and had moved; no
+line told anyone to read the file it named; and the file itself believed it was reached "from a
+grooming pass". Three documents, a loop advertising the check, nothing that ran it. The ownership
+line stands — the walk reads spec artefacts and belongs on the specnaut side — and a grooming pass
+now carries an instruction into it.
 
-That one surfaced the way it should have: four of the five new scenarios are satisfied by the script
-_not_ writing, and only the one that asserts a write went red. An assertion that can pass without
-the code running is the thing this release is least short of evidence about.
-
-Two gates on this repository's own release path were repaired in the same pass, and they are worth a
-line because they are what stands between you and a broken build. The tag pipeline never read
-whether the commit it was about to publish was green — it does now, and refuses to publish over a
-failing one. And the local preflight could announce "smoke audit is red — fix the findings" over an
-audit that had found nothing, because piping its output aborted it mid-report with the same exit
-code a real finding uses. A reporting channel that can forge a verdict channel is not a gate.
+One consequence is worth naming, because it is the same defect one call further out.
+`create-new-feature.sh` asks the close gate whether a linked issue is an epic, and tested its answer
+for a single value — so a gate that refused to answer was read as "no open children", and the branch
+was created standalone for what may be an epic. Before this release a refusal exited 0 and the
+caller could not have known. It can now, and it says so.
