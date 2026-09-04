@@ -43,6 +43,48 @@ export type UpgradeAction =
      * nothing was missed there, and warning about it would be noise.
      */
     staleSince?: { templatesVersion: string; installedAt: string };
+    /**
+     * Only set for `reason: "declared"`, and the whole point of setting it.
+     *
+     * A declaration in `preserve.yml` does more than beat `--force`: it takes
+     * the path off every surface that reports drift. It never becomes a
+     * `customized` preserve, so `upgrade_project.ts` never stages it and
+     * `reconcile --status` cannot list it. That is deliberate — a freeze is
+     * not a pending reconciliation — but it left NOTHING saying a frozen copy
+     * had fallen behind, which is how a shared helper added upstream can be
+     * missing from a preserved script while every run reports success.
+     *
+     *   - `"current"`         the bundle still matches the recorded SHA.
+     *   - `"behind"`          upstream moved since the freeze. `staleSince`
+     *                         carries the freeze point, decided by the SAME
+     *                         predicate the `customized` bucket uses so the
+     *                         two cannot part company.
+     *   - `"no-lock-entry"`   nothing recorded to compare against. Not
+     *                         "current": that would be a claim the data
+     *                         cannot support.
+     *   - `"dropped-upstream"` the bundle no longer ships this path, so
+     *                         "behind" is not a question that has an answer.
+     */
+    declaredDrift?: "current" | "behind" | "no-lock-entry" | "dropped-upstream";
+    /**
+     * The freeze point for a declared preserve reported as `"behind"`, and the
+     * reason this is NOT `staleSince`.
+     *
+     * `staleSince` means "an update was published and never applied" — an
+     * accident, with `--reset-baseline` as its remedy and the whole
+     * `customized, and behind` block as its report. A declared preserve is
+     * none of that: the maintainer instructed the freeze, and telling them
+     * their own instruction went wrong is what the existing assertion
+     * `a declared preserve is never flagged as behind` correctly forbids.
+     *
+     * What that assertion cannot mean is that the maintainer must not be TOLD
+     * upstream moved. `preserve.yml`'s own prose frames a declaration as a
+     * maintenance obligation — entries carry conditions like "this line comes
+     * out if upstream ships its own fix" — and an obligation with no
+     * instrument is one nobody can discharge. So: same predicate, separate
+     * field, separate report, and no remedy that lifts the freeze.
+     */
+    declaredFrozenAt?: { templatesVersion: string; installedAt: string };
   }
   | { kind: "add-new"; dest: string }
   | { kind: "unchanged"; dest: string }
@@ -198,11 +240,30 @@ export function computeUpgradePlan(
     // branches. The file is only present here (in newShas) so `pluginAvailable`
     // is reported from coverage for the handler's reconcile hint.
     if (isDeclaredPreserved(dest)) {
+      // The declaration decides that the file is KEPT. It does not decide
+      // that nothing has happened upstream, and this branch used to return
+      // before anything asked. `staleSince` is reused rather than
+      // reimplemented: one predicate answers "behind" for both preserve
+      // reasons, so a later change to it cannot fix one and miss the other —
+      // which is exactly how this population came to be missed in the first
+      // place, by a repair applied only to the `customized` half.
+      const declLockSha = lock.entries.get(dest)?.sha256;
+      const stale = declLockSha === undefined ? null : staleSince(lock, dest, declLockSha, newSha);
       actions.push({
         kind: "preserve",
         dest,
         reason: "declared",
         pluginAvailable: pluginInstalled && isPluginCoveredFn(dest),
+        declaredDrift: declLockSha === undefined
+          ? "no-lock-entry"
+          : stale !== null
+          ? "behind"
+          : "current",
+        // Deliberately NOT `staleSince`: see `declaredFrozenAt` above. Same
+        // predicate, different field, so nothing consuming `staleSince` —
+        // the `customized, and behind` report and its --reset-baseline hint —
+        // silently acquires a population it was never written for.
+        ...(stale !== null ? { declaredFrozenAt: stale.staleSince } : {}),
       });
       continue;
     }
@@ -318,11 +379,16 @@ export function computeUpgradePlan(
     // FR-009: a declared path the bundle dropped is kept on disk
     // (preservation wins over removal), surfaced as preserve/declared.
     if (isDeclaredPreserved(dest)) {
+      // This loop walks paths the BUNDLE no longer carries, so there is no
+      // upstream content to be behind. Its own state, not folded into
+      // "current" — the file being kept is right, and upstream having dropped
+      // it is worth knowing.
       actions.push({
         kind: "preserve",
         dest,
         reason: "declared",
         pluginAvailable: pluginInstalled && isPluginCoveredFn(dest),
+        declaredDrift: "dropped-upstream",
       });
       continue;
     }

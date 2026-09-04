@@ -271,8 +271,80 @@ function renderSummary(
   // "customized locally" is what let five files in this project's own install
   // sit three months behind, referencing agents that had been deleted, while
   // every run printed a clean success.
-  const settled = groups.preserve.filter((a) => a.kind === "preserve" && !a.staleSince);
-  const behind = groups.preserve.filter((a) => a.kind === "preserve" && a.staleSince);
+  //
+  // Split by REASON first. The `settled`/`behind` repair above was applied to
+  // the `customized` population only, and a declared preserve returned from
+  // `buildUpgradePlan` before `staleSince` was ever computed — so it carried
+  // none, landed in `settled` by construction, and printed under a heading
+  // asserting the two things a declaration makes unverifiable: that the file
+  // was customized (it was declared) and that upstream had not moved (nobody
+  // had looked). A guard repaired once, blind to the branch that never
+  // reaches the fix.
+  const customized = groups.preserve.filter((a) =>
+    a.kind === "preserve" && a.reason === "customized"
+  );
+  const declared = groups.preserve.filter((a) => a.kind === "preserve" && a.reason === "declared");
+  const settled = customized.filter((a) => a.kind === "preserve" && !a.staleSince);
+  const behind = customized.filter((a) => a.kind === "preserve" && a.staleSince);
+
+  const declaredIn = (state: string) =>
+    declared.filter((a) => a.kind === "preserve" && a.declaredDrift === state);
+  const declCurrent = declaredIn("current");
+  const declBehind = declaredIn("behind");
+  const declNoBaseline = declaredIn("no-lock-entry");
+  const declDropped = declaredIn("dropped-upstream");
+
+  if (declCurrent.length > 0) {
+    console.log(bold("  preserved by declaration — level with upstream"));
+    for (const a of declCurrent) console.log(green(`    ✓ ${a.dest}`));
+    console.log();
+  }
+  if (declBehind.length > 0) {
+    console.log(
+      bold("  preserved by declaration, and BEHIND — upstream moved since the freeze"),
+    );
+    console.log(
+      dim(
+        "    A declaration is a maintenance obligation, and this is the only" +
+          " place it is reported:\n    a declared path is never staged, so" +
+          " `specnaut reconcile --status` cannot list it.",
+      ),
+    );
+    for (const a of declBehind) {
+      if (a.kind !== "preserve") continue;
+      const since = a.declaredFrozenAt
+        ? ` ${
+          dim(
+            `(frozen at v${a.declaredFrozenAt.templatesVersion}, ${
+              a.declaredFrozenAt.installedAt.slice(0, 10)
+            })`,
+          )
+        }`
+        : "";
+      console.log(yellow(`    ⚠ ${a.dest}${since}`));
+      console.log(dim(`        diff it: specnaut diff ${a.dest}`));
+    }
+    console.log(
+      dim(
+        "    Nothing here is applied automatically, and the declaration still" +
+          " wins over --force.\n    Re-read each against upstream and drop the" +
+          " preserve line if its reason has expired.\n",
+      ),
+    );
+  }
+  if (declNoBaseline.length > 0) {
+    console.log(bold("  preserved by declaration — no baseline recorded, cannot compare"));
+    console.log(
+      dim('    The lock carries no entry for these, so "level with upstream" would be a guess.'),
+    );
+    for (const a of declNoBaseline) console.log(yellow(`    ? ${a.dest}`));
+    console.log();
+  }
+  if (declDropped.length > 0) {
+    console.log(bold("  preserved by declaration — upstream no longer ships this path"));
+    for (const a of declDropped) console.log(yellow(`    ⚠ ${a.dest}`));
+    console.log();
+  }
 
   if (settled.length > 0) {
     console.log(bold("  customized locally (not touched)"));
@@ -342,8 +414,13 @@ function renderSummary(
 
   console.log(
     dim(
-      `  ${groups.auto.length} auto-update, ${settled.length} preserved, ` +
-        `${behind.length} behind, ` +
+      // The declared buckets are counted here too. Scoping `settled`/`behind`
+      // to the customized population left this tail printing "0 preserved,
+      // 0 behind" on a run that had just reported a declared path as behind —
+      // the same silence this change removes, one line further down, where a
+      // reader skimming the summary is most likely to stop.
+      `  ${groups.auto.length} auto-update, ${settled.length + declCurrent.length} preserved, ` +
+        `${behind.length + declBehind.length} behind, ` +
         (groups.overwritten.length > 0 ? `${groups.overwritten.length} overwritten, ` : "") +
         `${groups.added.length} added, ${groups.removed.length} removed, ` +
         `${groups.orphanPreserved.length} orphan-preserved, ${groups.migrated.length} migrated, ` +
