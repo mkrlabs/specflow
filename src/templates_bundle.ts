@@ -24837,6 +24837,35 @@ find_feature_dir_by_prefix() {
     fi
 }
 
+# A path is absolute if it starts with \`/\` — or, under Git Bash on Windows, if
+# it names a drive: \`C:\\Users\\...\` or \`C:/Users/...\`.
+#
+# \`.specnaut/feature.json\` is written by the \`plan\` phase, and on Windows the
+# path it carries uses the platform's own separator — the PowerShell twin
+# resolves it that way, and so does anything calling the platform's path API.
+# Read back here, a drive-letter path does not start with \`/\`, so the
+# "normalize relative paths" rule below used to prepend the repo root and
+# produce \`/repo/C:\\Users\\...\` — a location that exists nowhere, and whose
+# \`basename\` is the whole mangled string rather than the feature's directory
+# name. Both the contradiction guard and the template copy read it.
+#
+# The PowerShell twin never had this: it asks \`[System.IO.Path]::IsPathRooted\`
+# rather than testing for a leading slash by hand.
+is_absolute_path() {
+    [[ "\$1" == /* ]] && return 0
+    [[ "\$1" =~ ^[A-Za-z]:[\\\\/] ]]
+}
+
+# Backslashes separate components on Windows and \`basename\` only ever splits on
+# \`/\`. Rewriting them keeps every consumer on one spelling — but ONLY for a
+# drive-letter path: on POSIX a backslash is a legal filename character, so
+# converting unconditionally would corrupt a directory that contains one.
+normalize_feature_path() {
+    local _p="\$1"
+    [[ "\$_p" =~ ^[A-Za-z]:[\\\\/] ]] && _p="\${_p//\\\\//}"
+    printf '%s' "\$_p"
+}
+
 get_feature_paths() {
     local repo_root=\$(get_repo_root)
     local current_branch=\$(get_current_branch)
@@ -24854,9 +24883,9 @@ get_feature_paths() {
     local feature_dir_source
     if [[ -n "\${SPECIFY_FEATURE_DIRECTORY:-}" ]]; then
         feature_dir_source="env"
-        feature_dir="\$SPECIFY_FEATURE_DIRECTORY"
+        feature_dir=\$(normalize_feature_path "\$SPECIFY_FEATURE_DIRECTORY")
         # Normalize relative paths to absolute under repo root
-        [[ "\$feature_dir" != /* ]] && feature_dir="\$repo_root/\$feature_dir"
+        is_absolute_path "\$feature_dir" || feature_dir="\$repo_root/\$feature_dir"
     elif [[ -f "\$repo_root/.specnaut/feature.json" ]]; then
         feature_dir_source="feature.json"
         local _fd
@@ -24870,9 +24899,9 @@ get_feature_paths() {
             _fd=\$(grep -o '"feature_directory"[[:space:]]*:[[:space:]]*"[^"]*"' "\$repo_root/.specnaut/feature.json" 2>/dev/null | sed 's/.*"\\([^"]*\\)"\$/\\1/')
         fi
         if [[ -n "\$_fd" ]]; then
-            feature_dir="\$_fd"
+            feature_dir=\$(normalize_feature_path "\$_fd")
             # Normalize relative paths to absolute under repo root
-            [[ "\$feature_dir" != /* ]] && feature_dir="\$repo_root/\$feature_dir"
+            is_absolute_path "\$feature_dir" || feature_dir="\$repo_root/\$feature_dir"
         elif ! feature_dir=\$(find_feature_dir_by_prefix "\$repo_root" "\$current_branch"); then
             echo "ERROR: Failed to resolve feature directory" >&2
             return 1

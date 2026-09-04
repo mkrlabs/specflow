@@ -208,9 +208,29 @@ for (const runner of RUNNERS) {
       );
       await Deno.remove(plans.second);
 
-      const { code } = await runner.run(["--json"], dir);
-      assertEquals(code, 0);
-      assertStringIncludes(await Deno.readTextFile(plans.second), "BLANK TEMPLATE MARKER");
+      const { code, stdout, stderr } = await runner.run(["--json"], dir);
+      assertEquals(code, 0, `exit ${code}\nstdout: ${stdout}\nstderr: ${stderr}`);
+      // A bare NotFound here says only that the file is missing, not where the
+      // script put it instead — which is the whole question when this fails on
+      // one platform and not the others. Report what the run actually did.
+      let seeded: string;
+      try {
+        seeded = await Deno.readTextFile(plans.second);
+      } catch (e) {
+        const listing: string[] = [];
+        for await (const entry of Deno.readDir(join(dir, ".specnaut", "specs", "002-beta"))) {
+          listing.push(entry.name);
+        }
+        throw new Error(
+          `the plan was not seeded at ${plans.second}\n` +
+            `  read error: ${e instanceof Error ? e.message : e}\n` +
+            `  exit:       ${code}\n` +
+            `  stdout:     ${stdout.trim()}\n` +
+            `  stderr:     ${stderr.trim()}\n` +
+            `  002-beta/:  ${listing.join(", ") || "(empty)"}`,
+        );
+      }
+      assertStringIncludes(seeded, "BLANK TEMPLATE MARKER");
     });
   });
 }
