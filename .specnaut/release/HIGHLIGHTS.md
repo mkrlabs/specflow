@@ -1,23 +1,44 @@
-**The agent whose job is to explain Specnaut to you could not finish a sentence about it.**
+**A script whose job is to seed your plan was overwriting the one you had already written.**
 
-`specnaut-guide` shipped with a turn budget of ten — the smallest in the whole fleet, against twenty
-for every review lens and eighty for `developer`. Ask it more than one thing about a project you
-have just upgraded and it would spend the entire budget looking, then return an opening line and
-nothing else. No partial answer, no statement of what it had found, nothing to act on.
+`setup-plan.sh` copied the blank plan template over `plan.md` unconditionally. On the first feature
+of a project that is harmless — the file does not exist yet. On every feature after it,
+`.specnaut/feature.json` still named the _previous_ feature at the moment the script ran,
+`get_feature_paths()` reads that file ahead of the branch name, and the copy landed in the finished
+feature's directory. A completed plan, replaced by an empty template. No backup, no confirmation, no
+way back except git.
 
-The budget was not merely low against its siblings. The same file prescribes a seven-step
-`review-upgrade` walk with two nested per-item loops, each iteration able to dispatch a sub-agent,
-run a diff and commit. Ten turns cannot cover a small one. And that walk is the **default path**:
-`specnaut upgrade` prints `@specnaut-guide review-upgrade` as its own suggested next step, so the
-failure landed exactly where a user has the most to ask and the least context to ask it from.
+The ordering that produced it was written down in the phase doc: `plan` ran `create-new-feature.sh`,
+then `setup-plan.sh`, and persisted `feature.json` only afterwards. So the defect was invisible
+exactly once — on the run everybody tests.
 
-It now carries sixty, matching the other seat whose protocol is an interactive walk that dispatches
-sub-agents. Its `Agent` grant is scoped to the single seat it actually dispatches instead of to
-every agent in your project. And it carries two rules it never had: look in its preloaded knowledge
-first and then read the one installed file that answers the question, rather than sweeping a tree;
-and render what you have before running out — a question needing more than a handful of lookups is
-several questions, so answer the ones you reached and name the ones you did not.
+Three things changed, because any one of them alone leaves the next caller exposed. The copy refuses
+to write over an existing plan, which costs nothing: `create-new-feature.sh` has already put the
+template there by the time this runs. A resolution that contradicts the branch is now an error
+rather than an output — previously the same JSON object could carry a `BRANCH` and an `IMPL_PLAN`
+naming different features, with nothing comparing them. And the phase doc persists `feature.json`
+**before** the next command instead of after.
 
-Neither value was pinned by any assertion, which is how ten survived. Both are now asserted per
-seat, with the population derived from the bundle itself, so an agent that arrives without a budget
-fails the suite rather than shipping on whatever default its harness happens to apply.
+The PowerShell twin had the same defect and passed an explicit `-Force`. It was also the half
+nothing in this repository executed: no test touched a `.ps1`, and no workflow ran one. Both
+implementations are now driven by the same scenarios from one definition, and the PowerShell arm
+fails the suite rather than skipping when its interpreter is missing on CI.
+
+**A path rule that only knew one platform's idea of absolute.** The guard above decides which
+feature a path belongs to by reading its directory name — and `get_feature_paths()` tested for a
+leading `/` to decide whether a path was absolute at all. Under Git Bash on Windows, `feature.json`
+legitimately carries `C:\Users\...`, which fails that test; the repo root was then prepended, and
+the resulting string had no usable directory name in it. So on Windows the new guard refused a
+`feature.json` that agreed with the branch perfectly, and the template copy resolved nowhere. The
+PowerShell twin never had it — it asks the platform whether a path is rooted rather than spelling
+the rule by hand.
+
+That one surfaced the way it should have: four of the five new scenarios are satisfied by the script
+_not_ writing, and only the one that asserts a write went red. An assertion that can pass without
+the code running is the thing this release is least short of evidence about.
+
+Two gates on this repository's own release path were repaired in the same pass, and they are worth a
+line because they are what stands between you and a broken build. The tag pipeline never read
+whether the commit it was about to publish was green — it does now, and refuses to publish over a
+failing one. And the local preflight could announce "smoke audit is red — fix the findings" over an
+audit that had found nothing, because piping its output aborted it mid-report with the same exit
+code a real finding uses. A reporting channel that can forge a verdict channel is not a gate.
