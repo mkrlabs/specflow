@@ -40,7 +40,7 @@ async function resolvePaths(dir: string): Promise<Result> {
 /** A git repo on branch `002-beta`, with whatever `feature.json` the case needs. */
 async function withRepo(
   featureDirectory: string,
-  fn: (dir: string, result: Result) => Promise<void>,
+  fn: (dir: string, result: Result) => void | Promise<void>,
 ): Promise<void> {
   const dir = await Deno.makeTempDir({ prefix: "feature-paths-abs-" });
   try {
@@ -69,7 +69,7 @@ async function withRepo(
 }
 
 Deno.test("feature paths: a drive-letter path is absolute, not relative to the repo root", async () => {
-  await withRepo("C:\\Users\\x\\proj\\.specnaut\\specs\\002-beta", async (dir, r) => {
+  await withRepo("C:\\Users\\x\\proj\\.specnaut\\specs\\002-beta", (dir, r) => {
     assert(
       !r.stdout.includes(`${dir}/C:`) && !r.stdout.includes(`${dir}\\C:`),
       `the repo root was prepended to a drive-letter path:\n${r.stdout}${r.stderr}`,
@@ -83,7 +83,7 @@ Deno.test("feature paths: a drive-letter path keeps a usable basename", async ()
   // backslashes left in place `basename` returns the entire string, the guard
   // fires on a feature.json that agrees with the branch perfectly, and every
   // caller is refused on Windows for a contradiction that does not exist.
-  await withRepo("C:\\Users\\x\\proj\\.specnaut\\specs\\002-beta", async (_dir, r) => {
+  await withRepo("C:\\Users\\x\\proj\\.specnaut\\specs\\002-beta", (_dir, r) => {
     assert(
       r.code === 0,
       `a feature.json naming the current branch must resolve, got exit ${r.code}:\n${r.stderr}`,
@@ -93,7 +93,7 @@ Deno.test("feature paths: a drive-letter path keeps a usable basename", async ()
 });
 
 Deno.test("feature paths: forward-slash drive paths resolve the same way", async () => {
-  await withRepo("C:/Users/x/proj/.specnaut/specs/002-beta", async (dir, r) => {
+  await withRepo("C:/Users/x/proj/.specnaut/specs/002-beta", (dir, r) => {
     assert(!r.stdout.includes(`${dir}/C:`), `the repo root was prepended:\n${r.stdout}`);
     assertStringIncludes(r.stdout, "C:/Users/x/proj/.specnaut/specs/002-beta");
   });
@@ -102,7 +102,7 @@ Deno.test("feature paths: forward-slash drive paths resolve the same way", async
 Deno.test("feature paths: a relative path is still resolved under the repo root", async () => {
   // The rule the fix must not break: a relative `feature_directory` is the
   // documented shape, and it has to keep landing inside the project.
-  await withRepo(".specnaut/specs/002-beta", async (_dir, r) => {
+  await withRepo(".specnaut/specs/002-beta", (_dir, r) => {
     assert(r.code === 0, `expected success, got exit ${r.code}:\n${r.stderr}`);
     assertStringIncludes(r.stdout, "/.specnaut/specs/002-beta");
     assert(
@@ -115,7 +115,7 @@ Deno.test("feature paths: a relative path is still resolved under the repo root"
 Deno.test("feature paths: a POSIX path containing a backslash is left alone", async () => {
   // A backslash is a legal filename character on POSIX. The separator rewrite
   // is scoped to drive-letter paths precisely so it cannot corrupt one.
-  await withRepo("/tmp/a\\b/002-beta", async (_dir, r) => {
+  await withRepo("/tmp/a\\b/002-beta", (_dir, r) => {
     assertStringIncludes(r.stdout, "a\\\\b");
   });
 });
