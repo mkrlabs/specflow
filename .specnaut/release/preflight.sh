@@ -2,21 +2,43 @@
 # Specnaut CLI release preflight. Exit ≠ 0 ⇒ release aborts.
 set -euo pipefail
 
+# A gate must not be able to fail because its output was piped.
+#
+# `set -e` plus a stdout that goes away — `preflight.sh | tail`, `| head`, a
+# closing terminal — turns the next `echo` into an abort, and the status it
+# aborts with is indistinguishable from a real gate failure. Observed on the
+# v4.2.2 attempt: a `| tail` produced `echo: write error: Interrupted system
+# call` mid-report and this script announced "smoke audit is red — fix the
+# findings" over an audit that had found nothing and never reached its summary.
+#
+# Every status line below goes through `say`, so a broken stdout costs the
+# message and nothing else. The verdicts come from exit codes, which no
+# consumer of this script's output can touch.
+# `trap "" PIPE` and the guard are BOTH needed, and they answer different
+# failures. A closed pipe raises SIGPIPE, which kills the shell outright with
+# 141 before any `|| true` is consulted; ignoring the signal turns it into an
+# EPIPE write error, which the guard then absorbs. The failure actually
+# observed was neither — `Interrupted system call`, EINTR from a signal
+# arriving mid-write — and only the guard catches that one. Measured against a
+# closed consumer: signal-only exits 141, guard-only exits 141, both exit 0.
+trap "" PIPE
+say() { command echo "$@" 2>/dev/null || true; }
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-echo "▶ branch check"
+say "▶ branch check"
 branch="$(git rev-parse --abbrev-ref HEAD)"
-[ "$branch" = "main" ] || { echo "❌ not on main (on $branch)"; exit 1; }
+[ "$branch" = "main" ] || { say "❌ not on main (on $branch)"; exit 1; }
 
-echo "▶ working tree clean"
-[ -z "$(git status --porcelain)" ] || { echo "❌ working tree dirty"; git status --short; exit 1; }
+say "▶ working tree clean"
+[ -z "$(git status --porcelain)" ] || { say "❌ working tree dirty"; git status --short; exit 1; }
 
-echo "▶ in sync with origin/main"
+say "▶ in sync with origin/main"
 git fetch origin main --quiet
-[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "❌ local main diverges from origin"; exit 1; }
+[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { say "❌ local main diverges from origin"; exit 1; }
 
-echo "▶ CI green on HEAD"
+say "▶ CI green on HEAD"
 sha="$(git rev-parse HEAD)"
 # The headSha filter avoids racing on the previous commit's green run. The
 # polling loop tolerates a fresh push where CI hasn't completed yet —
@@ -27,40 +49,48 @@ conclusion=""
 for i in 1 2 3 4 5 6 7 8 9 10; do
   conclusion="$(gh run list --workflow ci --branch main --limit 20 --json headSha,conclusion,status --jq "[.[] | select(.headSha == \"$sha\" and .status == \"completed\")] | .[0].conclusion")"
   [ -n "$conclusion" ] && [ "$conclusion" != "null" ] && break
-  echo "  waiting for ci run on $sha to complete ($i/10)…"
+  say "  waiting for ci run on $sha to complete ($i/10)…"
   sleep 30
 done
-[ "$conclusion" = "success" ] || { echo "❌ CI not green on $sha (got: ${conclusion:-no-completed-run-after-5min})"; exit 1; }
+[ "$conclusion" = "success" ] || { say "❌ CI not green on $sha (got: ${conclusion:-no-completed-run-after-5min})"; exit 1; }
 
-echo "▶ smoke audit"
+say "▶ smoke audit"
 # The audit owns its own verdict: its exit code IS the answer (plan.md §5 R5).
 # This caller must not re-derive it by parsing the report.
 # Branch on WHICH non-zero. `if ! …` treated every failure as a coverage
 # verdict, so a tagless or shallow clone — audit.sh exits 2 when it cannot
 # resolve a baseline — aborted the release under "fix the findings", advice
 # for a condition that had not occurred. Wrong diagnosis at the worst moment.
+#
+# The audit writes to a FILE and the report is replayed afterwards. It runs
+# under `set -e` too, so a failed write to a shared stdout aborts it mid-report
+# — with exit 1, the same code a real coverage gap uses. Handing it a regular
+# file is what keeps its exit code meaning what this `case` reads it as.
+audit_log="$(mktemp "${TMPDIR:-/tmp}/specnaut-audit.XXXXXX")"
 audit_rc=0
-bash scripts/smoke/audit.sh || audit_rc=$?
+bash scripts/smoke/audit.sh > "$audit_log" 2>&1 || audit_rc=$?
+cat "$audit_log" 2>/dev/null || true
+rm -f "$audit_log"
 case "$audit_rc" in
   0) ;;
   1)
-    echo "❌ smoke audit is red — fix the findings, or allow-list a coverage gap"
-    echo "   with a written reason in scripts/smoke/coverage-allowlist.txt."
+    say "❌ smoke audit is red — fix the findings, or allow-list a coverage gap"
+    say "   with a written reason in scripts/smoke/coverage-allowlist.txt."
     exit 1
     ;;
   *)
-    echo "❌ smoke audit could not RUN (exit $audit_rc) — this is not a findings"
-    echo "   verdict. 2 = no v*.*.* tag or unresolvable baseline (a shallow or"
-    echo "   tagless clone); 3 = --src-root is not a git work tree."
+    say "❌ smoke audit could not RUN (exit $audit_rc) — this is not a findings"
+    say "   verdict. 2 = no v*.*.* tag or unresolvable baseline (a shallow or"
+    say "   tagless clone); 3 = --src-root is not a git work tree."
     exit 1
     ;;
 esac
 
-echo "▶ deno task bundle (re-sync)"
+say "▶ deno task bundle (re-sync)"
 deno task bundle
-[ -z "$(git status --porcelain src/templates_bundle.ts)" ] || { echo "❌ bundle drifted — commit the regenerated src/templates_bundle.ts first"; exit 1; }
+[ -z "$(git status --porcelain src/templates_bundle.ts)" ] || { say "❌ bundle drifted — commit the regenerated src/templates_bundle.ts first"; exit 1; }
 
-echo "▶ deno task test"
+say "▶ deno task test"
 deno task test
 
-echo "✅ preflight passed"
+say "✅ preflight passed"
