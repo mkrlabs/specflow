@@ -327,12 +327,20 @@ if ($Issue -gt 0) {
             $epicIssue = "$parentOut".Trim()
             [Console]::Error.WriteLine("# issue $Issue is a child of epic #$epicIssue - the branch belongs to the epic")
         } elseif ($parentRc -eq 10) {
-            & bash $cascadeSh $Issue *> $null
-            if ($LASTEXITCODE -eq 11) {
+            # Only 11 says "epic with open children" and only 0 says "none".
+            # Anything else is the gate refusing to answer - since #583 that
+            # includes exit 3, "could not read the children". See the bash twin
+            # for the full account.
+            $cascadeOut = & bash $cascadeSh $Issue 2>&1
+            $cascadeRc = $LASTEXITCODE
+            if ($cascadeRc -eq 11) {
                 $epicIssue = "$Issue"
                 [Console]::Error.WriteLine("# issue $Issue is an epic with open children - one branch for the whole epic")
-            } else {
+            } elseif ($cascadeRc -eq 0) {
                 [Console]::Error.WriteLine("# issue $Issue has no parent and no open children - standalone, unchanged")
+            } else {
+                [Console]::Error.WriteLine("# cascade-check could not answer for issue $Issue (exit $cascadeRc): $cascadeOut")
+                [Console]::Error.WriteLine("# epic detection did NOT run - treating it as standalone, which may be wrong if it is an epic")
             }
         } else {
             [Console]::Error.WriteLine("# could not resolve the parent of issue $Issue (exit $parentRc): $parentOut")

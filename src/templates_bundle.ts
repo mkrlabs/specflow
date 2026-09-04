@@ -25833,13 +25833,33 @@ if [ -n "\$LINKED_ISSUE" ]; then
                 ;;
             10)
                 _c_rc=0
-                bash "\$_cascade_sh" "\$LINKED_ISSUE" >/dev/null 2>&1 || _c_rc=\$?
-                if [ "\$_c_rc" -eq 11 ]; then
-                    EPIC_ISSUE="\$LINKED_ISSUE"
-                    echo "# issue \$LINKED_ISSUE is an epic with open children — one branch for the whole epic" >&2
-                else
-                    echo "# issue \$LINKED_ISSUE has no parent and no open children — standalone, unchanged" >&2
-                fi
+                _c_out=\$(bash "\$_cascade_sh" "\$LINKED_ISSUE" 2>&1) || _c_rc=\$?
+                # Only exit 11 says "epic with open children", and only exit 0
+                # says "no open children". Everything else is the gate REFUSING
+                # to answer — since #583 that includes exit 3, "I could not read
+                # the children", which a token, a scope or a rate limit
+                # produces. Testing \`-eq 11\` alone folded a refusal into the
+                # else branch and printed "no parent and no open children", a
+                # claim this run has no evidence for; the branch is then created
+                # standalone when the issue may well be an epic.
+                #
+                # The outcome is unchanged from before — a refusal used to exit
+                # 0 and land in the same else — but it is now DISTINGUISHABLE,
+                # and a caller that can tell and does not is the defect the rest
+                # of this release removes, one call away.
+                case "\$_c_rc" in
+                    11)
+                        EPIC_ISSUE="\$LINKED_ISSUE"
+                        echo "# issue \$LINKED_ISSUE is an epic with open children — one branch for the whole epic" >&2
+                        ;;
+                    0)
+                        echo "# issue \$LINKED_ISSUE has no parent and no open children — standalone, unchanged" >&2
+                        ;;
+                    *)
+                        echo "# cascade-check could not answer for issue \$LINKED_ISSUE (exit \$_c_rc): \$_c_out" >&2
+                        echo "# epic detection did NOT run — treating it as standalone, which may be wrong if it is an epic" >&2
+                        ;;
+                esac
                 ;;
             *)
                 echo "# could not resolve the parent of issue \$LINKED_ISSUE (exit \$_p_rc): \$_p_out" >&2
@@ -27385,12 +27405,20 @@ if (\$Issue -gt 0) {
             \$epicIssue = "\$parentOut".Trim()
             [Console]::Error.WriteLine("# issue \$Issue is a child of epic #\$epicIssue - the branch belongs to the epic")
         } elseif (\$parentRc -eq 10) {
-            & bash \$cascadeSh \$Issue *> \$null
-            if (\$LASTEXITCODE -eq 11) {
+            # Only 11 says "epic with open children" and only 0 says "none".
+            # Anything else is the gate refusing to answer - since #583 that
+            # includes exit 3, "could not read the children". See the bash twin
+            # for the full account.
+            \$cascadeOut = & bash \$cascadeSh \$Issue 2>&1
+            \$cascadeRc = \$LASTEXITCODE
+            if (\$cascadeRc -eq 11) {
                 \$epicIssue = "\$Issue"
                 [Console]::Error.WriteLine("# issue \$Issue is an epic with open children - one branch for the whole epic")
-            } else {
+            } elseif (\$cascadeRc -eq 0) {
                 [Console]::Error.WriteLine("# issue \$Issue has no parent and no open children - standalone, unchanged")
+            } else {
+                [Console]::Error.WriteLine("# cascade-check could not answer for issue \$Issue (exit \$cascadeRc): \$cascadeOut")
+                [Console]::Error.WriteLine("# epic detection did NOT run - treating it as standalone, which may be wrong if it is an epic")
             }
         } else {
             [Console]::Error.WriteLine("# could not resolve the parent of issue \$Issue (exit \$parentRc): \$parentOut")
