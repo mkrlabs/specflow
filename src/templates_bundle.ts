@@ -11636,15 +11636,48 @@ ALL_DRIFTED='[]'
 ALL_REOPENED='[]'
 SCANNED=0
 
+# A failed read is not an empty one.
+#
+# Every read below used to end \`2>/dev/null || echo '[]'\` — substituting a
+# value nobody read. For the project read that produced a misleading message.
+# For the two issue reads it produced a FALSE GREEN: an empty closed-issue list
+# means "nothing closed in the window", so the drift set is empty, the summary
+# prints \`drifted 0\`, and this script exits 0 over a board with any amount of
+# drift. The \`scanned 0\` guard cannot see it — the project read succeeded and
+# only the second call failed.
+#
+# Observed: a GraphQL rate limit rendered as "could not read Project #N for
+# owner X", three runs in a row. Both facts that sentence named were correct,
+# and it sent the reader to check a token that was fine.
+#
+# The shape is \`rc=0; X="\$(cmd 2>"\$errf")" || rc=\$?\` — the same one
+# \`cloud/cascade-check.sh\` uses throughout. Deliberately NOT a helper that
+# exits: \`exit\` inside a \`\$( )\` leaves the SUBSHELL, the assignment takes the
+# empty output, and the caller carries on — which is this defect wearing a
+# tidier coat.
+sweep_err="\$(mktemp "\${TMPDIR:-/tmp}/sweep-closed-err.XXXXXX")"
+trap 'rm -f "\$sweep_err"' EXIT
+
+# Say what could not be read, quote the tool's own words, and stop. Exit 4 is
+# "this run could not see the board", which is not a verdict about it.
+read_failed() {
+  echo "error: could not read \$1 — refusing to report a board state this run never saw" >&2
+  sed 's/^/  /' "\$sweep_err" >&2
+  exit 4
+}
+
 pass=1
 while [ "\$pass" -le "\$PASSES" ]; do
   [ "\$pass" -gt 1 ] && sleep 5
 
   # One project read, then one issue-state read per repo — not per item.
+  rc=0
   ITEMS="\$(gh project item-list "\$PROJECT_NUMBER" --owner "\$REPO_OWNER" \\
-    --format json --limit 500 2>/dev/null || true)"
+    --format json --limit 500 2>"\$sweep_err")" || rc=\$?
+  [ "\$rc" -eq 0 ] || read_failed "Project #\$PROJECT_NUMBER for owner \$REPO_OWNER"
   if [ -z "\$ITEMS" ]; then
-    echo "error: could not read Project #\$PROJECT_NUMBER for owner \$REPO_OWNER" >&2
+    echo "error: Project #\$PROJECT_NUMBER for owner \$REPO_OWNER returned no output" >&2
+    echo "  The call succeeded, so this is the board answering, not a failed read." >&2
     exit 1
   fi
 
@@ -11659,12 +11692,20 @@ while [ "\$pass" -le "\$PASSES" ]; do
   SCANNED="\$(echo "\$SCOPED" | jq 'length')"
 
   # Issue state is not exposed by \`item-list\`, so read it per repo in one call.
+  # The \`date\` fallback keeps its own \`2>/dev/null\`: BSD and GNU date disagree
+  # on the flag, and trying one then the other is the portability shim, not a
+  # discarded error.
+  rc=0
   CLOSED="\$(gh issue list --repo "\$REPO" --state closed --limit 500 \\
     --search "closed:>=\$(date -u -v-"\${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\
       || date -u -d "\${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')" \\
-    --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+    --json number --jq '[.[].number]' 2>"\$sweep_err")" || rc=\$?
+  [ "\$rc" -eq 0 ] || read_failed "recently closed issues in \$REPO"
+
+  rc=0
   OPEN="\$(gh issue list --repo "\$REPO" --state open --limit 500 \\
-    --json number --jq '[.[].number]' 2>/dev/null || echo '[]')"
+    --json number --jq '[.[].number]' 2>"\$sweep_err")" || rc=\$?
+  [ "\$rc" -eq 0 ] || read_failed "open issues in \$REPO"
 
   D="\$(jq -n -c --argjson items "\$SCOPED" --argjson closed "\$CLOSED" '
     [ \$items[] | select(.status != "Done") | select(.number as \$n | \$closed | index(\$n)) ]')"
@@ -12916,11 +12957,46 @@ case "\$SINCE_HOURS" in
     ;;
 esac
 
+# A failed read is not an empty one.
+#
+# Every read below used to end \`2>/dev/null || echo '[]'\` — substituting a
+# value nobody read. For the project read that produced a misleading message.
+# For the two issue reads it produced a FALSE GREEN: an empty closed-issue list
+# means "nothing closed in the window", so the drift set is empty, the summary
+# prints \`drifted 0\`, and this script exits 0 over a board with any amount of
+# drift. The \`scanned 0\` guard cannot see it — the project read succeeded and
+# only the second call failed.
+#
+# Observed: a GraphQL rate limit rendered as "could not read Project #N for
+# owner X", three runs in a row. Both facts that sentence named were correct,
+# and it sent the reader to check a token that was fine.
+#
+# The shape is \`rc=0; X="\$(cmd 2>"\$errf")" || rc=\$?\` — the same one
+# \`cloud/cascade-check.sh\` uses throughout. Deliberately NOT a helper that
+# exits: \`exit\` inside a \`\$( )\` leaves the SUBSHELL, the assignment takes the
+# empty output, and the caller carries on — which is this defect wearing a
+# tidier coat.
+sweep_err="\$(mktemp "\${TMPDIR:-/tmp}/sweep-closed-err.XXXXXX")"
+trap 'rm -f "\$sweep_err"' EXIT
+
+# Say what could not be read, quote the tool's own words, and stop. Exit 4 is
+# "this run could not see the board", which is not a verdict about it.
+read_failed() {
+  echo "error: could not read \$1 — refusing to report a board state this run never saw" >&2
+  sed 's/^/  /' "\$sweep_err" >&2
+  exit 4
+}
+
 SINCE="\$(date -u -v-"\${SINCE_HOURS}"H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\
   || date -u -d "\${SINCE_HOURS} hours ago" '+%Y-%m-%dT%H:%M:%SZ')"
 
-CLOSED="\$(glab issue list --repo "\$PROJECT_ID" --closed --per-page 500 --output json 2>/dev/null || echo '[]')"
-OPEN="\$(glab issue list --repo "\$PROJECT_ID" --per-page 500 --output json 2>/dev/null || echo '[]')"
+rc=0
+CLOSED="\$(glab issue list --repo "\$PROJECT_ID" --closed --per-page 500 --output json 2>"\$sweep_err")" || rc=\$?
+[ "\$rc" -eq 0 ] || read_failed "recently closed issues in \$PROJECT_ID"
+
+rc=0
+OPEN="\$(glab issue list --repo "\$PROJECT_ID" --per-page 500 --output json 2>"\$sweep_err")" || rc=\$?
+[ "\$rc" -eq 0 ] || read_failed "open issues in \$PROJECT_ID"
 
 SCANNED="\$(jq -n --argjson c "\$CLOSED" --argjson o "\$OPEN" '(\$c | length) + (\$o | length)')"
 
