@@ -16,6 +16,14 @@
 #     in Ready, In Progress, or In Review). Idempotent on already-Done
 #     parents; manual Backlog parents are left alone.
 #
+# Unconditional Done is correct HERE and only here. This backend keeps one
+# field: `status:` in the task file's frontmatter, written by `move.sh`. There
+# is no column distinct from an open/closed state, so "the card says Done while
+# the item is still open" is not a state this backend can represent. The GitHub
+# twin has two, and promoting an open parent to Done there wrote a verdict
+# nobody had established — see its promotion block. Left unchanged deliberately;
+# copying the two-field guard here would guard against nothing.
+#
 # Both rules respect AC(d): DIRECT children only — the recursion guard
 # `SPECNAUT_INTERNAL_PROPAGATION=1` blocks the grandparent walk.
 #

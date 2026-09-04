@@ -12,9 +12,13 @@
 #     accidentally also matched Ready.
 #
 #   - #263: when the LAST open direct child of an Epic reaches Done,
-#     auto-advance the parent Epic to Done (only if it is currently
-#     in Ready, In Progress, or In Review). Idempotent on already-Done
-#     parents; manual Backlog parents are left alone.
+#     auto-advance the parent Epic (only if it is currently in Ready,
+#     In Progress, or In Review). Idempotent; manual Backlog parents are
+#     left alone. The target is `In review` while the parent ISSUE is
+#     still open and `Done` once it is closed — see the promotion block
+#     for why. This shipped as an unconditional Done, which wrote a
+#     verdict nobody had established and which `sweep-closed.sh` reports
+#     as REOPENED drift.
 #
 # Both rules respect AC(d): DIRECT children only — the recursion guard
 # `SPECNAUT_INTERNAL_PROPAGATION=1` blocks the grandparent walk.
@@ -117,10 +121,13 @@ fi
 
 # 4. Dispatch on the child's new status:
 #   - Done: AC(a) of #263 — fetch the parent's subIssues with project
-#           Status, confirm every child is at Done, advance the parent
-#           from Ready/In progress/In review to Done. AC(b) idempotency
-#           and AC(c) regression guard fall out of the parent-status
-#           case (Done / Backlog → no-op).
+#           Status AND the parent's own issue state, confirm every child
+#           is at Done, advance the parent from Ready/In progress/In
+#           review to `In review` (issue open) or `Done` (issue closed).
+#           AC(b) idempotency and AC(c) regression guard fall out of the
+#           parent-status case (Backlog → no-op), plus a same-target
+#           check so no promotion line is printed for a move that did
+#           not happen.
 #   - any other non-Backlog status: #260 behaviour preserved — promote
 #           a Backlog/Ready parent to In progress.
 case "$NEW_STATUS" in
@@ -136,6 +143,7 @@ case "$NEW_STATUS" in
       query($owner: String!, $name: String!, $num: Int!) {
         repository(owner: $owner, name: $name) {
           issue(number: $num) {
+            state
             subIssues(first: 100) {
               totalCount
               nodes {
@@ -154,7 +162,7 @@ case "$NEW_STATUS" in
         }
       }
     ' -f owner="$REPO_OWNER" -f name="$REPO_NAME" -F num="$PARENT_NUM" \
-      --jq "{total: .data.repository.issue.subIssues.totalCount, statuses: [.data.repository.issue.subIssues.nodes[] | .projectItems.nodes[] | select(.project.id == \"$PROJECT_NODE_ID\") | .fieldValueByName.name // empty]}" \
+      --jq "{total: .data.repository.issue.subIssues.totalCount, state: .data.repository.issue.state, statuses: [.data.repository.issue.subIssues.nodes[] | .projectItems.nodes[] | select(.project.id == \"$PROJECT_NODE_ID\") | .fieldValueByName.name // empty]}" \
       2>/dev/null) || CHILDREN_STATUSES=""
 
     all_done=false
@@ -176,14 +184,52 @@ case "$NEW_STATUS" in
       fi
     fi
 
+    # Which column the evidence supports.
+    #
+    # `Done` on this board means the work is finished. "Every child is Done" is
+    # not that: the parent may carry residual work of its own, and nothing here
+    # has verified it — `cascade-check.sh` exists to gate that judgement and
+    # this hook deliberately does not consult it. Promoting an OPEN parent to
+    # Done wrote a verdict nobody established, and it wrote one the board's own
+    # detector reports as a defect: `sweep-closed.sh` names `REOPENED` as
+    # "open, but sitting in Done". The hook manufactured, on purpose, the state
+    # the sweep exists to flag.
+    #
+    # The window was structural, not a race — the promotion fires at the
+    # CHILD's move, which necessarily precedes any close of the parent, and
+    # nothing obliges a caller to close it at all. `phases/merge-close.md`
+    # closes the epic itself under the cascade gate and never calls this hook,
+    # so the only path this decided anything on was the one where nobody closes
+    # the parent.
+    #
+    # `In review` is the column that means "everything below is finished,
+    # awaiting this item's own closure" — exactly what the evidence supports.
+    # A parent already CLOSED is the hook's other case and keeps Done: there
+    # the card is merely lagging a fact already established.
+    PARENT_ISSUE_STATE=""
+    if [ -n "$CHILDREN_STATUSES" ]; then
+      PARENT_ISSUE_STATE=$(echo "$CHILDREN_STATUSES" | jq -r '.state // empty' 2>/dev/null || echo "")
+    fi
+    if [ "$PARENT_ISSUE_STATE" = "CLOSED" ]; then
+      _target="Done"
+      _why="all direct children Done, and the issue is closed"
+    else
+      _target="In review"
+      _why="all direct children Done — the issue is still open, so this is not Done"
+    fi
+
     if [ "$all_done" = "true" ]; then
       case "$PARENT_STATUS" in
         "Ready"|"In progress"|"In review")
-          if [ -x "$SCRIPT_DIR/move.sh" ]; then
-            if SPECNAUT_INTERNAL_PROPAGATION=1 "$SCRIPT_DIR/move.sh" "$PARENT_NUM" "Done" >/dev/null 2>&1; then
-              echo "↑ promoted parent #${PARENT_NUM} (${PARENT_STATUS} → Done) — all direct children Done"
+          if [ "$PARENT_STATUS" = "$_target" ]; then
+            # Already there. Re-writing it would emit a promotion line for a
+            # transition that did not happen.
+            :
+          elif [ -x "$SCRIPT_DIR/move.sh" ]; then
+            if SPECNAUT_INTERNAL_PROPAGATION=1 "$SCRIPT_DIR/move.sh" "$PARENT_NUM" "$_target" >/dev/null 2>&1; then
+              echo "↑ promoted parent #${PARENT_NUM} (${PARENT_STATUS} → ${_target}) — ${_why}"
             else
-              echo "::warning::propagate-parent-status: move.sh failed to advance #${PARENT_NUM} to Done" >&2
+              echo "::warning::propagate-parent-status: move.sh failed to advance #${PARENT_NUM} to ${_target}" >&2
             fi
           else
             echo "::warning::propagate-parent-status: $SCRIPT_DIR/move.sh not found — cannot advance #${PARENT_NUM}" >&2
