@@ -5,8 +5,7 @@ Reachable as **`/board groom`** — the only door. The `/specnaut` router
 carries no `groom` verb.
 
 **Owned by `/board`** — see "Which skill owns what" in `SKILL.md`. Orphan
-**spec** detection used to live here and does not belong to it; it moved to the
-specnaut skill's `phases/auto-chain.md`.
+**spec** detection is not owned here; step 4 says where it lives and runs it.
 
 Auto-invocable: the router advertises "groom the backlog" and "run a hygiene
 pass", and this file honours them. Also invoked explicitly, or scheduled with
@@ -14,7 +13,7 @@ pass", and this file honours them. Also invoked explicitly, or scheduled with
 
 ## What this pass does
 
-A grooming pass runs three independent checks. Each is delegated to the
+A grooming pass runs four independent checks. Each is delegated to the
 right subagent so this skill stays small and the heavy lifting is owned
 by the agent that has the right tools and prompt for the job.
 
@@ -184,6 +183,22 @@ than reporting an empty section forever.
 Where it applies: list open PRs waiting on review or CI for more than 48 hours,
 so the user can decide whether to ping, close, or merge. Read-only; do not
 mutate PRs.
+
+### 4. Orphan specs — the pipeline inspected at rest
+
+**Only when the project keeps its specs locally**, i.e. `.specnaut/specs/`
+exists. Skip the step and say so otherwise; do not report an empty section.
+
+**Read `phases/auto-chain.md` and follow its "Orphan spec detection" section.**
+An instruction to load that file and execute it, not a pointer for the reader.
+The walk stays there — naming it here twice makes one copy the half that rots.
+Ownership says where the logic lives, not who may call it; saying only the
+first is what left this check unreachable from anything scheduled.
+
+The path is relative to the **specnaut** skill, beside `phases/plan.md`; under
+a harness that flattens phases into siblings, whatever it named that document.
+
+Read-only, like the two checks above: never delete or modify a spec file.
 
 
 **`<backlog-reference>`** below means a reference built per the

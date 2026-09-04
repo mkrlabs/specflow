@@ -51,9 +51,10 @@ only copy, and `/board groom` is its only entry point — the `/specnaut`
 router carries no `groom` verb. Do not restate any of it here, and do not
 answer a grooming request from memory.
 
-Orphan **spec** detection is deliberately not part of it. That reads spec
-artefacts and prescribes specnaut phases, so it lives on the other side of the
-line, in the specnaut skill's `phases/auto-chain.md`.
+Orphan **spec** detection is not owned here. That reads spec artefacts and
+prescribes specnaut phases, so it lives in the specnaut skill's
+`phases/auto-chain.md` — which `groom.md` step 4 runs. Ownership is not
+reachability.
 
 ## All mutations go through the Product Owner agent
 

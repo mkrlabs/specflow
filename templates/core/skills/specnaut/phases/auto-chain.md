@@ -178,7 +178,12 @@ line was drawn: grooming is backlog management, while this reads spec artefacts
 and prescribes specnaut phases, so it belongs on this side of the line.
 
 Run it when asked to audit the spec pipeline, and from a grooming pass when the
-project keeps specs locally.
+project keeps specs locally — `board/groom.md` step 4 is the caller, and it
+applies the same `.specnaut/specs/` condition. That sentence was true of the
+intent and false of the tree for as long as no caller existed: `loop.md`
+promised a grooming pass would flag orphan specs, `groom.md` said the check was
+not its business and delegated to nobody, and nothing scheduled ever reached
+here.
 
 Walk `.specnaut/specs/` (if present) and surface any feature directory
 that is missing the next expected artefact.
